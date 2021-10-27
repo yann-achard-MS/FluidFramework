@@ -38,6 +38,8 @@ export function create(
     router.get("/repos/:ignored?/:tenantId/commits",
         throttle(throttler, winston, commonThrottleOptions),
         (request, response, next) => {
+            console.log("001 Come to history endpoint");
+            console.log(`002 Get summary info as ${JSON.stringify(request.params.tenantId)} and ${JSON.stringify(request.get("Authorization"))} and ${JSON.stringify(utils.queryParamToString(request.query.sha))} and ${JSON.stringify(utils.queryParamToNumber(request.query.count))}`);
             const commitsP = getCommits(
                 request.params.tenantId,
                 request.get("Authorization"),

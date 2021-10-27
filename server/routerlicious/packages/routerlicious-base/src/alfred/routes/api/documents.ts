@@ -67,19 +67,24 @@ export function create(
         }),
         throttle(throttler, winston, commonThrottleOptions),
         (request, response, next) => {
+            console.log("001 Come to alfred endpoint");
             // Tenant and document
             const tenantId = getParam(request.params, "tenantId");
             // If enforcing server generated document id, ignore id parameter
+            const host = request.headers.host;
             const id = enforceServerGeneratedDocumentId
                 ? uuid()
                 : request.body.id as string || uuid();
 
             // Summary information
             const summary = request.body.summary;
+            console.log(`002 Get summary info as ${JSON.stringify(summary)}`);
+            console.log(`002.1 Print out the ${JSON.stringify(host)}`);
 
             // Protocol state
             const sequenceNumber = request.body.sequenceNumber;
             const values = request.body.values;
+            console.log(`003 Get sequenceNumber as ${JSON.stringify(sequenceNumber)} ${JSON.stringify(values)}`);
 
             const createP = storage.createDocument(
                 tenantId,
@@ -90,8 +95,10 @@ export function create(
                 crypto.randomBytes(4).toString("hex"),
                 values);
 
+            console.log(`011 finish createDocument method`);
             handleResponse(createP.then(() => id), response, undefined, 201);
+            console.log("012 Finish handle the request.");
         });
-
+    console.log("013 return router.");
     return router;
 }
