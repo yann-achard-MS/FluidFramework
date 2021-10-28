@@ -16,6 +16,7 @@ import winston from "winston";
 import { IAlfredTenant } from "@fluidframework/server-services-client";
 import { Provider } from "nconf";
 import { v4 as uuid } from "uuid";
+import { Lumberjack } from "@fluidframework/server-services-telemetry";
 import { Constants, handleResponse } from "../../../utils";
 
 export function create(
@@ -78,13 +79,13 @@ export function create(
 
             // Summary information
             const summary = request.body.summary;
-            console.log(`002 Get summary info as ${JSON.stringify(summary)}`);
-            console.log(`002.1 Print out the ${JSON.stringify(host)}`);
+            Lumberjack.info(`002 Get summary info as ${JSON.stringify(summary)}`);
+            Lumberjack.info(`002.1 Print out the ${JSON.stringify(host)}`);
 
             // Protocol state
             const sequenceNumber = request.body.sequenceNumber;
             const values = request.body.values;
-            console.log(`003 Get sequenceNumber as ${JSON.stringify(sequenceNumber)} ${JSON.stringify(values)}`);
+            Lumberjack.info(`003 Get sequenceNumber as ${JSON.stringify(sequenceNumber)} ${JSON.stringify(values)}`);
 
             const createP = storage.createDocument(
                 tenantId,

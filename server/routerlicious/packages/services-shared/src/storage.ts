@@ -120,9 +120,9 @@ export class DocumentStorage implements IDocumentStorage {
         initialHash: string,
         values: [string, ICommittedProposal][],
     ): Promise<IDocumentDetails> {
-        console.log("004.1 Come to createDocument method");
+        Lumberjack.info("004.1 Come to createDocument method");
         const tenant = await this.tenantManager.getTenant(tenantId, documentId);
-        console.log("004.2 Come to tenant");
+        Lumberjack.info("004.2 Come to tenant");
         const gitManager = tenant.gitManager;
 
         const messageMetaData = { documentId, tenantId };
@@ -131,7 +131,7 @@ export class DocumentStorage implements IDocumentStorage {
             [BaseTelemetryProperties.documentId]: documentId,
         };
 
-        console.log("004.3 come to gitmanager,messagemetadata, and so on");
+        Lumberjack.info("004.3 come to gitmanager,messagemetadata, and so on");
         const protocolTree = this.createInitialProtocolTree(documentId, sequenceNumber, term, values);
         const fullTree = this.createFullTree(appTree, protocolTree);
 
@@ -143,7 +143,7 @@ export class DocumentStorage implements IDocumentStorage {
 
         winston.info(`Tree reference: ${JSON.stringify(handle)}`, { messageMetaData });
         Lumberjack.info(`Tree reference: ${JSON.stringify(handle)}`, lumberjackProperties);
-        console.log(`005 Tree reference: ${JSON.stringify(handle)}`);
+        Lumberjack.info(`005 Tree reference: ${JSON.stringify(handle)}`);
 
         if (!this.enableWholeSummaryUpload) {
             const commitParams: ICreateCommitParams = {
@@ -162,7 +162,7 @@ export class DocumentStorage implements IDocumentStorage {
 
             winston.info(`Commit sha: ${JSON.stringify(commit.sha)}`, { messageMetaData });
             Lumberjack.info(`Commit sha: ${JSON.stringify(commit.sha)}`, lumberjackProperties);
-            console.log(`006 Commit sha: ${JSON.stringify(commit.sha)}`);
+            Lumberjack.info(`006 Commit sha: ${JSON.stringify(commit.sha)}`);
         }
 
         const deli: IDeliState = {
@@ -177,7 +177,7 @@ export class DocumentStorage implements IDocumentStorage {
             nackMessages: undefined,
             successfullyStartedLambdas: [],
         };
-        console.log(`007 Initize deli`);
+        Lumberjack.info(`007 Initize deli`);
 
         const scribe: IScribe = {
             logOffset: -1,
@@ -193,10 +193,10 @@ export class DocumentStorage implements IDocumentStorage {
             lastClientSummaryHead: undefined,
             lastSummarySequenceNumber: 0,
         };
-        console.log(`008 Initize scribe`);
+        Lumberjack.info(`008 Initize scribe`);
 
         const collection = await this.databaseManager.getDocumentCollection();
-        console.log(`009 Get the collection`);
+        Lumberjack.info(`009 Get the collection`);
         const result = await collection.findOrCreate(
             {
                 documentId,
@@ -211,7 +211,7 @@ export class DocumentStorage implements IDocumentStorage {
                 version: "0.1",
             });
 
-        console.log(`010 Get the result`);
+        Lumberjack.info(`010 Get the result`);
         return result;
     }
 
