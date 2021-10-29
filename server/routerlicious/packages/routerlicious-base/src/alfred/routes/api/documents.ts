@@ -97,7 +97,7 @@ export function create(
                 values);
 
             console.log(`011 finish createDocument method`);
-            handleResponse(createP.then(() => id), response, undefined, 201);
+            handleResponse(createP.then(() => [id, host]), response, undefined, 201);
             console.log("012 Finish handle the request.");
         });
     console.log("013 return router.");
