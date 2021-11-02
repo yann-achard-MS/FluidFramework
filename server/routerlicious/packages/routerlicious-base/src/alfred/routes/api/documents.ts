@@ -4,7 +4,13 @@
  */
 
 import * as crypto from "crypto";
-import { IDocumentStorage, IThrottler, ITenantManager, ICache } from "@fluidframework/server-services-core";
+import {
+    IDocumentStorage,
+    IThrottler,
+    ITenantManager,
+    ICache,
+    IDocumentUrl,
+} from "@fluidframework/server-services-core";
 import {
     verifyStorageToken,
     throttle,
@@ -77,6 +83,15 @@ export function create(
                 ? uuid()
                 : request.body.id as string || uuid();
 
+            const ordererUrl = request.headers.host ?? "";
+            const historianUrl = ordererUrl.length !== 0
+                                 ? "historian".concat(ordererUrl.substr(6, ordererUrl.length - 1))
+                                 : "";
+            const documentUrl: IDocumentUrl = {
+                documentId: id,
+                ordererUrl,
+                historianUrl,
+            };
             // Summary information
             const summary = request.body.summary;
             Lumberjack.info(`002 Get summary info as ${JSON.stringify(summary)}`);
@@ -97,7 +112,8 @@ export function create(
                 values);
 
             console.log(`011 finish createDocument method`);
-            handleResponse(createP.then(() => [id, host]), response, undefined, 201);
+            console.log(`011.1 print documentUrl: ${JSON.stringify(documentUrl)}`);
+            handleResponse(createP.then(() => [id, ordererUrl, historianUrl]), response, undefined, 201);
             console.log("012 Finish handle the request.");
         });
     console.log("013 return router.");

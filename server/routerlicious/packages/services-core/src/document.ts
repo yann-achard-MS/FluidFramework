@@ -124,3 +124,14 @@ export interface IDocument {
     // The document is soft deleted if a scheduled deletion timestamp is present.
     scheduledDeletionTime?: string;
 }
+
+export interface IDocumentUrl {
+
+    documentId: string;
+
+    // URL to the orderer service
+    ordererUrl: string;
+
+    // URL to the historian service
+    historianUrl: string;
+}
