@@ -4,7 +4,7 @@
  */
 
 import { ICollection, IDatabaseManager } from "./database";
-import { IDocument } from "./document";
+import { IDocument, IDocumentUrl } from "./document";
 import { ISequencedOperationMessage } from "./messages";
 import { MongoManager } from "./mongo";
 import { INode } from "./orderer";
@@ -27,6 +27,12 @@ export class MongoDatabaseManager implements IDatabaseManager {
 
     public async getDocumentCollection(): Promise<ICollection<IDocument>> {
         return this.getCollection<IDocument>(this.documentsCollectionName);
+    }
+
+    public async getDocumentUrlCollection(
+        documentId: string): Promise<ICollection<IDocumentUrl>> {
+        // eslint-disable-next-line no-null/no-null
+        return null;
     }
 
     public async getDeltaCollection(

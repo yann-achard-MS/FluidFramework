@@ -84,14 +84,19 @@ export function create(
                 : request.body.id as string || uuid();
 
             const ordererUrl = request.headers.host ?? "";
-            const historianUrl = ordererUrl.length !== 0
-                                 ? "historian".concat(ordererUrl.substr(6, ordererUrl.length - 1))
-                                 : "";
+            let historianUrl: string = "";
+            if (ordererUrl.includes("alfred")) {
+                historianUrl = ordererUrl.replace("alfred", "historian");
+            } else if (ordererUrl.includes("local")) {
+                historianUrl = "localhost:3001";
+            }
+
             const documentUrl: IDocumentUrl = {
                 documentId: id,
                 ordererUrl,
                 historianUrl,
             };
+
             // Summary information
             const summary = request.body.summary;
             Lumberjack.info(`002 Get summary info as ${JSON.stringify(summary)}`);
@@ -111,9 +116,11 @@ export function create(
                 crypto.randomBytes(4).toString("hex"),
                 values);
 
+            // const tempdocumentUrl = storage.createFRSDocumentUrl(documentUrl);
+
             console.log(`011 finish createDocument method`);
             console.log(`011.1 print documentUrl: ${JSON.stringify(documentUrl)}`);
-            handleResponse(createP.then(() => [id, ordererUrl, historianUrl]), response, undefined, 201);
+            handleResponse(createP.then(() => documentUrl), response, undefined, 201);
             console.log("012 Finish handle the request.");
         });
     console.log("013 return router.");

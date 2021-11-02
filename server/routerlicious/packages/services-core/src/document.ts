@@ -35,6 +35,8 @@ export interface IDocumentStorage {
         term: number,
         initialHash: string,
         values: [string, ICommittedProposal][]): Promise<IDocumentDetails>;
+
+    createFRSDocumentUrl(documentUrl: IDocumentUrl): Promise<IDocumentUrl>;
 }
 
 export interface IClientSequenceNumber {

@@ -27,6 +27,7 @@ import {
     SequencedOperationType,
     IDocument,
     ISequencedOperationMessage,
+    IDocumentUrl,
 } from "@fluidframework/server-services-core";
 import * as winston from "winston";
 import { toUtf8 } from "@fluidframework/common-utils";
@@ -213,6 +214,11 @@ export class DocumentStorage implements IDocumentStorage {
 
         Lumberjack.info(`010 Get the result`);
         return result;
+    }
+
+    public async createFRSDocumentUrl(
+        documentUrl: IDocumentUrl): Promise<IDocumentUrl> {
+        return null;
     }
 
     public async getLatestVersion(tenantId: string, documentId: string): Promise<ICommit> {
