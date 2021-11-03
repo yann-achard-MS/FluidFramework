@@ -23,7 +23,7 @@ import { IRouterliciousDriverPolicies } from "./policies";
 import { ITokenProvider } from "./tokens";
 import { RouterliciousOrdererRestWrapper } from "./restWrapper";
 import { convertSummaryToCreateNewSummary } from "./createNewUtils";
-import { parseFluidUrl, replaceDocumentIdInPath } from "./urlUtils";
+import { createFluidUrl, parseFluidUrl, replaceDocumentIdInPath, replaceDomainInPath } from "./urlUtils";
 import { InMemoryCache } from "./cache";
 
 const defaultRouterliciousDriverPolicies: IRouterliciousDriverPolicies = {
@@ -34,6 +34,17 @@ const defaultRouterliciousDriverPolicies: IRouterliciousDriverPolicies = {
     enableWholeSummaryUpload: false,
     enableRestLess: false,
 };
+
+interface IDocumentUrl {
+
+    documentId: string;
+
+    // URL to the orderer service
+    ordererUrl: string;
+
+    // URL to the historian service
+    historianUrl: string;
+}
 
 /**
  * Factory for creating the routerlicious document service. Use this if you want to
@@ -63,7 +74,7 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
         ensureFluidResolvedUrl(resolvedUrl);
         assert(!!createNewSummary, 0x204 /* "create empty file not supported" */);
         assert(!!resolvedUrl.endpoints.ordererUrl, 0x0b2 /* "Missing orderer URL!" */);
-        const parsedUrl = parseFluidUrl(resolvedUrl.url);
+        let parsedUrl = parseFluidUrl(resolvedUrl.url);
         if (!parsedUrl.pathname) {
             throw new Error("Parsed url should contain tenant and doc Id!!");
         }
@@ -89,7 +100,7 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
             resolvedUrl.endpoints.ordererUrl,
         );
         // the backend responds with the actual document ID associated with the new container.
-        const documentId = await ordererRestWrapper.post<string>(
+        const documentUrl: IDocumentUrl = await ordererRestWrapper.post<IDocumentUrl>(
             `/documents/${tenantId}`,
             {
                 summary: convertSummaryToCreateNewSummary(appSummary),
@@ -97,6 +108,19 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
                 values: quorumValues,
             },
         );
+
+        const documentId = documentUrl.documentId;
+        if (documentUrl.ordererUrl.includes("alfred")) {
+            resolvedUrl.url = createFluidUrl(documentUrl.ordererUrl, parsedUrl.pathname);
+            resolvedUrl.endpoints.ordererUrl = replaceDomainInPath(documentUrl.ordererUrl,
+                                                                   resolvedUrl.endpoints.ordererUrl);
+            resolvedUrl.endpoints.deltaStorageUrl = replaceDomainInPath(documentUrl.ordererUrl,
+                                                                        resolvedUrl.endpoints.deltaStorageUrl);
+            resolvedUrl.endpoints.storageUrl = replaceDomainInPath(documentUrl.historianUrl,
+                                                                   resolvedUrl.endpoints.storageUrl);
+        }
+
+        parsedUrl = parseFluidUrl(resolvedUrl.url);
         parsedUrl.set("pathname", replaceDocumentIdInPath(parsedUrl.pathname, documentId));
         const deltaStorageUrl = resolvedUrl.endpoints.deltaStorageUrl;
         if (!deltaStorageUrl) {

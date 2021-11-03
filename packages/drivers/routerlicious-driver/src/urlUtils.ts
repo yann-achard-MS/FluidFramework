@@ -17,3 +17,12 @@ export const parseFluidUrl = (fluidUrl: string): URLParse => {
  */
 export const replaceDocumentIdInPath = (urlPath: string, documentId: string): string =>
     urlPath.split("/").slice(0, -1).concat([documentId]).join("/");
+
+export const replaceDomainInPath = (domain: string, url: string): string => {
+    const tempUrl = new URL(url);
+    tempUrl.hostname = domain;
+    return tempUrl.href;
+};
+
+export const createFluidUrl = (domain: string, pathname: string): string =>
+     "fluid://".concat(domain).concat(pathname);

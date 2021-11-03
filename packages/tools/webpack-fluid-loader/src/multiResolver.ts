@@ -40,9 +40,9 @@ function getUrlResolver(options: RouteOptions): IUrlResolver {
 
         case "r11s":
             return new InsecureUrlResolver(
-                options.fluidHost,
                 "https://tianzhu-test-afd-frs.azurefd.net",
-                options.fluidHost.replace("www", "historian"),
+                "https://tianzhu-test-afd-frs.azurefd.net",
+                "https://tianzhu-test-afd-frs.azurefd.net",
                 options.tenantId,
                 options.bearerSecret);
         case "tinylicious": {
