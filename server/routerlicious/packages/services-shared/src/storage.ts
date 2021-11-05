@@ -28,10 +28,12 @@ import {
     IDocument,
     ISequencedOperationMessage,
     IDocumentUrl,
+    MongoManager,
 } from "@fluidframework/server-services-core";
 import * as winston from "winston";
 import { toUtf8 } from "@fluidframework/common-utils";
 import { BaseTelemetryProperties, Lumberjack } from "@fluidframework/server-services-telemetry";
+import { MongoDbFactory } from "./mongodb";
 
 export class DocumentStorage implements IDocumentStorage {
     constructor(
@@ -216,9 +218,28 @@ export class DocumentStorage implements IDocumentStorage {
         return result;
     }
 
-    public async createFRSDocumentUrl(
-        documentUrl: IDocumentUrl): Promise<IDocumentUrl> {
-        return null;
+    public async createFRSDocumentUrl(documentId: string, ordererUrl: string, historianUrl: string):
+                                       Promise<IDocumentUrl>  {
+        // const collection = await this.databaseManager.getDocumentUrlCollection();
+        // eslint-disable-next-line max-len
+        const mongoUrl = "mongodb://tianzhu-test-cosmosdbafd-001:Wb0qjXmrHQSW0zqtFADshZASoCS9gvQ727PTfejcegfSbDIauIYx170xLbRcDq5cQ0Y2fctz1YK5TF6SJkoUvw==@tianzhu-test-cosmosdbafd-001.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@tianzhu-test-cosmosdbafd-001@";
+        const mongoFactory = new MongoDbFactory(mongoUrl);
+        const mongoManager = new MongoManager(mongoFactory, false);
+        const db = await mongoManager.getDatabase();
+        const collection = db.collection("sessions");
+        const documentUrl: IDocumentUrl = {
+            documentId,
+            ordererUrl,
+            historianUrl,
+        };
+        Lumberjack.info(`Fetch the documentUrl method`);
+        await collection.findOrCreate(
+            {
+                documentId,
+            },
+            documentUrl);
+
+        return documentUrl;
     }
 
     public async getLatestVersion(tenantId: string, documentId: string): Promise<ICommit> {

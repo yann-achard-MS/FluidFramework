@@ -91,12 +91,6 @@ export function create(
                 historianUrl = "localhost:3001";
             }
 
-            const documentUrl: IDocumentUrl = {
-                documentId: id,
-                ordererUrl,
-                historianUrl,
-            };
-
             // Summary information
             const summary = request.body.summary;
             Lumberjack.info(`002 Get summary info as ${JSON.stringify(summary)}`);
@@ -116,10 +110,26 @@ export function create(
                 crypto.randomBytes(4).toString("hex"),
                 values);
 
-            // const tempdocumentUrl = storage.createFRSDocumentUrl(documentUrl);
+            const tempDocumentUrl = storage.createFRSDocumentUrl(id, ordererUrl, historianUrl);
+            const tempResult: IDocumentUrl = {
+                documentId: id,
+                ordererUrl,
+                historianUrl,
+            };
+            tempDocumentUrl.then((value) => {
+                            },
+                            (error) => {
+                                response.status(400).json(error);
+                            });
+            console.log(`010.9 print documentUrl: ${JSON.stringify(tempResult)}`);
+
+            const documentUrl: IDocumentUrl = {
+                documentId: id,
+                ordererUrl,
+                historianUrl,
+            };
 
             console.log(`011 finish createDocument method`);
-            console.log(`011.1 print documentUrl: ${JSON.stringify(documentUrl)}`);
             handleResponse(createP.then(() => documentUrl), response, undefined, 201);
             console.log("012 Finish handle the request.");
         });

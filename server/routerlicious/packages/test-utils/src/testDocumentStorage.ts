@@ -146,8 +146,8 @@ export class TestDocumentStorage implements IDocumentStorage {
         return result;
     }
 
-    public async createFRSDocumentUrl(
-        documentUrl: IDocumentUrl): Promise<IDocumentUrl> {
+    public async createFRSDocumentUrl(id: string, ordererUrl: string, historianUrl: string):
+                                      Promise<IDocumentUrl> {
         return null;
     }
 

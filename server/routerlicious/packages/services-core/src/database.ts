@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { IDocument } from "./document";
+import { IDocument, IDocumentUrl } from "./document";
 import { ISequencedOperationMessage } from "./messages";
 import { INode } from "./orderer";
 
@@ -20,6 +20,11 @@ export interface IDatabaseManager {
      * Retrieves the document collection
      */
     getDocumentCollection(): Promise<ICollection<IDocument>>;
+
+    /**
+     * Retrieves the document url collection
+     */
+    getDocumentUrlCollection(): Promise<ICollection<IDocumentUrl>>;
 
     /**
      * Retrieves the delta collection

@@ -36,7 +36,7 @@ export interface IDocumentStorage {
         initialHash: string,
         values: [string, ICommittedProposal][]): Promise<IDocumentDetails>;
 
-    createFRSDocumentUrl(documentUrl: IDocumentUrl): Promise<IDocumentUrl>;
+    createFRSDocumentUrl(id: string, ordererUrl: string, historianUrl: string): Promise<IDocumentUrl>;
 }
 
 export interface IClientSequenceNumber {
@@ -128,12 +128,7 @@ export interface IDocument {
 }
 
 export interface IDocumentUrl {
-
     documentId: string;
-
-    // URL to the orderer service
     ordererUrl: string;
-
-    // URL to the historian service
     historianUrl: string;
 }

@@ -29,10 +29,8 @@ export class MongoDatabaseManager implements IDatabaseManager {
         return this.getCollection<IDocument>(this.documentsCollectionName);
     }
 
-    public async getDocumentUrlCollection(
-        documentId: string): Promise<ICollection<IDocumentUrl>> {
-        // eslint-disable-next-line no-null/no-null
-        return null;
+    public async getDocumentUrlCollection(): Promise<ICollection<IDocumentUrl>> {
+        return this.getCollection<IDocumentUrl>("sessions");
     }
 
     public async getDeltaCollection(
