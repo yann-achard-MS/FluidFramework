@@ -19,6 +19,7 @@ import * as moniker from "moniker";
 import { Provider } from "nconf";
 import requestAPI from "request";
 import winston from "winston";
+import { Lumberjack } from "@fluidframework/server-services-telemetry";
 import { Constants, handleResponse } from "../../../utils";
 import {
     craftClientJoinMessage,
@@ -58,6 +59,8 @@ export function create(
         ...commonThrottleOptions,
         throttleIdPrefix: "ping",
     }), async (request, response) => {
+        const host = request.headers.host;
+        Lumberjack.info(`0001 Print out from ping endpoint, it is ${JSON.stringify(host)}`);
         response.sendStatus(200);
     });
 
