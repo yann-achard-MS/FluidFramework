@@ -59,8 +59,15 @@ export function create(
         ...commonThrottleOptions,
         throttleIdPrefix: "ping",
     }), async (request, response) => {
+        response.sendStatus(200);
+    });
+
+    router.get("/routing/ping", throttle(throttler, winston, {
+        ...commonThrottleOptions,
+        throttleIdPrefix: "ping",
+    }), async (request, response) => {
         const host = request.headers.host;
-        Lumberjack.info(`0001 Print out from ping endpoint, it is ${JSON.stringify(host)}`);
+        Lumberjack.info(`0001 Print out from routing/ping endpoint, it is ${JSON.stringify(host)}`);
         response.sendStatus(200);
     });
 
