@@ -58,7 +58,8 @@ export function create(
         ...commonThrottleOptions,
         throttleIdPrefix: "ping",
     }), async (request, response) => {
-        response.status(200).send(request.headers.host);
+        const host = request.headers.host;
+        response.status(200).send(host);
     });
 
     router.patch(
