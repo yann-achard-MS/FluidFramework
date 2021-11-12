@@ -9,7 +9,6 @@ import {
     IThrottler,
     ITenantManager,
     ICache,
-    IDocumentUrl,
 } from "@fluidframework/server-services-core";
 import {
     verifyStorageToken,
@@ -73,7 +72,7 @@ export function create(
             singleUseTokenCache,
         }),
         throttle(throttler, winston, commonThrottleOptions),
-        (request, response, next) => {
+        async (request, response, next) => {
             console.log("001 Come to alfred endpoint");
             // Tenant and document
             const tenantId = getParam(request.params, "tenantId");
@@ -110,27 +109,30 @@ export function create(
                 crypto.randomBytes(4).toString("hex"),
                 values);
 
-            const tempDocumentUrl = storage.createFRSDocumentUrl(id, ordererUrl, historianUrl);
-            const tempResult: IDocumentUrl = {
-                documentId: id,
-                ordererUrl,
-                historianUrl,
-            };
-            tempDocumentUrl.then((value) => {
-                            },
-                            (error) => {
-                                response.status(400).json(error);
-                            });
-            console.log(`010.9 print documentUrl: ${JSON.stringify(tempResult)}`);
-
-            const documentUrl: IDocumentUrl = {
-                documentId: id,
-                ordererUrl,
-                historianUrl,
-            };
-
+            const tempDocumentUrl = await storage.createFRSDocumentUrl(id, ordererUrl, historianUrl);
             console.log(`011 finish createDocument method`);
-            handleResponse(createP.then(() => documentUrl), response, undefined, 201);
+            handleResponse(createP.then(() => tempDocumentUrl), response, undefined, 201);
+            console.log("012 Finish handle the request.");
+        });
+
+    /**
+     * Get the session url.
+     */
+     router.get(
+        "/:tenantId/session/:id",
+        verifyStorageToken(tenantManager, config, {
+            requireDocumentId: false,
+            ensureSingleUseToken: true,
+            singleUseTokenCache,
+        }),
+        throttle(throttler, winston, commonThrottleOptions),
+        (request, response, next) => {
+            console.log("0001 Come to alfred get documentId endpoint");
+            // Tenant and document
+            const documentId = getParam(request.params, "id");
+            const documentUrlP = storage.getFRSDocumentUrl(documentId);
+            console.log(`011 finish getFRSDocumentUrl method`);
+            handleResponse(documentUrlP, response, undefined, 201);
             console.log("012 Finish handle the request.");
         });
     console.log("013 return router.");

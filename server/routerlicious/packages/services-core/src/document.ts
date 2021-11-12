@@ -37,6 +37,8 @@ export interface IDocumentStorage {
         values: [string, ICommittedProposal][]): Promise<IDocumentDetails>;
 
     createFRSDocumentUrl(id: string, ordererUrl: string, historianUrl: string): Promise<IDocumentUrl>;
+
+    getFRSDocumentUrl(id: string): Promise<IDocumentUrl>;
 }
 
 export interface IClientSequenceNumber {

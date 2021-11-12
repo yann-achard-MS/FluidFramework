@@ -155,6 +155,46 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
     ): Promise<IDocumentService> {
         ensureFluidResolvedUrl(resolvedUrl);
 
+        // eslint-disable-next-line max-len
+        if (resolvedUrl.endpoints.ordererUrl.includes("tianzhu") || resolvedUrl.endpoints.ordererUrl.includes("localhost")) {
+            // eslint-disable-next-line @typescript-eslint/no-shadow
+            const parsedUrl = parseFluidUrl(resolvedUrl.url);
+            if (!parsedUrl.pathname) {
+                throw new Error("Parsed url should contain tenant and doc Id!!");
+            }
+            // eslint-disable-next-line @typescript-eslint/no-shadow
+            const [, tenantId] = parsedUrl.pathname.split("/");
+
+            // eslint-disable-next-line @typescript-eslint/no-shadow
+            const logger2 = ChildLogger.create(logger, "RouterliciousDriver");
+            const rateLimiter = new RateLimiter(this.driverPolicies.maxConcurrentOrdererRequests);
+            const ordererRestWrapper = await RouterliciousOrdererRestWrapper.load(
+                tenantId,
+                undefined,
+                this.tokenProvider,
+                logger2,
+                rateLimiter,
+                this.driverPolicies.enableRestLess,
+                resolvedUrl.endpoints.ordererUrl,
+            );
+            // eslint-disable-next-line @typescript-eslint/no-shadow
+            const documentId = resolvedUrl.id;
+            // the backend responds with the actual document ID associated with the new container.
+            const documentUrl: IDocumentUrl = await ordererRestWrapper.get<IDocumentUrl>(
+                `/documents/${tenantId}/session/${documentId}`,
+            );
+
+            if (documentUrl.ordererUrl.includes("alfred")) {
+                resolvedUrl.url = createFluidUrl(documentUrl.ordererUrl, parsedUrl.pathname);
+                resolvedUrl.endpoints.ordererUrl = replaceDomainInPath(documentUrl.ordererUrl,
+                                                                       resolvedUrl.endpoints.ordererUrl);
+                resolvedUrl.endpoints.deltaStorageUrl = replaceDomainInPath(documentUrl.ordererUrl,
+                                                                            resolvedUrl.endpoints.deltaStorageUrl);
+                resolvedUrl.endpoints.storageUrl = replaceDomainInPath(documentUrl.historianUrl,
+                                                                       resolvedUrl.endpoints.storageUrl);
+            }
+        }
+
         const fluidResolvedUrl = resolvedUrl;
         const storageUrl = fluidResolvedUrl.endpoints.storageUrl;
         const ordererUrl = fluidResolvedUrl.endpoints.ordererUrl;

@@ -151,6 +151,11 @@ export class TestDocumentStorage implements IDocumentStorage {
         return null;
     }
 
+    public async getFRSDocumentUrl(id: string):
+        Promise<IDocumentUrl> {
+        return null;
+    }
+
     public async getLatestVersion(tenantId: string, documentId: string): Promise<ICommit> {
         const versions = await this.getVersions(tenantId, documentId, 1);
         if (!versions.length) {

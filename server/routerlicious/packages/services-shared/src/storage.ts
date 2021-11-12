@@ -227,19 +227,35 @@ export class DocumentStorage implements IDocumentStorage {
         const mongoManager = new MongoManager(mongoFactory, false);
         const db = await mongoManager.getDatabase();
         const collection = db.collection("sessions");
-        const documentUrl: IDocumentUrl = {
-            documentId,
-            ordererUrl,
-            historianUrl,
-        };
         Lumberjack.info(`Fetch the documentUrl method`);
-        await collection.findOrCreate(
+        const result = await collection.findOrCreate(
             {
                 documentId,
             },
-            documentUrl);
+            {
+                documentId,
+                ordererUrl,
+                historianUrl,
+            });
 
-        return documentUrl;
+        return result.value as IDocumentUrl;
+    }
+
+    public async getFRSDocumentUrl(documentId: string): Promise<IDocumentUrl>  {
+        // const collection = await this.databaseManager.getDocumentUrlCollection();
+        // eslint-disable-next-line max-len
+        const mongoUrl = "mongodb://tianzhu-test-cosmosdbafd-001:Wb0qjXmrHQSW0zqtFADshZASoCS9gvQ727PTfejcegfSbDIauIYx170xLbRcDq5cQ0Y2fctz1YK5TF6SJkoUvw==@tianzhu-test-cosmosdbafd-001.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@tianzhu-test-cosmosdbafd-001@";
+        const mongoFactory = new MongoDbFactory(mongoUrl);
+        const mongoManager = new MongoManager(mongoFactory, false);
+        const db = await mongoManager.getDatabase();
+        const collection = db.collection("sessions");
+        Lumberjack.info(`Get the documentUrl method`);
+        const result = await collection.findOne(
+            {
+                documentId,
+            });
+
+        return result as IDocumentUrl;
     }
 
     public async getLatestVersion(tenantId: string, documentId: string): Promise<ICommit> {
