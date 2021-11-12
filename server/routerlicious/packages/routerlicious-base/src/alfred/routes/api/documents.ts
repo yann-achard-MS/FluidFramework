@@ -73,7 +73,7 @@ export function create(
             singleUseTokenCache,
         }),
         throttle(throttler, winston, commonThrottleOptions),
-        (request, response, next) => {
+        async (request, response, next) => {
             // Tenant and document
             const tenantId = getParam(request.params, "tenantId");
             // If enforcing server generated document id, ignore id parameter
@@ -96,6 +96,14 @@ export function create(
                 1,
                 crypto.randomBytes(4).toString("hex"),
                 values);
+
+                const db = await globalDbMongoManager.getDatabase();
+                const collection = db.collection("testCollection");
+                await collection.insertOne({
+                    field: "random",
+                });
+
+                await collection.findOne({field: "random"});
 
             handleResponse(createP.then(() => id), response, undefined, 201);
         });
