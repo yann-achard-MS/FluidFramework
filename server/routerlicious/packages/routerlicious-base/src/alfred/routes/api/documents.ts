@@ -97,15 +97,16 @@ export function create(
                 crypto.randomBytes(4).toString("hex"),
                 values);
 
+            let result: number = 0;
+            if (globalDbMongoManager !== undefined) {
                 const db = await globalDbMongoManager.getDatabase();
                 const collection = db.collection("testCollection");
-                await collection.insertOne({
+                result = await collection.insertOne({
                     field: "random",
                 });
+            }
 
-                await collection.findOne({field: "random"});
-
-            handleResponse(createP.then(() => id), response, undefined, 201);
+            handleResponse(createP.then(() => result), response, undefined, 201);
         });
 
     return router;
