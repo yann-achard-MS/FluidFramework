@@ -35,7 +35,7 @@ const defaultRouterliciousDriverPolicies: IRouterliciousDriverPolicies = {
     enableRestLess: false,
 };
 
-interface IDocumentUrl {
+interface ISession{
 
     documentId: string;
 
@@ -44,6 +44,8 @@ interface IDocumentUrl {
 
     // URL to the historian service
     historianUrl: string;
+
+    isSessionAlive: boolean;
 }
 
 /**
@@ -100,7 +102,7 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
             resolvedUrl.endpoints.ordererUrl,
         );
         // the backend responds with the actual document ID associated with the new container.
-        const documentUrl: IDocumentUrl = await ordererRestWrapper.post<IDocumentUrl>(
+        const documentUrl: ISession = await ordererRestWrapper.post<ISession>(
             `/documents/${tenantId}`,
             {
                 summary: convertSummaryToCreateNewSummary(appSummary),
@@ -168,19 +170,19 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
             // eslint-disable-next-line @typescript-eslint/no-shadow
             const logger2 = ChildLogger.create(logger, "RouterliciousDriver");
             const rateLimiter = new RateLimiter(this.driverPolicies.maxConcurrentOrdererRequests);
+            // eslint-disable-next-line @typescript-eslint/no-shadow
+            const documentId = resolvedUrl.id;
             const ordererRestWrapper = await RouterliciousOrdererRestWrapper.load(
                 tenantId,
-                undefined,
+                documentId,
                 this.tokenProvider,
                 logger2,
                 rateLimiter,
                 this.driverPolicies.enableRestLess,
                 resolvedUrl.endpoints.ordererUrl,
             );
-            // eslint-disable-next-line @typescript-eslint/no-shadow
-            const documentId = resolvedUrl.id;
             // the backend responds with the actual document ID associated with the new container.
-            const documentUrl: IDocumentUrl = await ordererRestWrapper.get<IDocumentUrl>(
+            const documentUrl: ISession = await ordererRestWrapper.get<ISession>(
                 `/documents/${tenantId}/session/${documentId}`,
             );
 

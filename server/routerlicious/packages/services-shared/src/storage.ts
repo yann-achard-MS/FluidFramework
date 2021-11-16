@@ -27,7 +27,7 @@ import {
     SequencedOperationType,
     IDocument,
     ISequencedOperationMessage,
-    IDocumentUrl,
+    ISession,
     MongoManager,
 } from "@fluidframework/server-services-core";
 import * as winston from "winston";
@@ -218,8 +218,7 @@ export class DocumentStorage implements IDocumentStorage {
         return result;
     }
 
-    public async createFRSDocumentUrl(documentId: string, ordererUrl: string, historianUrl: string):
-                                       Promise<IDocumentUrl>  {
+    public async createFRSDocumentUrl(documentId: string, ordererUrl: string, historianUrl: string): Promise<ISession> {
         // const collection = await this.databaseManager.getDocumentUrlCollection();
         // eslint-disable-next-line max-len
         const mongoUrl = "mongodb://tianzhu-test-cosmosdbafd-001:Wb0qjXmrHQSW0zqtFADshZASoCS9gvQ727PTfejcegfSbDIauIYx170xLbRcDq5cQ0Y2fctz1YK5TF6SJkoUvw==@tianzhu-test-cosmosdbafd-001.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@tianzhu-test-cosmosdbafd-001@";
@@ -236,12 +235,13 @@ export class DocumentStorage implements IDocumentStorage {
                 documentId,
                 ordererUrl,
                 historianUrl,
+                isSessionAlive: true,
             });
 
-        return result.value as IDocumentUrl;
+        return result.value as ISession;
     }
 
-    public async getFRSDocumentUrl(documentId: string): Promise<IDocumentUrl>  {
+    public async getFRSDocumentUrl(documentId: string, ordererUrl: string, historianUrl: string): Promise<ISession>  {
         // const collection = await this.databaseManager.getDocumentUrlCollection();
         // eslint-disable-next-line max-len
         const mongoUrl = "mongodb://tianzhu-test-cosmosdbafd-001:Wb0qjXmrHQSW0zqtFADshZASoCS9gvQ727PTfejcegfSbDIauIYx170xLbRcDq5cQ0Y2fctz1YK5TF6SJkoUvw==@tianzhu-test-cosmosdbafd-001.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@tianzhu-test-cosmosdbafd-001@";
@@ -250,12 +250,20 @@ export class DocumentStorage implements IDocumentStorage {
         const db = await mongoManager.getDatabase();
         const collection = db.collection("sessions");
         Lumberjack.info(`Get the documentUrl method`);
-        const result = await collection.findOne(
+        let result: ISession = {
+            documentId: undefined,
+            ordererUrl: undefined,
+            historianUrl: undefined,
+            isSessionAlive: undefined,
+        };
+        result = await collection.findOne(
             {
                 documentId,
             });
-
-        return result as IDocumentUrl;
+        if (result.isSessionAlive === false) {
+            return this.createFRSDocumentUrl(documentId, ordererUrl, historianUrl);
+        }
+        return result as ISession;
     }
 
     public async getLatestVersion(tenantId: string, documentId: string): Promise<ICommit> {

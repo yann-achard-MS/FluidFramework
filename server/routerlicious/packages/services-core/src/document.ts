@@ -14,6 +14,13 @@ export interface IDocumentDetails {
     value: IDocument;
 }
 
+export interface ISession {
+    documentId: string;
+    ordererUrl: string;
+    historianUrl: string;
+    isSessionAlive: boolean;
+}
+
 export interface IDocumentStorage {
     getDocument(tenantId: string, documentId: string): Promise<IDocument>;
 
@@ -36,9 +43,9 @@ export interface IDocumentStorage {
         initialHash: string,
         values: [string, ICommittedProposal][]): Promise<IDocumentDetails>;
 
-    createFRSDocumentUrl(id: string, ordererUrl: string, historianUrl: string): Promise<IDocumentUrl>;
+    createFRSDocumentUrl(documentId: string, ordererUrl: string, historianUrl: string): Promise<ISession>;
 
-    getFRSDocumentUrl(id: string): Promise<IDocumentUrl>;
+    getFRSDocumentUrl(documentId: string, ordererUrl: string, historianUrl: string): Promise<ISession>;
 }
 
 export interface IClientSequenceNumber {
@@ -127,10 +134,4 @@ export interface IDocument {
     // Timestamp of when this document and related data will be hard deleted.
     // The document is soft deleted if a scheduled deletion timestamp is present.
     scheduledDeletionTime?: string;
-}
-
-export interface IDocumentUrl {
-    documentId: string;
-    ordererUrl: string;
-    historianUrl: string;
 }
