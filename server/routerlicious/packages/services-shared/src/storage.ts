@@ -250,18 +250,24 @@ export class DocumentStorage implements IDocumentStorage {
         const db = await mongoManager.getDatabase();
         const collection = db.collection("sessions");
         Lumberjack.info(`Get the documentUrl method`);
-        let result: ISession = {
-            documentId: undefined,
-            ordererUrl: undefined,
-            historianUrl: undefined,
-            isSessionAlive: undefined,
-        };
-        result = await collection.findOne(
+        let result = await collection.findOne(
             {
                 documentId,
             });
-        if (result.isSessionAlive === false) {
-            return this.createFRSDocumentUrl(documentId, ordererUrl, historianUrl);
+        if ((result as ISession).isSessionAlive === false) {
+            await collection.upsert({
+                documentId,
+            }, {
+                documentId,
+                ordererUrl,
+                historianUrl,
+                isSessionAlive: true,
+            }, {
+            });
+            result = await collection.findOne(
+            {
+                documentId,
+            });
         }
         return result as ISession;
     }

@@ -106,8 +106,8 @@ export function create(
                 crypto.randomBytes(4).toString("hex"),
                 values);
 
-            const tempDocumentUrl = await storage.createFRSDocumentUrl(id, ordererUrl, historianUrl);
-            handleResponse(createP.then(() => tempDocumentUrl), response, undefined, 201);
+            const sessionP = await storage.createFRSDocumentUrl(id, ordererUrl, historianUrl);
+            handleResponse(createP.then(() => sessionP), response, undefined, 201);
         });
 
     /**
@@ -127,8 +127,8 @@ export function create(
             } else if (ordererUrl.includes("local")) {
                 historianUrl = "localhost:3001";
             }
-            const documentUrlP = storage.getFRSDocumentUrl(documentId, ordererUrl, historianUrl);
-            handleResponse(documentUrlP, response, undefined, 201);
+            const sessionP = storage.getFRSDocumentUrl(documentId, ordererUrl, historianUrl);
+            handleResponse(sessionP, response, undefined, 201);
         });
     return router;
 }
