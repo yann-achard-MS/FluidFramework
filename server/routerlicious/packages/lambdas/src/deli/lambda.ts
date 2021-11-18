@@ -420,7 +420,7 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
 
         this.removeAllListeners();
 
-        if (this.serviceConfiguration.enableLumberjack) {
+        if (closeType === LambdaCloseType.ActivityTimeout || closeType === LambdaCloseType.Error) {
             // eslint-disable-next-line max-len
             const mongoUrl = "mongodb://tianzhu-test-cosmosdbafd-001:Wb0qjXmrHQSW0zqtFADshZASoCS9gvQ727PTfejcegfSbDIauIYx170xLbRcDq5cQ0Y2fctz1YK5TF6SJkoUvw==@tianzhu-test-cosmosdbafd-001.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@tianzhu-test-cosmosdbafd-001@";
             const mongoFactory = new MongoDbFactory(mongoUrl);
@@ -438,6 +438,8 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
                 },
                 {
                 });
+        }
+        if (this.serviceConfiguration.enableLumberjack) {
             this.logSessionEndMetrics(closeType);
         }
     }
