@@ -22,11 +22,6 @@ export interface IDatabaseManager {
     getDocumentCollection(): Promise<ICollection<IDocument>>;
 
     /**
-     * Retrieves the session collection
-     */
-    getDocumentUrlCollection(): Promise<ICollection<ISession>>;
-
-    /**
      * Retrieves the delta collection
      */
     getDeltaCollection(tenantId: string, documentId: string): Promise<ICollection<ISequencedOperationMessage>>;
@@ -35,6 +30,17 @@ export interface IDatabaseManager {
      * Scribe deltas collection
      */
     getScribeDeltaCollection(tenantId: string, documentId: string): Promise<ICollection<ISequencedOperationMessage>>;
+}
+
+/**
+ * Interface to abstract the backend global database
+ */
+ export interface IGlobalDatabaseManager {
+
+    /**
+     * Retrieves the session collection
+     */
+    getSessionCollection(): Promise<ICollection<ISession>>;
 }
 
 /**

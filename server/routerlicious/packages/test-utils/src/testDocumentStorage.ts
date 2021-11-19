@@ -11,7 +11,6 @@ import {
     IDocument,
     IDocumentDetails,
     IDocumentStorage,
-    ISession,
     IScribe,
     ITenantManager,
 } from "@fluidframework/server-services-core";
@@ -144,14 +143,6 @@ export class TestDocumentStorage implements IDocumentStorage {
             });
 
         return result;
-    }
-
-    public async createFRSDocumentUrl(documentId: string, ordererUrl: string, historianUrl: string): Promise<ISession> {
-        return null;
-    }
-
-    public async getFRSDocumentUrl(documentId: string, ordererUrl: string, historianUrl: string): Promise<ISession> {
-        return null;
     }
 
     public async getLatestVersion(tenantId: string, documentId: string): Promise<ICommit> {

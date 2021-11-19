@@ -27,13 +27,10 @@ import {
     SequencedOperationType,
     IDocument,
     ISequencedOperationMessage,
-    ISession,
-    MongoManager,
 } from "@fluidframework/server-services-core";
 import * as winston from "winston";
 import { toUtf8 } from "@fluidframework/common-utils";
 import { BaseTelemetryProperties, Lumberjack } from "@fluidframework/server-services-telemetry";
-import { MongoDbFactory } from "./mongodb";
 
 export class DocumentStorage implements IDocumentStorage {
     constructor(
@@ -63,7 +60,6 @@ export class DocumentStorage implements IDocumentStorage {
         values: [string, ICommittedProposal][],
     ): ISummaryTree {
         const documentAttributes: IDocumentAttributes = {
-            branch: documentId,
             minimumSequenceNumber: sequenceNumber,
             sequenceNumber,
             term,
@@ -216,60 +212,6 @@ export class DocumentStorage implements IDocumentStorage {
 
         Lumberjack.info(`010 Get the result`);
         return result;
-    }
-
-    public async createFRSDocumentUrl(documentId: string, ordererUrl: string, historianUrl: string): Promise<ISession> {
-        // const collection = await this.databaseManager.getDocumentUrlCollection();
-        // eslint-disable-next-line max-len
-        const mongoUrl = "mongodb://tianzhu-test-cosmosdbafd-001:Wb0qjXmrHQSW0zqtFADshZASoCS9gvQ727PTfejcegfSbDIauIYx170xLbRcDq5cQ0Y2fctz1YK5TF6SJkoUvw==@tianzhu-test-cosmosdbafd-001.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@tianzhu-test-cosmosdbafd-001@";
-        const mongoFactory = new MongoDbFactory(mongoUrl);
-        const mongoManager = new MongoManager(mongoFactory, false);
-        const db = await mongoManager.getDatabase();
-        const collection = db.collection("sessions");
-        Lumberjack.info(`Fetch the documentUrl method`);
-        const result = await collection.findOrCreate(
-            {
-                documentId,
-            },
-            {
-                documentId,
-                ordererUrl,
-                historianUrl,
-                isSessionAlive: true,
-            });
-
-        return result.value as ISession;
-    }
-
-    public async getFRSDocumentUrl(documentId: string, ordererUrl: string, historianUrl: string): Promise<ISession>  {
-        // const collection = await this.databaseManager.getDocumentUrlCollection();
-        // eslint-disable-next-line max-len
-        const mongoUrl = "mongodb://tianzhu-test-cosmosdbafd-001:Wb0qjXmrHQSW0zqtFADshZASoCS9gvQ727PTfejcegfSbDIauIYx170xLbRcDq5cQ0Y2fctz1YK5TF6SJkoUvw==@tianzhu-test-cosmosdbafd-001.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@tianzhu-test-cosmosdbafd-001@";
-        const mongoFactory = new MongoDbFactory(mongoUrl);
-        const mongoManager = new MongoManager(mongoFactory, false);
-        const db = await mongoManager.getDatabase();
-        const collection = db.collection("sessions");
-        Lumberjack.info(`Get the documentUrl method`);
-        let result = await collection.findOne(
-            {
-                documentId,
-            });
-        if ((result as ISession).isSessionAlive === false) {
-            await collection.upsert({
-                documentId,
-            }, {
-                documentId,
-                ordererUrl,
-                historianUrl,
-                isSessionAlive: true,
-            }, {
-            });
-            result = await collection.findOne(
-            {
-                documentId,
-            });
-        }
-        return result as ISession;
     }
 
     public async getLatestVersion(tenantId: string, documentId: string): Promise<ICommit> {

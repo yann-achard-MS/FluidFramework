@@ -76,7 +76,7 @@ services:
     riddler:
         image: prague.azurecr.io/prague:12579
         ports:
-            - "5000:5000"
+            - "5001:5000"
         command: node dist/riddler/www.js
         environment:
             - DEBUG=fluid:*

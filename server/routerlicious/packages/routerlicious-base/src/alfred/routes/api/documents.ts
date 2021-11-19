@@ -9,6 +9,7 @@ import {
     IThrottler,
     ITenantManager,
     ICache,
+    MongoManager,
 } from "@fluidframework/server-services-core";
 import {
     verifyStorageToken,
@@ -22,7 +23,7 @@ import { IAlfredTenant } from "@fluidframework/server-services-client";
 import { Provider } from "nconf";
 import { v4 as uuid } from "uuid";
 import { Lumberjack } from "@fluidframework/server-services-telemetry";
-import { Constants, handleResponse } from "../../../utils";
+import { Constants, handleResponse, createSession, getSessionInfo } from "../../../utils";
 
 export function create(
     storage: IDocumentStorage,
@@ -30,7 +31,8 @@ export function create(
     throttler: IThrottler,
     singleUseTokenCache: ICache,
     config: Provider,
-    tenantManager: ITenantManager): Router {
+    tenantManager: ITenantManager,
+    globalDbMongoManager?: MongoManager): Router {
     const router: Router = Router();
 
     // Whether to enforce server-generated document ids in create doc flow
@@ -106,7 +108,7 @@ export function create(
                 crypto.randomBytes(4).toString("hex"),
                 values);
 
-            const sessionP = await storage.createFRSDocumentUrl(id, ordererUrl, historianUrl);
+            const sessionP = await createSession(globalDbMongoManager, id, ordererUrl, historianUrl);
             handleResponse(createP.then(() => sessionP), response, undefined, 201);
         });
 
@@ -127,7 +129,7 @@ export function create(
             } else if (ordererUrl.includes("local")) {
                 historianUrl = "localhost:3001";
             }
-            const sessionP = storage.getFRSDocumentUrl(documentId, ordererUrl, historianUrl);
+            const sessionP = getSessionInfo(globalDbMongoManager, documentId, ordererUrl, historianUrl);
             handleResponse(sessionP, response, undefined, 201);
         });
     return router;

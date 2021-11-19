@@ -8,9 +8,12 @@
         "label": "winston"
     },
     "mongo": {
-        "endpoint": "mongodb://mongodb:27017",
+        "operationsDbEndpoint": "mongodb://mongodb:27017",
+        "globalDbEndpoint": "mongodb://tianzhu-test-cosmosdbafd-001:Wb0qjXmrHQSW0zqtFADshZASoCS9gvQ727PTfejcegfSbDIauIYx170xLbRcDq5cQ0Y2fctz1YK5TF6SJkoUvw==@tianzhu-test-cosmosdbafd-001.mongo.cosmos.azure.com:10255/?ssl=true&retrywrites=false&maxIdleTimeMS=120000&appName=@tianzhu-test-cosmosdbafd-001@",
+        "globalDbEnabled": true,
         "expireAfterSeconds": -1,
         "createCosmosDBIndexes": false,
+        "bufferMaxEntries": 50,
         "softDeletionRetentionPeriodMs": 2592000000,
         "offlineWindowMs": 86400000,
         "softDeletionEnabled": false,

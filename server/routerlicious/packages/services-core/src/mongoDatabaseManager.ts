@@ -4,7 +4,7 @@
  */
 
 import { ICollection, IDatabaseManager } from "./database";
-import { IDocument, ISession } from "./document";
+import { IDocument } from "./document";
 import { ISequencedOperationMessage } from "./messages";
 import { MongoManager } from "./mongo";
 import { INode } from "./orderer";
@@ -27,10 +27,6 @@ export class MongoDatabaseManager implements IDatabaseManager {
 
     public async getDocumentCollection(): Promise<ICollection<IDocument>> {
         return this.getCollection<IDocument>(this.documentsCollectionName);
-    }
-
-    public async getDocumentUrlCollection(): Promise<ICollection<ISession>> {
-        return this.getCollection<ISession>("sessions");
     }
 
     public async getDeltaCollection(
