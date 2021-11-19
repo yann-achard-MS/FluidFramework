@@ -108,8 +108,12 @@ export function create(
                 crypto.randomBytes(4).toString("hex"),
                 values);
 
-            const sessionP = await createSession(globalDbMongoManager, id, ordererUrl, historianUrl);
-            handleResponse(createP.then(() => sessionP), response, undefined, 201);
+            if (globalDbMongoManager == null || globalDbMongoManager === undefined) {
+                handleResponse(createP.then(() => id), response, undefined, 201);
+            } else {
+                const sessionP = await createSession(globalDbMongoManager, id, ordererUrl, historianUrl);
+                handleResponse(createP.then(() => sessionP), response, undefined, 201);
+            }
         });
 
     /**
