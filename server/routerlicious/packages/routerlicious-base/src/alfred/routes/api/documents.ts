@@ -119,7 +119,7 @@ export function create(
         "/:tenantId/session/:id",
         verifyStorageToken(tenantManager, config),
         throttle(throttler, winston, commonThrottleOptions),
-        (request, response, next) => {
+        async (request, response, next) => {
             console.log("0001 Come to alfred get documentId endpoint");
             const documentId = getParam(request.params, "id");
             const ordererUrl = request.headers.host ?? "";
