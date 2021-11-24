@@ -115,6 +115,7 @@ import {
     electedSummarizerBlobName,
     extractSummaryMetadataMessage,
     IContainerRuntimeMetadata,
+    ICreateContainerMetadata,
     ISummaryMetadataMessage,
     metadataBlobName,
     wrapSummaryInChannelsTree,
@@ -364,7 +365,7 @@ class ScheduleManagerCore {
             });
 
         // Start with baseline - empty inbound queue.
-        assert(!this.localPaused, "initial state");
+        assert(!this.localPaused, 0x293 /* "initial state" */);
 
         const allPending = this.deltaManager.inbound.toArray();
         for (const pending of allPending) {
@@ -377,11 +378,12 @@ class ScheduleManagerCore {
      * to make decision if op processing should be paused or not afer that.
      */
      public afterOpProcessing(sequenceNumber: number) {
-        assert(!this.localPaused, "can't have op processing paused if we are processing an op");
+        assert(!this.localPaused, 0x294 /* "can't have op processing paused if we are processing an op" */);
 
         // If the inbound queue is ever empty, nothing to do!
         if (this.deltaManager.inbound.length === 0) {
-            assert(this.pauseSequenceNumber === undefined, "there should be no pending batch if we have no ops");
+            assert(this.pauseSequenceNumber === undefined,
+                0x295 /* "there should be no pending batch if we have no ops" */);
             return;
         }
 
@@ -393,7 +395,8 @@ class ScheduleManagerCore {
 
         // do we have incomplete batch to worry about?
         if (this.pauseSequenceNumber !== undefined) {
-            assert(sequenceNumber < this.pauseSequenceNumber, "we should never start processing incomplete batch!");
+            assert(sequenceNumber < this.pauseSequenceNumber,
+                0x296 /* "we should never start processing incomplete batch!" */);
             // If the next op is the start of incomplete batch, then we can't process it until it's fully in - pause!
             if (sequenceNumber + 1 === this.pauseSequenceNumber) {
                 this.pauseQueue();
@@ -402,7 +405,7 @@ class ScheduleManagerCore {
     }
 
     private pauseQueue() {
-        assert(!this.localPaused, "always called from resumed state");
+        assert(!this.localPaused, 0x297 /* "always called from resumed state" */);
         this.localPaused = true;
         this.timePaused = performance.now();
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -433,10 +436,11 @@ class ScheduleManagerCore {
      * Called for each incoming op (i.e. inbound "push" notification)
      */
     private trackPending(message: ISequencedDocumentMessage) {
-        assert(this.deltaManager.inbound.length !== 0, "we have something in the queue that generates this event");
+        assert(this.deltaManager.inbound.length !== 0,
+            0x298 /* "we have something in the queue that generates this event" */);
 
         assert((this.currentBatchClientId === undefined) === (this.pauseSequenceNumber === undefined),
-            "non-synchronized state");
+            0x299 /* "non-synchronized state" */);
 
         const metadata = message.metadata as IRuntimeMessageMetadata;
         const batchMetadata = metadata?.batch;
@@ -444,14 +448,14 @@ class ScheduleManagerCore {
         // Protocol messages are never part of a runtime batch of messages
         if (!isRuntimeMessage(message)) {
             // Protocol messages should never show up in the middle of the batch!
-            assert(this.currentBatchClientId === undefined, "System message in the middle of batch!");
-            assert(batchMetadata === undefined, "system op in a batch?");
-            assert(!this.localPaused, "we should be processing ops when there is no active batch");
+            assert(this.currentBatchClientId === undefined, 0x29a /* "System message in the middle of batch!" */);
+            assert(batchMetadata === undefined, 0x29b /* "system op in a batch?" */);
+            assert(!this.localPaused, 0x29c /* "we should be processing ops when there is no active batch" */);
             return;
         }
 
         if (this.currentBatchClientId === undefined && batchMetadata === undefined) {
-            assert(!this.localPaused, "we should be processing ops when there is no active batch");
+            assert(!this.localPaused, 0x29d /* "we should be processing ops when there is no active batch" */);
             return;
         }
 
@@ -477,8 +481,8 @@ class ScheduleManagerCore {
         // 2. resumed when batch end comes in (batchMetadata === true case below)
 
         if (batchMetadata) {
-            assert(this.currentBatchClientId === undefined, "there can't be active batch");
-            assert(!this.localPaused, "we should be processing ops when there is no active batch");
+            assert(this.currentBatchClientId === undefined, 0x29e /* "there can't be active batch" */);
+            assert(!this.localPaused, 0x29f /* "we should be processing ops when there is no active batch" */);
             this.pauseSequenceNumber = message.sequenceNumber;
             this.currentBatchClientId = message.clientId;
             // Start of the batch
@@ -488,14 +492,14 @@ class ScheduleManagerCore {
                 this.pauseQueue();
             }
         } else if (batchMetadata === false) {
-            assert(this.pauseSequenceNumber !== undefined, "batch presence was validated above");
+            assert(this.pauseSequenceNumber !== undefined, 0x2a0 /* "batch presence was validated above" */);
             // Batch is complete, we can process it!
             this.resumeQueue(this.pauseSequenceNumber, message.sequenceNumber);
             this.pauseSequenceNumber = undefined;
             this.currentBatchClientId = undefined;
         } else {
             // Continuation of current batch. Do nothing
-            assert(this.currentBatchClientId !== undefined, "logic error");
+            assert(this.currentBatchClientId !== undefined, 0x2a1 /* "logic error" */);
         }
     }
 }
@@ -529,7 +533,7 @@ export class ScheduleManager {
     public beforeOpProcessing(message: ISequencedDocumentMessage) {
         if (this.batchClientId !== message.clientId) {
             assert(this.batchClientId === undefined,
-                "Batch is interrupted by other client op. Should be caught by trackPending()");
+                0x2a2 /* "Batch is interrupted by other client op. Should be caught by trackPending()" */);
 
             // This could be the beginning of a new batch or an individual message.
             this.emitter.emit("batchBegin", message);
@@ -546,7 +550,7 @@ export class ScheduleManager {
 
     public afterOpProcessing(error: any | undefined, message: ISequencedDocumentMessage) {
         // If this is no longer true, we need to revisit what we do where we set this.hitError.
-        assert(!this.hitError, "container should be closed on any error");
+        assert(!this.hitError, 0x2a3 /* "container should be closed on any error" */);
 
         // Let the scheduler know how far we progressed, to decide if op processing
         // should be paused or not.
@@ -889,6 +893,9 @@ export class ContainerRuntime extends TypedEventEmitter<IContainerRuntimeEvents>
         return this._summarizer;
     }
 
+    private readonly createContainerMetadata: ICreateContainerMetadata;
+    private summaryCount: number | undefined;
+
     private constructor(
         private readonly context: IContainerContext,
         private readonly registry: IFluidDataStoreRegistry,
@@ -904,8 +911,22 @@ export class ContainerRuntime extends TypedEventEmitter<IContainerRuntimeEvents>
         private _storage?: IDocumentStorageService,
     ) {
         super();
-
         this.baseSummaryMessage = metadata?.message;
+
+        // If this is an existing container, we get values from metadata.
+        // otherwise, we initialize them.
+        if (existing) {
+            this.createContainerMetadata = {
+                createContainerRuntimeVersion: metadata?.createContainerRuntimeVersion,
+                createContainerTimestamp: metadata?.createContainerTimestamp,
+            };
+            this.summaryCount = metadata?.summaryCount;
+        } else {
+            this.createContainerMetadata = {
+                createContainerRuntimeVersion: pkgVersion,
+                createContainerTimestamp: performance.now(),
+            };
+        }
 
         // Default to false (enabled).
         this.disableIsolatedChannels = this.runtimeOptions.summaryOptions.disableIsolatedChannels ?? false;
@@ -918,10 +939,23 @@ export class ContainerRuntime extends TypedEventEmitter<IContainerRuntimeEvents>
 
         this._logger = ChildLogger.create(this.logger, "ContainerRuntime");
 
+        /**
+         * Function that return the current server timestamp. This is used by the garbage collector to set the
+         * time when a node becomes unreferenced.
+         * For now, we use the timestamp of the last op for gcTimestamp. However, there can be cases where
+         * we don't have an op (on demand summaries for instance). In those cases, we will use the timestamp
+         * of this client's connection - https://github.com/microsoft/FluidFramework/issues/8375.
+         */
+        const getCurrentTimestamp = () => {
+            return this.deltaManager.lastMessage?.timestamp ?? performance.now();
+        };
         this.garbageCollector = GarbageCollector.create(
             this,
             this.runtimeOptions.gcOptions,
             (unusedRoutes: string[]) => this.dataStores.deleteUnusedRoutes(unusedRoutes),
+            getCurrentTimestamp,
+            context.baseSnapshot,
+            async <T>(id: string) => readAndParse<T>(this.storage, id),
             this._logger,
             existing,
             metadata,
@@ -945,8 +979,6 @@ export class ContainerRuntime extends TypedEventEmitter<IContainerRuntimeEvents>
                 throwOnFailure: true,
                 // If GC should not run, let the summarizer node know so that it does not track GC state.
                 gcDisabled: !this.garbageCollector.shouldRunGC,
-                // The max duration for which objects can be unreferenced before they are eligible for deletion.
-                maxUnreferencedDurationMs: this.runtimeOptions.gcOptions.maxUnreferencedDurationMs,
             },
         );
 
@@ -971,7 +1003,9 @@ export class ContainerRuntime extends TypedEventEmitter<IContainerRuntimeEvents>
                     getInitialGCSummaryDetailsFn,
                 ),
             (id: string) => this.summarizerNode.deleteChild(id),
-            this._logger);
+            this._logger,
+            (id: string) => this.garbageCollector.nodeChanged(id),
+        );
 
         this.blobManager = new BlobManager(
             this.IFluidHandleContext,
@@ -1124,6 +1158,15 @@ export class ContainerRuntime extends TypedEventEmitter<IContainerRuntimeEvents>
             this.deltaManager.on("op", this.onOp);
         }
 
+        this.logger.sendTelemetryEvent({
+            eventName: "ContainerLoadStats",
+            ...this.createContainerMetadata,
+            ...this.dataStores.containerLoadStats,
+            summaryCount: this.summaryCount,
+            summaryFormatVersion: metadata?.summaryFormatVersion,
+            disableIsolatedChannels: metadata?.disableIsolatedChannels,
+            gcVersion: metadata?.gcFeature,
+        });
         ReportOpPerfTelemetry(this.context.clientId, this.deltaManager, this.logger);
     }
 
@@ -1248,6 +1291,8 @@ export class ContainerRuntime extends TypedEventEmitter<IContainerRuntimeEvents>
 
     private formMetadata(): IContainerRuntimeMetadata {
         return {
+            ...this.createContainerMetadata,
+            summaryCount: this.summaryCount,
             summaryFormatVersion: 1,
             disableIsolatedChannels: this.disableIsolatedChannels || undefined,
             gcFeature: this.garbageCollector.gcSummaryFeatureVersion,
@@ -1575,7 +1620,7 @@ export class ContainerRuntime extends TypedEventEmitter<IContainerRuntimeEvents>
 
     public async createRootDataStore(pkg: string | string[], rootDataStoreId: string): Promise<IFluidRouter> {
         const fluidDataStore = await this._createDataStore(pkg, true /* isRoot */, rootDataStoreId);
-        fluidDataStore.attachGraph();
+        fluidDataStore.bindToContext();
         return fluidDataStore;
     }
 
@@ -1599,7 +1644,7 @@ export class ContainerRuntime extends TypedEventEmitter<IContainerRuntimeEvents>
         const fluidDataStore = await this.dataStores._createFluidDataStoreContext(
             Array.isArray(pkg) ? pkg : [pkg], id, isRoot, props).realize();
         if (isRoot) {
-            fluidDataStore.attachGraph();
+            fluidDataStore.bindToContext();
         }
         return fluidDataStore;
     }
@@ -1774,21 +1819,17 @@ export class ContainerRuntime extends TypedEventEmitter<IContainerRuntimeEvents>
      * Implementation of IGarbageCollectionRuntime::updateUsedRoutes.
      * After GC has run, called to notify this container's nodes of routes that are used in it.
      * @param usedRoutes - The routes that are used in all nodes in this Container.
+     * @param gcTimestamp - The time when GC was run that generated these used routes. If any node node becomes
+     * unreferenced as part of this GC run, this should be used to update the time when it happens.
      * @returns the statistics of the used state of the data stores.
      */
-    public updateUsedRoutes(usedRoutes: string[]): IUsedStateStats {
+    public updateUsedRoutes(usedRoutes: string[], gcTimestamp?: number): IUsedStateStats {
         // Update our summarizer node's used routes. Updating used routes in summarizer node before
         // summarizing is required and asserted by the the summarizer node. We are the root and are
         // always referenced, so the used routes is only self-route (empty string).
         this.summarizerNode.updateUsedRoutes([""]);
 
-        return this.dataStores.updateUsedRoutes(
-            usedRoutes,
-            // For now, we use the timestamp of the last op for gcTimestamp. However, there can be cases where
-            // we don't have an op (on demand summaries for instance). In those cases, we will use the timestamp
-            // of this client's connection - https://github.com/microsoft/FluidFramework/issues/7152.
-            this.deltaManager.lastMessage?.timestamp,
-        );
+        return this.dataStores.updateUsedRoutes(usedRoutes, gcTimestamp);
     }
 
     /**
@@ -1878,6 +1919,13 @@ export class ContainerRuntime extends TypedEventEmitter<IContainerRuntimeEvents>
             let continueResult = checkContinue();
             if (!continueResult.continue) {
                 return { stage: "base", referenceSequenceNumber: summaryRefSeqNum, error: continueResult.error };
+            }
+
+            // increment summary count
+            if (this.summaryCount !== undefined) {
+                this.summaryCount++;
+            } else {
+                this.summaryCount = 1;
             }
 
             const trace = Trace.start();
