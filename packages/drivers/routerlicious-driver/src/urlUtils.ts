@@ -3,7 +3,9 @@
  * Licensed under the MIT License.
  */
 
+import { IFluidResolvedUrl } from "@fluidframework/driver-definitions";
 import URLParse from "url-parse";
+import { ISession } from "./contracts";
 
 export const parseFluidUrl = (fluidUrl: string): URLParse => {
     return new URLParse(fluidUrl, true);
@@ -26,3 +28,15 @@ export const replaceDomainInPath = (domain: string, url: string): string => {
 
 export const createFluidUrl = (domain: string, pathname: string): string =>
      "fluid://".concat(domain).concat(pathname);
+
+export const replaceFluidUrl = (resolvedUrl: IFluidResolvedUrl, documentUrl: ISession, parsedUrl: URLParse): void => {
+    if (documentUrl.ordererUrl.includes("alfred")) {
+        resolvedUrl.url = createFluidUrl(documentUrl.ordererUrl, parsedUrl.pathname);
+        resolvedUrl.endpoints.ordererUrl = replaceDomainInPath(documentUrl.ordererUrl,
+                                                               resolvedUrl.endpoints.ordererUrl);
+        resolvedUrl.endpoints.deltaStorageUrl = replaceDomainInPath(documentUrl.ordererUrl,
+                                                                    resolvedUrl.endpoints.deltaStorageUrl);
+        resolvedUrl.endpoints.storageUrl = replaceDomainInPath(documentUrl.historianUrl,
+                                                               resolvedUrl.endpoints.storageUrl);
+    }
+};

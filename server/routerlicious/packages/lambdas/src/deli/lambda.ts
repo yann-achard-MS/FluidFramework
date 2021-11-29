@@ -44,7 +44,6 @@ import {
     IUpdateDSNControlMessageContents,
     LambdaCloseType,
     LambdaName,
-    // MongoManager,
 } from "@fluidframework/server-services-core";
 import {
     CommonProperties,
@@ -61,7 +60,6 @@ import { logCommonSessionEndMetrics, createSessionMetric } from "../utils";
 import { CheckpointContext } from "./checkpointContext";
 import { ClientSequenceNumberManager } from "./clientSeqManager";
 import { IDeliCheckpointManager, ICheckpointParams } from "./checkpointManager";
-// import { MongoDbFactory } from "./mongodb";
 import { DeliCheckpointReason } from ".";
 
 enum IncomingMessageOrder {
@@ -138,6 +136,7 @@ export interface IDeliLambdaEvents extends IEvent {
     (event: "opEvent",
         listener: (type: OpEventType, sequenceNumber: number, sequencedMessagesSinceLastOpEvent: number) => void);
     (event: "updatedDurableSequenceNumber", listener: (durableSequenceNumber: number) => void);
+    (event: "close", listener: (type: LambdaCloseType) => void);
 }
 
 export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements IPartitionLambda {
@@ -418,28 +417,9 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
         this.clearOpIdleTimer();
         this.clearOpMaxTimeTimer();
 
+        this.emit("close", closeType);
         this.removeAllListeners();
 
-        // if (closeType === LambdaCloseType.ActivityTimeout || closeType === LambdaCloseType.Error) {
-        //
-        // eslint-disable-next-line max-len
-        //     const mongoUrl = "mongodb://tianzhu-test-cosmosdbafd-001:Wb0qjXmrHQSW0zqtFADshZASoCS9gvQ727PTfejcegfSbDIauIYx170xLbRcDq5cQ0Y2fctz1YK5TF6SJkoUvw==@tianzhu-test-cosmosdbafd-001.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@tianzhu-test-cosmosdbafd-001@";
-        //     const mongoFactory = new MongoDbFactory(mongoUrl);
-        //     const mongoManager = new MongoManager(mongoFactory, false);
-        //     const db = await mongoManager.getDatabase();
-        //     const collection = db.collection("sessions");
-        //     Lumberjack.info(`Change the isSeesionAlive to false`);
-        //     const documentId = this.documentId;
-        //     await collection.update(
-        //         {
-        //             documentId,
-        //         },
-        //         {
-        //             isSessionAlive: false,
-        //         },
-        //         {
-        //         });
-        // }
         if (this.serviceConfiguration.enableLumberjack) {
             this.logSessionEndMetrics(closeType);
         }
@@ -483,7 +463,6 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
     }
 
     private logSessionEndMetrics(closeType: LambdaCloseType) {
-        console.log("0123456 come to log session");
         if (this.sessionMetric?.isCompleted()) {
             this.sessionMetric = createSessionMetric(
                 this.tenantId,

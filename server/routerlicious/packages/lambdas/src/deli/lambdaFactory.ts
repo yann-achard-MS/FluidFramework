@@ -19,6 +19,7 @@ import {
     IProducer,
     IServiceConfiguration,
     ITenantManager,
+    LambdaCloseType,
     MongoManager,
 } from "@fluidframework/server-services-core";
 import { generateServiceProtocolEntries } from "@fluidframework/protocol-base";
@@ -50,12 +51,13 @@ const getDefaultCheckpooint = (epoch: number): IDeliState => {
 
 export class DeliLambdaFactory extends EventEmitter implements IPartitionLambdaFactory {
     constructor(
-        private readonly mongoManager: MongoManager,
+        private readonly operationsDbMongoManager: MongoManager,
         private readonly collection: ICollection<IDocument>,
         private readonly tenantManager: ITenantManager,
         private readonly forwardProducer: IProducer,
         private readonly reverseProducer: IProducer,
-        private readonly serviceConfiguration: IServiceConfiguration) {
+        private readonly serviceConfiguration: IServiceConfiguration,
+        private readonly globalDbMongoManager?: MongoManager) {
         super();
     }
 
@@ -124,7 +126,7 @@ export class DeliLambdaFactory extends EventEmitter implements IPartitionLambdaF
                     lastCheckpoint.logOffset = -1;
                     lastCheckpoint.epoch = leaderEpoch;
                     context.log?.info(`Deli checkpoint from summary:
-                        ${ JSON.stringify(lastCheckpoint)}`, { messageMetaData });
+                        ${JSON.stringify(lastCheckpoint)}`, { messageMetaData });
                 }
             } else {
                 lastCheckpoint = JSON.parse(dbObject.deli);
@@ -152,7 +154,7 @@ export class DeliLambdaFactory extends EventEmitter implements IPartitionLambdaF
         const checkpointManager = createDeliCheckpointManagerFromCollection(tenantId, documentId, this.collection);
 
         // Should the lambda reaize that term has flipped to send a no-op message at the beginning?
-        return new DeliLambda(
+        const deliLambda = new DeliLambda(
             context,
             tenantId,
             documentId,
@@ -164,18 +166,41 @@ export class DeliLambdaFactory extends EventEmitter implements IPartitionLambdaF
             this.serviceConfiguration,
             sessionMetric,
             sessionStartMetric);
+
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        deliLambda.on("close", async (closeType) => {
+            if ((closeType === LambdaCloseType.ActivityTimeout || closeType === LambdaCloseType.Error)
+                 && this.globalDbMongoManager !== undefined) {
+                const db = await this.globalDbMongoManager.getDatabase();
+                const collection = db.collection("sessions");
+                const tempSession = await collection.findOne({ documentId });
+                if (tempSession !== undefined) {
+                    await collection.update(
+                        {
+                            documentId,
+                        },
+                        {
+                            isSessionAlive: false,
+                        },
+                        {
+                        });
+                }
+            }
+        });
+
+        return deliLambda;
     }
 
     private logSessionFailureMetrics(
         sessionMetric: Lumber<LumberEventName.SessionResult> | undefined,
         sessionStartMetric: Lumber<LumberEventName.StartSessionResult> | undefined,
         errMsg: string) {
-            sessionMetric?.error(errMsg);
-            sessionStartMetric?.error(errMsg);
+        sessionMetric?.error(errMsg);
+        sessionStartMetric?.error(errMsg);
     }
 
     public async dispose(): Promise<void> {
-        const mongoClosedP = this.mongoManager.close();
+        const mongoClosedP = this.operationsDbMongoManager.close();
         const forwardProducerClosedP = this.forwardProducer.close();
         const reverseProducerClosedP = this.reverseProducer.close();
         await Promise.all([mongoClosedP, forwardProducerClosedP, reverseProducerClosedP]);

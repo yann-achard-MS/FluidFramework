@@ -37,12 +37,19 @@ function getUrlResolver(options: RouteOptions): IUrlResolver {
                 dockerUrls.storageUrl,
                 options.tenantId,
                 options.bearerSecret);
-
         case "r11s":
+            if (options.fluidHost === "https://tianzhu-test-afd-frs.azurefd.net") {
+                return new InsecureUrlResolver(
+                    "",
+                    options.fluidHost,
+                    options.fluidHost,
+                    options.tenantId,
+                    options.bearerSecret);
+            }
             return new InsecureUrlResolver(
-                "https://tianzhu-test-afd-frs.azurefd.net",
-                "https://tianzhu-test-afd-frs.azurefd.net",
-                "https://tianzhu-test-afd-frs.azurefd.net",
+                options.fluidHost,
+                options.fluidHost.replace("www", "alfred"),
+                options.fluidHost.replace("www", "historian"),
                 options.tenantId,
                 options.bearerSecret);
         case "tinylicious": {

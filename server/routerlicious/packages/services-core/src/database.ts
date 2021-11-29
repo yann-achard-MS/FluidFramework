@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { IDocument, ISession } from "./document";
+import { IDocument } from "./document";
 import { ISequencedOperationMessage } from "./messages";
 import { INode } from "./orderer";
 
@@ -30,17 +30,6 @@ export interface IDatabaseManager {
      * Scribe deltas collection
      */
     getScribeDeltaCollection(tenantId: string, documentId: string): Promise<ICollection<ISequencedOperationMessage>>;
-}
-
-/**
- * Interface to abstract the backend global database
- */
- export interface IGlobalDatabaseManager {
-
-    /**
-     * Retrieves the session collection
-     */
-    getSessionCollection(): Promise<ICollection<ISession>>;
 }
 
 /**

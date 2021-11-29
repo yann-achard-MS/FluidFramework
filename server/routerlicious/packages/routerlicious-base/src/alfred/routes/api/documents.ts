@@ -22,8 +22,7 @@ import winston from "winston";
 import { IAlfredTenant } from "@fluidframework/server-services-client";
 import { Provider } from "nconf";
 import { v4 as uuid } from "uuid";
-import { Lumberjack } from "@fluidframework/server-services-telemetry";
-import { Constants, handleResponse, createSession, getSessionInfo } from "../../../utils";
+import { Constants, handleResponse, createSession, getSession } from "../../../utils";
 
 export function create(
     storage: IDocumentStorage,
@@ -93,7 +92,6 @@ export function create(
 
             // Summary information
             const summary = request.body.summary;
-            Lumberjack.info(`002.1 Print out the ${JSON.stringify(request.headers.host)}`);
 
             // Protocol state
             const sequenceNumber = request.body.sequenceNumber;
@@ -108,23 +106,18 @@ export function create(
                 crypto.randomBytes(4).toString("hex"),
                 values);
 
-            if (globalDbMongoManager == null || globalDbMongoManager === undefined) {
-                handleResponse(createP.then(() => id), response, undefined, 201);
-            } else {
-                const sessionP = await createSession(globalDbMongoManager, id, ordererUrl, historianUrl);
-                handleResponse(createP.then(() => sessionP), response, undefined, 201);
-            }
+            const sessionP = await createSession(globalDbMongoManager, id, ordererUrl, historianUrl);
+            handleResponse(createP.then(() => sessionP), response, undefined, 201);
         });
 
     /**
-     * Get the session url.
+     * Get the session information.
      */
      router.get(
         "/:tenantId/session/:id",
         verifyStorageToken(tenantManager, config),
         throttle(throttler, winston, commonThrottleOptions),
         async (request, response, next) => {
-            console.log("0001 Come to alfred get documentId endpoint");
             const documentId = getParam(request.params, "id");
             const ordererUrl = request.headers.host ?? "";
             let historianUrl: string = "";
@@ -133,7 +126,7 @@ export function create(
             } else if (ordererUrl.includes("local")) {
                 historianUrl = "localhost:3001";
             }
-            const sessionP = getSessionInfo(globalDbMongoManager, documentId, ordererUrl, historianUrl);
+            const sessionP = getSession(globalDbMongoManager, documentId, ordererUrl, historianUrl);
             handleResponse(sessionP, response, undefined, 201);
         });
     return router;

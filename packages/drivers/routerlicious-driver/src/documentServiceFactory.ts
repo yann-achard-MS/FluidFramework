@@ -23,8 +23,9 @@ import { IRouterliciousDriverPolicies } from "./policies";
 import { ITokenProvider } from "./tokens";
 import { RouterliciousOrdererRestWrapper } from "./restWrapper";
 import { convertSummaryToCreateNewSummary } from "./createNewUtils";
-import { createFluidUrl, parseFluidUrl, replaceDocumentIdInPath, replaceDomainInPath } from "./urlUtils";
+import { parseFluidUrl, replaceDocumentIdInPath, replaceFluidUrl } from "./urlUtils";
 import { InMemoryCache } from "./cache";
+import { ISession } from "./contracts";
 
 const defaultRouterliciousDriverPolicies: IRouterliciousDriverPolicies = {
     enablePrefetch: true,
@@ -34,19 +35,6 @@ const defaultRouterliciousDriverPolicies: IRouterliciousDriverPolicies = {
     enableWholeSummaryUpload: false,
     enableRestLess: false,
 };
-
-interface ISession{
-
-    documentId: string;
-
-    // URL to the orderer service
-    ordererUrl: string;
-
-    // URL to the historian service
-    historianUrl: string;
-
-    isSessionAlive: boolean;
-}
 
 /**
  * Factory for creating the routerlicious document service. Use this if you want to
@@ -102,7 +90,7 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
             resolvedUrl.endpoints.ordererUrl,
         );
         // the backend responds with the actual document ID associated with the new container.
-        const documentUrl: ISession = await ordererRestWrapper.post<ISession>(
+        const session: ISession = await ordererRestWrapper.post<ISession>(
             `/documents/${tenantId}`,
             {
                 summary: convertSummaryToCreateNewSummary(appSummary),
@@ -110,17 +98,8 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
                 values: quorumValues,
             },
         );
-
-        const documentId = documentUrl.documentId;
-        if (documentUrl.ordererUrl.includes("alfred")) {
-            resolvedUrl.url = createFluidUrl(documentUrl.ordererUrl, parsedUrl.pathname);
-            resolvedUrl.endpoints.ordererUrl = replaceDomainInPath(documentUrl.ordererUrl,
-                                                                   resolvedUrl.endpoints.ordererUrl);
-            resolvedUrl.endpoints.deltaStorageUrl = replaceDomainInPath(documentUrl.ordererUrl,
-                                                                        resolvedUrl.endpoints.deltaStorageUrl);
-            resolvedUrl.endpoints.storageUrl = replaceDomainInPath(documentUrl.historianUrl,
-                                                                   resolvedUrl.endpoints.storageUrl);
-        }
+        const documentId = session.documentId;
+        replaceFluidUrl(resolvedUrl, session, parsedUrl);
 
         parsedUrl = parseFluidUrl(resolvedUrl.url);
         parsedUrl.set("pathname", replaceDocumentIdInPath(parsedUrl.pathname, documentId));
@@ -156,46 +135,29 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
         logger?: ITelemetryBaseLogger,
     ): Promise<IDocumentService> {
         ensureFluidResolvedUrl(resolvedUrl);
-
-        // eslint-disable-next-line max-len
-        if (resolvedUrl.endpoints.ordererUrl.includes("tianzhu") || resolvedUrl.endpoints.ordererUrl.includes("localhost")) {
-            // eslint-disable-next-line @typescript-eslint/no-shadow
-            const parsedUrl = parseFluidUrl(resolvedUrl.url);
-            if (!parsedUrl.pathname) {
-                throw new Error("Parsed url should contain tenant and doc Id!!");
-            }
-            // eslint-disable-next-line @typescript-eslint/no-shadow
-            const [, tenantId] = parsedUrl.pathname.split("/");
-
-            // eslint-disable-next-line @typescript-eslint/no-shadow
-            const logger2 = ChildLogger.create(logger, "RouterliciousDriver");
-            const rateLimiter = new RateLimiter(this.driverPolicies.maxConcurrentOrdererRequests);
-            // eslint-disable-next-line @typescript-eslint/no-shadow
-            const documentId = resolvedUrl.id;
-            const ordererRestWrapper = await RouterliciousOrdererRestWrapper.load(
-                tenantId,
-                documentId,
-                this.tokenProvider,
-                logger2,
-                rateLimiter,
-                this.driverPolicies.enableRestLess,
-                resolvedUrl.endpoints.ordererUrl,
-            );
-            // the backend responds with the actual document ID associated with the new container.
-            const documentUrl: ISession = await ordererRestWrapper.get<ISession>(
-                `/documents/${tenantId}/session/${documentId}`,
-            );
-
-            if (documentUrl.ordererUrl.includes("alfred")) {
-                resolvedUrl.url = createFluidUrl(documentUrl.ordererUrl, parsedUrl.pathname);
-                resolvedUrl.endpoints.ordererUrl = replaceDomainInPath(documentUrl.ordererUrl,
-                                                                       resolvedUrl.endpoints.ordererUrl);
-                resolvedUrl.endpoints.deltaStorageUrl = replaceDomainInPath(documentUrl.ordererUrl,
-                                                                            resolvedUrl.endpoints.deltaStorageUrl);
-                resolvedUrl.endpoints.storageUrl = replaceDomainInPath(documentUrl.historianUrl,
-                                                                       resolvedUrl.endpoints.storageUrl);
-            }
+        let parsedUrl = parseFluidUrl(resolvedUrl.url);
+        if (!parsedUrl.pathname) {
+            throw new Error("Parsed url should contain tenant and doc Id!!");
         }
+        let [, tenantId] = parsedUrl.pathname.split("/");
+
+        const logger2 = ChildLogger.create(logger, "RouterliciousDriver");
+        const rateLimiter = new RateLimiter(this.driverPolicies.maxConcurrentOrdererRequests);
+        let documentId = resolvedUrl.id;
+        const ordererRestWrapper = await RouterliciousOrdererRestWrapper.load(
+            tenantId,
+            documentId,
+            this.tokenProvider,
+            logger2,
+            rateLimiter,
+            this.driverPolicies.enableRestLess,
+            resolvedUrl.endpoints.ordererUrl,
+        );
+        // the backend responds with the actual document ID associated with the new container.
+        const session: ISession = await ordererRestWrapper.get<ISession>(
+            `/documents/${tenantId}/session/${documentId}`,
+        );
+        replaceFluidUrl(resolvedUrl, session, parsedUrl);
 
         const fluidResolvedUrl = resolvedUrl;
         const storageUrl = fluidResolvedUrl.endpoints.storageUrl;
@@ -206,14 +168,12 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
                 `All endpoints urls must be provided. [ordererUrl:${ordererUrl}][deltaStorageUrl:${deltaStorageUrl}]`);
         }
 
-        const parsedUrl = parseFluidUrl(fluidResolvedUrl.url);
-        const [, tenantId, documentId] = parsedUrl.pathname.split("/");
+        parsedUrl = parseFluidUrl(fluidResolvedUrl.url);
+        [, tenantId, documentId] = parsedUrl.pathname.split("/");
         if (!documentId || !tenantId) {
             throw new Error(
                 `Couldn't parse documentId and/or tenantId. [documentId:${documentId}][tenantId:${tenantId}]`);
         }
-
-        const logger2 = ChildLogger.create(logger, "RouterliciousDriver");
 
         return new DocumentService(
             fluidResolvedUrl,

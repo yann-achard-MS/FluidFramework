@@ -14,13 +14,6 @@ export interface IDocumentDetails {
     value: IDocument;
 }
 
-export interface ISession {
-    documentId: string;
-    ordererUrl: string;
-    historianUrl: string;
-    isSessionAlive: boolean;
-}
-
 export interface IDocumentStorage {
     getDocument(tenantId: string, documentId: string): Promise<IDocument>;
 
