@@ -21,8 +21,8 @@ data:
         },
         "mongo": {
             "operationsDbEndpoint": "{{ .Values.mongodb.operationsDbEndpoint }}",
-            "globalDbEndpoint": "mongodb://tianzhu-test-cosmosdbafd-001:Wb0qjXmrHQSW0zqtFADshZASoCS9gvQ727PTfejcegfSbDIauIYx170xLbRcDq5cQ0Y2fctz1YK5TF6SJkoUvw==@tianzhu-test-cosmosdbafd-001.mongo.cosmos.azure.com:10255/?ssl=true&retrywrites=false&maxIdleTimeMS=120000&appName=@tianzhu-test-cosmosdbafd-001@",
-            "globalDbEnabled": true,
+            "globalDbEndpoint": "{{ .Values.mongodb.globalDbEndpoint }}",
+            "globalDbEnabled": {{ .Values.mongodb.globalDbEnabled }},
             "expireAfterSeconds": {{ .Values.mongodb.expireAfterSeconds }},
             "createCosmosDBIndexes": {{ .Values.mongodb.createCosmosDBIndexes }},
             "bufferMaxEntries": {{ .Values.mongodb.bufferMaxEntries }},
