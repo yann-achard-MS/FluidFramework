@@ -43,7 +43,6 @@ export async function deliCreate(config: Provider): Promise<core.IPartitionLambd
         const globalDbMongoFactory = new services.MongoDbFactory(globalDbMongoUrl, bufferMaxEntries);
         globalDbMongoManager = new core.MongoManager(globalDbMongoFactory, false);
     }
-
     // Connection to stored document details
     const operationsDbMongoFactory = new services.MongoDbFactory(mongoUrl, bufferMaxEntries);
     const operationsDbMongoManager = new core.MongoManager(operationsDbMongoFactory, false);
