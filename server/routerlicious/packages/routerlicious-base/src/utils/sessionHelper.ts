@@ -10,7 +10,7 @@ export async function createSession(globalDbMongoManager: MongoManager,
                                     documentId: string,
                                     ordererUrl: string,
                                     historianUrl: string): Promise<ISession> {
-    if (globalDbMongoManager == null || globalDbMongoManager === undefined) {
+    if (globalDbMongoManager === undefined) {
         const session: ISession = {
             documentId,
             ordererUrl,
@@ -40,7 +40,7 @@ export async function getSession(globalDbMongoManager: MongoManager,
                                      documentId: string,
                                      ordererUrl: string,
                                      historianUrl: string): Promise<ISession>  {
-    if (globalDbMongoManager == null || globalDbMongoManager === undefined) {
+    if (globalDbMongoManager === undefined) {
         const session: ISession = {
             documentId,
             ordererUrl,
@@ -56,7 +56,7 @@ export async function getSession(globalDbMongoManager: MongoManager,
         {
             documentId,
         });
-    if ((result as ISession).isSessionAlive === false) {
+    if (!(result as ISession).isSessionAlive) {
         await collection.upsert({
             documentId,
         }, {
