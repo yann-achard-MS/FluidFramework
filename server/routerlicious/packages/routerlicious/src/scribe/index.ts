@@ -18,6 +18,7 @@ import { Provider } from "nconf";
 export async function scribeCreate(config: Provider): Promise<IPartitionLambdaFactory> {
     // Access config values
     const mongoUrl = config.get("mongo:operationsDbEndpoint") as string;
+    const globalDbMongoUrl = config.get("mongo:globalDbEndpoint") as string;
     const documentsCollectionName = config.get("mongo:collectionNames:documents");
     const messagesCollectionName = config.get("mongo:collectionNames:scribeDeltas");
     const createCosmosDBIndexes = config.get("mongo:createCosmosDBIndexes");
@@ -42,8 +43,13 @@ export async function scribeCreate(config: Provider): Promise<IPartitionLambdaFa
     const mongoManager = new MongoManager(mongoFactory, false);
     const client = await mongoManager.getDatabase();
 
+    // Access Global storage
+    const globalMongoFactory = new MongoDbFactory(globalDbMongoUrl, bufferMaxEntries);
+    const globalMongoManager = new MongoManager(globalMongoFactory, false);
+    const globalClient = await globalMongoManager.getDatabase();
+
     const [collection, scribeDeltas] = await Promise.all([
-        client.collection<IDocument>(documentsCollectionName),
+        globalClient.collection<IDocument>(documentsCollectionName),
         client.collection<ISequencedOperationMessage>(messagesCollectionName),
     ]);
 

@@ -21,7 +21,7 @@ export async function createSession(globalDbMongoManager: MongoManager,
     }
     const db = await globalDbMongoManager.getDatabase();
     const collection = db.collection("sessions");
-    Lumberjack.info(`Fetch the documentUrl method`);
+    Lumberjack.info(`Fetch the session method`);
     const result = await collection.findOrCreate(
         {
             documentId,
@@ -51,7 +51,7 @@ export async function getSession(globalDbMongoManager: MongoManager,
     }
     const db = await globalDbMongoManager.getDatabase();
     const collection = db.collection("sessions");
-    Lumberjack.info(`Get the documentUrl method`);
+    Lumberjack.info(`Get the session method`);
     let result = await collection.findOne(
         {
             documentId,

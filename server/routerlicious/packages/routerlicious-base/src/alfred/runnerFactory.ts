@@ -157,13 +157,18 @@ export class AlfredResourcesFactory implements core.IResourcesFactory<AlfredReso
 
         const bufferMaxEntries = config.get("mongo:bufferMaxEntries") as number | undefined;
         // Database connection for global db if enabled
+        const globalDbMongoUrl = config.get("mongo:globalDbEndpoint") as string;
         let globalDbMongoManager;
         const globalDbEnabled = config.get("mongo:globalDbEnabled") as boolean;
         if (globalDbEnabled) {
-            const globalDbMongoUrl = config.get("mongo:globalDbEndpoint") as string;
             const globalDbMongoFactory = new services.MongoDbFactory(globalDbMongoUrl, bufferMaxEntries);
             globalDbMongoManager = new core.MongoManager(globalDbMongoFactory, false);
         }
+
+        // Access Global storage
+        const globalMongoFactory = new services.MongoDbFactory(globalDbMongoUrl, bufferMaxEntries);
+        const globalMongoManager = new core.MongoManager(globalMongoFactory, false);
+        const globalClient = await globalMongoManager.getDatabase();
 
         // Database connection for operations db
         const operationsDbMongoUrl = config.get("mongo:operationsDbEndpoint") as string;
@@ -172,8 +177,8 @@ export class AlfredResourcesFactory implements core.IResourcesFactory<AlfredReso
         const documentsCollectionName = config.get("mongo:collectionNames:documents");
 
         // Create the index on the documents collection
-        const db = await operationsDbMongoManager.getDatabase();
-        const documentsCollection = db.collection<core.IDocument>(documentsCollectionName);
+        // const db = await operationsDbMongoManager.getDatabase();
+        const documentsCollection = globalClient.collection<core.IDocument>(documentsCollectionName);
         await documentsCollection.createIndex(
             {
                 documentId: 1,

@@ -15,6 +15,7 @@ import * as winston from "winston";
 
 export async function deliCreate(config: Provider): Promise<core.IPartitionLambdaFactory> {
     const mongoUrl = config.get("mongo:operationsDbEndpoint") as string;
+    const globalDbMongoUrl = config.get("mongo:globalDbEndpoint") as string;
     const bufferMaxEntries = config.get("mongo:bufferMaxEntries") as number | undefined;
     const kafkaEndpoint = config.get("kafka:lib:endpoint");
     const kafkaLibrary = config.get("kafka:lib:name");
@@ -39,16 +40,21 @@ export async function deliCreate(config: Provider): Promise<core.IPartitionLambd
     let globalDbMongoManager;
     const globalDbEnabled = config.get("mongo:globalDbEnabled") as boolean;
     if (globalDbEnabled) {
-        const globalDbMongoUrl = config.get("mongo:globalDbEndpoint") as string;
         const globalDbMongoFactory = new services.MongoDbFactory(globalDbMongoUrl, bufferMaxEntries);
         globalDbMongoManager = new core.MongoManager(globalDbMongoFactory, false);
     }
     // Connection to stored document details
     const operationsDbMongoFactory = new services.MongoDbFactory(mongoUrl, bufferMaxEntries);
     const operationsDbMongoManager = new core.MongoManager(operationsDbMongoFactory, false);
-    const client = await operationsDbMongoManager.getDatabase();
+    // const client = await operationsDbMongoManager.getDatabase();
+
+    // Access Global storage
+    const globalMongoFactory = new services.MongoDbFactory(globalDbMongoUrl, bufferMaxEntries);
+    const globalMongoManager = new core.MongoManager(globalMongoFactory, false);
+    const globalClient = await globalMongoManager.getDatabase();
+
     // eslint-disable-next-line @typescript-eslint/await-thenable
-    const collection = await client.collection<core.IDocument>(documentsCollectionName);
+    const collection = await globalClient.collection<core.IDocument>(documentsCollectionName);
 
     const forwardProducer = services.createProducer(
         kafkaLibrary,

@@ -27,11 +27,12 @@ import {
     SequencedOperationType,
     IDocument,
     ISequencedOperationMessage,
+    MongoManager,
 } from "@fluidframework/server-services-core";
 import * as winston from "winston";
 import { toUtf8 } from "@fluidframework/common-utils";
 import { BaseTelemetryProperties, Lumberjack } from "@fluidframework/server-services-telemetry";
-
+import { MongoDbFactory } from "./mongodb";
 export class DocumentStorage implements IDocumentStorage {
     constructor(
         private readonly databaseManager: IDatabaseManager,
@@ -43,8 +44,18 @@ export class DocumentStorage implements IDocumentStorage {
      * Retrieves database details for the given document
      */
     public async getDocument(tenantId: string, documentId: string): Promise<IDocument> {
-        const collection = await this.databaseManager.getDocumentCollection();
-        return collection.findOne({ documentId, tenantId });
+        // eslint-disable-next-line max-len
+        const mongoUrl = "mongodb://apmahade-test-global-cosmosdb-001:ol4XLfh5Ik07jgmT1CZxEKzgkeRiwRRLvNQXWSrSbWpWESVP6tS7M90g9YqP5ovSqL0wsgWB76C08qyVhLrJTw==@apmahade-test-global-cosmosdb-001.mongo.cosmos.azure.com:10255/?ssl=true&retrywrites=false&maxIdleTimeMS=120000&appName=@apmahade-test-global-cosmosdb-001@";
+        const mongoFactory = new MongoDbFactory(mongoUrl);
+        const mongoManager = new MongoManager(mongoFactory, false);
+        const db = await mongoManager.getDatabase();
+        const collection = db.collection("documents");
+        const result = await collection.findOne(
+            {
+                documentId,
+                tenantId,
+            });
+        return result as IDocument;
     }
 
     public async getOrCreateDocument(tenantId: string, documentId: string): Promise<IDocumentDetails> {
@@ -119,9 +130,7 @@ export class DocumentStorage implements IDocumentStorage {
         initialHash: string,
         values: [string, ICommittedProposal][],
     ): Promise<IDocumentDetails> {
-        Lumberjack.info("004.1 Come to createDocument method");
         const tenant = await this.tenantManager.getTenant(tenantId, documentId);
-        Lumberjack.info("004.2 Come to tenant");
         const gitManager = tenant.gitManager;
 
         const messageMetaData = { documentId, tenantId };
@@ -130,7 +139,6 @@ export class DocumentStorage implements IDocumentStorage {
             [BaseTelemetryProperties.documentId]: documentId,
         };
 
-        Lumberjack.info("004.3 come to gitmanager,messagemetadata, and so on");
         const protocolTree = this.createInitialProtocolTree(documentId, sequenceNumber, term, values);
         const fullTree = this.createFullTree(appTree, protocolTree);
 
@@ -142,7 +150,6 @@ export class DocumentStorage implements IDocumentStorage {
 
         winston.info(`Tree reference: ${JSON.stringify(handle)}`, { messageMetaData });
         Lumberjack.info(`Tree reference: ${JSON.stringify(handle)}`, lumberjackProperties);
-        Lumberjack.info(`005 Tree reference: ${JSON.stringify(handle)}`);
 
         if (!this.enableWholeSummaryUpload) {
             const commitParams: ICreateCommitParams = {
@@ -161,7 +168,6 @@ export class DocumentStorage implements IDocumentStorage {
 
             winston.info(`Commit sha: ${JSON.stringify(commit.sha)}`, { messageMetaData });
             Lumberjack.info(`Commit sha: ${JSON.stringify(commit.sha)}`, lumberjackProperties);
-            Lumberjack.info(`006 Commit sha: ${JSON.stringify(commit.sha)}`);
         }
 
         const deli: IDeliState = {
@@ -176,7 +182,6 @@ export class DocumentStorage implements IDocumentStorage {
             nackMessages: undefined,
             successfullyStartedLambdas: [],
         };
-        Lumberjack.info(`007 Initize deli`);
 
         const scribe: IScribe = {
             logOffset: -1,
@@ -192,10 +197,13 @@ export class DocumentStorage implements IDocumentStorage {
             lastClientSummaryHead: undefined,
             lastSummarySequenceNumber: 0,
         };
-        Lumberjack.info(`008 Initize scribe`);
 
-        const collection = await this.databaseManager.getDocumentCollection();
-        Lumberjack.info(`009 Get the collection`);
+        // eslint-disable-next-line max-len
+        const mongoUrl = "mongodb://apmahade-test-global-cosmosdb-001:ol4XLfh5Ik07jgmT1CZxEKzgkeRiwRRLvNQXWSrSbWpWESVP6tS7M90g9YqP5ovSqL0wsgWB76C08qyVhLrJTw==@apmahade-test-global-cosmosdb-001.mongo.cosmos.azure.com:10255/?ssl=true&retrywrites=false&maxIdleTimeMS=120000&appName=@apmahade-test-global-cosmosdb-001@";
+        const mongoFactory = new MongoDbFactory(mongoUrl);
+        const mongoManager = new MongoManager(mongoFactory, false);
+        const db = await mongoManager.getDatabase();
+        const collection = db.collection("documents");
         const result = await collection.findOrCreate(
             {
                 documentId,
@@ -210,8 +218,7 @@ export class DocumentStorage implements IDocumentStorage {
                 version: "0.1",
             });
 
-        Lumberjack.info(`010 Get the result`);
-        return result;
+        return result.value as IDocumentDetails;
     }
 
     public async getLatestVersion(tenantId: string, documentId: string): Promise<ICommit> {
@@ -306,7 +313,12 @@ export class DocumentStorage implements IDocumentStorage {
 
     // Looks up the DB and summary for the document.
     private async getOrCreateObject(tenantId: string, documentId: string): Promise<IDocumentDetails> {
-        const collection = await this.databaseManager.getDocumentCollection();
+        // eslint-disable-next-line max-len
+        const mongoUrl = "mongodb://apmahade-test-global-cosmosdb-001:ol4XLfh5Ik07jgmT1CZxEKzgkeRiwRRLvNQXWSrSbWpWESVP6tS7M90g9YqP5ovSqL0wsgWB76C08qyVhLrJTw==@apmahade-test-global-cosmosdb-001.mongo.cosmos.azure.com:10255/?ssl=true&retrywrites=false&maxIdleTimeMS=120000&appName=@apmahade-test-global-cosmosdb-001@";
+        const mongoFactory = new MongoDbFactory(mongoUrl);
+        const mongoManager = new MongoManager(mongoFactory, false);
+        const db = await mongoManager.getDatabase();
+        const collection = db.collection("documents");
         const document = await collection.findOne({ documentId, tenantId });
         if (document === null) {
             // Guard against storage failure. Returns false if storage is unresponsive.
@@ -327,8 +339,8 @@ export class DocumentStorage implements IDocumentStorage {
 
             // Setting an empty string to deli and scribe denotes that the checkpoints should be loaded from summary.
             const value = inSummary ?
-                await this.createObject(collection, tenantId, documentId, "", "") :
-                await this.createObject(collection, tenantId, documentId);
+                await this.createObject(collection as ICollection<IDocument>, tenantId, documentId, "", "") :
+                await this.createObject(collection as ICollection<IDocument>, tenantId, documentId);
 
             return {
                 value,
@@ -336,7 +348,7 @@ export class DocumentStorage implements IDocumentStorage {
             };
         } else {
             return {
-                value: document,
+                value: document as IDocument,
                 existing: true,
             };
         }
