@@ -61,6 +61,7 @@ export class TestDocumentStorage implements IDocumentStorage {
         initialHash: string,
         values: [string, ICommittedProposal][],
     ): Promise<IDocumentDetails> {
+        console.log("002 Create documetment in test");
         const tenant = await this.tenantManager.getTenant(tenantId, documentId);
         const gitManager = tenant.gitManager;
 
