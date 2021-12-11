@@ -256,41 +256,41 @@ stages:
             action: 'Run a Docker command'
             customCommand: 'run -t $(baseContainerTag) npm run lint'
 
-      # Test
-      - ${{ if ne(parameters.test, '') }}:
-        # Test - No coverage
-        - ${{ if ne(variables.testCoverage, true) }}:
-          - task: Docker@0
-            displayName: npm run ${{ parameters.test }}
-            inputs:
-              action: 'Run a Docker command'
-              customCommand: 'run --user root -v $(System.DefaultWorkingDirectory)/${{ parameters.buildDirectory }}/nyc:${{ parameters.containerBaseDir }}/nyc -t $(baseContainerTag) npm run ${{ parameters.test }}'
+      # # Test
+      # - ${{ if ne(parameters.test, '') }}:
+      #   # Test - No coverage
+      #   - ${{ if ne(variables.testCoverage, true) }}:
+      #     - task: Docker@0
+      #       displayName: npm run ${{ parameters.test }}
+      #       inputs:
+      #         action: 'Run a Docker command'
+      #         customCommand: 'run --user root -v $(System.DefaultWorkingDirectory)/${{ parameters.buildDirectory }}/nyc:${{ parameters.containerBaseDir }}/nyc -t $(baseContainerTag) npm run ${{ parameters.test }}'
 
-        # Test - With coverage
-        - ${{ if eq(variables.testCoverage, true) }}:
-          - task: Docker@0
-            displayName: npm run ci:test:coverage
-            inputs:
-              action: 'Run a Docker command'
-              customCommand: 'run --user root -v $(System.DefaultWorkingDirectory)/${{ parameters.buildDirectory }}/nyc:${{ parameters.containerBaseDir }}/nyc -t $(baseContainerTag) npm run ci:test:coverage'
+      #   # Test - With coverage
+      #   - ${{ if eq(variables.testCoverage, true) }}:
+      #     - task: Docker@0
+      #       displayName: npm run ci:test:coverage
+      #       inputs:
+      #         action: 'Run a Docker command'
+      #         customCommand: 'run --user root -v $(System.DefaultWorkingDirectory)/${{ parameters.buildDirectory }}/nyc:${{ parameters.containerBaseDir }}/nyc -t $(baseContainerTag) npm run ci:test:coverage'
 
-          - task: PublishCodeCoverageResults@1
-            displayName: Publish Code Coverage
-            inputs:
-              codeCoverageTool: Cobertura
-              summaryFileLocation: '$(System.DefaultWorkingDirectory)/${{ parameters.buildDirectory }}/nyc/**/report/cobertura-coverage.xml'
-              reportDirectory: '$(System.DefaultWorkingDirectory)/${{ parameters.buildDirectory }}/nyc/**/report'
-            condition: succeededOrFailed()
+      #     - task: PublishCodeCoverageResults@1
+      #       displayName: Publish Code Coverage
+      #       inputs:
+      #         codeCoverageTool: Cobertura
+      #         summaryFileLocation: '$(System.DefaultWorkingDirectory)/${{ parameters.buildDirectory }}/nyc/**/report/cobertura-coverage.xml'
+      #         reportDirectory: '$(System.DefaultWorkingDirectory)/${{ parameters.buildDirectory }}/nyc/**/report'
+      #       condition: succeededOrFailed()
 
-        # Test - Upload results
-        - task: PublishTestResults@2
-          displayName: Publish Test Results
-          inputs:
-            testResultsFormat: 'JUnit'
-            testResultsFiles: '**/*junit-report.xml'
-            searchFolder: $(System.DefaultWorkingDirectory)/${{ parameters.buildDirectory }}/nyc
-            mergeTestResults: true
-          condition: succeededOrFailed()
+      #   # Test - Upload results
+      #   - task: PublishTestResults@2
+      #     displayName: Publish Test Results
+      #     inputs:
+      #       testResultsFormat: 'JUnit'
+      #       testResultsFiles: '**/*junit-report.xml'
+      #       searchFolder: $(System.DefaultWorkingDirectory)/${{ parameters.buildDirectory }}/nyc
+      #       mergeTestResults: true
+      #     condition: succeededOrFailed()
 
       # Docs
       - ${{ if eq(parameters.docs, true) }}:
