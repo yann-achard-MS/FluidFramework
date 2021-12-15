@@ -60,6 +60,8 @@ interface IConnectedClient {
 
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 function getRoomId(room: IRoom) {
+    Lumberjack.info(`0000000002 print out room document id ${JSON.stringify(room.documentId)}`);
+    Lumberjack.info(`0000000231302 print out room tenant id ${JSON.stringify(room.documentId)}`);
     return `${room.tenantId}/${room.documentId}`;
 }
 
@@ -236,6 +238,8 @@ export function configureWebSocketServices(
                 documentId: claims.documentId,
             };
 
+            Lumberjack.info(`023412434 print out clientid ${clientId}`);
+            Lumberjack.info(`023412435 print out room ${JSON.stringify(room)}`);
             try {
                 // Subscribe to channels.
                 await Promise.all([
@@ -407,7 +411,10 @@ export function configureWebSocketServices(
                 (message) => {
                     socket.emit("connect_document_success", message.connection);
                     const room = roomMap.get(message.connection.clientId);
+                    Lumberjack.info(`02341243231 print out roomMap ${JSON.stringify(roomMap)}`);
+                    Lumberjack.info(`023412432232131 print out room ${JSON.stringify(room)}`);
                     if (room) {
+                        console.log("00000001 get into connectDocument");
                         socket.emitToRoom(
                             getRoomId(room),
                             "signal",
@@ -419,6 +426,7 @@ export function configureWebSocketServices(
                         [CommonProperties.clientCount]: message.connection.initialClients.length + 1,
                         [CommonProperties.clientType]: message.details.details?.type,
                     });
+                    Lumberjack.info(`00000003 Connect document successful`);
                     connectMetric.success(`Connect document successful`);
                 },
                 (error) => {
@@ -437,10 +445,13 @@ export function configureWebSocketServices(
                     let nackMessage: INack;
                     const clientScope = scopeMap.get(clientId);
                     if (clientScope && hasWriteAccess(clientScope)) {
+                        Lumberjack.info(`00000004 Readonly client`);
                         nackMessage = createNackMessage(400, NackErrorType.BadRequestError, "Readonly client");
                     } else if (roomMap.has(clientId)) {
+                        Lumberjack.info(`00000005 Readonly client`);
                         nackMessage = createNackMessage(403, NackErrorType.InvalidScopeError, "Invalid scope");
                     } else {
+                        Lumberjack.info(`00000006 Readonly client`);
                         nackMessage = createNackMessage(400, NackErrorType.BadRequestError, "Nonexistent client");
                     }
 
@@ -451,12 +462,14 @@ export function configureWebSocketServices(
                         getSubmitOpThrottleId(clientId, connection.tenantId),
                         connection.tenantId,
                         logger);
+                    Lumberjack.info(`23122312321 print out room ${JSON.stringify(throttleError)}`);
                     if (throttleError) {
                         const nackMessage = createNackMessage(
                             throttleError.code,
                             NackErrorType.ThrottlingError,
                             throttleError.message,
                             throttleError.retryAfter);
+                        Lumberjack.info(`23122e32132312321 print out nackMessage ${JSON.stringify(nackMessage)}`);
                         socket.emit("nack", "", [nackMessage]);
                         return;
                     }
@@ -466,11 +479,14 @@ export function configureWebSocketServices(
                         const sanitized = messages
                             .filter((message) => {
                                 if (message.type === MessageType.RoundTrip) {
+                                    Lumberjack.info(`000000009 print out traces ${JSON.stringify(message.traces)}`);
                                     if (message.traces) {
                                         // End of tracking. Write traces.
                                         // TODO: add Lumber metric here?
+                                        Lumberjack.info(`0000000010 traces ${JSON.stringify(message.traces)}`);
                                         metricLogger.writeLatencyMetric("latency", message.traces).catch(
                                             (error) => {
+                                                Lumberjack.info(`0000000011 traces ${JSON.stringify(message.traces)}`);
                                                 logger.error(error.stack);
                                                 Lumberjack.error(error.stack);
                                             });
@@ -485,6 +501,7 @@ export function configureWebSocketServices(
                         if (sanitized.length > 0) {
                             // eslint-disable-next-line @typescript-eslint/no-floating-promises
                             connection.order(sanitized);
+                            Lumberjack.info(`0000000012 traces`);
                         }
                     });
                 }
@@ -496,10 +513,13 @@ export function configureWebSocketServices(
             (clientId: string, contentBatches: (IDocumentMessage | IDocumentMessage[])[]) => {
                 // Verify the user has subscription to the room.
                 const room = roomMap.get(clientId);
+                Lumberjack.info(`0000000000023 contentBatches ${JSON.stringify(contentBatches)}`);
                 if (!room) {
+                    Lumberjack.info(`12421421214123213Go to if blocker`);
                     const nackMessage = createNackMessage(400, NackErrorType.BadRequestError, "Nonexistent client");
                     socket.emit("nack", "", [nackMessage]);
                 } else {
+                    Lumberjack.info(`53151325321 Go to else blocker`);
                     contentBatches.forEach((contentBatche) => {
                         const contents = Array.isArray(contentBatche) ? contentBatche : [contentBatche];
 
@@ -509,6 +529,7 @@ export function configureWebSocketServices(
                                 content,
                             };
 
+                            Lumberjack.info(`0000000000023 for loop ${JSON.stringify(signalMessage)}`);
                             socket.emitToRoom(getRoomId(room), "signal", signalMessage);
                         }
                     });
