@@ -61,7 +61,7 @@ interface IConnectedClient {
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 function getRoomId(room: IRoom) {
     Lumberjack.info(`0000000002 print out room document id ${JSON.stringify(room.documentId)}`);
-    Lumberjack.info(`0000000231302 print out room tenant id ${JSON.stringify(room.documentId)}`);
+    Lumberjack.info(`0000000231302 print out room tenant id ${JSON.stringify(room.tenantId)}`);
     return `${room.tenantId}/${room.documentId}`;
 }
 
@@ -405,7 +405,8 @@ export function configureWebSocketServices(
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         socket.on("connect_document", async (connectionMessage: IConnect) => {
             const connectMetric = Lumberjack.newLumberMetric(LumberEventName.ConnectDocument);
-            connectMetric.setProperties(getLumberBaseProperties(connectionMessage.id, connectionMessage.tenantId));
+            const lumberBaseProperties = getLumberBaseProperties(connectionMessage.id, connectionMessage.tenantId);
+            connectMetric.setProperties(lumberBaseProperties);
 
             connectDocument(connectionMessage).then(
                 (message) => {
@@ -414,11 +415,12 @@ export function configureWebSocketServices(
                     Lumberjack.info(`02341243231 print out roomMap ${JSON.stringify(roomMap)}`);
                     Lumberjack.info(`023412432232131 print out room ${JSON.stringify(room)}`);
                     if (room) {
-                        console.log("00000001 get into connectDocument");
+                        Lumberjack.info("00000001 Alfred put join to Kafka", lumberBaseProperties);
                         socket.emitToRoom(
                             getRoomId(room),
                             "signal",
                             createRoomJoinMessage(message.connection.clientId, message.details));
+                        Lumberjack.info("Finish emitToRoom", lumberBaseProperties);
                     }
 
                     connectMetric.setProperties({

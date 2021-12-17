@@ -256,6 +256,8 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
     }
 
     public handler(rawMessage: IQueuedMessage) {
+        const tempLumberBaseProperties = getLumberBaseProperties(this.documentId, this.tenantId);
+        Lumberjack.info(`1242153254235 Go to the deli handler ${JSON.stringify(rawMessage)}`, tempLumberBaseProperties);
         // In cases where we are reprocessing messages we have already checkpointed exit early
         if (rawMessage.offset <= this.logOffset) {
             this.updateCheckpointMessages(rawMessage);
@@ -420,8 +422,10 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
         this.emit("close", closeType);
         this.removeAllListeners();
 
+        Lumberjack.info(`1242153254235 Go to the close method ${JSON.stringify(closeType)}`);
         if (this.serviceConfiguration.enableLumberjack) {
             this.logSessionEndMetrics(closeType);
+            Lumberjack.info(`1244213254235 Go to the inner method enableLumberjack ${JSON.stringify(closeType)}`);
         }
     }
 
@@ -473,6 +477,7 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
         }
 
         this.sessionMetric?.setProperties({ [CommonProperties.serviceSummarySuccess]: this.serviceSummaryGenerated });
+        Lumberjack.info("Go to the logSessionEndMertrics");
 
         logCommonSessionEndMetrics(
             this.context as DocumentContext,
@@ -489,6 +494,8 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
         if (rawMessage.type !== RawOperationType) {
             return undefined;
         }
+
+        Lumberjack.info("Go to the ticket function");
 
         // Update and retrieve the minimum sequence number
         const message = rawMessage as IRawOperationMessage;
