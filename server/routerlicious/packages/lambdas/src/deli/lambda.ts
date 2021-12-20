@@ -258,8 +258,14 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
     public handler(rawMessage: IQueuedMessage) {
         const tempLumberBaseProperties = getLumberBaseProperties(this.documentId, this.tenantId);
         Lumberjack.info(`1242153254235 Go to the deli handler ${JSON.stringify(rawMessage)}`, tempLumberBaseProperties);
+        // eslint-disable-next-line max-len
+        Lumberjack.info(`logoffset ${JSON.stringify(rawMessage.offset)} vs ${JSON.stringify(this.logOffset)}`, tempLumberBaseProperties);
+        Lumberjack.info(`Print out client status ${JSON.stringify(this.noActiveClients)}`, tempLumberBaseProperties);
+        Lumberjack.info(`Print out min seq # ${JSON.stringify(this.minimumSequenceNumber)}`, tempLumberBaseProperties);
         // In cases where we are reprocessing messages we have already checkpointed exit early
         if (rawMessage.offset <= this.logOffset) {
+            // eslint-disable-next-line max-len
+            Lumberjack.info(`logoffset1 ${JSON.stringify(rawMessage.offset)} vs ${JSON.stringify(this.logOffset)}`, tempLumberBaseProperties);
             this.updateCheckpointMessages(rawMessage);
 
             if (this.checkpointInfo.currentKafkaCheckpointMessage) {
