@@ -262,6 +262,7 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
         Lumberjack.info(`logoffset ${JSON.stringify(rawMessage.offset)} vs ${JSON.stringify(this.logOffset)}`, tempLumberBaseProperties);
         Lumberjack.info(`Print out client status ${JSON.stringify(this.noActiveClients)}`, tempLumberBaseProperties);
         Lumberjack.info(`Print out min seq # ${JSON.stringify(this.minimumSequenceNumber)}`, tempLumberBaseProperties);
+        Lumberjack.info(`Print out last Checkpoint # ${JSON.stringify(this.lastCheckpoint)}`, tempLumberBaseProperties);
         // In cases where we are reprocessing messages we have already checkpointed exit early
         if (rawMessage.offset <= this.logOffset) {
             // eslint-disable-next-line max-len
