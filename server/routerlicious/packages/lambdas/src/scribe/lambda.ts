@@ -296,7 +296,7 @@ export class ScribeLambda implements IPartitionLambda {
                                 }
                                 await this.sendSummaryConfirmationMessage(
                                     operation.sequenceNumber,
-                                    true,
+                                    false,
                                     this.serviceConfiguration.scribe.clearCacheAfterServiceSummary);
                                 this.updateLastSummarySequenceNumber(operation.sequenceNumber);
                                 const summaryResult = `Service summary success @${operation.sequenceNumber}`;
