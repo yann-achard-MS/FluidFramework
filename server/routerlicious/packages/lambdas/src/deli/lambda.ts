@@ -447,6 +447,8 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
     }
 
     public async close(closeType: LambdaCloseType) {
+        await this.resetLogOffset();
+        Lumberjack.info("Come to close method");
         this.checkpointContext.close();
 
         this.clearActivityIdleTimer();
@@ -1293,13 +1295,19 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
         this.checkpointInfo.lastCheckpointTime = Date.now();
         this.checkpointInfo.rawMessagesSinceCheckpoint = 0;
 
+        Lumberjack.info(JSON.stringify("print logoffset"));
+        Lumberjack.info(JSON.stringify(this.logOffset));
+        Lumberjack.info("Come to checkpoint");
         const checkpointParams = this.generateCheckpoint(reason);
+        Lumberjack.info("Come to checkpointParams");
+        Lumberjack.info(JSON.stringify(checkpointParams.deliCheckpointMessage.offset));
 
         Promise.all([this.lastSendP, this.lastNoClientP]).then(
             () => {
                 if (reason === DeliCheckpointReason.ClearCache) {
                     checkpointParams.clear = true;
                 }
+                Lumberjack.info("Promise.all go to this method");
                 void this.checkpointContext.checkpoint(checkpointParams);
             },
             (error) => {
@@ -1350,5 +1358,17 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
             clearTimeout(this.checkpointInfo.idleTimer);
             this.checkpointInfo.idleTimer = undefined;
         }
+    }
+
+    /**
+     * Reset the logOffset in checkpoint as -1
+     */
+    private async resetLogOffset() {
+        this.logOffset = -1;
+        if (this.checkpointInfo.currentDeliCheckpointMessage !== undefined) {
+            this.checkpointInfo.currentDeliCheckpointMessage.offset = -1;
+        }
+        Lumberjack.info("go to resetLogOffset");
+        this.checkpoint(DeliCheckpointReason.MaxMessages);
     }
 }

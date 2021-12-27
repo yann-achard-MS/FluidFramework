@@ -27,18 +27,21 @@ export class CheckpointContext {
     public async checkpoint(checkpoint: ICheckpointParams) {
         // Exit early if already closed
         if (this.closed) {
-            return;
+            checkpoint.deliState.logOffset = -1;
+            Lumberjack.info("this.closed");
         }
 
         // Check if a checkpoint is in progress - if so store the pending checkpoint
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         if (this.pendingUpdateP) {
             this.pendingCheckpoint = checkpoint;
+            Lumberjack.info("this.pendingUpdateP");
             return;
         }
 
         // Database checkpoint
         try {
+            Lumberjack.info("checkpoint");
             this.pendingUpdateP = this.checkpointCore(checkpoint);
             await this.pendingUpdateP;
         } catch (ex) {
@@ -98,18 +101,22 @@ export class CheckpointContext {
     // eslint-disable-next-line @typescript-eslint/promise-function-async
     private checkpointCore(checkpoint: ICheckpointParams) {
         // Exit early if already closed
-        if (this.closed) {
-            return;
-        }
+        // if (this.closed) {
+        //     return;
+        // }
 
         let updateP: Promise<void>;
 
         if (checkpoint.clear) {
             updateP = this.checkpointManager.deleteCheckpoint(checkpoint);
+            Lumberjack.info("checkpoint1");
+            Lumberjack.info(JSON.stringify(checkpoint.deliState.logOffset));
         } else {
             // clone the checkpoint
             const deliCheckpoint: IDeliState = { ...checkpoint.deliState };
 
+            Lumberjack.info("checkpoint");
+            Lumberjack.info(JSON.stringify(deliCheckpoint.logOffset));
             updateP = this.checkpointManager.writeCheckpoint(deliCheckpoint, checkpoint.reason);
         }
 
