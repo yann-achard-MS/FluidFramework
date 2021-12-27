@@ -181,7 +181,7 @@ export const DefaultServiceConfiguration: IServiceConfiguration = {
     scribe: {
         generateServiceSummary: true,
         enablePendingCheckpointMessages: true,
-        clearCacheAfterServiceSummary: true,
+        clearCacheAfterServiceSummary: false,
         ignoreStorageException: false,
     },
     moira: {
