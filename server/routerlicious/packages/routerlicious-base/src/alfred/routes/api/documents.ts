@@ -104,6 +104,8 @@ export function create(
                 sequenceNumber,
                 1,
                 crypto.randomBytes(4).toString("hex"),
+                ordererUrl,
+                historianUrl,
                 values);
 
             const sessionP = await createSession(globalDbMongoManager, id, ordererUrl, historianUrl);
