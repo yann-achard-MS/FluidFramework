@@ -3,9 +3,16 @@
  * Licensed under the MIT License.
  */
 
-export interface ISession {
+export interface IDocumentSession {
     documentId: string;
+
+    session: ISession;
+}
+
+export interface ISession {
     ordererUrl: string;
+
     historianUrl: string;
+
     isSessionAlive: boolean;
 }

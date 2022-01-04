@@ -6,6 +6,7 @@
 import * as crypto from "crypto";
 import {
     IDocumentStorage,
+    IDocumentSession,
     IThrottler,
     ITenantManager,
     ICache,
@@ -22,7 +23,7 @@ import winston from "winston";
 import { IAlfredTenant } from "@fluidframework/server-services-client";
 import { Provider } from "nconf";
 import { v4 as uuid } from "uuid";
-import { Constants, handleResponse, createSession, getSession } from "../../../utils";
+import { Constants, convertUrls, handleResponse, getSession } from "../../../utils";
 
 export function create(
     storage: IDocumentStorage,
@@ -82,13 +83,16 @@ export function create(
                 ? uuid()
                 : request.body.id as string || uuid();
 
-            const ordererUrl = request.headers.host ?? "";
-            let historianUrl: string = "";
-            if (ordererUrl.includes("alfred")) {
-                historianUrl = ordererUrl.replace("alfred", "historian");
-            } else if (ordererUrl.includes("local")) {
-                historianUrl = "localhost:3001";
-            }
+            const [ordererUrl, historianUrl] = convertUrls(request.headers.host);
+            const documentSession: IDocumentSession = {
+                documentId: id,
+                session:
+                {
+                    ordererUrl,
+                    historianUrl,
+                    isSessionAlive: true,
+                },
+            };
 
             // Summary information
             const summary = request.body.summary;
@@ -108,8 +112,8 @@ export function create(
                 historianUrl,
                 values);
 
-            const sessionP = await createSession(globalDbMongoManager, id, ordererUrl, historianUrl);
-            handleResponse(createP.then(() => sessionP), response, undefined, 201);
+            // const sessionP = await createSession(globalDbMongoManager, id, ordererUrl, historianUrl);
+            handleResponse(createP.then(() => documentSession), response, undefined, 201);
         });
 
     /**
@@ -121,15 +125,9 @@ export function create(
         throttle(throttler, winston, commonThrottleOptions),
         async (request, response, next) => {
             const documentId = getParam(request.params, "id");
-            const ordererUrl = request.headers.host ?? "";
-            let historianUrl: string = "";
-            if (ordererUrl.includes("alfred")) {
-                historianUrl = ordererUrl.replace("alfred", "historian");
-            } else if (ordererUrl.includes("local")) {
-                historianUrl = "localhost:3001";
-            }
-            const sessionP = getSession(globalDbMongoManager, documentId, ordererUrl, historianUrl);
-            handleResponse(sessionP, response, undefined, 201);
+            const [ordererUrl, historianUrl] = convertUrls(request.headers.host);
+            const documentSessionP = getSession(globalDbMongoManager, documentId, ordererUrl, historianUrl);
+            handleResponse(documentSessionP, response, undefined, 201);
         });
     return router;
 }

@@ -447,7 +447,7 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
     }
 
     public async close(closeType: LambdaCloseType) {
-        await this.resetLogOffset();
+        // await this.resetLogOffset();
         Lumberjack.info("Come to close method");
         this.checkpointContext.close();
 
@@ -1360,15 +1360,15 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
         }
     }
 
-    /**
-     * Reset the logOffset in checkpoint as -1
-     */
-    private async resetLogOffset() {
-        this.logOffset = -1;
-        if (this.checkpointInfo.currentDeliCheckpointMessage !== undefined) {
-            this.checkpointInfo.currentDeliCheckpointMessage.offset = -1;
-        }
-        Lumberjack.info("go to resetLogOffset");
-        this.checkpoint(DeliCheckpointReason.MaxMessages);
-    }
+    // /**
+    //  * Reset the logOffset in checkpoint as -1
+    //  */
+    // private async resetLogOffset() {
+    //     this.logOffset = -1;
+    //     if (this.checkpointInfo.currentDeliCheckpointMessage !== undefined) {
+    //         this.checkpointInfo.currentDeliCheckpointMessage.offset = -1;
+    //     }
+    //     Lumberjack.info("go to resetLogOffset");
+    //     this.checkpoint(DeliCheckpointReason.MaxMessages);
+    // }
 }

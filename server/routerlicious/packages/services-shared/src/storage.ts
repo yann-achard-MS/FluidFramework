@@ -202,7 +202,6 @@ export class DocumentStorage implements IDocumentStorage {
         };
 
         const session: ISession = {
-            documentId,
             ordererUrl,
             historianUrl,
             isSessionAlive: true,

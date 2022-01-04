@@ -18,6 +18,7 @@ import {
     IPartitionLambdaFactory,
     IProducer,
     IServiceConfiguration,
+    ISession,
     ITenantManager,
     LambdaCloseType,
     MongoManager,
@@ -25,7 +26,7 @@ import {
 import { generateServiceProtocolEntries } from "@fluidframework/protocol-base";
 import { FileMode } from "@fluidframework/protocol-definitions";
 import { defaultHash, IGitManager } from "@fluidframework/server-services-client";
-import { Lumber, LumberEventName } from "@fluidframework/server-services-telemetry";
+import { Lumber, LumberEventName, Lumberjack } from "@fluidframework/server-services-telemetry";
 import { NoOpLambda, createSessionMetric } from "../utils";
 import { DeliLambda } from "./lambda";
 import { createDeliCheckpointManagerFromCollection } from "./checkpointManager";
@@ -170,20 +171,22 @@ export class DeliLambdaFactory extends EventEmitter implements IPartitionLambdaF
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         deliLambda.on("close", async (closeType) => {
             if ((closeType === LambdaCloseType.ActivityTimeout || closeType === LambdaCloseType.Error)
-                 && this.globalDbMongoManager !== undefined) {
+                && this.globalDbMongoManager !== undefined) {
                 const db = await this.globalDbMongoManager.getDatabase();
-                const collection = db.collection("sessions");
-                const tempSession = await collection.findOne({ documentId });
-                if (tempSession !== undefined) {
+                const collection = db.collection("documents");
+                const result = await collection.findOne({ documentId });
+                if (result !== undefined) {
+                    Lumberjack.info("Come to inner result !== undefined method");
+                    const session = JSON.parse((result as IDocument).session) as ISession;
+                    session.isSessionAlive = false;
                     await collection.update(
                         {
                             documentId,
                         },
                         {
-                            isSessionAlive: false,
+                            session: JSON.stringify(session),
                         },
-                        {
-                        });
+                        {});
                 }
             }
         });

@@ -129,9 +129,13 @@ export interface IDocument {
     scheduledDeletionTime?: string;
 }
 
-export interface ISession {
+export interface IDocumentSession {
     documentId: string;
 
+    session: ISession;
+}
+
+export interface ISession {
     ordererUrl: string;
 
     historianUrl: string;

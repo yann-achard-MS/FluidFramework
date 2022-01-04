@@ -25,7 +25,7 @@ import { RouterliciousOrdererRestWrapper } from "./restWrapper";
 import { convertSummaryToCreateNewSummary } from "./createNewUtils";
 import { parseFluidUrl, replaceDocumentIdInPath, replaceFluidUrl } from "./urlUtils";
 import { InMemoryCache } from "./cache";
-import { ISession } from "./contracts";
+import { IDocumentSession, ISession } from "./contracts";
 
 const defaultRouterliciousDriverPolicies: IRouterliciousDriverPolicies = {
     enablePrefetch: true,
@@ -90,7 +90,7 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
             resolvedUrl.endpoints.ordererUrl,
         );
         // the backend responds with the actual document ID associated with the new container.
-        const session: ISession = await ordererRestWrapper.post<ISession>(
+        const documentSession: IDocumentSession = await ordererRestWrapper.post<IDocumentSession>(
             `/documents/${tenantId}`,
             {
                 summary: convertSummaryToCreateNewSummary(appSummary),
@@ -98,7 +98,8 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
                 values: quorumValues,
             },
         );
-        const documentId = session.documentId;
+        const documentId = documentSession.documentId;
+        const session = documentSession.session as ISession;
         replaceFluidUrl(resolvedUrl, session, parsedUrl);
 
         parsedUrl = parseFluidUrl(resolvedUrl.url);
@@ -154,9 +155,10 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
             resolvedUrl.endpoints.ordererUrl,
         );
         // the backend responds with the actual document ID associated with the new container.
-        const session: ISession = await ordererRestWrapper.get<ISession>(
+        const documentSession: IDocumentSession = await ordererRestWrapper.get<IDocumentSession>(
             `/documents/${tenantId}/session/${documentId}`,
         );
+        const session = documentSession.session as ISession;
         replaceFluidUrl(resolvedUrl, session, parsedUrl);
 
         const fluidResolvedUrl = resolvedUrl;
