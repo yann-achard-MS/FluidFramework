@@ -25,7 +25,7 @@ import { RouterliciousOrdererRestWrapper } from "./restWrapper";
 import { convertSummaryToCreateNewSummary } from "./createNewUtils";
 import { parseFluidUrl, replaceDocumentIdInPath, replaceFluidUrl } from "./urlUtils";
 import { InMemoryCache } from "./cache";
-import { IDocumentSession, ISession } from "./contracts";
+import { IDocumentSession } from "./contracts";
 
 const defaultRouterliciousDriverPolicies: IRouterliciousDriverPolicies = {
     enablePrefetch: true,
@@ -99,7 +99,7 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
             },
         );
         const documentId = documentSession.documentId;
-        const session = documentSession.session as ISession;
+        const session = documentSession.session;
         replaceFluidUrl(resolvedUrl, session, parsedUrl);
 
         parsedUrl = parseFluidUrl(resolvedUrl.url);
@@ -158,7 +158,7 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
         const documentSession: IDocumentSession = await ordererRestWrapper.get<IDocumentSession>(
             `/documents/${tenantId}/session/${documentId}`,
         );
-        const session = documentSession.session as ISession;
+        const session = documentSession.session;
         replaceFluidUrl(resolvedUrl, session, parsedUrl);
 
         const fluidResolvedUrl = resolvedUrl;

@@ -56,33 +56,30 @@ export async function getSession(globalDbMongoManager: MongoManager,
     const db = await globalDbMongoManager.getDatabase();
     const collection = db.collection("documents");
     Lumberjack.info(`Get the session method`);
-    let result = await collection.findOne({ documentId });
+    const result = await collection.findOne({ documentId });
     const session = JSON.parse((result as IDocument).session) as ISession;
     const deli = JSON.parse((result as IDocument).deli);
     const scribe = JSON.parse((result as IDocument).scribe);
     if (!session.isSessionAlive) {
         // Reset logOffset, ordererUrl, and historianUrl when switching cluster.
-        if (session.ordererUrl !== ordererUrl || session.historianUrl !== historianUrl) {
+        if (session.ordererUrl !== ordererUrl) {
             deli.logOffset = -1;
             scribe.logOffset = -1;
             session.ordererUrl = ordererUrl;
             session.historianUrl = historianUrl;
         }
         session.isSessionAlive = true;
+        (result as IDocument).deli = JSON.stringify(deli);
+        (result as IDocument).scribe = JSON.stringify(scribe);
+        (result as IDocument).session = JSON.stringify(session);
         await collection.upsert({
             documentId,
         }, {
-            deli: JSON.stringify(deli),
-            scribe: JSON.stringify(scribe),
-            session: JSON.stringify(session),
+            deli: (result as IDocument).deli,
+            scribe: (result as IDocument).scribe,
+            session: (result as IDocument).session,
         }, {
         });
-        Lumberjack.info(`Print out deli info`);
-        Lumberjack.info(JSON.stringify(deli));
-        result = await collection.findOne(
-            {
-                documentId,
-            });
     }
     const documentSession: IDocumentSession = {
         documentId,
