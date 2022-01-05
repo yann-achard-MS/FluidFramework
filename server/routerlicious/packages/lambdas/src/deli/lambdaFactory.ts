@@ -26,7 +26,7 @@ import {
 import { generateServiceProtocolEntries } from "@fluidframework/protocol-base";
 import { FileMode } from "@fluidframework/protocol-definitions";
 import { defaultHash, IGitManager } from "@fluidframework/server-services-client";
-import { Lumber, LumberEventName, Lumberjack } from "@fluidframework/server-services-telemetry";
+import { Lumber, LumberEventName } from "@fluidframework/server-services-telemetry";
 import { NoOpLambda, createSessionMetric } from "../utils";
 import { DeliLambda } from "./lambda";
 import { createDeliCheckpointManagerFromCollection } from "./checkpointManager";
@@ -176,7 +176,6 @@ export class DeliLambdaFactory extends EventEmitter implements IPartitionLambdaF
                 const collection = db.collection("documents");
                 const result = await collection.findOne({ documentId });
                 if (result !== undefined) {
-                    Lumberjack.info("Come to inner result !== undefined method");
                     const session = JSON.parse((result as IDocument).session) as ISession;
                     session.isSessionAlive = false;
                     await collection.update(
