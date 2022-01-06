@@ -274,7 +274,6 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
         let sequencedMessageCount = 0;
         const boxcar = extractBoxcar(rawMessage);
 
-
         for (const message of boxcar.contents) {
             // Ticket current message.
             const ticketedMessage = this.ticket(message, this.createTrace("start"));
@@ -474,7 +473,6 @@ export class DeliLambda extends TypedEventEmitter<IDeliLambdaEvents> implements 
         }
 
         this.sessionMetric?.setProperties({ [CommonProperties.serviceSummarySuccess]: this.serviceSummaryGenerated });
-        Lumberjack.info("Go to the logSessionEndMertrics");
 
         logCommonSessionEndMetrics(
             this.context as DocumentContext,
