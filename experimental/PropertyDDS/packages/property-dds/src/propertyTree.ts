@@ -26,8 +26,9 @@ import {
 } from "@fluidframework/datastore-definitions";
 
 import { bufferToString, assert } from "@fluidframework/common-utils";
-import { SharedObject } from "@fluidframework/shared-object-base";
-import { IFluidSerializer } from "@fluidframework/core-interfaces";
+import { ISummaryTreeWithStats } from "@fluidframework/runtime-definitions";
+import { convertToSummaryTreeWithStats } from "@fluidframework/runtime-utils";
+import { IFluidSerializer, SharedObject } from "@fluidframework/shared-object-base";
 
 import {
 	ChangeSet,
@@ -159,7 +160,7 @@ export class SharedPropertyTree extends SharedObject {
 	}
 
 	private scopeFutureDeltasToPaths(paths?: string[]) {
-		const socket = (this.runtime.deltaManager as any).deltaManager.connection.socket;
+		const socket = (this.runtime.deltaManager as any).deltaManager.connectionManager.connection.socket;
 		socket.emit("partial_checkout", { paths });
 	}
 
@@ -389,7 +390,7 @@ export class SharedPropertyTree extends SharedObject {
 		this.remoteChanges = remoteChanges;
 		this.unrebasedRemoteChanges = unrebasedRemoteChanges;
 	}
-	public snapshotCore(serializer: IFluidSerializer): ITree {
+	public summarizeCore(serializer: IFluidSerializer, fullTree: boolean): ISummaryTreeWithStats {
 		this.pruneHistory();
 		const snapshot: ISnapshot = {
 			branchGuid: this.handle.absolutePath.split("/").pop() as string,
@@ -437,7 +438,7 @@ export class SharedPropertyTree extends SharedObject {
 			snapshot.numChunks = chunks.length;
 		}
 
-		return {
+		return convertToSummaryTreeWithStats({
 			entries: [
 				{
 					path: "properties",
@@ -454,7 +455,7 @@ export class SharedPropertyTree extends SharedObject {
 				...chunks,
 			],
 			id: undefined,
-		};
+		}, fullTree);
 	}
 
 	protected async loadCore(storage: IChannelStorageService): Promise<void> {
@@ -462,8 +463,7 @@ export class SharedPropertyTree extends SharedObject {
 		const handleTableChunk = await storage.readBlob("properties");
 		const utf8 = bufferToString(handleTableChunk, "utf8");
 
-		const serializer = runtime.IFluidSerializer;
-		const snapshot: ISnapshot = serializer !== undefined ? serializer.parse(utf8) : JSON.parse(utf8);
+		const snapshot: ISnapshot = this.serializer.parse(utf8);
 		this.useMH = snapshot.useMH;
 
 		try {
