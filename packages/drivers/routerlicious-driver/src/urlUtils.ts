@@ -20,23 +20,21 @@ export const parseFluidUrl = (fluidUrl: string): URLParse => {
 export const replaceDocumentIdInPath = (urlPath: string, documentId: string): string =>
     urlPath.split("/").slice(0, -1).concat([documentId]).join("/");
 
-export const replaceDomainInPath = (domain: string, url: string): string => {
-    const tempUrl = new URL(url);
-    tempUrl.hostname = domain;
-    return tempUrl.href;
+export const replaceDomainInPath = (domain: string, domainReplaced: string, url: string): string => {
+    return url.replace(domainReplaced, domain);
 };
 
 export const createFluidUrl = (domain: string, pathname: string): string =>
      "fluid://".concat(domain).concat(pathname);
 
-export const replaceFluidUrl = (resolvedUrl: IFluidResolvedUrl, documentUrl: ISession, parsedUrl: URLParse): void => {
-    if (documentUrl.ordererUrl.includes("alfred")) {
-        resolvedUrl.url = createFluidUrl(documentUrl.ordererUrl, parsedUrl.pathname);
-        resolvedUrl.endpoints.ordererUrl = replaceDomainInPath(documentUrl.ordererUrl,
+export const replaceFluidUrl = (resolvedUrl: IFluidResolvedUrl, session: ISession, parsedUrl: URLParse): void => {
+    if (session.ordererUrl.includes("alfred")) {
+        resolvedUrl.url = createFluidUrl(session.ordererUrl, parsedUrl.pathname);
+        resolvedUrl.endpoints.ordererUrl = replaceDomainInPath(session.ordererUrl, parsedUrl.host,
                                                                resolvedUrl.endpoints.ordererUrl);
-        resolvedUrl.endpoints.deltaStorageUrl = replaceDomainInPath(documentUrl.ordererUrl,
+        resolvedUrl.endpoints.deltaStorageUrl = replaceDomainInPath(session.ordererUrl, parsedUrl.host,
                                                                     resolvedUrl.endpoints.deltaStorageUrl);
-        resolvedUrl.endpoints.storageUrl = replaceDomainInPath(documentUrl.historianUrl,
+        resolvedUrl.endpoints.storageUrl = replaceDomainInPath(session.historianUrl, parsedUrl.host,
                                                                resolvedUrl.endpoints.storageUrl);
     }
 };
