@@ -13,7 +13,7 @@ import {
     IDocumentStorageService,
     ISummaryContext,
     IDocumentStorageServicePolicies,
- } from "@fluidframework/driver-definitions";
+} from "@fluidframework/driver-definitions";
 import {
     ICreateBlobResponse,
     ISnapshotTree,
@@ -44,10 +44,12 @@ export class WholeSummaryDocumentStorageService implements IDocumentStorageServi
     constructor(
         protected readonly id: string,
         protected readonly manager: GitManager,
+        protected readonly noCacheGitManager: GitManager,
         protected readonly logger: ITelemetryLogger,
         public readonly policies: IDocumentStorageServicePolicies = {},
         private readonly blobCache: ICache<ArrayBufferLike> = new InMemoryCache(),
-        private readonly snapshotTreeCache: ICache<ISnapshotTree> = new InMemoryCache()) {
+        private readonly snapshotTreeCache: ICache<ISnapshotTree> = new InMemoryCache(),
+        private readonly hasSessionLocationChanged?: boolean) {
         this.summaryUploadManager = new WholeSummaryUploadManager(manager);
     }
 
@@ -63,8 +65,10 @@ export class WholeSummaryDocumentStorageService implements IDocumentStorageServi
         // Fetch latest summary, cache it, and return its id.
         if (this.firstVersionsCall && count === 1) {
             this.firstVersionsCall = false;
+            const disableCache: boolean = this.hasSessionLocationChanged !== undefined
+                && this.hasSessionLocationChanged;
             return [{
-                id: (await this.fetchAndCacheSnapshotTree(latestSnapshotId)).id,
+                id: (await this.fetchAndCacheSnapshotTree(latestSnapshotId, disableCache)).id,
                 treeId: undefined!,
             }];
         }
@@ -78,7 +82,7 @@ export class WholeSummaryDocumentStorageService implements IDocumentStorageServi
                 versionId: id,
                 count,
             },
-            async () =>  this.manager.getCommits(id, count),
+            async () => this.manager.getCommits(id, count),
         );
         return commits.map((commit) => ({
             date: commit.commit.author.date,
@@ -168,7 +172,8 @@ export class WholeSummaryDocumentStorageService implements IDocumentStorageServi
         );
     }
 
-    private async fetchAndCacheSnapshotTree(versionId: string): Promise<{ id: string, snapshotTree: ISnapshotTree }> {
+    private async fetchAndCacheSnapshotTree(versionId: string, disableCache?: boolean):
+        Promise<{ id: string, snapshotTree: ISnapshotTree }> {
         const cachedSnapshotTree = await this.snapshotTreeCache.get(versionId);
         if (cachedSnapshotTree !== undefined) {
             return { id: cachedSnapshotTree.id!, snapshotTree: cachedSnapshotTree };
@@ -181,7 +186,9 @@ export class WholeSummaryDocumentStorageService implements IDocumentStorageServi
                 treeId: versionId,
             },
             async (event) => {
-                const response = await this.manager.getSummary(versionId);
+                const response = disableCache !== undefined && disableCache ?
+                    await this.noCacheGitManager.getSummary(versionId) :
+                    await this.manager.getSummary(versionId);
                 event.end({
                     size: response.trees[0]?.entries.length,
                 });
@@ -212,7 +219,7 @@ export class WholeSummaryDocumentStorageService implements IDocumentStorageServi
 
         await Promise.all(cachePs);
 
-        return { id: snapshotId, snapshotTree: normalizedWholeSummary.snapshotTree};
+        return { id: snapshotId, snapshotTree: normalizedWholeSummary.snapshotTree };
     }
 
     private async initBlobCache(blobs: Map<string, ArrayBuffer>): Promise<void> {

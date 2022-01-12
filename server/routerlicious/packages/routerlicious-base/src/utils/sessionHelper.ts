@@ -48,6 +48,7 @@ export async function getSession(globalDbMongoManager: MongoManager,
         };
         const documentSessionP: IDocumentSession = {
             documentId,
+            hasSessionLocationChanged: false,
             session: sessionP,
         };
         return documentSessionP;
@@ -60,6 +61,7 @@ export async function getSession(globalDbMongoManager: MongoManager,
     const session = JSON.parse((result as IDocument).session) as ISession;
     const deli = JSON.parse((result as IDocument).deli);
     const scribe = JSON.parse((result as IDocument).scribe);
+    let hasSessionLocationChanged: boolean = false;
     if (!session.isSessionAlive) {
         // Reset logOffset, ordererUrl, and historianUrl when switching cluster.
         if (session.ordererUrl !== ordererUrl) {
@@ -67,6 +69,7 @@ export async function getSession(globalDbMongoManager: MongoManager,
             scribe.logOffset = -1;
             session.ordererUrl = ordererUrl;
             session.historianUrl = historianUrl;
+            hasSessionLocationChanged = true;
         }
         session.isSessionAlive = true;
         (result as IDocument).deli = JSON.stringify(deli);
@@ -83,6 +86,7 @@ export async function getSession(globalDbMongoManager: MongoManager,
     }
     const documentSession: IDocumentSession = {
         documentId,
+        hasSessionLocationChanged,
         session: JSON.parse((result as IDocument).session) as ISession,
     };
     return documentSession;

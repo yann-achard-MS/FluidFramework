@@ -86,6 +86,7 @@ export function create(
             const [ordererUrl, historianUrl] = convertUrls(request.headers.host);
             const documentSession: IDocumentSession = {
                 documentId: id,
+                hasSessionLocationChanged: false,
                 session:
                 {
                     ordererUrl,

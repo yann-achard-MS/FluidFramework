@@ -188,6 +188,8 @@ export class RouterliciousDocumentServiceFactory implements IDocumentServiceFact
             documentId,
             this.driverPolicies,
             this.blobCache,
-            this.snapshotTreeCache);
+            this.snapshotTreeCache,
+            documentSession.hasSessionLocationChanged,
+            );
     }
 }

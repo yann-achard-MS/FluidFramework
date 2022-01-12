@@ -132,6 +132,8 @@ export interface IDocument {
 export interface IDocumentSession {
     documentId: string;
 
+    hasSessionLocationChanged: boolean;
+
     session: ISession;
 }
 

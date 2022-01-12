@@ -445,17 +445,14 @@ export class RestGitService {
                 Lumberjack.info(`Resolving ${key} from cache`, this.lumberProperties);
                 return cachedValue;
             }
-
-            // Value is not cached - fetch it with the provided function and then cache the value
-            winston.info(`Fetching ${key}`);
-            Lumberjack.info(`Fetching ${key}`, this.lumberProperties);
-            const value = await fetch();
-            this.setCache(key, value);
-
-            return value;
-        } else {
-            return fetch();
         }
+
+        // Value is not cached - fetch it with the provided function and then cache the value
+        winston.info(`Fetching ${key}`);
+        Lumberjack.info(`Fetching ${key}`, this.lumberProperties);
+        const value = await fetch();
+        this.setCache(key, value);
+        return value;
     }
 
     private getSummaryCacheKey(type: IWholeSummaryPayloadType): string {
