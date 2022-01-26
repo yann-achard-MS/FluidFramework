@@ -206,7 +206,6 @@ interface HasDst {
  *  - can grow
  */
 interface SliceStart {
-	[type]: 'Start';
 	/**
 	 * An ID that uniquely identifies the detach operation within the transaction/seq#.
 	 * The matching SliceEnd (and MoveIn segment in the case of a move) will bear the same ID.
@@ -232,8 +231,12 @@ interface SliceStart {
 	drill?: DrillDepth;
 }
 
-interface MoveOutSliceStart extends SliceStart, HasDst {}
-interface DeleteSliceStart extends SliceStart {}
+interface MoveOutSliceStart extends SliceStart, HasDst {
+	[type]: 'MoveOutStart';
+}
+interface DeleteSliceStart extends SliceStart {
+	[type]: 'DeleteStart';
+}
 
 interface SliceEnd {
 	[type]: 'End';
@@ -386,7 +389,7 @@ namespace ScenarioA {
 		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ [type]: 'Start', side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: 'MoveOutStart', side: Sibling.Next, dstPath: 'bar.0' },
 			3, // Skip B C D
 			{ [type]: 'End' },
 		],
@@ -407,7 +410,7 @@ namespace ScenarioA {
 		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ [type]: 'Start', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: 'MoveOutStart', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
 			{ [type]: 'Delete', seq: 1, length: 2 },
 			1, // Skip D
 			{ [type]: 'End' },
@@ -421,7 +424,7 @@ namespace ScenarioA {
 		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ [type]: 'Start', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: 'MoveOutStart', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
 			{ [type]: 'Delete', seq: 1, length: 2 },
 			1, // Skip D
 			{ [type]: 'End' },
@@ -468,7 +471,7 @@ namespace ScenarioA2 {
 		[type]: 'Modify',
 		'foo': [
 			2, // Skip A B
-			{ [type]: 'Start', side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: 'MoveOutStart', side: Sibling.Next, dstPath: 'bar.0' },
 			2, // Skip C D
 			{ [type]: 'End' },
 		],
@@ -490,7 +493,7 @@ namespace ScenarioA2 {
 		'foo': [
 			1, // Skip A
 			{ [type]: 'Delete', seq: 1 },
-			{ [type]: 'Start', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: 'MoveOutStart', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
 			{ [type]: 'Delete', seq: 1 },
 			1, // Skip D
 			{ [type]: 'End', seq: 2 },
@@ -505,7 +508,7 @@ namespace ScenarioA2 {
 		'foo': [
 			1, // Skip A
 			{ [type]: 'Delete', seq: 1 },
-			{ [type]: 'Start', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: 'MoveOutStart', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
 			{ [type]: 'Delete', seq: 1 },
 			1, // Skip D
 			{ [type]: 'End', seq: 2 },
@@ -514,6 +517,29 @@ namespace ScenarioA2 {
 			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1' }, // C
 			{ [type]: 'Insert', seq: 3, content: [{ id: 'X' }] },
 			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1', srcOffset: 1 }, // D
+		]
+	};
+
+	const w_u2u3: ChangeFrame = {
+		[type]: 'Modify',
+		'foo': [
+			1, // Skip A
+			{ [type]: 'MoveOutStart', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
+			1, // Skip D
+			{ [type]: 'End', seq: 2 },
+		],
+		'bar': [
+			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1' }, // C
+			{ [type]: 'Insert', seq: 3, content: [{ id: 'X' }] },
+			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1', srcOffset: 1 }, // D
+		]
+	};
+
+	const w_u3: ChangeFrame = {
+		[type]: 'Modify',
+		'bar': [
+			1, // C
+			{ [type]: 'Insert', seq: 3, content: [{ id: 'X' }] },
 		]
 	};
 }
@@ -775,7 +801,7 @@ namespace ScenarioD {
 	const t_u2: ChangeFrame = {
 		[type]: 'Modify',
 		'foo': [
-			{ [type]: 'Start', id: 1, dstPath: 'baz' },
+			{ [type]: 'MoveOutStart', id: 1, dstPath: 'baz' },
 			2, // Skip A B
 			{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.AlwaysMove },
 			1, // Skip C
@@ -800,7 +826,7 @@ namespace ScenarioD {
 	const w_all: ChangeFrame = {
 		[type]: 'Modify',
 		'foo': [
-			{ [type]: 'Start', seq: 2, id: 1, dstPath: 'baz' },
+			{ [type]: 'MoveOutStart', seq: 2, id: 1, dstPath: 'baz' },
 			1, // Skip A
 			{ [type]: 'MoveOut', seq: 1, dstPath: 'bar.0' },
 			1, // Skip C
@@ -845,7 +871,7 @@ namespace ScenarioE {
 	const t_u2: ChangeFrame = {
 		[type]: 'Modify',
 		'foo': [
-			{ [type]: 'Start', id: 1 },
+			{ [type]: 'DeleteStart', id: 1 },
 			2, // Skip A B
 			{ [type]: 'Insert', content: [{ id: 'X' }] },
 			1, // Skip C
@@ -867,7 +893,7 @@ namespace ScenarioE {
 	const w_all: ChangeFrame = {
 		[type]: 'Modify',
 		'foo': [
-			{ [type]: 'Start', seq: 2, id: 1 },
+			{ [type]: 'DeleteStart', seq: 2, id: 1 },
 			1, // Skip A
 			{ [type]: 'MoveOut', seq: 1, dstPath: 'bar.0' },
 			1, // Skip C
