@@ -66,19 +66,29 @@ type ChangeFrame = Modify | TraitMarks;
 
 interface Modify {
 	[type]: 'Modify';
-	[value]?: Value | [Value, DrillDepth];
-	[key: TraitLabel]: TraitMarks;
+	[setValue]?: SetValue;
+	[key: TraitLabel]: TraitMarks | Modify;
+}
+
+interface SetValue {
+	/**
+	 * Omit if directly under a Modify.
+	 */
+	[type]?: 'SetValue';
+	/**
+	 * Omit if within peer transaction.
+	 */
+	seq?: SeqNumber;
+	value: Value | [Value, DrillDepth];
 }
 
 /**
  * Using offsets instead of indices to reduce the amount of updating needed.
  */
 type TraitMarks = (Offset | Mark)[];
-
-type Mark = Modify | Insert | Delete | MoveIn | MoveOut | SliceBound | SegmentRace;
-type RelativeMark = Insert | MoveIn | SliceBound | SegmentRace;
-
-type SegmentRace = RelativeMark[];
+type Race = TraitMarks[];
+type Mark = SetValue | Modify | Insert | Delete | MoveIn | MoveOut | SliceBound | Race;
+type RelativeMark = Insert | MoveIn | SliceBound | TraitMarks;
 
 interface Segment extends HasMods {
 	/**
@@ -102,17 +112,17 @@ interface HasMods {
 	 * The offset approach keeps numbers smaller and lets us split and join segments without updating the numbers.
 	 * Option 1:
 	 */
-	mods?: Modify | (Offset | Modify)[];
+	mods?: Modify | SetValue | (Offset | Modify | SetValue)[];
 	/**
 	 * Option 2:
 	 * The index approach lets us binary search faster within a long segment.
 	 */
-	mods2?: [Index, Modify][];
+	mods2?: [Index, Modify | SetValue][];
 	/**
 	 * Option 3:
 	 * The index approach lets us lookup faster within a long segment.
 	 */
-	mods3?: { [key: Index]: Modify };
+	mods3?: { [key: Index]: Modify | SetValue };
 }
 
 interface Attach extends Segment {
@@ -231,10 +241,10 @@ interface SliceStart {
 	drill?: DrillDepth;
 }
 
-interface MoveOutSliceStart extends SliceStart, HasDst {
+interface MoveOutStart extends SliceStart, HasDst {
 	[type]: 'MoveOutStart';
 }
-interface DeleteSliceStart extends SliceStart {
+interface DeleteStart extends SliceStart {
 	[type]: 'DeleteStart';
 }
 
@@ -256,7 +266,7 @@ interface SliceEnd {
 	side?: Sibling.Next;
 }
 
-type SliceBound = MoveOutSliceStart | DeleteSliceStart | SliceEnd;
+type SliceBound = MoveOutStart | DeleteStart | SliceEnd;
 
 /**
  * Either
@@ -319,7 +329,7 @@ type CreateIndex = number;
 type SeqNumber = number;
 type ChangeId = number;
 const type = Symbol();
-const value = Symbol();
+const setValue = Symbol();
 type Value = number | string | boolean;
 type NodeId = string;
 type TraitLabel = string;
@@ -609,8 +619,8 @@ namespace ScenarioB {
 				'foo': [
 					1, // Skip A
 					[ // Race for "After A"
-						{ [type]: 'Insert', content: [{ id: 'Y' }], id: 1, moveRules: SimpleMovementRules.AlwaysMove },
-						{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: { traitParent: TraitParents.Initial } },
+						[{ [type]: 'Insert', content: [{ id: 'Y' }], id: 1, moveRules: SimpleMovementRules.AlwaysMove }],
+						[{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: { traitParent: TraitParents.Initial } }],
 					]
 				]
 			}
@@ -1010,8 +1020,10 @@ namespace Swaps {
 	};
 }
 
-interface State {
+interface CollabWindow {
+	transactionWindow: Transaction[];
 	tree: Node;
+	changes: ChangeFrame;
 }
 
 interface Node {
@@ -1025,41 +1037,238 @@ interface Traits {
 	[key: TraitLabel]: Node[];
 }
 
-function pushTransaction(transaction: Transaction, state: State): State | null {
-	function isConstraintFrame(frame: ChangeFrame | ConstraintFrame): frame is ConstraintFrame {
-		const innerObj = Array.isArray(frame) ? frame[0] : frame;
-		return innerObj[type] === 'ConstrainedRange' || innerObj[type] === 'ConstrainedRange'
-	}
-
-	function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is ChangeFrame {
-		const innerObj = Array.isArray(frame) ? frame[0] : frame;
-		return innerObj[type] === 'ConstrainedRange' || innerObj[type] === 'ConstrainedRange'
-	}
-
-	function isConstraintFrameSatisfied(frame: ConstraintFrame, state: State): boolean {
-		throw('isConstraintFrameSatisfied not implemented');
-	}
-
-	const newState = state;
+function extendWindow(transaction: Transaction, window: CollabWindow): boolean {
+	window.transactionWindow.push(transaction);
 	for (const frame of transaction.frames) {
 		if (isConstraintFrame(frame)) {
-			if (isConstraintFrameSatisfied(frame, newState) === false) {
-				return null;
+			if (isConstraintFrameSatisfied(frame, window) === false) {
+				return false;
 			}
 		} else {
+			if (isChangeFrame(frame)) {
+				appendChangeToWindow(window, frame);
+			} else {
+				throw(new Error('Transaction frame is neither a constraint nor a change'));
+			}
+		}
+	}
+	return true;
+}
 
+function shrinkWindow(window: CollabWindow, knownSeq: SeqNumber): void {
+	if (window.transactionWindow.length === 0 || window.transactionWindow[0].seq > knownSeq) {
+		// Nothing to remove
+		return;
+	}
+	if (Array.isArray(window.changes)) {
+		shrinkMarks(window.changes, knownSeq);
+	} else {
+		shrinkModify(window.changes, knownSeq)
+	}
+	// Cull from the queue the transaction whose seq# is lower or equal to `knownSeq`
+	const cullCount = window.transactionWindow.findIndex((t: Transaction) => t.seq > knownSeq);
+	if (cullCount > 0) {
+		window.transactionWindow.splice(0, cullCount);
+	}
+}
+
+function shrinkMarks(marks: TraitMarks, knownSeq: SeqNumber): boolean {
+	let idx = 0;
+	while (marks[idx] !== undefined) {
+		const mark = marks[idx];
+		if (typeof mark === 'object') {
+			// SetValue | Modify | Insert | Delete | MoveIn | MoveOut | SliceBound | Race;
+			if (Array.isArray(mark)) {
+				const raceLength = shrinkMarksRace(mark, knownSeq);
+				if (raceLength !== null) {
+					heal(marks, idx, raceLength);
+				}
+			} else if (isModify(mark)) {
+				if (shrinkModify(mark, knownSeq)) {
+					heal(marks, idx);
+				}
+			} else if (isSetValue(mark)) {
+				if (mark.seq <= knownSeq) {
+					heal(marks, idx);
+				}
+			} else if (isBound(mark) && mark.seq <= knownSeq) {
+				delete marks[idx];
+			} else if (isSegment(mark)) {
+				if (mark.seq <= knownSeq && isDetachSegment(mark)) {
+					// It should be safe to delete a detach segment along with its nested mods because all those should
+					// have occurred prior to the detach.
+					delete marks[idx];
+				}
+				// In all other cases we need to shrink and preserve nested mods.
+				if (mark.mods !== undefined) {
+					if (Array.isArray(mark.mods)) {
+						if (shrinkMarks(mark.mods, knownSeq)) {
+							delete mark.mods;
+						}
+					} else if (isModify(mark.mods)) {
+						if (shrinkModify(mark.mods, knownSeq)) {
+							delete mark.mods;
+						}
+					} else {
+						if (mark.mods.seq <= knownSeq) {
+							delete mark.mods;
+						}
+					}
+				}
+				// The only thing left to do is replace the attach by its nested mods if has fallen out of the collab
+				// window.
+				if (mark.seq <= knownSeq) {
+					if (mark.mods === undefined) {
+						heal(marks, idx, mark.length);
+					} else if (Array.isArray(mark.mods)) {
+						if (isOffset(mark.mods[0]) && idx > 0 && isOffset(marks[idx-1])) {
+							(marks[idx-1] as Offset) += (mark.mods[0] as Offset);
+							delete mark.mods[0];
+						}
+						marks.splice(idx, 0, ...mark.mods);
+					} else {
+						// Promote the single Modify or SetValue
+						marks.splice(idx, 1, mark.mods);
+					}
+				}
+			} else {
+				throw(new Error(`Unrecognized mark: ${mark}`));
+			}
+		}
+		++idx;
+	}
+	return marks.length === 0 || (marks.length === 1 && isOffset(marks[0]));
+}
+
+function shrinkMarksRace(markLanes: TraitMarks[], knownSeq: SeqNumber): number | null {
+	let ancillary = true;
+	for (const lane of markLanes) {
+		ancillary ||= shrinkMarks(lane, knownSeq);
+	}
+	if (ancillary) {
+		let offset = 0;
+		for (const lane of markLanes) {
+			offset += (lane[0] as Offset | undefined) ?? 0;
+		}
+		return offset;
+	}
+	return null;
+}
+
+function heal(marks: TraitMarks, index: number, length: number = 1): void {
+	if (length === 0) {
+		delete marks[index];
+	} else {
+		if (index > 0 && isOffset(marks[index-1])) {
+			(marks[index-1] as Offset) += length;
+		} else if (isOffset(marks[index+1])) {
+			(marks[index+1] as Offset) += length;
+		} else {
+			// Replace the segment with an Offset of `length`
+			marks.splice(index, 1, length);
 		}
 	}
 }
 
-function popTransaction(state: State): State {
+function isSetValue(mark: Mark): mark is SetValue { return mark[type] === 'SetValue'; }
+function isModify(mark: Mark): mark is Modify { return mark[type] === 'Modify'; }
+function isInsert(mark: Mark): mark is Insert { return mark[type] === 'Insert'; }
+function isDelete(mark: Mark): mark is Delete { return mark[type] === 'Delete'; }
+function isMoveIn(mark: Mark): mark is MoveIn { return mark[type] === 'MoveIn'; }
+function isMoveOut(mark: Mark): mark is MoveOut { return mark[type] === 'MoveOut'; }
+function isMoveOutStart(mark: Mark): mark is MoveOutStart { return mark[type] === 'MoveOutStart'; }
+function isDeleteStart(mark: Mark): mark is DeleteStart { return mark[type] === 'DeleteStart'; }
+function isEnd(mark: Mark): mark is SliceEnd { return mark[type] === 'End'; }
+function isBound(mark: Mark): mark is MoveOutStart | DeleteStart | SliceEnd {
+	const markType = mark[type];
+	return markType === 'MoveOutStart'
+		|| markType === 'DeleteStart'
+		|| markType === 'End'
+	;
+}
+function isOffset(mark: Mark | Offset | undefined): mark is Offset { return typeof mark === 'number'; }
+function isSegment(mark: Mark | Offset): mark is Insert | Delete | MoveIn | MoveOut { 
+	const markType = mark[type];
+	return markType === 'Insert'
+		|| markType === 'Delete'
+		|| markType === 'MoveIn'
+		|| markType === 'MoveOut'
+	;
+ }
+function isDetachSegment(mark: Mark | Offset): mark is Delete | MoveOut { 
+	const markType = mark[type];
+	return markType === 'Delete'
+		|| markType === 'MoveOut'
+	;
+ }
 
+function shrinkModify(modify: Modify, knownSeq: SeqNumber): boolean {
+	if (modify[setValue] && modify[setValue].seq <= knownSeq) {
+		delete modify[setValue];
+	}
+	for (const [label, marksOrModify] of Object.entries(modify)) {
+		// NOTE: we don't need to filter out [type] and [setValue] keys but that might change
+		if (Array.isArray(marksOrModify)) {
+			shrinkMarks(marksOrModify, knownSeq);
+			if (marksOrModify.length === 0) {
+				delete modify[label];
+			}
+		} else {
+			if (shrinkModify(marksOrModify, knownSeq)) {
+				delete modify[label];
+			}
+		}
+	}
+	return Object.entries(modify).length === 0 && modify[setValue] === undefined;
 }
 
-function treeFromState(state: State): Node {
-	return state.tree;
+function windowFromTree(tree: Node): CollabWindow {
+	return {
+		transactionWindow: [],
+		tree,
+		changes: [],
+	};
 }
 
-function stateFromTree(tree: Node): State {
-	return { tree };
+function appendChangeToWindow(window: CollabWindow, frame: Modify | TraitMarks): void {
+	throw new Error("Function not implemented.");
+}
+
+function isConstraintFrame(frame: ChangeFrame | ConstraintFrame): frame is ConstraintFrame {
+	const innerObj = Array.isArray(frame) ? frame[0] : frame;
+	if (innerObj === undefined) {
+		// Empty change frame
+		return false;
+	}
+	return innerObj[type] === 'ConstrainedRange' || innerObj[type] === 'ConstrainedRange'
+}
+
+function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is ChangeFrame {
+	const innerObj = Array.isArray(frame) ? frame[0] : frame;
+	if (innerObj === undefined) {
+		// Empty change frame
+		return true;
+	}
+	if (typeof innerObj === 'number') {
+		// The innerObj is an Offset mark
+		return true;
+	}
+	if (Array.isArray(innerObj)) {
+		// The innerObj is a race mark
+		return true;
+	}
+	const innerType = innerObj[type];
+	return innerType === 'Modify'
+		|| innerType === 'Insert'
+		|| innerType === 'Delete'
+		|| innerType === 'MoveIn'
+		|| innerType === 'MoveOut'
+		|| innerType === 'MoveOutStart'
+		|| innerType === 'DeleteStart'
+		|| innerType === 'SetValue'
+	;
+}
+
+function isConstraintFrameSatisfied(frame: ConstraintFrame, window: CollabWindow): boolean {
+	throw(new Error('isConstraintFrameSatisfied not implemented'));
 }
