@@ -7,6 +7,8 @@
  * Peer edit constructed by clients and broadcast by Alfred.
  */
 interface Transaction {
+	seq: SeqNumber;
+	ref: SeqNumber;
 	frames: (ConstraintFrame | ChangeFrame)[];
 	//revivals?: Map<NodeId, Revival[]>;
 	//clipboard?: Map<NodeId, ClipboardEntry>;
@@ -29,6 +31,7 @@ type ConstraintFrame =
  | [ConstrainedTraitSet, ConstrainedRange];
 
 interface ConstrainedTraitSet {
+	[type]: 'ConstrainedTraitSet';
 	[key: TraitLabel]: ConstraintSequence;
 }
 
@@ -42,6 +45,7 @@ type ConstraintSequence = (Offset | ConstrainedRange | ConstrainedTraitSet)[];
 type ConstraintSequence2 = [Index, ConstrainedRange | ConstrainedTraitSet][];
 
 interface ConstrainedRange {
+	[type]: 'ConstrainedRange';
 	length?: number;
 	targetParent?: NodeId; // Could this just be `true` since we know the starting parent? Only if we know the constraint was satisfied originally.
 	targetLabel?: TraitLabel; // Same
@@ -61,6 +65,7 @@ interface ConstrainedRange {
 type ChangeFrame = Modify | TraitMarks;
 
 interface Modify {
+	[type]: 'Modify';
 	[value]?: Value | [Value, DrillDepth];
 	[key: TraitLabel]: TraitMarks;
 }
@@ -137,12 +142,12 @@ interface Attach extends Segment {
 }
 
 interface Insert extends Attach {
-	type?: 'Insert';
+	[type]: 'Insert';
 	content: ProtoNode[];
 }
 
 interface MoveIn extends Attach {
-	type?: 'MoveIn';
+	[type]: 'MoveIn';
 	/**
 	 * The original location of the first moved node as per the edits known to the clients at the time.
 	 * Note that there could be multiple MoveOut segments there. Use `srcId` to differentiate.
@@ -164,14 +169,14 @@ interface Detach extends Segment {}
  * Used for set-like ranges and atomic ranges.
  */
 interface Delete extends Detach {
-	type?: 'Delete';
+	[type]: 'Delete';
 }
 
 /**
  * Used for set-like ranges and atomic ranges.
  */
 interface MoveOut extends Detach, HasDst {
-	type?: 'MoveOut';
+	[type]: 'MoveOut';
 }
 
 interface HasDst {
@@ -201,7 +206,7 @@ interface HasDst {
  *  - can grow
  */
 interface SliceStart {
-	type?: 'Start';
+	[type]: 'Start';
 	/**
 	 * An ID that uniquely identifies the detach operation within the transaction/seq#.
 	 * The matching SliceEnd (and MoveIn segment in the case of a move) will bear the same ID.
@@ -231,7 +236,7 @@ interface MoveOutSliceStart extends SliceStart, HasDst {}
 interface DeleteSliceStart extends SliceStart {}
 
 interface SliceEnd {
-	type?: 'End';
+	[type]: 'End';
 	/**
 	 * Omit if within peer transaction.
 	 */
@@ -290,7 +295,7 @@ enum Sibling {
 /**
  * The traits of a node to be created
  */
- interface ProtoTraits {
+interface ProtoTraits {
 	[key: TraitLabel]: ProtoTrait;
 }
 
@@ -310,6 +315,7 @@ type Index = number;
 type CreateIndex = number;
 type SeqNumber = number;
 type ChangeId = number;
+const type = Symbol();
 const value = Symbol();
 type Value = number | string | boolean;
 type NodeId = string;
@@ -369,56 +375,61 @@ namespace ScenarioA {
 	*/
 
 	const t_u1: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ type: 'Delete', length: 2 }
+			{ [type]: 'Delete', length: 2 }
 		]
 	};
 
 	const t_u2: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ type: 'Start', side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: 'Start', side: Sibling.Next, dstPath: 'bar.0' },
 			3, // Skip B C D
-			{ type: 'End' },
+			{ [type]: 'End' },
 		],
 		'bar': [
-			{ type: 'MoveIn', srcPath: 'foo.1', length: 3 }
+			{ [type]: 'MoveIn', srcPath: 'foo.1', length: 3 }
 		]
 	};
 
 	const t_u3: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			2, // Skip A B
-			{ type: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.CommutativeMove }
+			{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.CommutativeMove }
 		]
 	};
 
 	const w_u1u2: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ type: 'Start', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
-			{ type: 'Delete', seq: 1, length: 2 },
+			{ [type]: 'Start', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: 'Delete', seq: 1, length: 2 },
 			1, // Skip D
-			{ type: 'End' },
+			{ [type]: 'End' },
 		],
 		'bar': [
-			{ type: 'MoveIn', seq: 2, srcPath: 'foo.1', length: 3 }
+			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1', length: 3 }
 		]
 	};
 
 	const w_all: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ type: 'Start', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
-			{ type: 'Delete', seq: 1, length: 2 },
+			{ [type]: 'Start', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: 'Delete', seq: 1, length: 2 },
 			1, // Skip D
-			{ type: 'End' },
+			{ [type]: 'End' },
 		],
 		'bar': [
-			{ type: 'MoveIn', seq: 2, srcPath: 'foo.1', length: 1 }, // B
-			{ type: 'Insert', seq: 3, content: [{ id: 'X' }] },
-			{ type: 'MoveIn', seq: 2, srcPath: 'foo.1', length: 2, srcOffset: 1 }, // C D
+			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1', length: 1 }, // B
+			{ [type]: 'Insert', seq: 3, content: [{ id: 'X' }] },
+			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1', length: 2, srcOffset: 1 }, // C D
 		]
 	};
 }
@@ -446,58 +457,63 @@ namespace ScenarioA2 {
 	*/
 
 	const t_u1: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ type: 'Delete', length: 2 }
+			{ [type]: 'Delete', length: 2 }
 		]
 	};
 
 	const t_u2: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			2, // Skip A B
-			{ type: 'Start', side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: 'Start', side: Sibling.Next, dstPath: 'bar.0' },
 			2, // Skip C D
-			{ type: 'End' },
+			{ [type]: 'End' },
 		],
 		'bar': [
-			{ type: 'MoveIn', srcPath: 'foo.1', length: 2 }
+			{ [type]: 'MoveIn', srcPath: 'foo.2', length: 2 }
 		]
 	};
 
 	const t_u3: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			3, // Skip A B C
-			{ type: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.CommutativeMove }
+			{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.CommutativeMove }
 		]
 	};
 
 	const w_u1u2: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
-			2, // Skip A
-			{ type: 'Delete', seq: 1 },
-			{ type: 'Start', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
-			{ type: 'Delete', seq: 1 },
+			1, // Skip A
+			{ [type]: 'Delete', seq: 1 },
+			{ [type]: 'Start', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: 'Delete', seq: 1 },
 			1, // Skip D
-			{ type: 'End' },
+			{ [type]: 'End', seq: 2 },
 		],
 		'bar': [
-			{ type: 'MoveIn', seq: 2, srcPath: 'foo.1', length: 3 }
+			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.2', length: 3 }
 		]
 	};
 
 	const w_all: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ type: 'Delete', seq: 1 },
-			{ type: 'Start', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
-			{ type: 'Delete', seq: 1 },
+			{ [type]: 'Delete', seq: 1 },
+			{ [type]: 'Start', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: 'Delete', seq: 1 },
 			1, // Skip D
-			{ type: 'End' },
+			{ [type]: 'End', seq: 2 },
 		],
 		'bar': [
-			{ type: 'MoveIn', seq: 2, srcPath: 'foo.1', length: 2 }, // B C
-			{ type: 'Insert', seq: 3, content: [{ id: 'X' }] },
-			{ type: 'MoveIn', seq: 2, srcPath: 'foo.1', srcOffset: 2 }, // D
+			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1' }, // C
+			{ [type]: 'Insert', seq: 3, content: [{ id: 'X' }] },
+			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1', srcOffset: 1 }, // D
 		]
 	};
 }
@@ -527,17 +543,19 @@ namespace ScenarioB {
 	*/
 
 	const t_u1: ChangeFrame = {
+		[type]: 'Modify',
 		'_': [
 			{ // Modify P
-				'foo': [
-					{ type: 'MoveOut', dstPath: '^bar.0' }
+			[type]: 'Modify',
+			'foo': [
+					{ [type]: 'MoveOut', dstPath: '^bar.0' }
 				],
 				'bar': [
 					{
-						type: 'MoveIn',
+						[type]: 'MoveIn',
 						srcPath: '^foo.0',
 						detach: {
-							type: 'MoveOut',
+							[type]: 'MoveOut',
 							id: 1,
 							dstPath: '_.1.baz.0',
 						}
@@ -545,9 +563,10 @@ namespace ScenarioB {
 				]
 			},
 			{ // Modify Q
+				[type]: 'Modify',
 				'baz': [
 					{
-						type: 'MoveIn',
+						[type]: 'MoveIn',
 						id: 1,
 						srcPath: '^bar.0',
 					}
@@ -557,13 +576,15 @@ namespace ScenarioB {
 	};
 
 	const t_u2: ChangeFrame = {
+		[type]: 'Modify',
 		'_': [
 			{ // Modify P
+				[type]: 'Modify',
 				'foo': [
 					1, // Skip A
 					[ // Race for "After A"
-						{ type: 'Insert', content: [{ id: 'Y' }], id: 1, moveRules: SimpleMovementRules.AlwaysMove },
-						{ type: 'Insert', content: [{ id: 'X' }], moveRules: { traitParent: TraitParents.Initial } },
+						{ [type]: 'Insert', content: [{ id: 'Y' }], id: 1, moveRules: SimpleMovementRules.AlwaysMove },
+						{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: { traitParent: TraitParents.Initial } },
 					]
 				]
 			}
@@ -571,18 +592,20 @@ namespace ScenarioB {
 	};
 
 	const w_u1: ChangeFrame = {
+		[type]: 'Modify',
 		'_': [
 			{ // Modify P
+				[type]: 'Modify',
 				'foo': [
-					{ type: 'MoveOut', seq: 1, dstPath: '^bar.0' }
+					{ [type]: 'MoveOut', seq: 1, dstPath: '^bar.0' }
 				],
 				'bar': [
 					{
-						type: 'MoveIn',
+						[type]: 'MoveIn',
 						seq: 1,
 						srcPath: '^foo.0',
 						detach: {
-							type: 'MoveOut',
+							[type]: 'MoveOut',
 							seq: 1,
 							id: 1,
 							dstPath: '_.1.baz.0',
@@ -591,9 +614,10 @@ namespace ScenarioB {
 				]
 			},
 			{ // Modify Q
+				[type]: 'Modify',
 				'baz': [
-					{
-						type: 'MoveIn',
+							{
+						[type]: 'MoveIn',
 						seq: 1,
 						id: 1,
 						srcPath: '^bar.0',
@@ -604,35 +628,38 @@ namespace ScenarioB {
 	};
 
 	const w_all: ChangeFrame = {
+		[type]: 'Modify',
 		'_': [
 			{ // Modify P
+				[type]: 'Modify',
 				'foo': [
-					{ type: 'MoveOut', seq: 1, dstPath: '^bar.0' }
+					{ [type]: 'MoveOut', seq: 1, dstPath: '^bar.0' }
 				],
 				'bar': [
 					{
-						type: 'MoveIn',
+						[type]: 'MoveIn',
 						seq: 1,
 						srcPath: '^foo.0',
 						detach: {
-							type: 'MoveOut',
+							[type]: 'MoveOut',
 							seq: 1,
 							id: 1,
 							dstPath: '_.1.baz.0',
 						}
 					},
-					{ type: 'Insert', seq: 2, id: 1, content: [{ id: 'Y' }] },
+					{ [type]: 'Insert', seq: 2, id: 1, content: [{ id: 'Y' }] },
 				]
 			},
 			{ // Modify Q
+				[type]: 'Modify',
 				'baz': [
 					{
-						type: 'MoveIn',
+						[type]: 'MoveIn',
 						seq: 1,
 						id: 1,
 						srcPath: '^bar.0',
 					},
-					{ type: 'Insert', seq: 2, id: 1, content: [{ id: 'Y' }] },
+					{ [type]: 'Insert', seq: 2, id: 1, content: [{ id: 'Y' }] },
 				]
 			},
 		],
@@ -656,58 +683,63 @@ namespace ScenarioC {
 	*/
 
 	const t_u1_1: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ type: 'Insert', content: [{ id: 'B' }] }
+			{ [type]: 'Insert', content: [{ id: 'B' }] }
 		]
 	};
 
 	const t_u1_2: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ type: 'MoveOut', dstPath: 'bar.0' }
+			{ [type]: 'MoveOut', dstPath: 'bar.0' }
 		],
 		'bar:': [
-			{ type: 'MoveIn', srcPath: 'foo.1' }
+			{ [type]: 'MoveIn', srcPath: 'foo.1' }
 		]
 	};
 
 	const t_u2: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			2, // Skip A B
-			{ type: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.NeverMove }
+			{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.NeverMove }
 		]
 	};
 
 	const w_u1: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
 			{
-				type: 'Insert',
+				[type]: 'Insert',
 				seq: 1,
 				content: [{ id: 'B' }],
-				detach: { type: 'MoveOut', seq: 2, dstPath: 'bar.0' }
+				detach: { [type]: 'MoveOut', seq: 2, dstPath: 'bar.0' }
 			},
-			{ type: 'Insert', seq: 3, content: [{ id: 'X' }] }
+			{ [type]: 'Insert', seq: 3, content: [{ id: 'X' }] }
 		],
 		'bar:': [
-			{ type: 'MoveIn', seq: 2, srcPath: 'foo.1' }
+			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1' }
 		]
 	}
 
 	const w_all: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
 			{
-				type: 'Insert',
+				[type]: 'Insert',
 				seq: 1,
 				content: [{ id: 'B' }],
-				detach: { type: 'MoveOut', seq: 2, dstPath: 'bar.0' }
+				detach: { [type]: 'MoveOut', seq: 2, dstPath: 'bar.0' }
 			}
 			
 		],
 		'bar:': [
-			{ type: 'MoveIn', seq: 2, srcPath: 'foo.1' }
+			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1' }
 		]
 	}
 }
@@ -730,52 +762,56 @@ namespace ScenarioD {
 	*/
 
 	const t_u1: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ type: 'MoveOut', dstPath: 'bar.0' }
+			{ [type]: 'MoveOut', dstPath: 'bar.0' }
 		],
 		'bar': [
-			{ type: 'MoveIn', srcPath: 'foo.1' }
+			{ [type]: 'MoveIn', srcPath: 'foo.1' }
 		],
 	};
 
 	const t_u2: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
-			{ type: 'Start', id: 1, dstPath: 'baz' },
+			{ [type]: 'Start', id: 1, dstPath: 'baz' },
 			2, // Skip A B
-			{ type: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.AlwaysMove },
+			{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.AlwaysMove },
 			1, // Skip C
-			{ type: 'End', id: 1 }
+			{ [type]: 'End', id: 1 }
 		],
 		'baz': [
-			{ type: 'MoveIn', id: 1, length: 4, srcPath: 'foo.0' }
+			{ [type]: 'MoveIn', id: 1, length: 4, srcPath: 'foo.0' }
 		]
 	};
 
 	const w_u1: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ type: 'MoveOut', seq: 1, dstPath: 'bar.0' }
+			{ [type]: 'MoveOut', seq: 1, dstPath: 'bar.0' }
 		],
 		'bar': [
-			{ type: 'MoveIn', seq: 1, srcPath: 'foo.1' }
+			{ [type]: 'MoveIn', seq: 1, srcPath: 'foo.1' }
 		],
 	};
 
 	const w_all: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
-			{ type: 'Start', seq: 2, id: 1, dstPath: 'baz' },
+			{ [type]: 'Start', seq: 2, id: 1, dstPath: 'baz' },
 			1, // Skip A
-			{ type: 'MoveOut', seq: 1, dstPath: 'bar.0' },
+			{ [type]: 'MoveOut', seq: 1, dstPath: 'bar.0' },
 			1, // Skip C
-			{ type: 'End', seq: 2, id: 1 }
+			{ [type]: 'End', seq: 2, id: 1 }
 		],
 		'bar': [
-			{ type: 'MoveIn', seq: 1, srcPath: 'foo.1' },
-			{ type: 'Insert', seq: 2, content: [{ id: 'X' }] },
+			{ [type]: 'MoveIn', seq: 1, srcPath: 'foo.1' },
+			{ [type]: 'Insert', seq: 2, content: [{ id: 'X' }] },
 		],
 		'baz': [
-			{ type: 'MoveIn', seq: 2, id: 1, length: 3, srcPath: 'foo.0' } // length needed updating 4->3
+			{ [type]: 'MoveIn', seq: 2, id: 1, length: 3, srcPath: 'foo.0' } // length needed updating 4->3
 		]
 	};
 }
@@ -796,46 +832,50 @@ namespace ScenarioE {
 	*/
 
 	const t_u1: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ type: 'MoveOut', dstPath: 'bar.0' }
+			{ [type]: 'MoveOut', dstPath: 'bar.0' }
 		],
 		'bar': [
-			{ type: 'MoveIn', srcPath: 'foo.1' }
+			{ [type]: 'MoveIn', srcPath: 'foo.1' }
 		]
 	};
 
 	const t_u2: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
-			{ type: 'Start', id: 1 },
+			{ [type]: 'Start', id: 1 },
 			2, // Skip A B
-			{ type: 'Insert', content: [{ id: 'X' }] },
+			{ [type]: 'Insert', content: [{ id: 'X' }] },
 			1, // Skip C
-			{ type: 'End', id: 1 }
+			{ [type]: 'End', id: 1 }
 		]
 	};
 
 	const w_u1: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			1, // Skip A
-			{ type: 'MoveOut', seq: 1, dstPath: 'bar.0' }
+			{ [type]: 'MoveOut', seq: 1, dstPath: 'bar.0' }
 		],
 		'bar': [
-			{ type: 'MoveIn', seq: 1, srcPath: 'foo.1' }
+			{ [type]: 'MoveIn', seq: 1, srcPath: 'foo.1' }
 		]
 	};
 
 	const w_all: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
-			{ type: 'Start', seq: 2, id: 1 },
+			{ [type]: 'Start', seq: 2, id: 1 },
 			1, // Skip A
-			{ type: 'MoveOut', seq: 1, dstPath: 'bar.0' },
+			{ [type]: 'MoveOut', seq: 1, dstPath: 'bar.0' },
 			1, // Skip C
-			{ type: 'End', seq: 2, id: 1 }
+			{ [type]: 'End', seq: 2, id: 1 }
 		],
 		'bar': [
-			{ type: 'MoveIn', seq: 1, srcPath: 'foo.1' },
-			{ type: 'Insert', seq: 2, content: [{ id: 'X' }] },
+			{ [type]: 'MoveIn', seq: 1, srcPath: 'foo.1' },
+			{ [type]: 'Insert', seq: 2, content: [{ id: 'X' }] },
 		]
 	};
 }
@@ -843,44 +883,46 @@ namespace ScenarioE {
 namespace Swaps {
 	// Swap the first nodes of traits foo and bar using set-like ranges
 	const e1: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
-			{ type: 'MoveOut', dstPath: 'bar.0' },
-			{ type: 'MoveIn', id: 1, srcPath: 'bar.0' }
+			{ [type]: 'MoveOut', dstPath: 'bar.0' },
+			{ [type]: 'MoveIn', id: 1, srcPath: 'bar.0' }
 		],
 		'bar': [
-			{ type: 'MoveIn', srcPath: 'foo.0' },
-			{ type: 'MoveOut', id:1, dstPath: 'foo.0' }
+			{ [type]: 'MoveIn', srcPath: 'foo.0' },
+			{ [type]: 'MoveOut', id:1, dstPath: 'foo.0' }
 		]
 	};
 
 	// Swap the first nodes of traits foo and bar and back again using set-like ranges
 	const e2: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
-			{ type: 'MoveOut', dstPath: 'bar.0' },
+			{ [type]: 'MoveOut', dstPath: 'bar.0' },
 			{
-				type: 'MoveIn',
+				[type]: 'MoveIn',
 				id: 1,
 				srcPath: 'bar.0',
 				detach: {
-					type: 'MoveOut',
+					[type]: 'MoveOut',
 					id: 2,
 					dstPath: 'bar.0'
 				}
 			},
-			{ type: 'MoveIn', id: 3, srcPath: 'bar.0' },
+			{ [type]: 'MoveIn', id: 3, srcPath: 'bar.0' },
 		],
 		'bar': [
 			{
-				type: 'MoveIn',
+				[type]: 'MoveIn',
 				srcPath: 'foo.0',
 				detach: {
-					type: 'MoveOut',
+					[type]: 'MoveOut',
 					id: 3,
 					dstPath: 'foo.0'
 				}
 			},
-			{ type: 'MoveOut', id:1, dstPath: 'foo.0' },
-			{ type: 'MoveIn', id: 2, srcPath: 'foo.0' },
+			{ [type]: 'MoveOut', id:1, dstPath: 'foo.0' },
+			{ [type]: 'MoveIn', id: 2, srcPath: 'foo.0' },
 		]
 	};
 
@@ -888,21 +930,24 @@ namespace Swaps {
 	// From: A{ foo: B{ bar: C{ baz: D } } }
 	// To:   A{ foo: C{ bar: B{ baz: D } } }
 	const e3: ChangeFrame = {
+		[type]: 'Modify',
 		'foo': [
 			{
-				type: 'MoveOut', // B,
+				[type]: 'MoveOut', // B,
 				id: 2,
 				dstPath: 'foo.0.bar.0',
 				mods: { // Modify B
+					[type]: 'Modify',
 					'bar:': [
 						{
-							type: 'MoveOut', // C
+							[type]: 'MoveOut', // C
 							id: 1,
 							dstPath: 'foo.0',
 							mods: { // Modify C
+								[type]: 'Modify',
 								'baz': [
 									{
-										type: 'MoveOut', // D
+										[type]: 'MoveOut', // D
 										dstPath: 'foo.0.bar.0.baz.0' // Omit path if the same as the current path?
 									},
 								],
@@ -912,19 +957,21 @@ namespace Swaps {
 				},
 			},
 			{
-				type: 'MoveIn', // C
+				[type]: 'MoveIn', // C
 				id: 1,
 				srcPath: 'foo.0.bar.0',
 				mods: { // Modify C
+					[type]: 'Modify',
 					'bar': [
 						{
-							type: 'MoveIn', // B
+							[type]: 'MoveIn', // B
 							id: 2,
 							srcPath: 'foo.0',
 							mods: { // Modify B
+								[type]: 'Modify',
 								'baz': [
 									{
-										type: 'MoveIn', // D
+										[type]: 'MoveIn', // D
 										srcPath: 'foo.0.bar.0.baz.0', // Omit path if the same as the current path?
 									},
 								]
@@ -935,4 +982,58 @@ namespace Swaps {
 			}
 		]
 	};
+}
+
+interface State {
+	tree: Node;
+}
+
+interface Node {
+	id: NodeId;
+	type?: string;
+	value?: Value;
+	traits?: Traits;
+}
+
+interface Traits {
+	[key: TraitLabel]: Node[];
+}
+
+function pushTransaction(transaction: Transaction, state: State): State | null {
+	function isConstraintFrame(frame: ChangeFrame | ConstraintFrame): frame is ConstraintFrame {
+		const innerObj = Array.isArray(frame) ? frame[0] : frame;
+		return innerObj[type] === 'ConstrainedRange' || innerObj[type] === 'ConstrainedRange'
+	}
+
+	function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is ChangeFrame {
+		const innerObj = Array.isArray(frame) ? frame[0] : frame;
+		return innerObj[type] === 'ConstrainedRange' || innerObj[type] === 'ConstrainedRange'
+	}
+
+	function isConstraintFrameSatisfied(frame: ConstraintFrame, state: State): boolean {
+		throw('isConstraintFrameSatisfied not implemented');
+	}
+
+	const newState = state;
+	for (const frame of transaction.frames) {
+		if (isConstraintFrame(frame)) {
+			if (isConstraintFrameSatisfied(frame, newState) === false) {
+				return null;
+			}
+		} else {
+
+		}
+	}
+}
+
+function popTransaction(state: State): State {
+
+}
+
+function treeFromState(state: State): Node {
+	return state.tree;
+}
+
+function stateFromTree(tree: Node): State {
+	return { tree };
 }
