@@ -3,51 +3,61 @@
  * Licensed under the MIT License.
  */
 
+/* eslint-disable @typescript-eslint/no-empty-interface */
+/* eslint-disable @typescript-eslint/no-dynamic-delete */
+
+export const type = Symbol();
+export const setValue = Symbol();
+
 /**
  * Peer edit constructed by clients and broadcast by Alfred.
  */
-interface Transaction {
+export interface Transaction {
 	seq: SeqNumber;
 	ref: SeqNumber;
 	frames: (ConstraintFrame | ChangeFrame)[];
-	//revivals?: Map<NodeId, Revival[]>;
-	//clipboard?: Map<NodeId, ClipboardEntry>;
+	// revivals?: Map<NodeId, Revival[]>;
+	// clipboard?: Map<NodeId, ClipboardEntry>;
 }
 
 /**
  * Changeset used to rebasing peer edits.
  */
-interface ChangeSet {
+export interface ChangeSet {
 	changes: ChangeFrame;
-	//revivals?: Map<NodeId, Revival[]>;
-	//clipboard?: Map<NodeId, ClipboardEntry>;
+	// revivals?: Map<NodeId, Revival[]>;
+	// clipboard?: Map<NodeId, ClipboardEntry>;
 }
 
-
-type ConstraintFrame =
+export type ConstraintFrame =
  | ConstrainedRange
  | ConstrainedTraitSet
  | [ConstrainedRange, ConstrainedTraitSet]
  | [ConstrainedTraitSet, ConstrainedRange];
 
-interface ConstrainedTraitSet {
-	[type]: 'ConstrainedTraitSet';
-	[key: TraitLabel]: ConstraintSequence;
+export interface ConstrainedTraitSet {
+	[type]: "ConstrainedTraitSet";
+	[key: string]: ConstraintSequence;
 }
 
 // Option 1: like segments but constraints are not mutually exclusive
 // Simpler structure, O(1) fixup aside from splicing some constraints in, smaller integers for close-by constraints
-type ConstraintSequence = (Offset | ConstrainedRange | ConstrainedTraitSet)[];
+export type ConstraintSequence = (Offset | ConstrainedRange | ConstrainedTraitSet)[];
 // Option 2: indexed list
 // More nested, O(1) fixup aside from splicing some entries in
-// Maybe better if trying to look at a constraint for a specific region of the trait (can binary search the ordered list and overlap test)
+// Maybe better if trying to look at a constraint for a specific region of the trait (can binary search the ordered
+// list and overlap test)
 // Closer to PSet format
-type ConstraintSequence2 = [Index, ConstrainedRange | ConstrainedTraitSet][];
+export type ConstraintSequence2 = [Index, ConstrainedRange | ConstrainedTraitSet][];
 
-interface ConstrainedRange {
-	[type]: 'ConstrainedRange';
+export interface ConstrainedRange {
+	[type]: "ConstrainedRange";
 	length?: number;
-	targetParent?: NodeId; // Could this just be `true` since we know the starting parent? Only if we know the constraint was satisfied originally.
+	/**
+	 * Could this just be `true` since we know the starting parent?
+	 * Only if we know the constraint was satisfied originally.
+	 */
+	targetParent?: NodeId;
 	targetLabel?: TraitLabel; // Same
 	targetLength?: number; // Same
 	/**
@@ -62,19 +72,19 @@ interface ConstrainedRange {
 	valueLock?: number;
 }
 
-type ChangeFrame = Modify | TraitMarks;
+export type ChangeFrame = Modify | TraitMarks;
 
-interface Modify {
-	[type]: 'Modify';
+export interface Modify {
+	[type]: "Modify";
 	[setValue]?: SetValue;
-	[key: TraitLabel]: TraitMarks | Modify;
+	[key: string]: TraitMarks | Modify;
 }
 
-interface SetValue {
+export interface SetValue {
 	/**
 	 * Omit if directly under a Modify.
 	 */
-	[type]?: 'SetValue';
+	[type]?: "SetValue";
 	/**
 	 * Omit if within peer transaction.
 	 */
@@ -85,12 +95,12 @@ interface SetValue {
 /**
  * Using offsets instead of indices to reduce the amount of updating needed.
  */
-type TraitMarks = (Offset | Mark)[];
-type Race = TraitMarks[];
-type Mark = SetValue | Modify | Insert | Delete | MoveIn | MoveOut | SliceBound | Race;
-type RelativeMark = Insert | MoveIn | SliceBound | TraitMarks;
+export type TraitMarks = (Offset | Mark)[];
+export type Race = TraitMarks[];
+export type Mark = SetValue | Modify | Insert | Delete | MoveIn | MoveOut | SliceBound | Race;
+export type RelativeMark = Insert | MoveIn | SliceBound | TraitMarks;
 
-interface Segment extends HasMods {
+export interface Segment extends HasMods {
 	/**
 	 * 1 when omitted.
 	 */
@@ -106,7 +116,7 @@ interface Segment extends HasMods {
 	id?: ChangeId;
 }
 
-interface HasMods {
+export interface HasMods {
 	/**
 	 * Always interpreted after `MoveIn.seq` and before `MoveOut.seq`.
 	 * The offset approach keeps numbers smaller and lets us split and join segments without updating the numbers.
@@ -122,17 +132,17 @@ interface HasMods {
 	 * Option 3:
 	 * The index approach lets us lookup faster within a long segment.
 	 */
-	mods3?: { [key: Index]: Modify | SetValue };
+	mods3?: { [key: number]: Modify | SetValue };
 }
 
-interface Attach extends Segment {
+export interface Attach extends Segment {
 	/**
-	 * Omit if 'Sibling.Prev' for terseness.
+	 * Omit if `Sibling.Prev` for terseness.
 	 */
 	side?: Sibling.Next;
 	/**
 	 * Omit if not in peer change.
-	 * Omit if 'Tiebreak.LastToFirst' for terseness.
+	 * Omit if `Tiebreak.LastToFirst` for terseness.
 	 */
 	tiebreak?: Tiebreak.FirstToLast;
 	/**
@@ -151,13 +161,13 @@ interface Attach extends Segment {
 	detach?: Delete | MoveOut;
 }
 
-interface Insert extends Attach {
-	[type]: 'Insert';
+export interface Insert extends Attach {
+	[type]: "Insert";
 	content: ProtoNode[];
 }
 
-interface MoveIn extends Attach {
-	[type]: 'MoveIn';
+export interface MoveIn extends Attach {
+	[type]: "MoveIn";
 	/**
 	 * The original location of the first moved node as per the edits known to the clients at the time.
 	 * Note that there could be multiple MoveOut segments there. Use `srcId` to differentiate.
@@ -173,23 +183,23 @@ interface MoveIn extends Attach {
 /**
  * Used for Delete and MoveOut of set-like ranges and atomic ranges.
  */
-interface Detach extends Segment {}
+export interface Detach extends Segment {}
 
 /**
  * Used for set-like ranges and atomic ranges.
  */
-interface Delete extends Detach {
-	[type]: 'Delete';
+export interface Delete extends Detach {
+	[type]: "Delete";
 }
 
 /**
  * Used for set-like ranges and atomic ranges.
  */
-interface MoveOut extends Detach, HasDst {
-	[type]: 'MoveOut';
+export interface MoveOut extends Detach, HasDst {
+	[type]: "MoveOut";
 }
 
-interface HasDst {
+export interface HasDst {
 	/**
 	 * The target location of the first moved node as per the edits known to the clients at the time.
 	 * Note that there could be multiple MoveIn segments there. Use `dstId` to differentiate.
@@ -205,17 +215,17 @@ interface HasDst {
 /**
  * We need a pair of bounds to help capture what each bound was relative to: each bound needs to be able to enter a
  * race independently of the other.
- * 
+ *
  * In peer edits, the content within the bounds...
  *  - includes all operations made prior to the detach of this slice
  *  - cannot grow
- * 
+ *
  * In the collab window, the content within the bound...
  *  - includes all operations made prior to the detach of this slice
  *  - includes attaches (and potential subsequent detaches) made by transactions that were concurrent to the slice.
  *  - can grow
  */
-interface SliceStart {
+export interface SliceStart {
 	/**
 	 * An ID that uniquely identifies the detach operation within the transaction/seq#.
 	 * The matching SliceEnd (and MoveIn segment in the case of a move) will bear the same ID.
@@ -227,12 +237,12 @@ interface SliceStart {
 	 */
 	seq?: SeqNumber;
 	/**
-	 * Omit if 'Sibling.Prev' for terseness.
+	 * Omit if `Sibling.Prev` for terseness.
 	 */
 	side?: Sibling.Next;
 	/**
 	 * Omit if not in peer change.
-	 * Omit if 'Tiebreak.LastToFirst' for terseness.
+	 * Omit if `Tiebreak.LastToFirst` for terseness.
 	 */
 	tiebreak?: Tiebreak.FirstToLast;
 	/**
@@ -241,15 +251,15 @@ interface SliceStart {
 	drill?: DrillDepth;
 }
 
-interface MoveOutStart extends SliceStart, HasDst {
-	[type]: 'MoveOutStart';
+export interface MoveOutStart extends SliceStart, HasDst {
+	[type]: "MoveOutStart";
 }
-interface DeleteStart extends SliceStart {
-	[type]: 'DeleteStart';
+export interface DeleteStart extends SliceStart {
+	[type]: "DeleteStart";
 }
 
-interface SliceEnd {
-	[type]: 'End';
+export interface SliceEnd {
+	[type]: "End";
 	/**
 	 * Omit if within peer transaction.
 	 */
@@ -261,12 +271,12 @@ interface SliceEnd {
 	 */
 	id?: ChangeId;
 	/**
-	 * Omit if 'Sibling.Prev' for terseness.
+	 * Omit if `Sibling.Prev` for terseness.
 	 */
 	side?: Sibling.Next;
 }
 
-type SliceBound = MoveOutStart | DeleteStart | SliceEnd;
+export type SliceBound = MoveOutStart | DeleteStart | SliceEnd;
 
 /**
  * Either
@@ -276,10 +286,10 @@ type SliceBound = MoveOutStart | DeleteStart | SliceEnd;
  *    * The list of tree addresses of reference nodes that were drilled through (ordered from last to first)
  *    * A positive integer that represents how higher above the last reference node the drilldown started
  */
-type DrillDepth = number | [TreePath[], number];
+export type DrillDepth = number | [TreePath[], number];
 
 /** A string that represents a path from the root to a particular node. */
-type TreePath = string;
+export type TreePath = string;
 
 /**
  * The relative location of the sibling based on which a segment or segment boundary is defined.
@@ -298,7 +308,7 @@ enum Sibling {
 /**
  * The contents of a node to be created
  */
- interface ProtoNode {
+ export interface ProtoNode {
 	id: string;
 	type?: string;
 	value?: Value;
@@ -308,35 +318,32 @@ enum Sibling {
 /**
  * The traits of a node to be created
  */
-interface ProtoTraits {
-	[key: TraitLabel]: ProtoTrait;
+export interface ProtoTraits {
+	[key: string]: ProtoTrait;
 }
 
 /**
  * A trait within a node to be created.
  * May include change segments if the trait was edited after creation.
- * 
+ *
  * Modify segments are now allowed here. Instead, modifications are reflected as follows:
  * - values are updated in place
  * - deleted nodes are replaced by a Delete segment in the relevant ProtoTrait
  * - other modifications (Insert, MoveIn, MoveOut) are represented by adding a segment in the relevant ProtoTrait.
  */
-type ProtoTrait = (ProtoNode | Mark)[];
+export type ProtoTrait = (ProtoNode | Mark)[];
 
-type Offset = number;
-type Index = number;
-type CreateIndex = number;
-type SeqNumber = number;
-type ChangeId = number;
-const type = Symbol();
-const setValue = Symbol();
-type Value = number | string | boolean;
-type NodeId = string;
-type TraitLabel = string;
-enum Tiebreak { LastToFirst, FirstToLast }
-type MovementRules = SimpleMovementRules | CustomMovementRules
-enum SimpleMovementRules { NeverMove, CommutativeMove, AlwaysMove }
-interface CustomMovementRules {
+export type Offset = number;
+export type Index = number;
+export type SeqNumber = number;
+export type ChangeId = number;
+export type Value = number | string | boolean;
+export type NodeId = string;
+export type TraitLabel = string;
+export enum Tiebreak { LastToFirst, FirstToLast }
+export type MovementRules = SimpleMovementRules | CustomMovementRules;
+export enum SimpleMovementRules { NeverMove, CommutativeMove, AlwaysMove }
+export interface CustomMovementRules {
 	/**
 	 * Omit if Any.
 	 */
@@ -358,14 +365,14 @@ interface CustomMovementRules {
 	 */
 	commutative?: false;
 }
-enum TraitLabels { Initial, Any }
-enum TraitParents { Initial, Any }
-enum NodeStatuses { Alive, Deleted, Any }
-enum MoveGranularity { IntraEdit, InterEdit, Any }
+export enum TraitLabels { Initial, Any }
+export enum TraitParents { Initial, Any }
+export enum NodeStatuses { Alive, Deleted, Any }
+export enum MoveGranularity { IntraEdit, InterEdit, Any }
 
-//---- EXAMPLES ---
+// ---- EXAMPLES ---
 
-namespace ScenarioA {
+export namespace ScenarioA {
 	/**
 	Scenario A
 	In a trait foo that contains the nodes [A B C D], three users concurrently attempt the following operations (ordered
@@ -387,67 +394,67 @@ namespace ScenarioA {
 	We need to know which node a given insertion or move-in was relative to.
 	*/
 
-	const t_u1: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const t_u1: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
-			{ [type]: 'Delete', length: 2 }
-		]
+			{ [type]: "Delete", length: 2 },
+		],
 	};
 
-	const t_u2: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const t_u2: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
-			{ [type]: 'MoveOutStart', side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: "MoveOutStart", side: Sibling.Next, dstPath: "bar.0" },
 			3, // Skip B C D
-			{ [type]: 'End' },
+			{ [type]: "End" },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', srcPath: 'foo.1', length: 3 }
-		]
+		bar: [
+			{ [type]: "MoveIn", srcPath: "foo.1", length: 3 },
+		],
 	};
 
-	const t_u3: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const t_u3: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			2, // Skip A B
-			{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.CommutativeMove }
-		]
+			{ [type]: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.CommutativeMove },
+		],
 	};
 
-	const w_u1u2: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const w_u1u2: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
-			{ [type]: 'MoveOutStart', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
-			{ [type]: 'Delete', seq: 1, length: 2 },
+			{ [type]: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
+			{ [type]: "Delete", seq: 1, length: 2 },
 			1, // Skip D
-			{ [type]: 'End' },
+			{ [type]: "End" },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1', length: 3 }
-		]
+		bar: [
+			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1", length: 3 },
+		],
 	};
 
-	const w_all: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const w_all: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
-			{ [type]: 'MoveOutStart', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
-			{ [type]: 'Delete', seq: 1, length: 2 },
+			{ [type]: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
+			{ [type]: "Delete", seq: 1, length: 2 },
 			1, // Skip D
-			{ [type]: 'End' },
+			{ [type]: "End" },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1', length: 1 }, // B
-			{ [type]: 'Insert', seq: 3, content: [{ id: 'X' }] },
-			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1', length: 2, srcOffset: 1 }, // C D
-		]
+		bar: [
+			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1", length: 1 }, // B
+			{ [type]: "Insert", seq: 3, content: [{ id: "X" }] },
+			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1", length: 2, srcOffset: 1 }, // C D
+		],
 	};
 }
 
-namespace ScenarioA2 {
+export namespace ScenarioA2 {
 	/**
 	Scenario A2 (same as A but with the slice starting at C)
 	In a trait foo that contains the nodes [A B C D], three users concurrently attempt the following operations (ordered
@@ -469,92 +476,92 @@ namespace ScenarioA2 {
 	We need to know which node a given insertion or move-in was relative to.
 	*/
 
-	const t_u1: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const t_u1: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
-			{ [type]: 'Delete', length: 2 }
-		]
+			{ [type]: "Delete", length: 2 },
+		],
 	};
 
-	const t_u2: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const t_u2: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			2, // Skip A B
-			{ [type]: 'MoveOutStart', side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: "MoveOutStart", side: Sibling.Next, dstPath: "bar.0" },
 			2, // Skip C D
-			{ [type]: 'End' },
+			{ [type]: "End" },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', srcPath: 'foo.2', length: 2 }
-		]
+		bar: [
+			{ [type]: "MoveIn", srcPath: "foo.2", length: 2 },
+		],
 	};
 
-	const t_u3: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const t_u3: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			3, // Skip A B C
-			{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.CommutativeMove }
-		]
-	};
-
-	const w_u1u2: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
-			1, // Skip A
-			{ [type]: 'Delete', seq: 1 },
-			{ [type]: 'MoveOutStart', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
-			{ [type]: 'Delete', seq: 1 },
-			1, // Skip D
-			{ [type]: 'End', seq: 2 },
+			{ [type]: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.CommutativeMove },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.2', length: 3 }
-		]
 	};
 
-	const w_all: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const w_u1u2: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
-			{ [type]: 'Delete', seq: 1 },
-			{ [type]: 'MoveOutStart', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
-			{ [type]: 'Delete', seq: 1 },
+			{ [type]: "Delete", seq: 1 },
+			{ [type]: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
+			{ [type]: "Delete", seq: 1 },
 			1, // Skip D
-			{ [type]: 'End', seq: 2 },
+			{ [type]: "End", seq: 2 },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1' }, // C
-			{ [type]: 'Insert', seq: 3, content: [{ id: 'X' }] },
-			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1', srcOffset: 1 }, // D
-		]
+		bar: [
+			{ [type]: "MoveIn", seq: 2, srcPath: "foo.2", length: 3 },
+		],
 	};
 
-	const w_u2u3: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const w_all: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
-			{ [type]: 'MoveOutStart', seq: 2, side: Sibling.Next, dstPath: 'bar.0' },
+			{ [type]: "Delete", seq: 1 },
+			{ [type]: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
+			{ [type]: "Delete", seq: 1 },
 			1, // Skip D
-			{ [type]: 'End', seq: 2 },
+			{ [type]: "End", seq: 2 },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1' }, // C
-			{ [type]: 'Insert', seq: 3, content: [{ id: 'X' }] },
-			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1', srcOffset: 1 }, // D
-		]
+		bar: [
+			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1" }, // C
+			{ [type]: "Insert", seq: 3, content: [{ id: "X" }] },
+			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1", srcOffset: 1 }, // D
+		],
 	};
 
-	const w_u3: ChangeFrame = {
-		[type]: 'Modify',
-		'bar': [
+	export const w_u2u3: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
+			1, // Skip A
+			{ [type]: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
+			1, // Skip D
+			{ [type]: "End", seq: 2 },
+		],
+		bar: [
+			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1" }, // C
+			{ [type]: "Insert", seq: 3, content: [{ id: "X" }] },
+			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1", srcOffset: 1 }, // D
+		],
+	};
+
+	export const w_u3: ChangeFrame = {
+		[type]: "Modify",
+		bar: [
 			1, // C
-			{ [type]: 'Insert', seq: 3, content: [{ id: 'X' }] },
-		]
+			{ [type]: "Insert", seq: 3, content: [{ id: "X" }] },
+		],
 	};
 }
 
-namespace ScenarioB {
+export namespace ScenarioB {
 	/*
 	Scenario B
 	In a trait P.foo that contains the node [A], two users concurrently attempt the following operations (ordered here
@@ -578,131 +585,140 @@ namespace ScenarioB {
 	We need to preserve the relative ordering of moves.
 	*/
 
-	const t_u1: ChangeFrame = {
-		[type]: 'Modify',
-		'_': [
+	export const t_u1: ChangeFrame = {
+		[type]: "Modify",
+		trait: [
 			{ // Modify P
-			[type]: 'Modify',
-			'foo': [
-					{ [type]: 'MoveOut', dstPath: '^bar.0' }
+			[type]: "Modify",
+			foo: [
+					{ [type]: "MoveOut", dstPath: "^bar.0" },
 				],
-				'bar': [
+				bar: [
 					{
-						[type]: 'MoveIn',
-						srcPath: '^foo.0',
+						[type]: "MoveIn",
+						srcPath: "^foo.0",
 						detach: {
-							[type]: 'MoveOut',
+							[type]: "MoveOut",
 							id: 1,
-							dstPath: '_.1.baz.0',
-						}
-					}
-				]
+							dstPath: "_.1.baz.0",
+						},
+					},
+				],
 			},
 			{ // Modify Q
-				[type]: 'Modify',
-				'baz': [
+				[type]: "Modify",
+				baz: [
 					{
-						[type]: 'MoveIn',
+						[type]: "MoveIn",
 						id: 1,
-						srcPath: '^bar.0',
-					}
-				]
+						srcPath: "^bar.0",
+					},
+				],
 			},
 		],
 	};
 
-	const t_u2: ChangeFrame = {
-		[type]: 'Modify',
-		'_': [
+	export const t_u2: ChangeFrame = {
+		[type]: "Modify",
+		trait: [
 			{ // Modify P
-				[type]: 'Modify',
-				'foo': [
+				[type]: "Modify",
+				foo: [
 					1, // Skip A
 					[ // Race for "After A"
-						[{ [type]: 'Insert', content: [{ id: 'Y' }], id: 1, moveRules: SimpleMovementRules.AlwaysMove }],
-						[{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: { traitParent: TraitParents.Initial } }],
-					]
-				]
-			}
-		]
-	};
-
-	const w_u1: ChangeFrame = {
-		[type]: 'Modify',
-		'_': [
-			{ // Modify P
-				[type]: 'Modify',
-				'foo': [
-					{ [type]: 'MoveOut', seq: 1, dstPath: '^bar.0' }
-				],
-				'bar': [
-					{
-						[type]: 'MoveIn',
-						seq: 1,
-						srcPath: '^foo.0',
-						detach: {
-							[type]: 'MoveOut',
-							seq: 1,
+						[{
+							[type]: "Insert",
+							content: [{ id: "Y" }],
 							id: 1,
-							dstPath: '_.1.baz.0',
-						}
-					}
-				]
-			},
-			{ // Modify Q
-				[type]: 'Modify',
-				'baz': [
-							{
-						[type]: 'MoveIn',
-						seq: 1,
-						id: 1,
-						srcPath: '^bar.0',
-					}
-				]
+							moveRules: SimpleMovementRules.AlwaysMove,
+						}],
+						[{
+							[type]: "Insert",
+							content: [{ id: "X" }],
+							moveRules: { traitParent: TraitParents.Initial },
+						}],
+					],
+				],
 			},
 		],
 	};
 
-	const w_all: ChangeFrame = {
-		[type]: 'Modify',
-		'_': [
+	export const w_u1: ChangeFrame = {
+		[type]: "Modify",
+		trait: [
 			{ // Modify P
-				[type]: 'Modify',
-				'foo': [
-					{ [type]: 'MoveOut', seq: 1, dstPath: '^bar.0' }
+				[type]: "Modify",
+				foo: [
+					{ [type]: "MoveOut", seq: 1, dstPath: "^bar.0" },
 				],
-				'bar': [
+				bar: [
 					{
-						[type]: 'MoveIn',
+						[type]: "MoveIn",
 						seq: 1,
-						srcPath: '^foo.0',
+						srcPath: "^foo.0",
 						detach: {
-							[type]: 'MoveOut',
+							[type]: "MoveOut",
 							seq: 1,
 							id: 1,
-							dstPath: '_.1.baz.0',
-						}
+							dstPath: "_.1.baz.0",
+						},
 					},
-					{ [type]: 'Insert', seq: 2, id: 1, content: [{ id: 'Y' }] },
-				]
+				],
 			},
 			{ // Modify Q
-				[type]: 'Modify',
-				'baz': [
-					{
-						[type]: 'MoveIn',
+				[type]: "Modify",
+				baz: [
+							{
+						[type]: "MoveIn",
 						seq: 1,
 						id: 1,
-						srcPath: '^bar.0',
+						srcPath: "^bar.0",
 					},
-					{ [type]: 'Insert', seq: 2, id: 1, content: [{ id: 'Y' }] },
-				]
+				],
+			},
+		],
+	};
+
+	export const w_all: ChangeFrame = {
+		[type]: "Modify",
+		trait: [
+			{ // Modify P
+				[type]: "Modify",
+				foo: [
+					{ [type]: "MoveOut", seq: 1, dstPath: "^bar.0" },
+				],
+				bar: [
+					{
+						[type]: "MoveIn",
+						seq: 1,
+						srcPath: "^foo.0",
+						detach: {
+							[type]: "MoveOut",
+							seq: 1,
+							id: 1,
+							dstPath: "_.1.baz.0",
+						},
+					},
+					{ [type]: "Insert", seq: 2, id: 1, content: [{ id: "Y" }] },
+				],
+			},
+			{ // Modify Q
+				[type]: "Modify",
+				baz: [
+					{
+						[type]: "MoveIn",
+						seq: 1,
+						id: 1,
+						srcPath: "^bar.0",
+					},
+					{ [type]: "Insert", seq: 2, id: 1, content: [{ id: "Y" }] },
+				],
 			},
 		],
 	};
 }
 
-namespace ScenarioC {
+export namespace ScenarioC {
 	/*
 	Scenario C
 	  User 1: insert B after A
@@ -718,69 +734,68 @@ namespace ScenarioC {
 	Note: this scenario motivates this being is true across commits but not within commits.
 	*/
 
-	const t_u1_1: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const t_u1_1: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
-			{ [type]: 'Insert', content: [{ id: 'B' }] }
-		]
-	};
-
-	const t_u1_2: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
-			1, // Skip A
-			{ [type]: 'MoveOut', dstPath: 'bar.0' }
+			{ [type]: "Insert", content: [{ id: "B" }] },
 		],
-		'bar:': [
-			{ [type]: 'MoveIn', srcPath: 'foo.1' }
-		]
 	};
 
-	const t_u2: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const t_u1_2: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
+			1, // Skip A
+			{ [type]: "MoveOut", dstPath: "bar.0" },
+		],
+		bar: [
+			{ [type]: "MoveIn", srcPath: "foo.1" },
+		],
+	};
+
+	export const t_u2: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			2, // Skip A B
-			{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.NeverMove }
-		]
+			{ [type]: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.NeverMove },
+		],
 	};
 
-	const w_u1: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const w_u1: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
 			{
-				[type]: 'Insert',
+				[type]: "Insert",
 				seq: 1,
-				content: [{ id: 'B' }],
-				detach: { [type]: 'MoveOut', seq: 2, dstPath: 'bar.0' }
+				content: [{ id: "B" }],
+				detach: { [type]: "MoveOut", seq: 2, dstPath: "bar.0" },
 			},
-			{ [type]: 'Insert', seq: 3, content: [{ id: 'X' }] }
+			{ [type]: "Insert", seq: 3, content: [{ id: "X" }] },
 		],
-		'bar:': [
-			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1' }
-		]
-	}
+		bar: [
+			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1" },
+		],
+	};
 
-	const w_all: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const w_all: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
 			{
-				[type]: 'Insert',
+				[type]: "Insert",
 				seq: 1,
-				content: [{ id: 'B' }],
-				detach: { [type]: 'MoveOut', seq: 2, dstPath: 'bar.0' }
-			}
-			
+				content: [{ id: "B" }],
+				detach: { [type]: "MoveOut", seq: 2, dstPath: "bar.0" },
+			},
 		],
-		'bar:': [
-			{ [type]: 'MoveIn', seq: 2, srcPath: 'foo.1' }
-		]
-	}
+		bar: [
+			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1" },
+		],
+	};
 }
 
-namespace ScenarioD {
+export namespace ScenarioD {
 	/*
 	Scenario D
 	In trait foo [A B C]:
@@ -793,66 +808,67 @@ namespace ScenarioD {
 
 	Takeaways:
 	We need to preserve the layering of moves over insertions.
-	It is not sufficient to represent insertions of content that is subsequently moved as insertions in their final location.
+	It is not sufficient to represent insertions of content that is subsequently moved as insertions in
+	their final location.
 	Note: this scenario motivates this being is true within commits but not across commits.
 	*/
 
-	const t_u1: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const t_u1: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
-			{ [type]: 'MoveOut', dstPath: 'bar.0' }
+			{ [type]: "MoveOut", dstPath: "bar.0" },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', srcPath: 'foo.1' }
+		bar: [
+			{ [type]: "MoveIn", srcPath: "foo.1" },
 		],
 	};
 
-	const t_u2: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
-			{ [type]: 'MoveOutStart', id: 1, dstPath: 'baz' },
+	export const t_u2: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
+			{ [type]: "MoveOutStart", id: 1, dstPath: "baz" },
 			2, // Skip A B
-			{ [type]: 'Insert', content: [{ id: 'X' }], moveRules: SimpleMovementRules.AlwaysMove },
+			{ [type]: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.AlwaysMove },
 			1, // Skip C
-			{ [type]: 'End', id: 1 }
+			{ [type]: "End", id: 1 },
 		],
-		'baz': [
-			{ [type]: 'MoveIn', id: 1, length: 4, srcPath: 'foo.0' }
-		]
-	};
-
-	const w_u1: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
-			1, // Skip A
-			{ [type]: 'MoveOut', seq: 1, dstPath: 'bar.0' }
-		],
-		'bar': [
-			{ [type]: 'MoveIn', seq: 1, srcPath: 'foo.1' }
+		baz: [
+			{ [type]: "MoveIn", id: 1, length: 4, srcPath: "foo.0" },
 		],
 	};
 
-	const w_all: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
-			{ [type]: 'MoveOutStart', seq: 2, id: 1, dstPath: 'baz' },
+	export const w_u1: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
-			{ [type]: 'MoveOut', seq: 1, dstPath: 'bar.0' },
+			{ [type]: "MoveOut", seq: 1, dstPath: "bar.0" },
+		],
+		bar: [
+			{ [type]: "MoveIn", seq: 1, srcPath: "foo.1" },
+		],
+	};
+
+	export const w_all: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
+			{ [type]: "MoveOutStart", seq: 2, id: 1, dstPath: "baz" },
+			1, // Skip A
+			{ [type]: "MoveOut", seq: 1, dstPath: "bar.0" },
 			1, // Skip C
-			{ [type]: 'End', seq: 2, id: 1 }
+			{ [type]: "End", seq: 2, id: 1 },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', seq: 1, srcPath: 'foo.1' },
-			{ [type]: 'Insert', seq: 2, content: [{ id: 'X' }] },
+		bar: [
+			{ [type]: "MoveIn", seq: 1, srcPath: "foo.1" },
+			{ [type]: "Insert", seq: 2, content: [{ id: "X" }] },
 		],
-		'baz': [
-			{ [type]: 'MoveIn', seq: 2, id: 1, length: 3, srcPath: 'foo.0' } // length needed updating 4->3
-		]
+		baz: [
+			{ [type]: "MoveIn", seq: 2, id: 1, length: 3, srcPath: "foo.0" }, // length needed updating 4->3
+		],
 	};
 }
 
-namespace ScenarioE {
+export namespace ScenarioE {
 	/*
 	In trait foo [A B C]:
 	  User 1: move B to some other trait bar
@@ -864,180 +880,181 @@ namespace ScenarioE {
 
 	Takeaways:
 	We need to preserve the layering of deletions over moves.
-	It is not sufficient to represent deletions of content that was previously moved as deletions in their original location.
+	It is not sufficient to represent deletions of content that was previously moved as deletions in
+	their original location.
 	*/
 
-	const t_u1: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const t_u1: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
-			{ [type]: 'MoveOut', dstPath: 'bar.0' }
+			{ [type]: "MoveOut", dstPath: "bar.0" },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', srcPath: 'foo.1' }
-		]
+		bar: [
+			{ [type]: "MoveIn", srcPath: "foo.1" },
+		],
 	};
 
-	const t_u2: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
-			{ [type]: 'DeleteStart', id: 1 },
+	export const t_u2: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
+			{ [type]: "DeleteStart", id: 1 },
 			2, // Skip A B
-			{ [type]: 'Insert', content: [{ id: 'X' }] },
+			{ [type]: "Insert", content: [{ id: "X" }] },
 			1, // Skip C
-			{ [type]: 'End', id: 1 }
-		]
+			{ [type]: "End", id: 1 },
+		],
 	};
 
-	const w_u1: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const w_u1: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			1, // Skip A
-			{ [type]: 'MoveOut', seq: 1, dstPath: 'bar.0' }
+			{ [type]: "MoveOut", seq: 1, dstPath: "bar.0" },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', seq: 1, srcPath: 'foo.1' }
-		]
+		bar: [
+			{ [type]: "MoveIn", seq: 1, srcPath: "foo.1" },
+		],
 	};
 
-	const w_all: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
-			{ [type]: 'DeleteStart', seq: 2, id: 1 },
+	export const w_all: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
+			{ [type]: "DeleteStart", seq: 2, id: 1 },
 			1, // Skip A
-			{ [type]: 'MoveOut', seq: 1, dstPath: 'bar.0' },
+			{ [type]: "MoveOut", seq: 1, dstPath: "bar.0" },
 			1, // Skip C
-			{ [type]: 'End', seq: 2, id: 1 }
+			{ [type]: "End", seq: 2, id: 1 },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', seq: 1, srcPath: 'foo.1' },
-			{ [type]: 'Insert', seq: 2, content: [{ id: 'X' }] },
-		]
+		bar: [
+			{ [type]: "MoveIn", seq: 1, srcPath: "foo.1" },
+			{ [type]: "Insert", seq: 2, content: [{ id: "X" }] },
+		],
 	};
 }
 
-namespace Swaps {
+export namespace Swaps {
 	// Swap the first nodes of traits foo and bar using set-like ranges
-	const e1: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
-			{ [type]: 'MoveOut', dstPath: 'bar.0' },
-			{ [type]: 'MoveIn', id: 1, srcPath: 'bar.0' }
+	export const e1: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
+			{ [type]: "MoveOut", dstPath: "bar.0" },
+			{ [type]: "MoveIn", id: 1, srcPath: "bar.0" },
 		],
-		'bar': [
-			{ [type]: 'MoveIn', srcPath: 'foo.0' },
-			{ [type]: 'MoveOut', id:1, dstPath: 'foo.0' }
-		]
+		bar: [
+			{ [type]: "MoveIn", srcPath: "foo.0" },
+			{ [type]: "MoveOut", id:1, dstPath: "foo.0" },
+		],
 	};
 
 	// Swap the first nodes of traits foo and bar and back again using set-like ranges
-	const e2: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
-			{ [type]: 'MoveOut', dstPath: 'bar.0' },
+	export const e2: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
+			{ [type]: "MoveOut", dstPath: "bar.0" },
 			{
-				[type]: 'MoveIn',
+				[type]: "MoveIn",
 				id: 1,
-				srcPath: 'bar.0',
+				srcPath: "bar.0",
 				detach: {
-					[type]: 'MoveOut',
+					[type]: "MoveOut",
 					id: 2,
-					dstPath: 'bar.0'
-				}
+					dstPath: "bar.0",
+				},
 			},
-			{ [type]: 'MoveIn', id: 3, srcPath: 'bar.0' },
+			{ [type]: "MoveIn", id: 3, srcPath: "bar.0" },
 		],
-		'bar': [
+		bar: [
 			{
-				[type]: 'MoveIn',
-				srcPath: 'foo.0',
+				[type]: "MoveIn",
+				srcPath: "foo.0",
 				detach: {
-					[type]: 'MoveOut',
+					[type]: "MoveOut",
 					id: 3,
-					dstPath: 'foo.0'
-				}
+					dstPath: "foo.0",
+				},
 			},
-			{ [type]: 'MoveOut', id:1, dstPath: 'foo.0' },
-			{ [type]: 'MoveIn', id: 2, srcPath: 'foo.0' },
-		]
+			{ [type]: "MoveOut", id:1, dstPath: "foo.0" },
+			{ [type]: "MoveIn", id: 2, srcPath: "foo.0" },
+		],
 	};
 
 	// Swap parent/child:
 	// From: A{ foo: B{ bar: C{ baz: D } } }
 	// To:   A{ foo: C{ bar: B{ baz: D } } }
-	const e3: ChangeFrame = {
-		[type]: 'Modify',
-		'foo': [
+	export const e3: ChangeFrame = {
+		[type]: "Modify",
+		foo: [
 			{
-				[type]: 'MoveOut', // B,
+				[type]: "MoveOut", // B,
 				id: 2,
-				dstPath: 'foo.0.bar.0',
+				dstPath: "foo.0.bar.0",
 				mods: { // Modify B
-					[type]: 'Modify',
-					'bar:': [
+					[type]: "Modify",
+					bar: [
 						{
-							[type]: 'MoveOut', // C
+							[type]: "MoveOut", // C
 							id: 1,
-							dstPath: 'foo.0',
+							dstPath: "foo.0",
 							mods: { // Modify C
-								[type]: 'Modify',
-								'baz': [
+								[type]: "Modify",
+								baz: [
 									{
-										[type]: 'MoveOut', // D
-										dstPath: 'foo.0.bar.0.baz.0' // Omit path if the same as the current path?
+										[type]: "MoveOut", // D
+										dstPath: "foo.0.bar.0.baz.0", // Omit path if the same as the current path?
 									},
 								],
-							}
+							},
 						},
 					],
 				},
 			},
 			{
-				[type]: 'MoveIn', // C
+				[type]: "MoveIn", // C
 				id: 1,
-				srcPath: 'foo.0.bar.0',
+				srcPath: "foo.0.bar.0",
 				mods: { // Modify C
-					[type]: 'Modify',
-					'bar': [
+					[type]: "Modify",
+					bar: [
 						{
-							[type]: 'MoveIn', // B
+							[type]: "MoveIn", // B
 							id: 2,
-							srcPath: 'foo.0',
+							srcPath: "foo.0",
 							mods: { // Modify B
-								[type]: 'Modify',
-								'baz': [
+								[type]: "Modify",
+								baz: [
 									{
-										[type]: 'MoveIn', // D
-										srcPath: 'foo.0.bar.0.baz.0', // Omit path if the same as the current path?
+										[type]: "MoveIn", // D
+										srcPath: "foo.0.bar.0.baz.0", // Omit path if the same as the current path?
 									},
-								]
+								],
 							},
-						}
-					]
-				}
-			}
-		]
+						},
+					],
+				},
+			},
+		],
 	};
 }
 
-interface CollabWindow {
+export interface CollabWindow {
 	transactionWindow: Transaction[];
 	tree: Node;
 	changes: ChangeFrame;
 }
 
-interface Node {
+export interface Node {
 	id: NodeId;
 	type?: string;
 	value?: Value;
 	traits?: Traits;
 }
 
-interface Traits {
-	[key: TraitLabel]: Node[];
+export interface Traits {
+	[key: string]: Node[];
 }
 
-function extendWindow(transaction: Transaction, window: CollabWindow): boolean {
+export function extendWindow(transaction: Transaction, window: CollabWindow): boolean {
 	window.transactionWindow.push(transaction);
 	for (const frame of transaction.frames) {
 		if (isConstraintFrame(frame)) {
@@ -1048,14 +1065,14 @@ function extendWindow(transaction: Transaction, window: CollabWindow): boolean {
 			if (isChangeFrame(frame)) {
 				appendChangeToWindow(window, frame);
 			} else {
-				throw(new Error('Transaction frame is neither a constraint nor a change'));
+				throw(new Error("Transaction frame is neither a constraint nor a change"));
 			}
 		}
 	}
 	return true;
 }
 
-function shrinkWindow(window: CollabWindow, knownSeq: SeqNumber): void {
+export function shrinkWindow(window: CollabWindow, knownSeq: SeqNumber): void {
 	if (window.transactionWindow.length === 0 || window.transactionWindow[0].seq > knownSeq) {
 		// Nothing to remove
 		return;
@@ -1063,7 +1080,7 @@ function shrinkWindow(window: CollabWindow, knownSeq: SeqNumber): void {
 	if (Array.isArray(window.changes)) {
 		shrinkMarks(window.changes, knownSeq);
 	} else {
-		shrinkModify(window.changes, knownSeq)
+		shrinkModify(window.changes, knownSeq);
 	}
 	// Cull from the queue the transaction whose seq# is lower or equal to `knownSeq`
 	const cullCount = window.transactionWindow.findIndex((t: Transaction) => t.seq > knownSeq);
@@ -1076,7 +1093,7 @@ function shrinkMarks(marks: TraitMarks, knownSeq: SeqNumber): boolean {
 	let idx = 0;
 	while (marks[idx] !== undefined) {
 		const mark = marks[idx];
-		if (typeof mark === 'object') {
+		if (typeof mark === "object") {
 			// SetValue | Modify | Insert | Delete | MoveIn | MoveOut | SliceBound | Race;
 			if (Array.isArray(mark)) {
 				const raceLength = shrinkMarksRace(mark, knownSeq);
@@ -1121,8 +1138,8 @@ function shrinkMarks(marks: TraitMarks, knownSeq: SeqNumber): boolean {
 					if (mark.mods === undefined) {
 						heal(marks, idx, mark.length);
 					} else if (Array.isArray(mark.mods)) {
-						if (isOffset(mark.mods[0]) && idx > 0 && isOffset(marks[idx-1])) {
-							(marks[idx-1] as Offset) += (mark.mods[0] as Offset);
+						if (isOffset(mark.mods[0]) && idx > 0 && isOffset(marks[idx - 1])) {
+							(marks[idx - 1] as Offset) += mark.mods[0];
 							delete mark.mods[0];
 						}
 						marks.splice(idx, 0, ...mark.mods);
@@ -1159,10 +1176,10 @@ function heal(marks: TraitMarks, index: number, length: number = 1): void {
 	if (length === 0) {
 		delete marks[index];
 	} else {
-		if (index > 0 && isOffset(marks[index-1])) {
-			(marks[index-1] as Offset) += length;
-		} else if (isOffset(marks[index+1])) {
-			(marks[index+1] as Offset) += length;
+		if (index > 0 && isOffset(marks[index - 1])) {
+			(marks[index - 1] as Offset) += length;
+		} else if (isOffset(marks[index + 1])) {
+			(marks[index + 1] as Offset) += length;
 		} else {
 			// Replace the segment with an Offset of `length`
 			marks.splice(index, 1, length);
@@ -1170,35 +1187,35 @@ function heal(marks: TraitMarks, index: number, length: number = 1): void {
 	}
 }
 
-function isSetValue(mark: Mark): mark is SetValue { return mark[type] === 'SetValue'; }
-function isModify(mark: Mark): mark is Modify { return mark[type] === 'Modify'; }
-function isInsert(mark: Mark): mark is Insert { return mark[type] === 'Insert'; }
-function isDelete(mark: Mark): mark is Delete { return mark[type] === 'Delete'; }
-function isMoveIn(mark: Mark): mark is MoveIn { return mark[type] === 'MoveIn'; }
-function isMoveOut(mark: Mark): mark is MoveOut { return mark[type] === 'MoveOut'; }
-function isMoveOutStart(mark: Mark): mark is MoveOutStart { return mark[type] === 'MoveOutStart'; }
-function isDeleteStart(mark: Mark): mark is DeleteStart { return mark[type] === 'DeleteStart'; }
-function isEnd(mark: Mark): mark is SliceEnd { return mark[type] === 'End'; }
+function isSetValue(mark: Mark): mark is SetValue { return mark[type] === "SetValue"; }
+function isModify(mark: Mark): mark is Modify { return mark[type] === "Modify"; }
+function isInsert(mark: Mark): mark is Insert { return mark[type] === "Insert"; }
+function isDelete(mark: Mark): mark is Delete { return mark[type] === "Delete"; }
+function isMoveIn(mark: Mark): mark is MoveIn { return mark[type] === "MoveIn"; }
+function isMoveOut(mark: Mark): mark is MoveOut { return mark[type] === "MoveOut"; }
+function isMoveOutStart(mark: Mark): mark is MoveOutStart { return mark[type] === "MoveOutStart"; }
+function isDeleteStart(mark: Mark): mark is DeleteStart { return mark[type] === "DeleteStart"; }
+function isEnd(mark: Mark): mark is SliceEnd { return mark[type] === "End"; }
 function isBound(mark: Mark): mark is MoveOutStart | DeleteStart | SliceEnd {
 	const markType = mark[type];
-	return markType === 'MoveOutStart'
-		|| markType === 'DeleteStart'
-		|| markType === 'End'
+	return markType === "MoveOutStart"
+		|| markType === "DeleteStart"
+		|| markType === "End"
 	;
 }
-function isOffset(mark: Mark | Offset | undefined): mark is Offset { return typeof mark === 'number'; }
-function isSegment(mark: Mark | Offset): mark is Insert | Delete | MoveIn | MoveOut { 
+function isOffset(mark: Mark | Offset | undefined): mark is Offset { return typeof mark === "number"; }
+function isSegment(mark: Mark | Offset): mark is Insert | Delete | MoveIn | MoveOut {
 	const markType = mark[type];
-	return markType === 'Insert'
-		|| markType === 'Delete'
-		|| markType === 'MoveIn'
-		|| markType === 'MoveOut'
+	return markType === "Insert"
+		|| markType === "Delete"
+		|| markType === "MoveIn"
+		|| markType === "MoveOut"
 	;
  }
-function isDetachSegment(mark: Mark | Offset): mark is Delete | MoveOut { 
+function isDetachSegment(mark: Mark | Offset): mark is Delete | MoveOut {
 	const markType = mark[type];
-	return markType === 'Delete'
-		|| markType === 'MoveOut'
+	return markType === "Delete"
+		|| markType === "MoveOut"
 	;
  }
 
@@ -1240,7 +1257,7 @@ function isConstraintFrame(frame: ChangeFrame | ConstraintFrame): frame is Const
 		// Empty change frame
 		return false;
 	}
-	return innerObj[type] === 'ConstrainedRange' || innerObj[type] === 'ConstrainedRange'
+	return innerObj[type] === "ConstrainedRange" || innerObj[type] === "ConstrainedTraitSet";
 }
 
 function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is ChangeFrame {
@@ -1249,7 +1266,7 @@ function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is ChangeFra
 		// Empty change frame
 		return true;
 	}
-	if (typeof innerObj === 'number') {
+	if (typeof innerObj === "number") {
 		// The innerObj is an Offset mark
 		return true;
 	}
@@ -1258,17 +1275,17 @@ function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is ChangeFra
 		return true;
 	}
 	const innerType = innerObj[type];
-	return innerType === 'Modify'
-		|| innerType === 'Insert'
-		|| innerType === 'Delete'
-		|| innerType === 'MoveIn'
-		|| innerType === 'MoveOut'
-		|| innerType === 'MoveOutStart'
-		|| innerType === 'DeleteStart'
-		|| innerType === 'SetValue'
+	return innerType === "Modify"
+		|| innerType === "Insert"
+		|| innerType === "Delete"
+		|| innerType === "MoveIn"
+		|| innerType === "MoveOut"
+		|| innerType === "MoveOutStart"
+		|| innerType === "DeleteStart"
+		|| innerType === "SetValue"
 	;
 }
 
 function isConstraintFrameSatisfied(frame: ConstraintFrame, window: CollabWindow): boolean {
-	throw(new Error('isConstraintFrameSatisfied not implemented'));
+	throw(new Error("isConstraintFrameSatisfied not implemented"));
 }
