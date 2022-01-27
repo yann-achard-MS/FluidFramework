@@ -10,7 +10,7 @@ export const type = Symbol();
 export const setValue = Symbol();
 
 /**
- * Peer edit constructed by clients and broadcast by Alfred.
+ * Edit constructed by clients and broadcast by Alfred.
  */
 export interface Transaction {
 	seq: SeqNumber;
@@ -72,43 +72,109 @@ export interface ConstrainedRange {
 	valueLock?: number;
 }
 
-export type ChangeFrame = Modify | TraitMarks;
+interface LocalTypes {
+	Modify: Modify;
+	SetValue: SetValue;
+	SetValueMark: SetValueMark;
+	Insert: Insert;
+	Delete: Delete;
+	MoveIn: MoveIn;
+	MoveOut: MoveOut;
+	ProtoNode: ProtoNode;
+	SliceBound: SliceBound;
+}
 
-export interface Modify {
+type PeerSetValue = SetValue & HasSeqValue;
+type PeerSetValueMark = SetValueMark & HasSeqValue;
+type PeerModify = Modify<PeerTypes>;
+type PeerInsert = Insert<PeerTypes> & HasSeqValue;
+type PeerDelete = Delete<PeerTypes> & HasSeqValue;
+type PeerMoveIn = MoveIn<PeerTypes> & HasSeqValue;
+type PeerMoveOut = MoveOut<PeerTypes> & HasSeqValue;
+type PeerProtoNode = ProtoNode<PeerTypes>;
+
+interface PeerTypes {
+	Modify: PeerModify;
+	SetValue: PeerSetValue;
+	SetValueMark: PeerSetValueMark;
+	Insert: PeerInsert;
+	Delete: PeerDelete;
+	MoveIn: PeerMoveIn;
+	MoveOut: PeerMoveOut;
+	ProtoNode: PeerProtoNode;
+	SliceBound: PeerSliceBound;
+}
+type TypeSet = LocalTypes | PeerTypes;
+
+type ModifyType<T extends TypeSet> = T["Modify"];
+type SetValueType<T extends TypeSet> = T["SetValue"];
+type SetValueMarkType<T extends TypeSet> = T["SetValueMark"];
+type InsertType<T extends TypeSet> = T["Insert"];
+type DeleteType<T extends TypeSet> = T["Delete"];
+type MoveInType<T extends TypeSet> = T["MoveIn"];
+type MoveOutType<T extends TypeSet> = T["MoveOut"];
+type ProtoNodeType<T extends TypeSet> = T["ProtoNode"];
+type SliceBoundType<T extends TypeSet> = T["SliceBound"];
+
+export type ChangeFrame<T extends TypeSet = LocalTypes> = ModifyType<T> | TraitMarks<T>;
+export type PeerChangeFrame = ChangeFrame<PeerTypes>;
+
+export interface Modify<T extends TypeSet = LocalTypes> {
 	[type]: "Modify";
-	[setValue]?: SetValue;
-	[key: string]: TraitMarks | Modify;
+	[setValue]?: SetValueType<T>;
+	[key: string]: TraitMarks<T> | ModifyType<T>;
 }
 
 export interface SetValue {
-	/**
-	 * Omit if directly under a Modify.
-	 */
-	[type]?: "SetValue";
-	/**
-	 * Omit if within peer transaction.
-	 */
-	seq?: SeqNumber;
 	value: Value | [Value, DrillDepth];
+}
+
+export interface SetValueMark extends SetValue {
+	[type]: "SetValue";
 }
 
 /**
  * Using offsets instead of indices to reduce the amount of updating needed.
  */
-export type TraitMarks = (Offset | Mark)[];
-export type Race = TraitMarks[];
-export type Mark = SetValue | Modify | Insert | Delete | MoveIn | MoveOut | SliceBound | Race;
-export type RelativeMark = Insert | MoveIn | SliceBound | TraitMarks;
+export type TraitMarks<T extends TypeSet = LocalTypes> = (Offset | Mark<T>)[];
+export type PeerTraitMarks = TraitMarks<PeerTypes>;
+export type Race<T extends TypeSet = LocalTypes> = TraitMarks<T>[];
+export type PeerRace = Race<PeerTypes>;
+export type Mark<T extends TypeSet = LocalTypes> =
+	| SetValueMarkType<T>
+	| ModifyType<T>
+	| InsertType<T>
+	| DeleteType<T>
+	| MoveInType<T>
+	| MoveOutType<T>
+	| SliceBoundType<T>
+	| Race<T>;
+export type PeerMark = Mark<PeerTypes>;
 
-export interface Segment extends HasMods {
+export interface HasMods<T extends TypeSet = LocalTypes> {
+	/**
+	 * Always interpreted after `MoveIn.seq` and before `MoveOut.seq`.
+	 * The offset approach keeps numbers smaller and lets us split and join segments without updating the numbers.
+	 * Option 1:
+	 */
+	mods?: ModifyType<T> | SetValueMarkType<T> | (Offset | ModifyType<T> | SetValueMarkType<T>)[];
+	/**
+	 * Option 2:
+	 * The index approach lets us binary search faster within a long segment.
+	 */
+	mods2?: [Index, ModifyType<T> | SetValueMarkType<T>][];
+	/**
+	 * Option 3:
+	 * The index approach lets us lookup faster within a long segment.
+	 */
+	mods3?: { [key: number]: ModifyType<T> | SetValueMarkType<T> };
+}
+
+export interface Segment<T extends TypeSet = LocalTypes> extends HasMods<T> {
 	/**
 	 * 1 when omitted.
 	 */
 	length?: number;
-	/**
-	 * Omit if within peer transaction.
-	 */
-	seq?: SeqNumber;
 	/**
 	 * An ID that uniquely identifies the operation within the transaction/seq#.
 	 * Omit if 0.
@@ -116,26 +182,7 @@ export interface Segment extends HasMods {
 	id?: ChangeId;
 }
 
-export interface HasMods {
-	/**
-	 * Always interpreted after `MoveIn.seq` and before `MoveOut.seq`.
-	 * The offset approach keeps numbers smaller and lets us split and join segments without updating the numbers.
-	 * Option 1:
-	 */
-	mods?: Modify | SetValue | (Offset | Modify | SetValue)[];
-	/**
-	 * Option 2:
-	 * The index approach lets us binary search faster within a long segment.
-	 */
-	mods2?: [Index, Modify | SetValue][];
-	/**
-	 * Option 3:
-	 * The index approach lets us lookup faster within a long segment.
-	 */
-	mods3?: { [key: number]: Modify | SetValue };
-}
-
-export interface Attach extends Segment {
+export interface Attach<T extends TypeSet = LocalTypes> extends Segment<T> {
 	/**
 	 * Omit if `Sibling.Prev` for terseness.
 	 */
@@ -158,15 +205,15 @@ export interface Attach extends Segment {
 	/**
 	 * Omit if the attached range is not subsequently detached.
 	 */
-	detach?: Delete | MoveOut;
+	detach?: DeleteType<T> | MoveOutType<T>;
 }
 
-export interface Insert extends Attach {
+export interface Insert<T extends TypeSet = LocalTypes> extends Attach<T> {
 	[type]: "Insert";
-	content: ProtoNode[];
+	content: ProtoNodeType<T>[];
 }
 
-export interface MoveIn extends Attach {
+export interface MoveIn<T extends TypeSet = LocalTypes> extends Attach<T> {
 	[type]: "MoveIn";
 	/**
 	 * The original location of the first moved node as per the edits known to the clients at the time.
@@ -183,19 +230,19 @@ export interface MoveIn extends Attach {
 /**
  * Used for Delete and MoveOut of set-like ranges and atomic ranges.
  */
-export interface Detach extends Segment {}
+export interface Detach<T extends TypeSet = LocalTypes> extends Segment<T> {}
 
 /**
  * Used for set-like ranges and atomic ranges.
  */
-export interface Delete extends Detach {
+export interface Delete<T extends TypeSet = LocalTypes> extends Detach<T> {
 	[type]: "Delete";
 }
 
 /**
  * Used for set-like ranges and atomic ranges.
  */
-export interface MoveOut extends Detach, HasDst {
+export interface MoveOut<T extends TypeSet = LocalTypes> extends Detach<T>, HasDst {
 	[type]: "MoveOut";
 }
 
@@ -233,10 +280,6 @@ export interface SliceStart {
 	 */
 	id?: ChangeId;
 	/**
-	 * Omit if within peer transaction.
-	 */
-	seq?: SeqNumber;
-	/**
 	 * Omit if `Sibling.Prev` for terseness.
 	 */
 	side?: Sibling.Next;
@@ -261,10 +304,6 @@ export interface DeleteStart extends SliceStart {
 export interface SliceEnd {
 	[type]: "End";
 	/**
-	 * Omit if within peer transaction.
-	 */
-	seq?: SeqNumber;
-	/**
 	 * An ID that uniquely identifies the detach operation within the transaction/seq#.
 	 * The matching SliceStart (and MoveIn segment in the case of a move) will bear the same ID.
 	 * Omit if 0.
@@ -277,6 +316,16 @@ export interface SliceEnd {
 }
 
 export type SliceBound = MoveOutStart | DeleteStart | SliceEnd;
+
+export type PeerSliceStart = SliceStart & HasSeqValue;
+export type PeerMoveOutStart = MoveOutStart & HasSeqValue;
+export type PeerDeleteStart = DeleteStart & HasSeqValue;
+export type PeerSliceEnd = SliceEnd & HasSeqValue;
+export type PeerSliceBound = PeerMoveOutStart | PeerDeleteStart | PeerSliceEnd;
+
+export interface HasSeqValue {
+	seq: SeqNumber;
+}
 
 /**
  * Either
@@ -308,18 +357,18 @@ enum Sibling {
 /**
  * The contents of a node to be created
  */
- export interface ProtoNode {
+ export interface ProtoNode<T extends TypeSet = LocalTypes> {
 	id: string;
 	type?: string;
 	value?: Value;
-	traits?: ProtoTraits;
+	traits?: ProtoTraits<T>;
 }
 
 /**
  * The traits of a node to be created
  */
-export interface ProtoTraits {
-	[key: string]: ProtoTrait;
+export interface ProtoTraits<T extends TypeSet = LocalTypes> {
+	[key: string]: ProtoTrait<T>;
 }
 
 /**
@@ -331,7 +380,7 @@ export interface ProtoTraits {
  * - deleted nodes are replaced by a Delete segment in the relevant ProtoTrait
  * - other modifications (Insert, MoveIn, MoveOut) are represented by adding a segment in the relevant ProtoTrait.
  */
-export type ProtoTrait = (ProtoNode | Mark)[];
+export type ProtoTrait<T extends TypeSet = LocalTypes> = (ProtoNodeType<T> | Mark<T>)[];
 
 export type Offset = number;
 export type Index = number;
@@ -423,28 +472,28 @@ export namespace ScenarioA {
 		],
 	};
 
-	export const w_u1u2: ChangeFrame = {
+	export const w_u1u2: PeerChangeFrame = {
 		[type]: "Modify",
 		foo: [
 			1, // Skip A
 			{ [type]: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
 			{ [type]: "Delete", seq: 1, length: 2 },
 			1, // Skip D
-			{ [type]: "End" },
+			{ [type]: "End", seq: 2 },
 		],
 		bar: [
 			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1", length: 3 },
 		],
 	};
 
-	export const w_all: ChangeFrame = {
+	export const w_all: PeerChangeFrame = {
 		[type]: "Modify",
 		foo: [
 			1, // Skip A
 			{ [type]: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
 			{ [type]: "Delete", seq: 1, length: 2 },
 			1, // Skip D
-			{ [type]: "End" },
+			{ [type]: "End", seq: 2 },
 		],
 		bar: [
 			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1", length: 1 }, // B
@@ -505,7 +554,7 @@ export namespace ScenarioA2 {
 		],
 	};
 
-	export const w_u1u2: ChangeFrame = {
+	export const w_u1u2: PeerChangeFrame = {
 		[type]: "Modify",
 		foo: [
 			1, // Skip A
@@ -520,7 +569,7 @@ export namespace ScenarioA2 {
 		],
 	};
 
-	export const w_all: ChangeFrame = {
+	export const w_all: PeerChangeFrame = {
 		[type]: "Modify",
 		foo: [
 			1, // Skip A
@@ -537,7 +586,7 @@ export namespace ScenarioA2 {
 		],
 	};
 
-	export const w_u2u3: ChangeFrame = {
+	export const w_u2u3: PeerChangeFrame = {
 		[type]: "Modify",
 		foo: [
 			1, // Skip A
@@ -552,7 +601,7 @@ export namespace ScenarioA2 {
 		],
 	};
 
-	export const w_u3: ChangeFrame = {
+	export const w_u3: PeerChangeFrame = {
 		[type]: "Modify",
 		bar: [
 			1, // C
@@ -643,7 +692,7 @@ export namespace ScenarioB {
 		],
 	};
 
-	export const w_u1: ChangeFrame = {
+	export const w_u1: PeerChangeFrame = {
 		[type]: "Modify",
 		trait: [
 			{ // Modify P
@@ -679,7 +728,7 @@ export namespace ScenarioB {
 		],
 	};
 
-	export const w_all: ChangeFrame = {
+	export const w_all: PeerChangeFrame = {
 		[type]: "Modify",
 		trait: [
 			{ // Modify P
@@ -761,7 +810,7 @@ export namespace ScenarioC {
 		],
 	};
 
-	export const w_u1: ChangeFrame = {
+	export const w_u1: PeerChangeFrame = {
 		[type]: "Modify",
 		foo: [
 			1, // Skip A
@@ -778,7 +827,7 @@ export namespace ScenarioC {
 		],
 	};
 
-	export const w_all: ChangeFrame = {
+	export const w_all: PeerChangeFrame = {
 		[type]: "Modify",
 		foo: [
 			1, // Skip A
@@ -838,7 +887,7 @@ export namespace ScenarioD {
 		],
 	};
 
-	export const w_u1: ChangeFrame = {
+	export const w_u1: PeerChangeFrame = {
 		[type]: "Modify",
 		foo: [
 			1, // Skip A
@@ -849,7 +898,7 @@ export namespace ScenarioD {
 		],
 	};
 
-	export const w_all: ChangeFrame = {
+	export const w_all: PeerChangeFrame = {
 		[type]: "Modify",
 		foo: [
 			{ [type]: "MoveOutStart", seq: 2, id: 1, dstPath: "baz" },
@@ -906,7 +955,7 @@ export namespace ScenarioE {
 		],
 	};
 
-	export const w_u1: ChangeFrame = {
+	export const w_u1: PeerChangeFrame = {
 		[type]: "Modify",
 		foo: [
 			1, // Skip A
@@ -917,7 +966,7 @@ export namespace ScenarioE {
 		],
 	};
 
-	export const w_all: ChangeFrame = {
+	export const w_all: PeerChangeFrame = {
 		[type]: "Modify",
 		foo: [
 			{ [type]: "DeleteStart", seq: 2, id: 1 },
@@ -1040,7 +1089,7 @@ export namespace Swaps {
 export interface CollabWindow {
 	transactionWindow: Transaction[];
 	tree: Node;
-	changes: ChangeFrame;
+	changes: PeerChangeFrame;
 }
 
 export interface Node {
@@ -1089,7 +1138,7 @@ export function shrinkWindow(window: CollabWindow, knownSeq: SeqNumber): void {
 	}
 }
 
-function shrinkMarks(marks: TraitMarks, knownSeq: SeqNumber): boolean {
+function shrinkMarks(marks: PeerTraitMarks, knownSeq: SeqNumber): boolean {
 	let idx = 0;
 	while (marks[idx] !== undefined) {
 		const mark = marks[idx];
@@ -1157,7 +1206,7 @@ function shrinkMarks(marks: TraitMarks, knownSeq: SeqNumber): boolean {
 	return marks.length === 0 || (marks.length === 1 && isOffset(marks[0]));
 }
 
-function shrinkMarksRace(markLanes: TraitMarks[], knownSeq: SeqNumber): number | null {
+function shrinkMarksRace(markLanes: PeerTraitMarks[], knownSeq: SeqNumber): number | null {
 	let ancillary = true;
 	for (const lane of markLanes) {
 		ancillary ||= shrinkMarks(lane, knownSeq);
@@ -1187,24 +1236,35 @@ function heal(marks: TraitMarks, index: number, length: number = 1): void {
 	}
 }
 
-function isSetValue(mark: Mark): mark is SetValue { return mark[type] === "SetValue"; }
-function isModify(mark: Mark): mark is Modify { return mark[type] === "Modify"; }
-function isInsert(mark: Mark): mark is Insert { return mark[type] === "Insert"; }
-function isDelete(mark: Mark): mark is Delete { return mark[type] === "Delete"; }
-function isMoveIn(mark: Mark): mark is MoveIn { return mark[type] === "MoveIn"; }
-function isMoveOut(mark: Mark): mark is MoveOut { return mark[type] === "MoveOut"; }
-function isMoveOutStart(mark: Mark): mark is MoveOutStart { return mark[type] === "MoveOutStart"; }
-function isDeleteStart(mark: Mark): mark is DeleteStart { return mark[type] === "DeleteStart"; }
-function isEnd(mark: Mark): mark is SliceEnd { return mark[type] === "End"; }
-function isBound(mark: Mark): mark is MoveOutStart | DeleteStart | SliceEnd {
+export function isSetValue<T extends TypeSet>(mark: Mark<T>): mark is SetValueMarkType<T> {
+	return mark[type] === "SetValue";
+}
+export function isModify<T extends TypeSet>(mark: Mark<T>): mark is ModifyType<T> { return mark[type] === "Modify"; }
+export function isInsert<T extends TypeSet>(mark: Mark<T>): mark is InsertType<T> { return mark[type] === "Insert"; }
+export function isDelete<T extends TypeSet>(mark: Mark<T>): mark is DeleteType<T> { return mark[type] === "Delete"; }
+export function isMoveIn<T extends TypeSet>(mark: Mark<T>): mark is MoveInType<T> { return mark[type] === "MoveIn"; }
+export function isMoveOut<T extends TypeSet>(mark: Mark<T>): mark is MoveOutType<T> { return mark[type] === "MoveOut"; }
+export function isMoveOutStart<T extends TypeSet>(mark: Mark<T>): mark is MoveOutStart | PeerMoveOutStart {
+	return mark[type] === "MoveOutStart";
+}
+export function isDeleteStart<T extends TypeSet>(mark: Mark<T>): mark is DeleteStart | PeerDeleteStart {
+	return mark[type] === "DeleteStart";
+}
+export function isEnd<T extends TypeSet>(mark: Mark<T>): mark is SliceEnd | PeerSliceEnd {
+	return mark[type] === "End";
+}
+export function isBound<T extends TypeSet>(mark: Mark<T>): mark is SliceBound | PeerSliceBound {
 	const markType = mark[type];
 	return markType === "MoveOutStart"
 		|| markType === "DeleteStart"
 		|| markType === "End"
 	;
 }
-function isOffset(mark: Mark | Offset | undefined): mark is Offset { return typeof mark === "number"; }
-function isSegment(mark: Mark | Offset): mark is Insert | Delete | MoveIn | MoveOut {
+export function isOffset<T extends TypeSet>(mark: Mark<T> | Offset | undefined): mark is Offset {
+	return typeof mark === "number";
+}
+export function isSegment<T extends TypeSet>(mark: Mark<T> | Offset):
+	mark is InsertType<T> | DeleteType<T> | MoveInType<T> | MoveOutType<T> {
 	const markType = mark[type];
 	return markType === "Insert"
 		|| markType === "Delete"
@@ -1212,15 +1272,16 @@ function isSegment(mark: Mark | Offset): mark is Insert | Delete | MoveIn | Move
 		|| markType === "MoveOut"
 	;
  }
-function isDetachSegment(mark: Mark | Offset): mark is Delete | MoveOut {
+export function isDetachSegment<T extends TypeSet>(mark: Mark<T> | Offset): mark is DeleteType<T> | MoveOutType<T> {
 	const markType = mark[type];
 	return markType === "Delete"
 		|| markType === "MoveOut"
 	;
  }
 
-function shrinkModify(modify: Modify, knownSeq: SeqNumber): boolean {
-	if (modify[setValue] && modify[setValue].seq <= knownSeq) {
+function shrinkModify(modify: PeerModify, knownSeq: SeqNumber): boolean {
+	const setValueSeq = modify[setValue]?.seq;
+	if (setValueSeq !== undefined && setValueSeq <= knownSeq) {
 		delete modify[setValue];
 	}
 	for (const [label, marksOrModify] of Object.entries(modify)) {
@@ -1239,7 +1300,7 @@ function shrinkModify(modify: Modify, knownSeq: SeqNumber): boolean {
 	return Object.entries(modify).length === 0 && modify[setValue] === undefined;
 }
 
-function windowFromTree(tree: Node): CollabWindow {
+export function windowFromTree(tree: Node): CollabWindow {
 	return {
 		transactionWindow: [],
 		tree,
