@@ -6,9 +6,6 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 /* eslint-disable @typescript-eslint/no-dynamic-delete */
 
-export const type = Symbol();
-export const setValue = Symbol();
-
 /**
  * Edit constructed by clients and broadcast by Alfred.
  */
@@ -36,8 +33,8 @@ export type ConstraintFrame =
  | [ConstrainedTraitSet, ConstrainedRange];
 
 export interface ConstrainedTraitSet {
-	[type]: "ConstrainedTraitSet";
-	[key: string]: ConstraintSequence;
+	type: "ConstrainedTraitSet";
+	traits: { [key: string]: ConstraintSequence };
 }
 
 // Option 1: like segments but constraints are not mutually exclusive
@@ -51,7 +48,7 @@ export type ConstraintSequence = (Offset | ConstrainedRange | ConstrainedTraitSe
 export type ConstraintSequence2 = [Index, ConstrainedRange | ConstrainedTraitSet][];
 
 export interface ConstrainedRange {
-	[type]: "ConstrainedRange";
+	type: "ConstrainedRange";
 	length?: number;
 	/**
 	 * Could this just be `true` since we know the starting parent?
@@ -119,10 +116,16 @@ type SliceBoundType<T extends TypeSet> = T["SliceBound"];
 export type ChangeFrame<T extends TypeSet = LocalTypes> = ModifyType<T> | TraitMarks<T>;
 export type PeerChangeFrame = ChangeFrame<PeerTypes>;
 
+// export interface Modify<T extends TypeSet = LocalTypes> {
+// 	type: "Modify";
+// 	[setValue]?: SetValueType<T>;
+// 	[key: string]: TraitMarks<T> | ModifyType<T>;
+// }
+
 export interface Modify<T extends TypeSet = LocalTypes> {
-	[type]: "Modify";
-	[setValue]?: SetValueType<T>;
-	[key: string]: TraitMarks<T> | ModifyType<T>;
+	type?: never;
+	setValue?: SetValueType<T>;
+	modify?: { [key: string]: TraitMarks<T> | ModifyType<T> };
 }
 
 export interface SetValue {
@@ -130,7 +133,7 @@ export interface SetValue {
 }
 
 export interface SetValueMark extends SetValue {
-	[type]: "SetValue";
+	type: "SetValue";
 }
 
 /**
@@ -140,15 +143,16 @@ export type TraitMarks<T extends TypeSet = LocalTypes> = (Offset | Mark<T>)[];
 export type PeerTraitMarks = TraitMarks<PeerTypes>;
 export type Race<T extends TypeSet = LocalTypes> = TraitMarks<T>[];
 export type PeerRace = Race<PeerTypes>;
-export type Mark<T extends TypeSet = LocalTypes> =
+export type ObjMark<T extends TypeSet = LocalTypes> =
 	| SetValueMarkType<T>
 	| ModifyType<T>
 	| InsertType<T>
 	| DeleteType<T>
 	| MoveInType<T>
 	| MoveOutType<T>
-	| SliceBoundType<T>
-	| Race<T>;
+	| SliceBoundType<T>;
+export type PeerAtomicMark = ObjMark<PeerTypes>;
+export type Mark<T extends TypeSet = LocalTypes> = ObjMark<T> | Race<T>;
 export type PeerMark = Mark<PeerTypes>;
 
 export interface HasMods<T extends TypeSet = LocalTypes> {
@@ -209,12 +213,12 @@ export interface Attach<T extends TypeSet = LocalTypes> extends Segment<T> {
 }
 
 export interface Insert<T extends TypeSet = LocalTypes> extends Attach<T> {
-	[type]: "Insert";
+	type: "Insert";
 	content: ProtoNodeType<T>[];
 }
 
 export interface MoveIn<T extends TypeSet = LocalTypes> extends Attach<T> {
-	[type]: "MoveIn";
+	type: "MoveIn";
 	/**
 	 * The original location of the first moved node as per the edits known to the clients at the time.
 	 * Note that there could be multiple MoveOut segments there. Use `srcId` to differentiate.
@@ -236,14 +240,14 @@ export interface Detach<T extends TypeSet = LocalTypes> extends Segment<T> {}
  * Used for set-like ranges and atomic ranges.
  */
 export interface Delete<T extends TypeSet = LocalTypes> extends Detach<T> {
-	[type]: "Delete";
+	type: "Delete";
 }
 
 /**
  * Used for set-like ranges and atomic ranges.
  */
 export interface MoveOut<T extends TypeSet = LocalTypes> extends Detach<T>, HasDst {
-	[type]: "MoveOut";
+	type: "MoveOut";
 }
 
 export interface HasDst {
@@ -295,14 +299,14 @@ export interface SliceStart {
 }
 
 export interface MoveOutStart extends SliceStart, HasDst {
-	[type]: "MoveOutStart";
+	type: "MoveOutStart";
 }
 export interface DeleteStart extends SliceStart {
-	[type]: "DeleteStart";
+	type: "DeleteStart";
 }
 
 export interface SliceEnd {
-	[type]: "End";
+	type: "End";
 	/**
 	 * An ID that uniquely identifies the detach operation within the transaction/seq#.
 	 * The matching SliceStart (and MoveIn segment in the case of a move) will bear the same ID.
@@ -444,62 +448,67 @@ export namespace ScenarioA {
 	*/
 
 	export const t_u1: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "Delete", length: 2 },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Delete", length: 2 },
+			],
+		},
 	};
 
 	export const t_u2: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "MoveOutStart", side: Sibling.Next, dstPath: "bar.0" },
-			3, // Skip B C D
-			{ [type]: "End" },
-		],
-		bar: [
-			{ [type]: "MoveIn", srcPath: "foo.1", length: 3 },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "MoveOutStart", side: Sibling.Next, dstPath: "bar.0" },
+				3, // Skip B C D
+				{ type: "End" },
+			],
+			bar: [
+				{ type: "MoveIn", srcPath: "foo.1", length: 3 },
+			],
+		},
 	};
 
 	export const t_u3: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			2, // Skip A B
-			{ [type]: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.CommutativeMove },
-		],
+		modify: {
+			foo: [
+				2, // Skip A B
+				{ type: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.CommutativeMove },
+			],
+		},
 	};
 
 	export const w_u1u2: PeerChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
-			{ [type]: "Delete", seq: 1, length: 2 },
-			1, // Skip D
-			{ [type]: "End", seq: 2 },
-		],
-		bar: [
-			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1", length: 3 },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
+				{ type: "Delete", seq: 1, length: 2 },
+				1, // Skip D
+				{ type: "End", seq: 2 },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 2, srcPath: "foo.1", length: 3 },
+			],
+		},
 	};
 
 	export const w_all: PeerChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
-			{ [type]: "Delete", seq: 1, length: 2 },
-			1, // Skip D
-			{ [type]: "End", seq: 2 },
-		],
-		bar: [
-			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1", length: 1 }, // B
-			{ [type]: "Insert", seq: 3, content: [{ id: "X" }] },
-			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1", length: 2, srcOffset: 1 }, // C D
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
+				{ type: "Delete", seq: 1, length: 2 },
+				1, // Skip D
+				{ type: "End", seq: 2 },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 2, srcPath: "foo.1", length: 1 }, // B
+				{ type: "Insert", seq: 3, content: [{ id: "X" }] },
+				{ type: "MoveIn", seq: 2, srcPath: "foo.1", length: 2, srcOffset: 1 }, // C D
+			],
+		},
 	};
 }
 
@@ -526,87 +535,94 @@ export namespace ScenarioA2 {
 	*/
 
 	export const t_u1: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "Delete", length: 2 },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Delete", length: 2 },
+			],
+		},
 	};
 
 	export const t_u2: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			2, // Skip A B
-			{ [type]: "MoveOutStart", side: Sibling.Next, dstPath: "bar.0" },
-			2, // Skip C D
-			{ [type]: "End" },
-		],
-		bar: [
-			{ [type]: "MoveIn", srcPath: "foo.2", length: 2 },
-		],
+		modify: {
+			foo: [
+				2, // Skip A B
+				{ type: "MoveOutStart", side: Sibling.Next, dstPath: "bar.0" },
+				2, // Skip C D
+				{ type: "End" },
+			],
+			bar: [
+				{ type: "MoveIn", srcPath: "foo.2", length: 2 },
+			],
+		},
 	};
 
 	export const t_u3: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			3, // Skip A B C
-			{ [type]: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.CommutativeMove },
-		],
+		modify: {
+			foo: [
+				3, // Skip A B C
+				{ type: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.CommutativeMove },
+			],
+		},
 	};
 
 	export const w_u1u2: PeerChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "Delete", seq: 1 },
-			{ [type]: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
-			{ [type]: "Delete", seq: 1 },
-			1, // Skip D
-			{ [type]: "End", seq: 2 },
-		],
-		bar: [
-			{ [type]: "MoveIn", seq: 2, srcPath: "foo.2", length: 3 },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Delete", seq: 1 },
+				{ type: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
+				{ type: "Delete", seq: 1 },
+				1, // Skip D
+				{ type: "End", seq: 2 },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 2, srcPath: "foo.2", length: 3 },
+			],
+		},
 	};
 
 	export const w_all: PeerChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "Delete", seq: 1 },
-			{ [type]: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
-			{ [type]: "Delete", seq: 1 },
-			1, // Skip D
-			{ [type]: "End", seq: 2 },
-		],
-		bar: [
-			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1" }, // C
-			{ [type]: "Insert", seq: 3, content: [{ id: "X" }] },
-			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1", srcOffset: 1 }, // D
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Delete", seq: 1 },
+				{ type: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
+				{ type: "Delete", seq: 1 },
+				1, // Skip D
+				{ type: "End", seq: 2 },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 2, srcPath: "foo.1" }, // C
+				{ type: "Insert", seq: 3, content: [{ id: "X" }] },
+				{ type: "MoveIn", seq: 2, srcPath: "foo.1", srcOffset: 1 }, // D
+			],
+		},
 	};
 
 	export const w_u2u3: PeerChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
-			1, // Skip D
-			{ [type]: "End", seq: 2 },
-		],
-		bar: [
-			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1" }, // C
-			{ [type]: "Insert", seq: 3, content: [{ id: "X" }] },
-			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1", srcOffset: 1 }, // D
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
+				1, // Skip D
+				{ type: "End", seq: 2 },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 2, srcPath: "foo.1" }, // C
+				{ type: "Insert", seq: 3, content: [{ id: "X" }] },
+				{ type: "MoveIn", seq: 2, srcPath: "foo.1", srcOffset: 1 }, // D
+			],
+		},
 	};
 
 	export const w_u3: PeerChangeFrame = {
-		[type]: "Modify",
-		bar: [
-			1, // C
-			{ [type]: "Insert", seq: 3, content: [{ id: "X" }] },
-		],
+		modify: {
+			bar: [
+				1, // C
+				{ type: "Insert", seq: 3, content: [{ id: "X" }] },
+			],
+		},
 	};
 }
 
@@ -635,135 +651,146 @@ export namespace ScenarioB {
 	*/
 
 	export const t_u1: ChangeFrame = {
-		[type]: "Modify",
-		trait: [
-			{ // Modify P
-			[type]: "Modify",
-			foo: [
-					{ [type]: "MoveOut", dstPath: "^bar.0" },
-				],
-				bar: [
-					{
-						[type]: "MoveIn",
-						srcPath: "^foo.0",
-						detach: {
-							[type]: "MoveOut",
-							id: 1,
-							dstPath: "_.1.baz.0",
-						},
+		modify: {
+			trait: [
+				{ // Modify P
+				modify: {
+					foo: [
+							{ type: "MoveOut", dstPath: "^bar.0" },
+						],
+						bar: [
+							{
+								type: "MoveIn",
+								srcPath: "^foo.0",
+								detach: {
+									type: "MoveOut",
+									id: 1,
+									dstPath: "_.1.baz.0",
+								},
+							},
+						],
 					},
-				],
-			},
-			{ // Modify Q
-				[type]: "Modify",
-				baz: [
-					{
-						[type]: "MoveIn",
-						id: 1,
-						srcPath: "^bar.0",
+				},
+				{ // Modify Q
+					modify: {
+						baz: [
+							{
+								type: "MoveIn",
+								id: 1,
+								srcPath: "^bar.0",
+							},
+						],
 					},
-				],
-			},
-		],
+				},
+			],
+		},
 	};
 
 	export const t_u2: ChangeFrame = {
-		[type]: "Modify",
-		trait: [
-			{ // Modify P
-				[type]: "Modify",
-				foo: [
-					1, // Skip A
-					[ // Race for "After A"
-						[{
-							[type]: "Insert",
-							content: [{ id: "Y" }],
-							id: 1,
-							moveRules: SimpleMovementRules.AlwaysMove,
-						}],
-						[{
-							[type]: "Insert",
-							content: [{ id: "X" }],
-							moveRules: { traitParent: TraitParents.Initial },
-						}],
-					],
-				],
-			},
-		],
+		modify: {
+			trait: [
+				{ // Modify P
+					modify: {
+						foo: [
+							1, // Skip A
+							[ // Race for "After A"
+								[{
+									type: "Insert",
+									content: [{ id: "Y" }],
+									id: 1,
+									moveRules: SimpleMovementRules.AlwaysMove,
+								}],
+								[{
+									type: "Insert",
+									content: [{ id: "X" }],
+									moveRules: { traitParent: TraitParents.Initial },
+								}],
+							],
+						],
+					},
+				},
+			],
+		},
 	};
 
 	export const w_u1: PeerChangeFrame = {
-		[type]: "Modify",
-		trait: [
-			{ // Modify P
-				[type]: "Modify",
-				foo: [
-					{ [type]: "MoveOut", seq: 1, dstPath: "^bar.0" },
-				],
-				bar: [
-					{
-						[type]: "MoveIn",
-						seq: 1,
-						srcPath: "^foo.0",
-						detach: {
-							[type]: "MoveOut",
-							seq: 1,
-							id: 1,
-							dstPath: "_.1.baz.0",
-						},
-					},
-				],
-			},
-			{ // Modify Q
-				[type]: "Modify",
-				baz: [
+		modify: {
+			trait: [
+				{ // Modify P
+					modify: {
+						foo: [
+							{ type: "MoveOut", seq: 1, dstPath: "^bar.0" },
+						],
+						bar: [
 							{
-						[type]: "MoveIn",
-						seq: 1,
-						id: 1,
-						srcPath: "^bar.0",
+								type: "MoveIn",
+								seq: 1,
+								srcPath: "^foo.0",
+								detach: {
+									type: "MoveOut",
+									seq: 1,
+									id: 1,
+									dstPath: "_.1.baz.0",
+								},
+							},
+						],
 					},
-				],
-			},
-		],
+				},
+				{ // Modify Q
+					modify: {
+						baz: [
+									{
+								type: "MoveIn",
+								seq: 1,
+								id: 1,
+								srcPath: "^bar.0",
+							},
+						],
+					},
+				},
+			],
+		},
 	};
 
 	export const w_all: PeerChangeFrame = {
-		[type]: "Modify",
-		trait: [
-			{ // Modify P
-				[type]: "Modify",
-				foo: [
-					{ [type]: "MoveOut", seq: 1, dstPath: "^bar.0" },
-				],
-				bar: [
-					{
-						[type]: "MoveIn",
-						seq: 1,
-						srcPath: "^foo.0",
-						detach: {
-							[type]: "MoveOut",
-							seq: 1,
-							id: 1,
-							dstPath: "_.1.baz.0",
-						},
+		modify: {
+			trait: [
+				{ // Modify P
+					modify: {
+						foo: [
+							{ type: "MoveOut", seq: 1, dstPath: "^bar.0" },
+						],
+						bar: [
+							{
+								type: "MoveIn",
+								seq: 1,
+								srcPath: "^foo.0",
+								detach: {
+									type: "MoveOut",
+									seq: 1,
+									id: 1,
+									dstPath: "_.1.baz.0",
+								},
+							},
+							{ type: "Insert", seq: 2, id: 1, content: [{ id: "Y" }] },
+						],
 					},
-					{ [type]: "Insert", seq: 2, id: 1, content: [{ id: "Y" }] },
-				],
-			},
-			{ // Modify Q
-				[type]: "Modify",
-				baz: [
-					{
-						[type]: "MoveIn",
-						seq: 1,
-						id: 1,
-						srcPath: "^bar.0",
+				},
+				{ // Modify Q
+					modify: {
+						baz: [
+							{
+								type: "MoveIn",
+								seq: 1,
+								id: 1,
+								srcPath: "^bar.0",
+							},
+							{ type: "Insert", seq: 2, id: 1, content: [{ id: "Y" }] },
+						],
 					},
-					{ [type]: "Insert", seq: 2, id: 1, content: [{ id: "Y" }] },
-				],
-			},
-		],
+				},
+			],
+		},
 	};
 }
 
@@ -784,63 +811,68 @@ export namespace ScenarioC {
 	*/
 
 	export const t_u1_1: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "Insert", content: [{ id: "B" }] },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Insert", content: [{ id: "B" }] },
+			],
+		},
 	};
 
 	export const t_u1_2: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "MoveOut", dstPath: "bar.0" },
-		],
-		bar: [
-			{ [type]: "MoveIn", srcPath: "foo.1" },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "MoveOut", dstPath: "bar.0" },
+			],
+			bar: [
+				{ type: "MoveIn", srcPath: "foo.1" },
+			],
+		},
 	};
 
 	export const t_u2: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			2, // Skip A B
-			{ [type]: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.NeverMove },
-		],
+		modify: {
+			foo: [
+				2, // Skip A B
+				{ type: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.NeverMove },
+			],
+		},
 	};
 
 	export const w_u1: PeerChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{
-				[type]: "Insert",
-				seq: 1,
-				content: [{ id: "B" }],
-				detach: { [type]: "MoveOut", seq: 2, dstPath: "bar.0" },
-			},
-			{ [type]: "Insert", seq: 3, content: [{ id: "X" }] },
-		],
-		bar: [
-			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1" },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{
+					type: "Insert",
+					seq: 1,
+					content: [{ id: "B" }],
+					detach: { type: "MoveOut", seq: 2, dstPath: "bar.0" },
+				},
+				{ type: "Insert", seq: 3, content: [{ id: "X" }] },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 2, srcPath: "foo.1" },
+			],
+		},
 	};
 
 	export const w_all: PeerChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{
-				[type]: "Insert",
-				seq: 1,
-				content: [{ id: "B" }],
-				detach: { [type]: "MoveOut", seq: 2, dstPath: "bar.0" },
-			},
-		],
-		bar: [
-			{ [type]: "MoveIn", seq: 2, srcPath: "foo.1" },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{
+					type: "Insert",
+					seq: 1,
+					content: [{ id: "B" }],
+					detach: { type: "MoveOut", seq: 2, dstPath: "bar.0" },
+				},
+			],
+			bar: [
+				{ type: "MoveIn", seq: 2, srcPath: "foo.1" },
+			],
+		},
 	};
 }
 
@@ -863,57 +895,61 @@ export namespace ScenarioD {
 	*/
 
 	export const t_u1: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "MoveOut", dstPath: "bar.0" },
-		],
-		bar: [
-			{ [type]: "MoveIn", srcPath: "foo.1" },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "MoveOut", dstPath: "bar.0" },
+			],
+			bar: [
+				{ type: "MoveIn", srcPath: "foo.1" },
+			],
+		},
 	};
 
 	export const t_u2: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			{ [type]: "MoveOutStart", id: 1, dstPath: "baz" },
-			2, // Skip A B
-			{ [type]: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.AlwaysMove },
-			1, // Skip C
-			{ [type]: "End", id: 1 },
-		],
-		baz: [
-			{ [type]: "MoveIn", id: 1, length: 4, srcPath: "foo.0" },
-		],
+		modify: {
+			foo: [
+				{ type: "MoveOutStart", id: 1, dstPath: "baz" },
+				2, // Skip A B
+				{ type: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.AlwaysMove },
+				1, // Skip C
+				{ type: "End", id: 1 },
+			],
+			baz: [
+				{ type: "MoveIn", id: 1, length: 4, srcPath: "foo.0" },
+			],
+		},
 	};
 
 	export const w_u1: PeerChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "MoveOut", seq: 1, dstPath: "bar.0" },
-		],
-		bar: [
-			{ [type]: "MoveIn", seq: 1, srcPath: "foo.1" },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "MoveOut", seq: 1, dstPath: "bar.0" },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 1, srcPath: "foo.1" },
+			],
+		},
 	};
 
 	export const w_all: PeerChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			{ [type]: "MoveOutStart", seq: 2, id: 1, dstPath: "baz" },
-			1, // Skip A
-			{ [type]: "MoveOut", seq: 1, dstPath: "bar.0" },
-			1, // Skip C
-			{ [type]: "End", seq: 2, id: 1 },
-		],
-		bar: [
-			{ [type]: "MoveIn", seq: 1, srcPath: "foo.1" },
-			{ [type]: "Insert", seq: 2, content: [{ id: "X" }] },
-		],
-		baz: [
-			{ [type]: "MoveIn", seq: 2, id: 1, length: 3, srcPath: "foo.0" }, // length needed updating 4->3
-		],
+		modify: {
+			foo: [
+				{ type: "MoveOutStart", seq: 2, id: 1, dstPath: "baz" },
+				1, // Skip A
+				{ type: "MoveOut", seq: 1, dstPath: "bar.0" },
+				1, // Skip C
+				{ type: "End", seq: 2, id: 1 },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 1, srcPath: "foo.1" },
+				{ type: "Insert", seq: 2, content: [{ id: "X" }] },
+			],
+			baz: [
+				{ type: "MoveIn", seq: 2, id: 1, length: 3, srcPath: "foo.0" }, // length needed updating 4->3
+			],
+		},
 	};
 }
 
@@ -934,161 +970,173 @@ export namespace ScenarioE {
 	*/
 
 	export const t_u1: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "MoveOut", dstPath: "bar.0" },
-		],
-		bar: [
-			{ [type]: "MoveIn", srcPath: "foo.1" },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "MoveOut", dstPath: "bar.0" },
+			],
+			bar: [
+				{ type: "MoveIn", srcPath: "foo.1" },
+			],
+		},
 	};
 
 	export const t_u2: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			{ [type]: "DeleteStart", id: 1 },
-			2, // Skip A B
-			{ [type]: "Insert", content: [{ id: "X" }] },
-			1, // Skip C
-			{ [type]: "End", id: 1 },
-		],
+		modify: {
+			foo: [
+				{ type: "DeleteStart", id: 1 },
+				2, // Skip A B
+				{ type: "Insert", content: [{ id: "X" }] },
+				1, // Skip C
+				{ type: "End", id: 1 },
+			],
+		},
 	};
 
 	export const w_u1: PeerChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			1, // Skip A
-			{ [type]: "MoveOut", seq: 1, dstPath: "bar.0" },
-		],
-		bar: [
-			{ [type]: "MoveIn", seq: 1, srcPath: "foo.1" },
-		],
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "MoveOut", seq: 1, dstPath: "bar.0" },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 1, srcPath: "foo.1" },
+			],
+		},
 	};
 
 	export const w_all: PeerChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			{ [type]: "DeleteStart", seq: 2, id: 1 },
-			1, // Skip A
-			{ [type]: "MoveOut", seq: 1, dstPath: "bar.0" },
-			1, // Skip C
-			{ [type]: "End", seq: 2, id: 1 },
-		],
-		bar: [
-			{ [type]: "MoveIn", seq: 1, srcPath: "foo.1" },
-			{ [type]: "Insert", seq: 2, content: [{ id: "X" }] },
-		],
+		modify: {
+			foo: [
+				{ type: "DeleteStart", seq: 2, id: 1 },
+				1, // Skip A
+				{ type: "MoveOut", seq: 1, dstPath: "bar.0" },
+				1, // Skip C
+				{ type: "End", seq: 2, id: 1 },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 1, srcPath: "foo.1" },
+				{ type: "Insert", seq: 2, content: [{ id: "X" }] },
+			],
+		},
 	};
 }
 
 export namespace Swaps {
 	// Swap the first nodes of traits foo and bar using set-like ranges
 	export const e1: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			{ [type]: "MoveOut", dstPath: "bar.0" },
-			{ [type]: "MoveIn", id: 1, srcPath: "bar.0" },
-		],
-		bar: [
-			{ [type]: "MoveIn", srcPath: "foo.0" },
-			{ [type]: "MoveOut", id:1, dstPath: "foo.0" },
-		],
+		modify: {
+			foo: [
+				{ type: "MoveOut", dstPath: "bar.0" },
+				{ type: "MoveIn", id: 1, srcPath: "bar.0" },
+			],
+			bar: [
+				{ type: "MoveIn", srcPath: "foo.0" },
+				{ type: "MoveOut", id:1, dstPath: "foo.0" },
+			],
+		},
 	};
 
 	// Swap the first nodes of traits foo and bar and back again using set-like ranges
 	export const e2: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			{ [type]: "MoveOut", dstPath: "bar.0" },
-			{
-				[type]: "MoveIn",
-				id: 1,
-				srcPath: "bar.0",
-				detach: {
-					[type]: "MoveOut",
-					id: 2,
-					dstPath: "bar.0",
+		modify: {
+			foo: [
+				{ type: "MoveOut", dstPath: "bar.0" },
+				{
+					type: "MoveIn",
+					id: 1,
+					srcPath: "bar.0",
+					detach: {
+						type: "MoveOut",
+						id: 2,
+						dstPath: "bar.0",
+					},
 				},
-			},
-			{ [type]: "MoveIn", id: 3, srcPath: "bar.0" },
-		],
-		bar: [
-			{
-				[type]: "MoveIn",
-				srcPath: "foo.0",
-				detach: {
-					[type]: "MoveOut",
-					id: 3,
-					dstPath: "foo.0",
+				{ type: "MoveIn", id: 3, srcPath: "bar.0" },
+			],
+			bar: [
+				{
+					type: "MoveIn",
+					srcPath: "foo.0",
+					detach: {
+						type: "MoveOut",
+						id: 3,
+						dstPath: "foo.0",
+					},
 				},
-			},
-			{ [type]: "MoveOut", id:1, dstPath: "foo.0" },
-			{ [type]: "MoveIn", id: 2, srcPath: "foo.0" },
-		],
+				{ type: "MoveOut", id:1, dstPath: "foo.0" },
+				{ type: "MoveIn", id: 2, srcPath: "foo.0" },
+			],
+		},
 	};
 
 	// Swap parent/child:
 	// From: A{ foo: B{ bar: C{ baz: D } } }
 	// To:   A{ foo: C{ bar: B{ baz: D } } }
 	export const e3: ChangeFrame = {
-		[type]: "Modify",
-		foo: [
-			{
-				[type]: "MoveOut", // B,
-				id: 2,
-				dstPath: "foo.0.bar.0",
-				mods: { // Modify B
-					[type]: "Modify",
-					bar: [
-						{
-							[type]: "MoveOut", // C
-							id: 1,
-							dstPath: "foo.0",
-							mods: { // Modify C
-								[type]: "Modify",
-								baz: [
-									{
-										[type]: "MoveOut", // D
-										dstPath: "foo.0.bar.0.baz.0", // Omit path if the same as the current path?
+		modify: {
+			foo: [
+				{
+					type: "MoveOut", // B,
+					id: 2,
+					dstPath: "foo.0.bar.0",
+					mods: { // Modify B
+						modify: {
+							bar: [
+								{
+									type: "MoveOut", // C
+									id: 1,
+									dstPath: "foo.0",
+									mods: { // Modify C
+										modify: {
+											baz: [
+												{
+													type: "MoveOut", // D
+													// Omit path if the same as the current path?
+													dstPath: "foo.0.bar.0.baz.0",
+												},
+											],
+										},
 									},
-								],
-							},
+								},
+							],
 						},
-					],
+					},
 				},
-			},
-			{
-				[type]: "MoveIn", // C
-				id: 1,
-				srcPath: "foo.0.bar.0",
-				mods: { // Modify C
-					[type]: "Modify",
-					bar: [
-						{
-							[type]: "MoveIn", // B
-							id: 2,
-							srcPath: "foo.0",
-							mods: { // Modify B
-								[type]: "Modify",
-								baz: [
-									{
-										[type]: "MoveIn", // D
-										srcPath: "foo.0.bar.0.baz.0", // Omit path if the same as the current path?
+				{
+					type: "MoveIn", // C
+					id: 1,
+					srcPath: "foo.0.bar.0",
+					mods: { // Modify C
+						modify: {
+							bar: [
+								{
+									type: "MoveIn", // B
+									id: 2,
+									srcPath: "foo.0",
+									mods: { // Modify B
+										modify: {
+											baz: [
+												{
+													type: "MoveIn", // D
+													// Omit path if the same as the current path?
+													srcPath: "foo.0.bar.0.baz.0",
+												},
+											],
+										},
 									},
-								],
-							},
+								},
+							],
 						},
-					],
+					},
 				},
-			},
-		],
+			],
+		},
 	};
 }
 
 export interface CollabWindow {
-	transactionWindow: Transaction[];
-	tree: Node;
+	transactions: Transaction[];
 	changes: PeerChangeFrame;
 }
 
@@ -1104,7 +1152,7 @@ export interface Traits {
 }
 
 export function extendWindow(transaction: Transaction, window: CollabWindow): boolean {
-	window.transactionWindow.push(transaction);
+	window.transactions.push(transaction);
 	for (const frame of transaction.frames) {
 		if (isConstraintFrame(frame)) {
 			if (isConstraintFrameSatisfied(frame, window) === false) {
@@ -1122,7 +1170,7 @@ export function extendWindow(transaction: Transaction, window: CollabWindow): bo
 }
 
 export function shrinkWindow(window: CollabWindow, knownSeq: SeqNumber): void {
-	if (window.transactionWindow.length === 0 || window.transactionWindow[0].seq > knownSeq) {
+	if (window.transactions.length === 0 || window.transactions[0].seq > knownSeq) {
 		// Nothing to remove
 		return;
 	}
@@ -1132,9 +1180,9 @@ export function shrinkWindow(window: CollabWindow, knownSeq: SeqNumber): void {
 		shrinkModify(window.changes, knownSeq);
 	}
 	// Cull from the queue the transaction whose seq# is lower or equal to `knownSeq`
-	const cullCount = window.transactionWindow.findIndex((t: Transaction) => t.seq > knownSeq);
-	if (cullCount > 0) {
-		window.transactionWindow.splice(0, cullCount);
+	const cullCount = window.transactions.findIndex((t: Transaction) => t.seq > knownSeq);
+	if (cullCount !== 0) {
+		window.transactions.splice(0, cullCount === -1 ? undefined : cullCount);
 	}
 }
 
@@ -1157,48 +1205,51 @@ function shrinkMarks(marks: PeerTraitMarks, knownSeq: SeqNumber): boolean {
 				if (mark.seq <= knownSeq) {
 					heal(marks, idx);
 				}
-			} else if (isBound(mark) && mark.seq <= knownSeq) {
-				delete marks[idx];
+			} else if (isBound(mark)) {
+				if (mark.seq <= knownSeq) {
+					delete marks[idx];
+				}
 			} else if (isSegment(mark)) {
 				if (mark.seq <= knownSeq && isDetachSegment(mark)) {
 					// It should be safe to delete a detach segment along with its nested mods because all those should
 					// have occurred prior to the detach.
-					delete marks[idx];
-				}
-				// In all other cases we need to shrink and preserve nested mods.
-				if (mark.mods !== undefined) {
-					if (Array.isArray(mark.mods)) {
-						if (shrinkMarks(mark.mods, knownSeq)) {
-							delete mark.mods;
-						}
-					} else if (isModify(mark.mods)) {
-						if (shrinkModify(mark.mods, knownSeq)) {
-							delete mark.mods;
-						}
-					} else {
-						if (mark.mods.seq <= knownSeq) {
-							delete mark.mods;
+					marks.splice(idx, 1);
+				} else {
+					if (mark.mods !== undefined) {
+						// In all other cases we need to shrink and preserve nested mods.
+						if (Array.isArray(mark.mods)) {
+							if (shrinkMarks(mark.mods, knownSeq)) {
+								delete mark.mods;
+							}
+						} else if (isModify(mark.mods)) {
+							if (shrinkModify(mark.mods, knownSeq)) {
+								delete mark.mods;
+							}
+						} else {
+							if (mark.mods.seq <= knownSeq) {
+								delete mark.mods;
+							}
 						}
 					}
-				}
-				// The only thing left to do is replace the attach by its nested mods if has fallen out of the collab
-				// window.
-				if (mark.seq <= knownSeq) {
-					if (mark.mods === undefined) {
-						heal(marks, idx, mark.length);
-					} else if (Array.isArray(mark.mods)) {
-						if (isOffset(mark.mods[0]) && idx > 0 && isOffset(marks[idx - 1])) {
-							(marks[idx - 1] as Offset) += mark.mods[0];
-							delete mark.mods[0];
+					// The only thing left to do is replace the attach by its nested mods if has fallen out of the
+					// collab window.
+					if (mark.seq <= knownSeq) {
+						if (mark.mods === undefined) {
+							heal(marks, idx, mark.length);
+						} else if (Array.isArray(mark.mods)) {
+							if (isOffset(mark.mods[0]) && idx > 0 && isOffset(marks[idx - 1])) {
+								(marks[idx - 1] as Offset) += mark.mods[0];
+								delete mark.mods[0];
+							}
+							marks.splice(idx, 0, ...mark.mods);
+						} else {
+							// Promote the single Modify or SetValue
+							marks.splice(idx, 1, mark.mods);
 						}
-						marks.splice(idx, 0, ...mark.mods);
-					} else {
-						// Promote the single Modify or SetValue
-						marks.splice(idx, 1, mark.mods);
 					}
 				}
 			} else {
-				throw(new Error(`Unrecognized mark: ${mark}`));
+				throw(new Error(`Unrecognized mark: ${JSON.stringify(mark)}`));
 			}
 		}
 		++idx;
@@ -1236,25 +1287,27 @@ function heal(marks: TraitMarks, index: number, length: number = 1): void {
 	}
 }
 
-export function isSetValue<T extends TypeSet>(mark: Mark<T>): mark is SetValueMarkType<T> {
-	return mark[type] === "SetValue";
+export function isSetValue<T extends TypeSet>(mark: ObjMark<T>): mark is SetValueMarkType<T> {
+	return mark.type === "SetValue";
 }
-export function isModify<T extends TypeSet>(mark: Mark<T>): mark is ModifyType<T> { return mark[type] === "Modify"; }
-export function isInsert<T extends TypeSet>(mark: Mark<T>): mark is InsertType<T> { return mark[type] === "Insert"; }
-export function isDelete<T extends TypeSet>(mark: Mark<T>): mark is DeleteType<T> { return mark[type] === "Delete"; }
-export function isMoveIn<T extends TypeSet>(mark: Mark<T>): mark is MoveInType<T> { return mark[type] === "MoveIn"; }
-export function isMoveOut<T extends TypeSet>(mark: Mark<T>): mark is MoveOutType<T> { return mark[type] === "MoveOut"; }
-export function isMoveOutStart<T extends TypeSet>(mark: Mark<T>): mark is MoveOutStart | PeerMoveOutStart {
-	return mark[type] === "MoveOutStart";
+export function isModify<T extends TypeSet>(mark: Mark<T>): mark is ModifyType<T> {
+	const partial = mark as Partial<Modify<T>>;
+	return partial.modify !== undefined || partial.setValue !== undefined;
 }
-export function isDeleteStart<T extends TypeSet>(mark: Mark<T>): mark is DeleteStart | PeerDeleteStart {
-	return mark[type] === "DeleteStart";
-}
-export function isEnd<T extends TypeSet>(mark: Mark<T>): mark is SliceEnd | PeerSliceEnd {
-	return mark[type] === "End";
-}
-export function isBound<T extends TypeSet>(mark: Mark<T>): mark is SliceBound | PeerSliceBound {
-	const markType = mark[type];
+// export function isInsert<T extends TypeSet>(mark: Mark<T>): mark is InsertType<T> { return mark.type === "Insert"; }
+// export function isDelete<T extends TypeSet>(mark: Mark<T>): mark is DeleteType<T> { return mark.type === "Delete"; }
+// export function isMoveIn<T extends TypeSet>(mark: Mark<T>): mark is MoveInType<T> { return mark.type === "MoveIn"; }
+// export function isMoveOutStart<T extends TypeSet>(mark: Mark<T>): mark is MoveOutStart | PeerMoveOutStart {
+// 	return mark.type === "MoveOutStart";
+// }
+// export function isDeleteStart<T extends TypeSet>(mark: Mark<T>): mark is DeleteStart | PeerDeleteStart {
+// 	return mark.type === "DeleteStart";
+// }
+// export function isEnd<T extends TypeSet>(mark: Mark<T>): mark is SliceEnd | PeerSliceEnd {
+// 	return mark.type === "End";
+// }
+export function isBound<T extends TypeSet>(mark: ObjMark<T>): mark is SliceBound | PeerSliceBound {
+	const markType = mark.type;
 	return markType === "MoveOutStart"
 		|| markType === "DeleteStart"
 		|| markType === "End"
@@ -1263,26 +1316,33 @@ export function isBound<T extends TypeSet>(mark: Mark<T>): mark is SliceBound | 
 export function isOffset<T extends TypeSet>(mark: Mark<T> | Offset | undefined): mark is Offset {
 	return typeof mark === "number";
 }
-export function isSegment<T extends TypeSet>(mark: Mark<T> | Offset):
+export function isSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
 	mark is InsertType<T> | DeleteType<T> | MoveInType<T> | MoveOutType<T> {
-	const markType = mark[type];
+	if (typeof mark === "number") {
+		return false;
+	}
+	const markType = mark.type;
 	return markType === "Insert"
 		|| markType === "Delete"
 		|| markType === "MoveIn"
 		|| markType === "MoveOut"
 	;
  }
-export function isDetachSegment<T extends TypeSet>(mark: Mark<T> | Offset): mark is DeleteType<T> | MoveOutType<T> {
-	const markType = mark[type];
+export function isDetachSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
+	mark is DeleteType<T> | MoveOutType<T> {
+	if (typeof mark === "number") {
+		return false;
+	}
+	const markType = mark.type;
 	return markType === "Delete"
 		|| markType === "MoveOut"
 	;
  }
 
 function shrinkModify(modify: PeerModify, knownSeq: SeqNumber): boolean {
-	const setValueSeq = modify[setValue]?.seq;
+	const setValueSeq = modify.setValue?.seq;
 	if (setValueSeq !== undefined && setValueSeq <= knownSeq) {
-		delete modify[setValue];
+		delete modify.setValue;
 	}
 	for (const [label, marksOrModify] of Object.entries(modify)) {
 		// NOTE: we don't need to filter out [type] and [setValue] keys but that might change
@@ -1297,16 +1357,15 @@ function shrinkModify(modify: PeerModify, knownSeq: SeqNumber): boolean {
 			}
 		}
 	}
-	return Object.entries(modify).length === 0 && modify[setValue] === undefined;
+	return Object.entries(modify).length === 0 && modify.setValue === undefined;
 }
 
-export function windowFromTree(tree: Node): CollabWindow {
-	return {
-		transactionWindow: [],
-		tree,
-		changes: [],
-	};
-}
+// export function windowFromTree(tree: Node): CollabWindow {
+// 	return {
+// 		transactionWindow: [],
+// 		changes: [],
+// 	};
+// }
 
 function appendChangeToWindow(window: CollabWindow, frame: Modify | TraitMarks): void {
 	throw new Error("Function not implemented.");
@@ -1314,14 +1373,17 @@ function appendChangeToWindow(window: CollabWindow, frame: Modify | TraitMarks):
 
 function isConstraintFrame(frame: ChangeFrame | ConstraintFrame): frame is ConstraintFrame {
 	const innerObj = Array.isArray(frame) ? frame[0] : frame;
-	if (innerObj === undefined) {
+	if (typeof innerObj !== "object" || Array.isArray(innerObj)) {
 		// Empty change frame
 		return false;
 	}
-	return innerObj[type] === "ConstrainedRange" || innerObj[type] === "ConstrainedTraitSet";
+	return innerObj.type === "ConstrainedRange" || innerObj.type === "ConstrainedTraitSet";
 }
 
 function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is ChangeFrame {
+	if (isConstraintFrame(frame)) {
+		return false;
+	}
 	const innerObj = Array.isArray(frame) ? frame[0] : frame;
 	if (innerObj === undefined) {
 		// Empty change frame
@@ -1335,9 +1397,11 @@ function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is ChangeFra
 		// The innerObj is a race mark
 		return true;
 	}
-	const innerType = innerObj[type];
-	return innerType === "Modify"
-		|| innerType === "Insert"
+	if (isModify(innerObj)) {
+		return true;
+	}
+	const innerType = innerObj.type;
+	return innerType === "Insert"
 		|| innerType === "Delete"
 		|| innerType === "MoveIn"
 		|| innerType === "MoveOut"
