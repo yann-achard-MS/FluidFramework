@@ -3,6 +3,9 @@
  * Licensed under the MIT License.
  */
 
+import { assert } from "@fluidframework/common-utils";
+import { isBound, isChangeFrame, isConstraintFrame, isDetachSegment, isModify, isOffset, isSegment, isSetValueMark, visitMods } from "./Utils";
+
 /* eslint-disable @typescript-eslint/no-empty-interface */
 /* eslint-disable @typescript-eslint/no-dynamic-delete */
 
@@ -69,7 +72,7 @@ export interface ConstrainedRange {
 	valueLock?: number;
 }
 
-interface LocalTypes {
+export interface LocalTypes {
 	Modify: Modify;
 	SetValue: SetValue;
 	SetValueMark: SetValueMark;
@@ -78,7 +81,9 @@ interface LocalTypes {
 	MoveIn: MoveIn;
 	MoveOut: MoveOut;
 	ProtoNode: ProtoNode;
-	SliceBound: SliceBound;
+	MoveOutStart: MoveOutStart;
+	DeleteStart: DeleteStart;
+	SliceEnd: SliceEnd;
 }
 
 type PeerSetValue = SetValue & HasSeqValue;
@@ -90,7 +95,7 @@ type PeerMoveIn = MoveIn<PeerTypes> & HasSeqValue;
 type PeerMoveOut = MoveOut<PeerTypes> & HasSeqValue;
 type PeerProtoNode = ProtoNode<PeerTypes>;
 
-interface PeerTypes {
+export interface PeerTypes {
 	Modify: PeerModify;
 	SetValue: PeerSetValue;
 	SetValueMark: PeerSetValueMark;
@@ -99,19 +104,25 @@ interface PeerTypes {
 	MoveIn: PeerMoveIn;
 	MoveOut: PeerMoveOut;
 	ProtoNode: PeerProtoNode;
-	SliceBound: PeerSliceBound;
+	MoveOutStart: PeerMoveOutStart;
+	DeleteStart: PeerDeleteStart;
+	SliceEnd: PeerSliceEnd;
 }
-type TypeSet = LocalTypes | PeerTypes;
+export type TypeSet = LocalTypes | PeerTypes;
 
-type ModifyType<T extends TypeSet> = T["Modify"];
-type SetValueType<T extends TypeSet> = T["SetValue"];
-type SetValueMarkType<T extends TypeSet> = T["SetValueMark"];
-type InsertType<T extends TypeSet> = T["Insert"];
-type DeleteType<T extends TypeSet> = T["Delete"];
-type MoveInType<T extends TypeSet> = T["MoveIn"];
-type MoveOutType<T extends TypeSet> = T["MoveOut"];
-type ProtoNodeType<T extends TypeSet> = T["ProtoNode"];
-type SliceBoundType<T extends TypeSet> = T["SliceBound"];
+export type ModifyType<T extends TypeSet> = T["Modify"];
+export type SetValueType<T extends TypeSet> = T["SetValue"];
+export type SetValueMarkType<T extends TypeSet> = T["SetValueMark"];
+export type InsertType<T extends TypeSet> = T["Insert"];
+export type DeleteType<T extends TypeSet> = T["Delete"];
+export type MoveInType<T extends TypeSet> = T["MoveIn"];
+export type MoveOutType<T extends TypeSet> = T["MoveOut"];
+export type ProtoNodeType<T extends TypeSet> = T["ProtoNode"];
+export type MoveOutStartType<T extends TypeSet> = T["MoveOutStart"];
+export type DeleteStartType<T extends TypeSet> = T["DeleteStart"];
+export type SliceEndType<T extends TypeSet> = T["SliceEnd"];
+export type SliceStartType<T extends TypeSet> = MoveOutStartType<T> | DeleteStartType<T>;
+export type SliceBoundType<T extends TypeSet> = SliceStartType<T> | SliceEndType<T>;
 
 export type ChangeFrame<T extends TypeSet = LocalTypes> = ModifyType<T> | TraitMarks<T>;
 export type PeerChangeFrame = ChangeFrame<PeerTypes>;
@@ -143,15 +154,23 @@ export type TraitMarks<T extends TypeSet = LocalTypes> = (Offset | Mark<T>)[];
 export type PeerTraitMarks = TraitMarks<PeerTypes>;
 export type Race<T extends TypeSet = LocalTypes> = TraitMarks<T>[];
 export type PeerRace = Race<PeerTypes>;
-export type ObjMark<T extends TypeSet = LocalTypes> =
+export type ModsMark<T extends TypeSet = LocalTypes> =
 	| SetValueMarkType<T>
-	| ModifyType<T>
+	| ModifyType<T>;
+export type AttachMark<T extends TypeSet = LocalTypes> =
 	| InsertType<T>
-	| DeleteType<T>
-	| MoveInType<T>
+	| MoveInType<T>;
+export type DetachMark<T extends TypeSet = LocalTypes> =
 	| MoveOutType<T>
+	| DeleteType<T>;
+export type SegmentMark<T extends TypeSet = LocalTypes> =
+	| AttachMark<T>
+	| DetachMark<T>;
+export type ObjMark<T extends TypeSet = LocalTypes> =
+	| ModsMark<T>
+	| SegmentMark<T>
 	| SliceBoundType<T>;
-export type PeerAtomicMark = ObjMark<PeerTypes>;
+export type PeerObjMark = ObjMark<PeerTypes>;
 export type Mark<T extends TypeSet = LocalTypes> = ObjMark<T> | Race<T>;
 export type PeerMark = Mark<PeerTypes>;
 
@@ -586,9 +605,9 @@ export namespace ScenarioA2 {
 		modify: {
 			foo: [
 				1, // Skip A
-				{ type: "Delete", seq: 1 },
+				{ type: "Delete", seq: 1 }, // B
 				{ type: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
-				{ type: "Delete", seq: 1 },
+				{ type: "Delete", seq: 1 }, // C
 				1, // Skip D
 				{ type: "End", seq: 2 },
 			],
@@ -1195,25 +1214,38 @@ function shrinkMarks(marks: PeerTraitMarks, knownSeq: SeqNumber): boolean {
 			if (Array.isArray(mark)) {
 				const raceLength = shrinkMarksRace(mark, knownSeq);
 				if (raceLength !== null) {
-					heal(marks, idx, raceLength);
+					idx += heal(marks, idx, raceLength);
 				}
 			} else if (isModify(mark)) {
 				if (shrinkModify(mark, knownSeq)) {
-					heal(marks, idx);
+					idx += heal(marks, idx);
 				}
-			} else if (isSetValue(mark)) {
+			} else if (isSetValueMark(mark)) {
 				if (mark.seq <= knownSeq) {
-					heal(marks, idx);
+					idx += heal(marks, idx);
 				}
 			} else if (isBound(mark)) {
 				if (mark.seq <= knownSeq) {
-					delete marks[idx];
+					marks.splice(idx, 1);
+					idx -= 1;
 				}
 			} else if (isSegment(mark)) {
 				if (mark.seq <= knownSeq && isDetachSegment(mark)) {
 					// It should be safe to delete a detach segment along with its nested mods because all those should
 					// have occurred prior to the detach.
+					if (mark.mods !== undefined) {
+						visitMods(
+							mark.mods,
+							{
+								onObjMark: (lowerMark: ObjMark<PeerTypes>) =>
+									assert(
+										isModify(lowerMark) || lowerMark.seq <= knownSeq,
+										"Lossy removal of detach",
+									),
+							});
+					}
 					marks.splice(idx, 1);
+					idx -= 1;
 				} else {
 					if (mark.mods !== undefined) {
 						// In all other cases we need to shrink and preserve nested mods.
@@ -1235,13 +1267,14 @@ function shrinkMarks(marks: PeerTraitMarks, knownSeq: SeqNumber): boolean {
 					// collab window.
 					if (mark.seq <= knownSeq) {
 						if (mark.mods === undefined) {
-							heal(marks, idx, mark.length);
+							idx += heal(marks, idx, mark.length);
 						} else if (Array.isArray(mark.mods)) {
 							if (isOffset(mark.mods[0]) && idx > 0 && isOffset(marks[idx - 1])) {
 								(marks[idx - 1] as Offset) += mark.mods[0];
-								delete mark.mods[0];
+								mark.mods.splice(0, 1);
 							}
-							marks.splice(idx, 0, ...mark.mods);
+							marks.splice(idx, 1, ...mark.mods);
+							idx += mark.mods.length;
 						} else {
 							// Promote the single Modify or SetValue
 							marks.splice(idx, 1, mark.mods);
@@ -1251,10 +1284,19 @@ function shrinkMarks(marks: PeerTraitMarks, knownSeq: SeqNumber): boolean {
 			} else {
 				throw(new Error(`Unrecognized mark: ${JSON.stringify(mark)}`));
 			}
+		} else if (typeof mark === "number") {
+			if (idx > 0 && typeof marks[idx - 1] === "number") {
+				(marks[idx - 1] as Offset) += mark;
+				marks.splice(idx, 1);
+				idx -= 1;
+			}
 		}
 		++idx;
 	}
-	return marks.length === 0 || (marks.length === 1 && isOffset(marks[0]));
+	while (typeof marks[marks.length - 1] === "number") {
+		marks.pop();
+	}
+	return marks.length === 0;
 }
 
 function shrinkMarksRace(markLanes: PeerTraitMarks[], knownSeq: SeqNumber): number | null {
@@ -1272,72 +1314,23 @@ function shrinkMarksRace(markLanes: PeerTraitMarks[], knownSeq: SeqNumber): numb
 	return null;
 }
 
-function heal(marks: TraitMarks, index: number, length: number = 1): void {
+function heal(marks: TraitMarks, index: number, length: number = 1): number {
 	if (length === 0) {
-		delete marks[index];
-	} else {
-		if (index > 0 && isOffset(marks[index - 1])) {
-			(marks[index - 1] as Offset) += length;
-		} else if (isOffset(marks[index + 1])) {
-			(marks[index + 1] as Offset) += length;
-		} else {
-			// Replace the segment with an Offset of `length`
-			marks.splice(index, 1, length);
-		}
+		marks.splice(index, 1);
+		return -1;
 	}
-}
-
-export function isSetValue<T extends TypeSet>(mark: ObjMark<T>): mark is SetValueMarkType<T> {
-	return mark.type === "SetValue";
-}
-export function isModify<T extends TypeSet>(mark: Mark<T>): mark is ModifyType<T> {
-	const partial = mark as Partial<Modify<T>>;
-	return partial.modify !== undefined || partial.setValue !== undefined;
-}
-// export function isInsert<T extends TypeSet>(mark: Mark<T>): mark is InsertType<T> { return mark.type === "Insert"; }
-// export function isDelete<T extends TypeSet>(mark: Mark<T>): mark is DeleteType<T> { return mark.type === "Delete"; }
-// export function isMoveIn<T extends TypeSet>(mark: Mark<T>): mark is MoveInType<T> { return mark.type === "MoveIn"; }
-// export function isMoveOutStart<T extends TypeSet>(mark: Mark<T>): mark is MoveOutStart | PeerMoveOutStart {
-// 	return mark.type === "MoveOutStart";
-// }
-// export function isDeleteStart<T extends TypeSet>(mark: Mark<T>): mark is DeleteStart | PeerDeleteStart {
-// 	return mark.type === "DeleteStart";
-// }
-// export function isEnd<T extends TypeSet>(mark: Mark<T>): mark is SliceEnd | PeerSliceEnd {
-// 	return mark.type === "End";
-// }
-export function isBound<T extends TypeSet>(mark: ObjMark<T>): mark is SliceBound | PeerSliceBound {
-	const markType = mark.type;
-	return markType === "MoveOutStart"
-		|| markType === "DeleteStart"
-		|| markType === "End"
-	;
-}
-export function isOffset<T extends TypeSet>(mark: Mark<T> | Offset | undefined): mark is Offset {
-	return typeof mark === "number";
-}
-export function isSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
-	mark is InsertType<T> | DeleteType<T> | MoveInType<T> | MoveOutType<T> {
-	if (typeof mark === "number") {
-		return false;
+	if (index > 0 && isOffset(marks[index - 1])) {
+		(marks[index - 1] as Offset) += length;
+		return -1;
 	}
-	const markType = mark.type;
-	return markType === "Insert"
-		|| markType === "Delete"
-		|| markType === "MoveIn"
-		|| markType === "MoveOut"
-	;
- }
-export function isDetachSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
-	mark is DeleteType<T> | MoveOutType<T> {
-	if (typeof mark === "number") {
-		return false;
+	if (isOffset(marks[index + 1])) {
+		(marks[index + 1] as Offset) += length;
+		return -1;
 	}
-	const markType = mark.type;
-	return markType === "Delete"
-		|| markType === "MoveOut"
-	;
- }
+	// Replace the segment with an Offset of `length`
+	marks.splice(index, 1, length);
+	return 0;
+}
 
 function shrinkModify(modify: PeerModify, knownSeq: SeqNumber): boolean {
 	const setValueSeq = modify.setValue?.seq;
@@ -1347,8 +1340,7 @@ function shrinkModify(modify: PeerModify, knownSeq: SeqNumber): boolean {
 	for (const [label, marksOrModify] of Object.entries(modify)) {
 		// NOTE: we don't need to filter out [type] and [setValue] keys but that might change
 		if (Array.isArray(marksOrModify)) {
-			shrinkMarks(marksOrModify, knownSeq);
-			if (marksOrModify.length === 0) {
+			if (shrinkMarks(marksOrModify, knownSeq)) {
 				delete modify[label];
 			}
 		} else {
@@ -1360,55 +1352,8 @@ function shrinkModify(modify: PeerModify, knownSeq: SeqNumber): boolean {
 	return Object.entries(modify).length === 0 && modify.setValue === undefined;
 }
 
-// export function windowFromTree(tree: Node): CollabWindow {
-// 	return {
-// 		transactionWindow: [],
-// 		changes: [],
-// 	};
-// }
-
 function appendChangeToWindow(window: CollabWindow, frame: Modify | TraitMarks): void {
 	throw new Error("Function not implemented.");
-}
-
-function isConstraintFrame(frame: ChangeFrame | ConstraintFrame): frame is ConstraintFrame {
-	const innerObj = Array.isArray(frame) ? frame[0] : frame;
-	if (typeof innerObj !== "object" || Array.isArray(innerObj)) {
-		// Empty change frame
-		return false;
-	}
-	return innerObj.type === "ConstrainedRange" || innerObj.type === "ConstrainedTraitSet";
-}
-
-function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is ChangeFrame {
-	if (isConstraintFrame(frame)) {
-		return false;
-	}
-	const innerObj = Array.isArray(frame) ? frame[0] : frame;
-	if (innerObj === undefined) {
-		// Empty change frame
-		return true;
-	}
-	if (typeof innerObj === "number") {
-		// The innerObj is an Offset mark
-		return true;
-	}
-	if (Array.isArray(innerObj)) {
-		// The innerObj is a race mark
-		return true;
-	}
-	if (isModify(innerObj)) {
-		return true;
-	}
-	const innerType = innerObj.type;
-	return innerType === "Insert"
-		|| innerType === "Delete"
-		|| innerType === "MoveIn"
-		|| innerType === "MoveOut"
-		|| innerType === "MoveOutStart"
-		|| innerType === "DeleteStart"
-		|| innerType === "SetValue"
-	;
 }
 
 function isConstraintFrameSatisfied(frame: ConstraintFrame, window: CollabWindow): boolean {
