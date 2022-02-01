@@ -30,7 +30,7 @@ import {
 	SliceEndType,
 	SliceStartType,
 	TypeSet,
-} from "./MergeTree2";
+} from "./Format";
 
 export type OneOrMany<T> = T | T[];
 
