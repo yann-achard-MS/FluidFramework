@@ -11,6 +11,7 @@ import {
 	ScenarioA1,
 	ScenarioA2,
 	ScenarioB,
+	ScenarioC,
 } from "./Samples";
 
 function clone<T>(original: T): T {
@@ -140,6 +141,54 @@ const B_w_u2: CollabWindow = {
 	changes: ScenarioB.w_u2,
 };
 
+const C_w_all: CollabWindow = {
+	transactions: [
+		{
+			frames: [ScenarioC.t_u1e1],
+			ref: 0,
+			seq: 1,
+		},
+		{
+			frames: [ScenarioC.t_u1e2],
+			ref: 0,
+			seq: 2,
+		},
+		{
+			frames: [ScenarioC.t_u2],
+			ref: 1,
+			seq: 3,
+		},
+	],
+	changes: ScenarioC.w_all,
+};
+
+const C_w_u1e2u2: CollabWindow = {
+	transactions: [
+		{
+			frames: [ScenarioC.t_u1e2],
+			ref: 0,
+			seq: 2,
+		},
+		{
+			frames: [ScenarioC.t_u2],
+			ref: 1,
+			seq: 3,
+		},
+	],
+	changes: ScenarioC.w_u1e2u2,
+};
+
+const C_w_u2: CollabWindow = {
+	transactions: [
+		{
+			frames: [ScenarioC.t_u2],
+			ref: 1,
+			seq: 3,
+		},
+	],
+	changes: ScenarioC.w_u2,
+};
+
 describe("CollabWindow", () => {
 	describe(shrinkWindow.name, () => {
 		function shrunk(window: CollabWindow, knownSeq: SeqNumber): CollabWindow {
@@ -187,6 +236,23 @@ describe("CollabWindow", () => {
 			it("all -> u2", () => {
 				const actual = shrunk(B_w_all, 1);
 				assert.deepEqual(actual, B_w_u2);
+			});
+		});
+
+		describe("Scenario C", () => {
+			it("all -> u1e2u2", () => {
+				const actual = shrunk(C_w_all, 1);
+				assert.deepEqual(actual, C_w_u1e2u2);
+			});
+
+			it("all -> u2", () => {
+				const actual = shrunk(C_w_all, 2);
+				assert.deepEqual(actual, C_w_u2);
+			});
+
+			it("u1e2u2 -> u2", () => {
+				const actual = shrunk(C_w_u1e2u2, 2);
+				assert.deepEqual(actual, C_w_u2);
 			});
 		});
 	});

@@ -437,7 +437,7 @@ export namespace ScenarioC {
 	Note: this scenario motivates this being is true across commits but not within commits.
 	*/
 
-	export const t_u1_1: ChangeFrame = {
+	export const t_u1e1: ChangeFrame = {
 		modify: {
 			foo: [
 				1, // Skip A
@@ -446,7 +446,7 @@ export namespace ScenarioC {
 		},
 	};
 
-	export const t_u1_2: ChangeFrame = {
+	export const t_u1e2: ChangeFrame = {
 		modify: {
 			foo: [
 				1, // Skip A
@@ -477,7 +477,6 @@ export namespace ScenarioC {
 					content: [{ id: "B" }],
 					detach: { type: "MoveOut", seq: 2, dstPath: "bar.0" },
 				},
-				{ type: "Insert", seq: 3, content: [{ id: "X" }] },
 			],
 			bar: [
 				{ type: "MoveIn", seq: 2, srcPath: "foo.1" },
@@ -495,9 +494,32 @@ export namespace ScenarioC {
 					content: [{ id: "B" }],
 					detach: { type: "MoveOut", seq: 2, dstPath: "bar.0" },
 				},
+				{ type: "Insert", seq: 3, content: [{ id: "X" }] },
 			],
 			bar: [
 				{ type: "MoveIn", seq: 2, srcPath: "foo.1" },
+			],
+		},
+	};
+
+	export const w_u1e2u2: PeerChangeFrame = {
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "MoveOut", seq: 2, dstPath: "bar.0" },
+				{ type: "Insert", seq: 3, content: [{ id: "X" }] },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 2, srcPath: "foo.1" },
+			],
+		},
+	};
+
+	export const w_u2: PeerChangeFrame = {
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Insert", seq: 3, content: [{ id: "X" }] },
 			],
 		},
 	};
