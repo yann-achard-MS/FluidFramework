@@ -5,7 +5,9 @@
 
 import { strict as assert } from "assert";
 import structuredClone from "@ungap/structured-clone";
-import { CollabWindow, ScenarioA2, SeqNumber, shrinkWindow } from "../Format";
+import { SeqNumber } from "../Format";
+import { CollabWindow, shrinkWindow } from "../Window";
+import { ScenarioA2 } from "./Samples";
 
 function clone<T>(original: T): T {
 	return structuredClone(original) as T;
