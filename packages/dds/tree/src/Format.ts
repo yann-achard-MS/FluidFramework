@@ -170,13 +170,18 @@ export type PeerObjMark = ObjMark<PeerTypes>;
 export type Mark<T extends TypeSet = LocalTypes> = ObjMark<T> | Race<T>;
 export type PeerMark = Mark<PeerTypes>;
 
+export type Mods<T extends TypeSet = LocalTypes> =
+	| ModifyType<T>
+	| SetValueMarkType<T>
+	| (Offset | ModifyType<T> | SetValueMarkType<T>)[];
+
 export interface HasMods<T extends TypeSet = LocalTypes> {
 	/**
 	 * Always interpreted after `MoveIn.seq` and before `MoveOut.seq`.
 	 * The offset approach keeps numbers smaller and lets us split and join segments without updating the numbers.
 	 * Option 1:
 	 */
-	mods?: ModifyType<T> | SetValueMarkType<T> | (Offset | ModifyType<T> | SetValueMarkType<T>)[];
+	mods?: Mods<T>;
 	/**
 	 * Option 2:
 	 * The index approach lets us binary search faster within a long segment.
@@ -224,8 +229,15 @@ export interface Attach<T extends TypeSet = LocalTypes> extends Segment<T> {
 	/**
 	 * Omit if the attached range is not subsequently detached.
 	 */
-	detach?: DeleteType<T> | MoveOutType<T>;
+	detach?: PostAttachDetach<T>;
 }
+
+export type PostAttachDetach<T extends TypeSet = LocalTypes> = (DeleteType<T> | MoveOutType<T>) & {
+	length?: undefined;
+	mods?: undefined;
+	mods2?: undefined;
+	mods3?: undefined;
+};
 
 export interface Insert<T extends TypeSet = LocalTypes> extends Attach<T> {
 	type: "Insert";

@@ -5,7 +5,7 @@
 
 import { ChangeFrame, SimpleMovementRules, PeerChangeFrame, TraitParents, Sibling } from "../Format";
 
-export namespace ScenarioA {
+export namespace ScenarioA1 {
 	/**
 	Scenario A
 	In a trait foo that contains the nodes [A B C D], three users concurrently attempt the following operations (ordered
@@ -87,6 +87,31 @@ export namespace ScenarioA {
 				{ type: "MoveIn", seq: 2, srcPath: "foo.1", length: 1 }, // B
 				{ type: "Insert", seq: 3, content: [{ id: "X" }] },
 				{ type: "MoveIn", seq: 2, srcPath: "foo.1", length: 2, srcOffset: 1 }, // C D
+			],
+		},
+	};
+
+	export const w_u2u3: PeerChangeFrame = {
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "MoveOutStart", seq: 2, side: Sibling.Next, dstPath: "bar.0" },
+				1, // Skip D
+				{ type: "End", seq: 2 },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 2, srcPath: "foo.1", length: 1 }, // B
+				{ type: "Insert", seq: 3, content: [{ id: "X" }] },
+				{ type: "MoveIn", seq: 2, srcPath: "foo.1", length: 2, srcOffset: 1 }, // C D
+			],
+		},
+	};
+
+	export const w_u3: PeerChangeFrame = {
+		modify: {
+			bar: [
+				1, // B
+				{ type: "Insert", seq: 3, content: [{ id: "X" }] },
 			],
 		},
 	};
@@ -352,7 +377,7 @@ export namespace ScenarioB {
 									dstPath: "_.1.baz.0",
 								},
 							},
-							{ type: "Insert", seq: 2, id: 1, content: [{ id: "Y" }] },
+							{ type: "Insert", seq: 2, id: 1, content: [{ id: "X" }] },
 						],
 					},
 				},
@@ -365,6 +390,28 @@ export namespace ScenarioB {
 								id: 1,
 								srcPath: "^bar.0",
 							},
+							{ type: "Insert", seq: 2, id: 1, content: [{ id: "Y" }] },
+						],
+					},
+				},
+			],
+		},
+	};
+
+	export const w_u2: PeerChangeFrame = {
+		modify: {
+			trait: [
+				{ // Modify P
+					modify: {
+						bar: [
+							{ type: "Insert", seq: 2, id: 1, content: [{ id: "X" }] },
+						],
+					},
+				},
+				{ // Modify Q
+					modify: {
+						baz: [
+							1, // A
 							{ type: "Insert", seq: 2, id: 1, content: [{ id: "Y" }] },
 						],
 					},

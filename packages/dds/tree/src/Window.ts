@@ -13,23 +13,26 @@ import {
 	Value,
 	SeqNumber,
 	PeerTraitMarks,
-	ObjMark,
 	PeerTypes,
 	Offset,
 	TraitMarks,
 	Modify,
 	ConstraintFrame,
 	PeerModify,
+	Mods,
+	PeerDelete,
+	PeerMoveOut,
 } from "./Format";
 import {
+	isAttachSegment,
 	isBound,
 	isChangeFrame,
 	isConstraintFrame,
 	isDetachSegment,
 	isModify,
 	isOffset,
-	isSegment,
 	isSetValueMark,
+	visitMark,
 	visitMods,
 } from "./Utils";
 
@@ -108,55 +111,83 @@ function shrinkMarks(marks: PeerTraitMarks, knownSeq: SeqNumber): boolean {
 					marks.splice(idx, 1);
 					idx -= 1;
 				}
-			} else if (isSegment(mark)) {
-				if (mark.seq <= knownSeq && isDetachSegment(mark)) {
+			} else if (isDetachSegment(mark)) {
+				if (mark.seq <= knownSeq) {
 					// It should be safe to delete a detach segment along with its nested mods because all those should
 					// have occurred prior to the detach.
 					if (mark.mods !== undefined) {
-						visitMods(
+						visitMods<PeerTypes>(
 							mark.mods,
 							{
-								onObjMark: (lowerMark: ObjMark<PeerTypes>) =>
+								onObjMark: (lowerMark) =>
 									assert(
 										isModify(lowerMark) || lowerMark.seq <= knownSeq,
 										"Lossy removal of detach",
 									),
-							});
+							},
+						);
 					}
 					marks.splice(idx, 1);
 					idx -= 1;
 				} else {
 					if (mark.mods !== undefined) {
 						// In all other cases we need to shrink and preserve nested mods.
-						if (Array.isArray(mark.mods)) {
-							if (shrinkMarks(mark.mods, knownSeq)) {
-								delete mark.mods;
-							}
-						} else if (isModify(mark.mods)) {
-							if (shrinkModify(mark.mods, knownSeq)) {
-								delete mark.mods;
-							}
-						} else {
-							if (mark.mods.seq <= knownSeq) {
-								delete mark.mods;
-							}
+						if (shrinkMods(mark.mods, knownSeq)) {
+							delete mark.mods;
 						}
 					}
-					// The only thing left to do is replace the attach by its nested mods if has fallen out of the
-					// collab window.
+				}
+			} else if (isAttachSegment(mark)) {
+				// It's possible the attach segment was subsequently detached
+				if (mark.detach !== undefined && mark.detach.seq <= knownSeq) {
+					// It should be safe to delete this segment along with its nested mods because all
+					// those should have occurred prior to the detach.
+					visitMark<PeerTypes>(
+						mark,
+						{
+							onObjMark: (m) =>
+								assert(
+									isModify(m) || m.seq <= knownSeq,
+									"Lossy removal of detach",
+								),
+						},
+					);
+					marks.splice(idx, 1);
+					idx -= 1;
+				} else {
+					if (mark.mods !== undefined) {
+						// In all other cases we need to shrink and preserve nested mods.
+						if (shrinkMods(mark.mods, knownSeq)) {
+							delete mark.mods;
+						}
+					}
+
 					if (mark.seq <= knownSeq) {
-						if (mark.mods === undefined) {
-							idx += heal(marks, idx, mark.length);
-						} else if (Array.isArray(mark.mods)) {
-							if (isOffset(mark.mods[0]) && idx > 0 && isOffset(marks[idx - 1])) {
-								(marks[idx - 1] as Offset) += mark.mods[0];
-								mark.mods.splice(0, 1);
+						if (mark.detach !== undefined) {
+							// In this case the inner detach needs to replace the outer attach segment
+							const newDetach: PeerDelete | PeerMoveOut = { ...mark.detach };
+							if (mark.length !== undefined) {
+								newDetach.length = mark.length;
 							}
-							marks.splice(idx, 1, ...mark.mods);
-							idx += mark.mods.length;
+							if (mark.mods !== undefined) {
+								newDetach.mods = mark.mods;
+							}
+							marks.splice(idx, 1, newDetach);
 						} else {
-							// Promote the single Modify or SetValue
-							marks.splice(idx, 1, mark.mods);
+							// In this case the inner mods need to be transplanted to the marks array
+							if (mark.mods === undefined) {
+								idx += heal(marks, idx, mark.length);
+							} else if (Array.isArray(mark.mods)) {
+								if (isOffset(mark.mods[0]) && idx > 0 && isOffset(marks[idx - 1])) {
+									(marks[idx - 1] as Offset) += mark.mods[0];
+									mark.mods.splice(0, 1);
+								}
+								marks.splice(idx, 1, ...mark.mods);
+								idx += mark.mods.length;
+							} else {
+								// Promote the single Modify or SetValue
+								marks.splice(idx, 1, mark.mods);
+							}
 						}
 					}
 				}
@@ -176,6 +207,24 @@ function shrinkMarks(marks: PeerTraitMarks, knownSeq: SeqNumber): boolean {
 		marks.pop();
 	}
 	return marks.length === 0;
+}
+
+function shrinkMods(mods: Mods<PeerTypes>, knownSeq: SeqNumber): boolean {
+	if (Array.isArray(mods)) {
+		if (shrinkMarks(mods, knownSeq)) {
+			return true;
+		}
+	} else if (isModify(mods)) {
+		if (shrinkModify(mods, knownSeq)) {
+			return true;
+		}
+	} else {
+		// mark.mods is of type PeerSetValueMark
+		if (mods.seq <= knownSeq) {
+			return true;
+		}
+	}
+	return false;
 }
 
 function shrinkMarksRace(markLanes: PeerTraitMarks[], knownSeq: SeqNumber): number | null {

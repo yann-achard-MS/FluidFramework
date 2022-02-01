@@ -233,7 +233,19 @@ export function isSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
 		|| markType === "MoveIn"
 		|| markType === "MoveOut"
 	;
- }
+}
+
+export function isAttachSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
+	mark is InsertType<T> | MoveInType<T> {
+	if (typeof mark === "number") {
+		return false;
+	}
+	const markType = mark.type;
+	return markType === "Insert"
+		|| markType === "MoveIn"
+	;
+}
+
 export function isDetachSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
 	mark is DeleteType<T> | MoveOutType<T> {
 	if (typeof mark === "number") {
@@ -243,7 +255,7 @@ export function isDetachSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
 	return markType === "Delete"
 		|| markType === "MoveOut"
 	;
- }
+}
 
 export function isConstraintFrame(frame: ChangeFrame | ConstraintFrame): frame is ConstraintFrame {
 	const innerObj = Array.isArray(frame) ? frame[0] : frame;
