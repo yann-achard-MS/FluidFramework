@@ -686,6 +686,20 @@ export namespace ScenarioE {
 			],
 		},
 	};
+
+	export const w_u2: PeerChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "DeleteStart", seq: 2, id: 1 },
+				2, // Skip A C
+				{ type: "End", seq: 2, id: 1 },
+			],
+			bar: [
+				1, // Skip B
+				{ type: "Insert", seq: 2, content: [{ id: "X" }] },
+			],
+		},
+	};
 }
 
 export namespace Swaps {
