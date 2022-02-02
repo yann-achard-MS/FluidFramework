@@ -83,7 +83,7 @@ export function shrinkWindow(window: CollabWindow, knownSeq: SeqNumber): void {
 	// Cull from the queue the transaction whose seq# is lower or equal to `knownSeq`
 	const cullCount = window.transactions.findIndex((t: Transaction) => t.seq > knownSeq);
 	if (cullCount !== 0) {
-		window.transactions.splice(0, cullCount === -1 ? undefined : cullCount);
+		window.transactions.splice(0, cullCount === -1 ? window.transactions.length : cullCount);
 	}
 }
 
@@ -249,10 +249,12 @@ function heal(marks: TraitMarks, index: number, length: number = 1): number {
 	}
 	if (index > 0 && isOffset(marks[index - 1])) {
 		(marks[index - 1] as Offset) += length;
+		marks.splice(index, 1);
 		return -1;
 	}
 	if (isOffset(marks[index + 1])) {
 		(marks[index + 1] as Offset) += length;
+		marks.splice(index, 1);
 		return -1;
 	}
 	// Replace the segment with an Offset of `length`

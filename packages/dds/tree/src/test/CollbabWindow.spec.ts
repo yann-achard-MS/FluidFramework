@@ -18,6 +18,11 @@ function clone<T>(original: T): T {
 	return structuredClone(original) as T;
 }
 
+const empty: CollabWindow = {
+	transactions: [],
+	changes: {},
+};
+
 const A1_w_all: CollabWindow = {
 	transactions: [
 		{
@@ -211,9 +216,21 @@ describe("CollabWindow", () => {
 				const actual = shrunk(A1_w_all, 2);
 				assert.deepEqual(actual, A1_w_u3);
 			});
+			it("all -> empty", () => {
+				const actual = shrunk(A1_w_all, 3);
+				assert.deepEqual(actual, empty);
+			});
 			it("u2u3 -> u3", () => {
 				const actual = shrunk(A1_w_u2u3, 2);
 				assert.deepEqual(actual, A1_w_u3);
+			});
+			it("u2u3 -> empty", () => {
+				const actual = shrunk(A1_w_u2u3, 3);
+				assert.deepEqual(actual, empty);
+			});
+			it("u3 -> empty", () => {
+				const actual = shrunk(A1_w_u3, 3);
+				assert.deepEqual(actual, empty);
 			});
 		});
 
@@ -226,9 +243,21 @@ describe("CollabWindow", () => {
 				const actual = shrunk(A2_w_all, 2);
 				assert.deepEqual(actual, A2_w_u3);
 			});
+			it("all -> empty", () => {
+				const actual = shrunk(A2_w_all, 3);
+				assert.deepEqual(actual, empty);
+			});
 			it("u2u3 -> u3", () => {
 				const actual = shrunk(A2_w_u2u3, 2);
 				assert.deepEqual(actual, A2_w_u3);
+			});
+			it("u2u3 -> empty", () => {
+				const actual = shrunk(A2_w_u2u3, 3);
+				assert.deepEqual(actual, empty);
+			});
+			it("u3 -> empty", () => {
+				const actual = shrunk(A2_w_u3, 3);
+				assert.deepEqual(actual, empty);
 			});
 		});
 
@@ -237,6 +266,14 @@ describe("CollabWindow", () => {
 				const actual = shrunk(B_w_all, 1);
 				assert.deepEqual(actual, B_w_u2);
 			});
+			it("all -> empty", () => {
+				const actual = shrunk(B_w_all, 2);
+				assert.deepEqual(actual, empty);
+			});
+			it("u2 -> empty", () => {
+				const actual = shrunk(B_w_u2, 2);
+				assert.deepEqual(actual, empty);
+			});
 		});
 
 		describe("Scenario C", () => {
@@ -244,15 +281,21 @@ describe("CollabWindow", () => {
 				const actual = shrunk(C_w_all, 1);
 				assert.deepEqual(actual, C_w_u1e2u2);
 			});
-
 			it("all -> u2", () => {
 				const actual = shrunk(C_w_all, 2);
 				assert.deepEqual(actual, C_w_u2);
 			});
-
+			it("all -> empty", () => {
+				const actual = shrunk(C_w_all, 3);
+				assert.deepEqual(actual, empty);
+			});
 			it("u1e2u2 -> u2", () => {
 				const actual = shrunk(C_w_u1e2u2, 2);
 				assert.deepEqual(actual, C_w_u2);
+			});
+			it("u2 -> empty", () => {
+				const actual = shrunk(C_w_u2, 3);
+				assert.deepEqual(actual, empty);
 			});
 		});
 	});
