@@ -702,7 +702,7 @@ export namespace ScenarioE {
 	};
 }
 
-export namespace Swaps {
+export namespace SwapCousins {
 	// Swap the first nodes of traits foo and bar using set-like ranges
 	export const e1: ChangeFrame = {
 		modify: {
@@ -713,6 +713,19 @@ export namespace Swaps {
 			bar: [
 				{ type: "MoveIn", srcPath: "foo.0" },
 				{ type: "MoveOut", id:1, dstPath: "foo.0" },
+			],
+		},
+	};
+
+	export const w1: PeerChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "MoveOut", seq: 1, dstPath: "bar.0" },
+				{ type: "MoveIn", seq: 1, id: 1, srcPath: "bar.0" },
+			],
+			bar: [
+				{ type: "MoveIn", seq: 1, srcPath: "foo.0" },
+				{ type: "MoveOut", seq: 1, id:1, dstPath: "foo.0" },
 			],
 		},
 	};
@@ -750,6 +763,44 @@ export namespace Swaps {
 		},
 	};
 
+	export const w2: PeerChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "MoveOut", seq: 1, dstPath: "bar.0" },
+				{
+					type: "MoveIn",
+					seq: 1,
+					id: 1,
+					srcPath: "bar.0",
+					detach: {
+						type: "MoveOut",
+						seq: 1,
+						id: 2,
+						dstPath: "bar.0",
+					},
+				},
+				{ type: "MoveIn", seq: 1, id: 3, srcPath: "bar.0" },
+			],
+			bar: [
+				{
+					type: "MoveIn",
+					seq: 1,
+					srcPath: "foo.0",
+					detach: {
+						type: "MoveOut",
+						seq: 1,
+						id: 3,
+						dstPath: "foo.0",
+					},
+				},
+				{ type: "MoveOut", seq: 1, id:1, dstPath: "foo.0" },
+				{ type: "MoveIn", seq: 1, id: 2, srcPath: "foo.0" },
+			],
+		},
+	};
+}
+
+export namespace SwapParentChild {
 	// Swap parent/child:
 	// From: A{ foo: B{ bar: C{ baz: D } } }
 	// To:   A{ foo: C{ bar: B{ baz: D } } }

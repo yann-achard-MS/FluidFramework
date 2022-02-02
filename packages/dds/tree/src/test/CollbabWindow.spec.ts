@@ -14,6 +14,7 @@ import {
 	ScenarioC,
 	ScenarioD,
 	ScenarioE,
+	SwapCousins,
 } from "./Samples";
 
 function clone<T>(original: T): T {
@@ -381,6 +382,37 @@ describe("CollabWindow", () => {
 			});
 			it("u2 -> empty", () => {
 				const actual = shrunk(E_w_u2, 2);
+				assert.deepEqual(actual, empty);
+			});
+		});
+
+		describe("SwapCousins", () => {
+			it("w1 -> empty", () => {
+				const w1: CollabWindow = {
+					transactions: [
+						{
+							frames: [SwapCousins.e1],
+							ref: 0,
+							seq: 1,
+						},
+					],
+					changes: SwapCousins.w1,
+				};
+				const actual = shrunk(w1, 1);
+				assert.deepEqual(actual, empty);
+			});
+			it("w2 -> empty", () => {
+				const w2: CollabWindow = {
+					transactions: [
+						{
+							frames: [SwapCousins.e2],
+							ref: 0,
+							seq: 1,
+						},
+					],
+					changes: SwapCousins.w2,
+				};
+				const actual = shrunk(w2, 1);
 				assert.deepEqual(actual, empty);
 			});
 		});
