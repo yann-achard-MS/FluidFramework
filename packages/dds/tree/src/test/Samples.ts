@@ -804,7 +804,7 @@ export namespace SwapParentChild {
 	// Swap parent/child:
 	// From: A{ foo: B{ bar: C{ baz: D } } }
 	// To:   A{ foo: C{ bar: B{ baz: D } } }
-	export const e3: ChangeFrame = {
+	export const e1: ChangeFrame = {
 		modify: {
 			foo: [
 				{
@@ -850,6 +850,73 @@ export namespace SwapParentChild {
 											baz: [
 												{
 													type: "MoveIn", // D
+													// Omit path if the same as the current path?
+													srcPath: "foo.0.bar.0.baz.0",
+												},
+											],
+										},
+									},
+								},
+							],
+						},
+					},
+				},
+			],
+		},
+	};
+
+	export const w1: PeerChangeFrame = {
+		modify: {
+			foo: [
+				{
+					type: "MoveOut", // B
+					seq: 1,
+					id: 2,
+					dstPath: "foo.0.bar.0",
+					mods: { // Modify B
+						modify: {
+							bar: [
+								{
+									type: "MoveOut", // C
+									seq: 1,
+									id: 1,
+									dstPath: "foo.0",
+									mods: { // Modify C
+										modify: {
+											baz: [
+												{
+													type: "MoveOut", // D
+													seq: 1,
+													// Omit path if the same as the current path?
+													dstPath: "foo.0.bar.0.baz.0",
+												},
+											],
+										},
+									},
+								},
+							],
+						},
+					},
+				},
+				{
+					type: "MoveIn", // C
+					seq: 1,
+					id: 1,
+					srcPath: "foo.0.bar.0",
+					mods: { // Modify C
+						modify: {
+							bar: [
+								{
+									type: "MoveIn", // B
+									seq: 1,
+									id: 2,
+									srcPath: "foo.0",
+									mods: { // Modify B
+										modify: {
+											baz: [
+												{
+													type: "MoveIn", // D
+													seq: 1,
 													// Omit path if the same as the current path?
 													srcPath: "foo.0.bar.0.baz.0",
 												},

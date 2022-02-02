@@ -122,10 +122,12 @@ export function visitMark<T extends TypeSet>(mark: Offset | Mark<T>, visitor: Vi
 									visitor.onSetValue?.(mark.setValue);
 								}
 								if (mark.modify !== undefined) {
-									if (Array.isArray(mark.modify)) {
-										visitMarks(mark.modify, visitor);
-									} else {
-										visitMark(mark.modify, visitor);
+									for (const modifyOrMarks of Object.values(mark.modify)) {
+										if (Array.isArray(modifyOrMarks)) {
+											visitMarks(modifyOrMarks, visitor);
+										} else {
+											visitMark(modifyOrMarks, visitor);
+										}
 									}
 								}
 							}
