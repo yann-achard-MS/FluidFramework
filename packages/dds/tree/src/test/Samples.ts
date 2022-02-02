@@ -600,6 +600,23 @@ export namespace ScenarioD {
 			],
 		},
 	};
+
+	export const w_u2: PeerChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "MoveOutStart", seq: 2, id: 1, dstPath: "baz" },
+				2, // Skip A C
+				{ type: "End", seq: 2, id: 1 },
+			],
+			bar: [
+				1, // Skip B
+				{ type: "Insert", seq: 2, content: [{ id: "X" }] },
+			],
+			baz: [
+				{ type: "MoveIn", seq: 2, id: 1, length: 3, srcPath: "foo.0" },
+			],
+		},
+	};
 }
 
 export namespace ScenarioE {
