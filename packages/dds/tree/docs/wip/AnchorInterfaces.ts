@@ -59,19 +59,7 @@ type RangeBoundary = {
 enum Extremity { Start, End }
 enum Side { Before, After }
 enum Tiebreak { LastToFirst, FirstToLast }
-type MovementRules = SimpleMovementRules | CustomMovementRules
-enum SimpleMovementRules { NeverMove, CommutativeMove, AlwaysMove }
-interface CustomMovementRules {
-	traitLabel: TraitLabels;
-	traitParent: TraitParents;
-	siblingStatus: NodeStatuses;
-	granularity: MoveGranularity;
-	commutative: boolean;
-}
-enum TraitLabels { Initial, Any }
-enum TraitParents { Initial, Any }
-enum NodeStatuses { Alive, Deleted, Any }
-enum MoveGranularity { IntraEdit, InterEdit, Any }
+enum MovementRules { NeverMove, CommutativeMoveInTrait, CommutativeMove }
 
 type NodeId = number;
 type TraitLabel = number | string;

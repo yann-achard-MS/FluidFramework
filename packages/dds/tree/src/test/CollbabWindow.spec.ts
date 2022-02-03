@@ -10,7 +10,6 @@ import { CollabWindow, shrinkWindow } from "../Window";
 import {
 	ScenarioA1,
 	ScenarioA2,
-	ScenarioB,
 	ScenarioC,
 	ScenarioD,
 	ScenarioE,
@@ -121,33 +120,6 @@ const A2_w_u3: CollabWindow = {
 		},
 	],
 	changes: ScenarioA2.w_u3,
-};
-
-const B_w_all: CollabWindow = {
-	transactions: [
-		{
-			frames: [ScenarioB.t_u1],
-			ref: 0,
-			seq: 1,
-		},
-		{
-			frames: [ScenarioB.t_u2],
-			ref: 0,
-			seq: 2,
-		},
-	],
-	changes: ScenarioB.w_all,
-};
-
-const B_w_u2: CollabWindow = {
-	transactions: [
-		{
-			frames: [ScenarioB.t_u2],
-			ref: 0,
-			seq: 2,
-		},
-	],
-	changes: ScenarioB.w_u2,
 };
 
 const C_w_all: CollabWindow = {
@@ -315,21 +287,6 @@ describe("CollabWindow", () => {
 			});
 			it("u3 -> empty", () => {
 				const actual = shrunk(A2_w_u3, 3);
-				assert.deepEqual(actual, empty);
-			});
-		});
-
-		describe("Scenario B", () => {
-			it("all -> u2", () => {
-				const actual = shrunk(B_w_all, 1);
-				assert.deepEqual(actual, B_w_u2);
-			});
-			it("all -> empty", () => {
-				const actual = shrunk(B_w_all, 2);
-				assert.deepEqual(actual, empty);
-			});
-			it("u2 -> empty", () => {
-				const actual = shrunk(B_w_u2, 2);
 				assert.deepEqual(actual, empty);
 			});
 		});

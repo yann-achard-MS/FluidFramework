@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { ChangeFrame, SimpleMovementRules, PeerChangeFrame, TraitParents, Sibling } from "../Format";
+import { ChangeFrame, MovementRules, PeerChangeFrame, Sibling } from "../Format";
 
 export namespace ScenarioA1 {
 	/**
@@ -54,7 +54,7 @@ export namespace ScenarioA1 {
 		modify: {
 			foo: [
 				2, // Skip A B
-				{ type: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.CommutativeMove },
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
 			],
 		},
 	};
@@ -166,7 +166,7 @@ export namespace ScenarioA2 {
 		modify: {
 			foo: [
 				3, // Skip A B C
-				{ type: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.CommutativeMove },
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
 			],
 		},
 	};
@@ -231,196 +231,6 @@ export namespace ScenarioA2 {
 	};
 }
 
-export namespace ScenarioB {
-	/*
-	Scenario B
-	In a trait P.foo that contains the node [A], two users concurrently attempt the following operations (ordered here
-	from first sequenced to last sequenced):
-	  User 1:
-	    move set-like range [A] to some other trait P.bar
-	    move set-like range [A] to some other trait Q.baz
-	  User 2:
-	    insert X after A (same parent)
-	    insert Y after A (always move)
-
-	X should end up in trait bar.
-	For that to be possible, we need to preserve the fact that A was moved to trait bar at all.
-
-	Y to end up in trait baz.
-	For that to be possible, we need to preserve the fact that A was moved to trait baz after being moved to trait bar.
-
-	Takeaways:
-	We need to preserve the layering of moves over moves.
-	We can't squash sequences of moves into a single move.
-	We need to preserve the relative ordering of moves.
-	*/
-
-	export const t_u1: ChangeFrame = {
-		modify: {
-			trait: [
-				{ // Modify P
-				modify: {
-					foo: [
-							{ type: "MoveOut", dstPath: "^bar.0" },
-						],
-						bar: [
-							{
-								type: "MoveIn",
-								srcPath: "^foo.0",
-								detach: {
-									type: "MoveOut",
-									id: 1,
-									dstPath: "_.1.baz.0",
-								},
-							},
-						],
-					},
-				},
-				{ // Modify Q
-					modify: {
-						baz: [
-							{
-								type: "MoveIn",
-								id: 1,
-								srcPath: "^bar.0",
-							},
-						],
-					},
-				},
-			],
-		},
-	};
-
-	export const t_u2: ChangeFrame = {
-		modify: {
-			trait: [
-				{ // Modify P
-					modify: {
-						foo: [
-							1, // Skip A
-							[ // Race for "After A"
-								[{
-									type: "Insert",
-									content: [{ id: "Y" }],
-									id: 1,
-									moveRules: SimpleMovementRules.AlwaysMove,
-								}],
-								[{
-									type: "Insert",
-									content: [{ id: "X" }],
-									moveRules: { traitParent: TraitParents.Initial },
-								}],
-							],
-						],
-					},
-				},
-			],
-		},
-	};
-
-	export const w_u1: PeerChangeFrame = {
-		modify: {
-			trait: [
-				{ // Modify P
-					modify: {
-						foo: [
-							{ type: "MoveOut", seq: 1, dstPath: "^bar.0" },
-						],
-						bar: [
-							{
-								type: "MoveIn",
-								seq: 1,
-								srcPath: "^foo.0",
-								detach: {
-									type: "MoveOut",
-									seq: 1,
-									id: 1,
-									dstPath: "_.1.baz.0",
-								},
-							},
-						],
-					},
-				},
-				{ // Modify Q
-					modify: {
-						baz: [
-									{
-								type: "MoveIn",
-								seq: 1,
-								id: 1,
-								srcPath: "^bar.0",
-							},
-						],
-					},
-				},
-			],
-		},
-	};
-
-	export const w_all: PeerChangeFrame = {
-		modify: {
-			trait: [
-				{ // Modify P
-					modify: {
-						foo: [
-							{ type: "MoveOut", seq: 1, dstPath: "^bar.0" },
-						],
-						bar: [
-							{
-								type: "MoveIn",
-								seq: 1,
-								srcPath: "^foo.0",
-								detach: {
-									type: "MoveOut",
-									seq: 1,
-									id: 1,
-									dstPath: "_.1.baz.0",
-								},
-							},
-							{ type: "Insert", seq: 2, id: 1, content: [{ id: "X" }] },
-						],
-					},
-				},
-				{ // Modify Q
-					modify: {
-						baz: [
-							{
-								type: "MoveIn",
-								seq: 1,
-								id: 1,
-								srcPath: "^bar.0",
-							},
-							{ type: "Insert", seq: 2, id: 1, content: [{ id: "Y" }] },
-						],
-					},
-				},
-			],
-		},
-	};
-
-	export const w_u2: PeerChangeFrame = {
-		modify: {
-			trait: [
-				{ // Modify P
-					modify: {
-						bar: [
-							{ type: "Insert", seq: 2, id: 1, content: [{ id: "X" }] },
-						],
-					},
-				},
-				{ // Modify Q
-					modify: {
-						baz: [
-							1, // A
-							{ type: "Insert", seq: 2, id: 1, content: [{ id: "Y" }] },
-						],
-					},
-				},
-			],
-		},
-	};
-}
-
 export namespace ScenarioC {
 	/*
 	Scenario C
@@ -462,7 +272,7 @@ export namespace ScenarioC {
 		modify: {
 			foo: [
 				2, // Skip A B
-				{ type: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.NeverMove },
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.NeverMove },
 			],
 		},
 	};
@@ -529,7 +339,7 @@ export namespace ScenarioD {
 	/*
 	Scenario D
 	In trait foo [A B C]:
-	  User 1: move B to some other trait bar
+	  User 1: move B to some other trait bar with a slice that will include X
 	  User 2:
 	    insert X after B (with always-move semantics)
 	    move slice-like range [A B X C] to some other trait baz
@@ -547,7 +357,9 @@ export namespace ScenarioD {
 		modify: {
 			foo: [
 				1, // Skip A
-				{ type: "MoveOut", dstPath: "bar.0" },
+				{ type: "MoveOutStart", dstPath: "bar.0" },
+				1, // Skip B
+				{ type: "End", side: Sibling.Next },
 			],
 			bar: [
 				{ type: "MoveIn", srcPath: "foo.1" },
@@ -560,7 +372,7 @@ export namespace ScenarioD {
 			foo: [
 				{ type: "MoveOutStart", id: 1, dstPath: "baz" },
 				2, // Skip A B
-				{ type: "Insert", content: [{ id: "X" }], moveRules: SimpleMovementRules.AlwaysMove },
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
 				1, // Skip C
 				{ type: "End", id: 1 },
 			],
@@ -574,7 +386,9 @@ export namespace ScenarioD {
 		modify: {
 			foo: [
 				1, // Skip A
-				{ type: "MoveOut", seq: 1, dstPath: "bar.0" },
+				{ type: "MoveOutStart", seq: 1, dstPath: "bar.0" },
+				1, // Skip B
+				{ type: "End", seq: 1, side: Sibling.Next },
 			],
 			bar: [
 				{ type: "MoveIn", seq: 1, srcPath: "foo.1" },
@@ -587,7 +401,9 @@ export namespace ScenarioD {
 			foo: [
 				{ type: "MoveOutStart", seq: 2, id: 1, dstPath: "baz" },
 				1, // Skip A
-				{ type: "MoveOut", seq: 1, dstPath: "bar.0" },
+				{ type: "MoveOutStart", seq: 1, dstPath: "bar.0" },
+				1, // Skip B
+				{ type: "End", seq: 1 },
 				1, // Skip C
 				{ type: "End", seq: 2, id: 1 },
 			],

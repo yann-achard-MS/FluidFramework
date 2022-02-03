@@ -421,31 +421,4 @@ export type Value = number | string | boolean;
 export type NodeId = string;
 export type TraitLabel = string;
 export enum Tiebreak { LastToFirst, FirstToLast }
-export type MovementRules = SimpleMovementRules | CustomMovementRules;
-export enum SimpleMovementRules { NeverMove, CommutativeMove, AlwaysMove }
-export interface CustomMovementRules {
-	/**
-	 * Omit if Any.
-	 */
-	traitLabel?: TraitLabels;
-	/**
-	 * Omit if Any.
-	 */
-	traitParent?: TraitParents;
-	/**
-	 * Omit if Any.
-	 */
-	siblingStatus?: NodeStatuses;
-	/**
-	 * Omit if Any.
-	 */
-	granularity?: MoveGranularity;
-	/**
-	 * Omit if true.
-	 */
-	commutative?: false;
-}
-export enum TraitLabels { Initial, Any }
-export enum TraitParents { Initial, Any }
-export enum NodeStatuses { Alive, Deleted, Any }
-export enum MoveGranularity { IntraEdit, InterEdit, Any }
+export enum MovementRules { NeverMove, CommutativeMoveInTrait, CommutativeMove }
