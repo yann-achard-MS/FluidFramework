@@ -30,7 +30,7 @@ import {
 	SliceEndType,
 	SliceStartType,
 	TypeSet,
-} from "./Format";
+} from "./format";
 
 export type OneOrMany<T> = T | T[];
 

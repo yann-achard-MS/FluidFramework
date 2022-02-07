@@ -22,7 +22,7 @@ import {
 	Mods,
 	PeerDelete,
 	PeerMoveOut,
-} from "./Format";
+} from "./format";
 import {
 	isAttachSegment,
 	isBound,
@@ -34,7 +34,7 @@ import {
 	isSetValueMark,
 	visitMark,
 	visitMods,
-} from "./Utils";
+} from "./utils";
 
 export interface CollabWindow {
 	transactions: Transaction[];

@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { ChangeFrame, MovementRules, PeerChangeFrame, Sibling } from "../Format";
+import { ChangeFrame, MovementRules, PeerChangeFrame, Sibling } from "../format";
 
 export namespace ScenarioA1 {
 	/**
