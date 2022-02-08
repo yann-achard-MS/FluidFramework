@@ -912,7 +912,7 @@ export namespace ScenarioF {
 		modify: {
 			foo: [
 				{ type: "Attach", seq: 1 }, // r
-				1, // Skip A
+				2, // Skip A x
 				{ type: "Insert", content: [{ id: "y" }] },
 			],
 		},
