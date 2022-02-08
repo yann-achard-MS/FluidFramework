@@ -262,7 +262,7 @@ function heal(marks: TraitMarks, index: number, length: number = 1): number {
 	return 0;
 }
 
-function shrinkModify(modify: PeerModify, knownSeq: SeqNumber): boolean {
+function shrinkModify(modify: PeerModify<never>, knownSeq: SeqNumber): boolean {
 	const setValueSeq = modify.setValue?.seq;
 	if (setValueSeq !== undefined && setValueSeq <= knownSeq) {
 		delete modify.setValue;

@@ -36,7 +36,7 @@ export type OneOrMany<T> = T | T[];
 
 export type VisitOutput = boolean | undefined | void;
 
-export interface Visitor<T extends TypeSet> {
+export interface Visitor<T extends TypeSet<never>> {
 	readonly onChange?: (frame: ChangeFrame<T>) => VisitOutput;
 	readonly onConstraint?: (frame: ConstraintFrame) => VisitOutput;
 
@@ -64,7 +64,10 @@ export interface Visitor<T extends TypeSet> {
 	readonly onOffset?: (mark: Offset) => void;
 }
 
-export function visitFrame<T extends TypeSet>(frame: ChangeFrame<T> | ConstraintFrame, visitor: Visitor<T>): void {
+export function visitFrame<T extends TypeSet<never>>(
+	frame: ChangeFrame<T> | ConstraintFrame,
+	visitor: Visitor<T>,
+): void {
 	if (isChangeFrame(frame)) {
 		const skip = visitor.onChange?.(frame);
 		if (skip !== false) {
@@ -77,7 +80,7 @@ export function visitFrame<T extends TypeSet>(frame: ChangeFrame<T> | Constraint
 	}
 }
 
-export function visitMarks<T extends TypeSet>(marks: ChangeFrame<T>, visitor: Visitor<T>): void {
+export function visitMarks<T extends TypeSet<never>>(marks: ChangeFrame<T>, visitor: Visitor<T>): void {
 	if (Array.isArray(marks)) {
 		for (const mark of marks) {
 			visitMark(mark, visitor);
@@ -87,7 +90,7 @@ export function visitMarks<T extends TypeSet>(marks: ChangeFrame<T>, visitor: Vi
 	}
 }
 
-export function visitMods<T extends TypeSet>(
+export function visitMods<T extends TypeSet<never>>(
 	marks: ModifyType<T> | SetValueMarkType<T> | (Offset | ModifyType<T> | SetValueMarkType<T>)[],
 	visitor: Visitor<T>,
 ): void {
@@ -100,7 +103,7 @@ export function visitMods<T extends TypeSet>(
 	}
 }
 
-export function visitMark<T extends TypeSet>(mark: Offset | Mark<T>, visitor: Visitor<T>): void {
+export function visitMark<T extends TypeSet<never>>(mark: Offset | Mark<T>, visitor: Visitor<T>): void {
 	if (typeof mark === "number") {
 		visitor.onOffset?.(mark);
 	} else if (typeof mark === "object") {

@@ -118,7 +118,7 @@ export interface PeerTypes<TPriors = never> {
 	DeleteStart: PeerDeleteStart;
 	SliceEnd: PeerSliceEnd;
 }
-export type TypeSet = LocalTypes<any> | PeerTypes<any>;
+export type TypeSet<TPriors = unknown> = LocalTypes<TPriors> | PeerTypes<TPriors>;
 
 export type ModifyType<T extends TypeSet> = T["Modify"];
 export type SetValueType<T extends TypeSet> = T["SetValue"];
