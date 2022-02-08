@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { ChangeFrame, MovementRules, PeerChangeFrame, Sibling } from "../Format";
+import { ChangeFrame, MovementRules, PeerChangeFrame, RebasedChangeFrame, Sibling } from "../Format";
 
 export namespace ScenarioA1 {
 	/**
@@ -12,11 +12,10 @@ export namespace ScenarioA1 {
 	here from first sequenced to last sequenced):
 	  User 1: delete B C
 	  User 2: move slice-like range B C D to some other trait bar
-	  User 3: insert X after B
+	  User 3: insert X after B (commutative)
 
-	Depending on the movement rules specified for the insertion of X, it's possible that X should end up in trait bar
-	as the outcome of rebasing user 3's edit on the prior two. In order for that to be possible, we need to preserve
-	the	fact that the move operation performed by user 2 was targeted not only at node D but also at nodes B and C. We
+	X should end up in trait bar. In order for that to be possible, we need to preserve
+	the fact that the move operation performed by user 2 was targeted not only at node D but also at nodes B and C. We
 	also need to preserve the fact that the insertion of X was made with respect to B. This is challenging because the
 	third edit will be rebased over the deletion of B C. This last point also holds for insertions of detached content
 	(i.e., `MoveIn`)
@@ -54,6 +53,40 @@ export namespace ScenarioA1 {
 		modify: {
 			foo: [
 				2, // Skip A B
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
+			],
+		},
+	};
+
+	export const t_u2_r_u1: RebasedChangeFrame = {
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "MoveOutStart", side: Sibling.Next, dstPath: "bar.0" },
+				{ type: "Detach", seq: 1, length: 2 },
+				1, // Skip D
+				{ type: "End" },
+			],
+			bar: [
+				{ type: "MoveIn", srcPath: "foo.1", length: 1 },
+			],
+		},
+	};
+
+	export const t_u3_r_u1: RebasedChangeFrame = {
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Detach", seq: 1 },
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
+			],
+		},
+	};
+
+	export const t_u3_r_u1u2: RebasedChangeFrame = {
+		modify: {
+			bar: [
+				{ type: "Attach", seq: 2 }, // D
 				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
 			],
 		},
@@ -124,11 +157,10 @@ export namespace ScenarioA2 {
 	here from first sequenced to last sequenced):
 	  User 1: delete B C
 	  User 2: move slice-like range C D to some other trait bar
-	  User 3: insert X after C
+	  User 3: insert X after C (commutative)
 
-	Depending on the movement rules specified for the insertion of X, it's possible that X should end up in trait bar
-	as the outcome of rebasing user 3's edit on the prior two. In order for that to be possible, we need to preserve
-	the	fact that the move operation performed by user 2 was targeted not only at node D but also at nodes B and C. We
+	X should end up in trait bar. In order for that to be possible, we need to preserve
+	the fact that the move operation performed by user 2 was targeted not only at node D but also at nodes B and C. We
 	also need to preserve the fact that the insertion of X was made with respect to B. This is challenging because the
 	third edit will be rebased over the deletion of B C. This last point also holds for insertions of detached content
 	(i.e., `MoveIn`)
@@ -166,6 +198,40 @@ export namespace ScenarioA2 {
 		modify: {
 			foo: [
 				3, // Skip A B C
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
+			],
+		},
+	};
+
+	export const t_u2_r_u1: RebasedChangeFrame = {
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Detach", seq: 1 }, // B
+				{ type: "MoveOutStart", side: Sibling.Next, dstPath: "bar.0" },
+				{ type: "Detach", seq: 1 }, // C
+				1, // Skip D
+				{ type: "End" },
+			],
+			bar: [
+				{ type: "MoveIn", srcPath: "foo.2", length: 2 },
+			],
+		},
+	};
+
+	export const t_u3_r_u1: RebasedChangeFrame = {
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Detach", seq: 1, length: 2 }, // B C
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
+			],
+		},
+	};
+
+	export const t_u3_r_u1u2: RebasedChangeFrame = {
+		modify: {
+			bar: [
 				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
 			],
 		},
@@ -277,6 +343,16 @@ export namespace ScenarioC {
 		},
 	};
 
+	export const t_u2_r_u1e2: RebasedChangeFrame = {
+		modify: {
+			foo: [
+				2, // Skip A
+				{ type: "Detach", seq: 1 },
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.NeverMove },
+			],
+		},
+	};
+
 	export const w_u1: PeerChangeFrame = {
 		modify: {
 			foo: [
@@ -339,9 +415,9 @@ export namespace ScenarioD {
 	/*
 	Scenario D
 	In trait foo [A B C]:
-	  User 1: move B to some other trait bar with a slice that will include X
+	  User 1: move slice range [B_] to some other trait bar
 	  User 2:
-	    insert X after B (with always-move semantics)
+	    insert X after B (with commutative semantics)
 	    move slice-like range [A B X C] to some other trait baz
 
 	X should be inserted to into the bar trait (as opposed to ending up in the baz trait).
@@ -378,6 +454,25 @@ export namespace ScenarioD {
 			],
 			baz: [
 				{ type: "MoveIn", id: 1, length: 4, srcPath: "foo.0" },
+			],
+		},
+	};
+
+	export const t_u2_r_u1: RebasedChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "MoveOutStart", id: 1, dstPath: "baz" },
+				1, // Skip A
+				{ type: "Detach", seq: 1 },
+				1, // Skip C
+				{ type: "End", id: 1 },
+			],
+			bar: [
+				{ type: "Attach", seq: 1 },
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
+			],
+			baz: [
+				{ type: "MoveIn", id: 1, length: 2, srcPath: "foo.0" },
 			],
 		},
 	};
@@ -438,9 +533,9 @@ export namespace ScenarioD {
 export namespace ScenarioE {
 	/*
 	In trait foo [A B C]:
-	  User 1: move B to some other trait bar
+	  User 1: move slice [B_] to some other trait bar
 	  User 2 in one commit:
-	    insert X after B (with always-move semantics)
+	    insert X after B (with commutative-move semantics)
 	    delete slice-like range [A B X C]
 
 	B should be inserted to into the bar trait (as opposed to ending up deleted).
@@ -455,7 +550,9 @@ export namespace ScenarioE {
 		modify: {
 			foo: [
 				1, // Skip A
-				{ type: "MoveOut", dstPath: "bar.0" },
+				{ type: "MoveOutStart", dstPath: "bar.0" },
+				1, // Skip B
+				{ type: "End", side: Sibling.Next },
 			],
 			bar: [
 				{ type: "MoveIn", srcPath: "foo.1" },
@@ -468,9 +565,25 @@ export namespace ScenarioE {
 			foo: [
 				{ type: "DeleteStart", id: 1 },
 				2, // Skip A B
-				{ type: "Insert", content: [{ id: "X" }] },
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
 				1, // Skip C
 				{ type: "End", id: 1 },
+			],
+		},
+	};
+
+	export const t_u2_r_u1: RebasedChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "DeleteStart", id: 1 },
+				1, // Skip A
+				{ type: "Detach", seq: 1 },
+				1, // Skip C
+				{ type: "End", id: 1 },
+			],
+			bar: [
+				{ type: "Attach", seq: 1 },
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
 			],
 		},
 	};
@@ -744,6 +857,152 @@ export namespace SwapParentChild {
 						},
 					},
 				},
+			],
+		},
+	};
+}
+
+export namespace ScenarioF {
+	/*
+	starting state: 'AB' (known to both client 1 and client 2)
+	  Edit #1 by client 1: insert 'r' at index 0 (local state: 'rAB')
+	  Edit #2 by client 2: insert 'xz' at index 1 (local state: 'AxzB')
+	  Edit #3 by client 2: insert 'y' at index 2 (local state: 'AxyzB')
+
+	Expected outcome: 'rAxyzB'
+	*/
+
+	export const t_u1: ChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "Insert", content: [{ id: "r" }] },
+			],
+		},
+	};
+
+	export const t_u2e1: ChangeFrame = {
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
+			],
+		},
+	};
+
+	export const t_u2e2: ChangeFrame = {
+		modify: {
+			foo: [
+				2, // Skip A x
+				{ type: "Insert", content: [{ id: "y" }] },
+			],
+		},
+	};
+
+	export const t_u2e1_r_u1: RebasedChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "Attach", seq: 1 }, // r
+				1, // Skip A
+				{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
+			],
+		},
+	};
+
+	export const t_u2e2_r_u1: RebasedChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "Attach", seq: 1 }, // r
+				1, // Skip A
+				{ type: "Insert", content: [{ id: "y" }] },
+			],
+		},
+	};
+
+	export const t_u2e2_r_u1u2e1: RebasedChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "Attach", seq: 1 }, // r
+				1, // Skip A
+				{ type: "Attach", seq: 2 }, // x
+				{ type: "Insert", content: [{ id: "y" }] },
+				{ type: "Attach", seq: 2 }, // z
+			],
+		},
+	};
+}
+
+export namespace ScenarioG {
+	/*
+	In trait foo [A B]:
+	  User 1: move slice [A B] to some other trait bar
+	  User 2: insert X after A (with commutative-move semantics)
+	  User 2: insert Y after X (with never-move semantics)
+
+	X should be inserted to into the bar trait.
+	Y should be inserted to into the foo trait.
+
+	Takeaways:
+	When inserting in a slice-range that is moved and not adopting it (i.e., not commuting with the move), it is
+	necessary to go look at the destination for any prior non-concurrent segments in order to correctly interpret
+	the offset of the index.
+	*/
+
+	export const t_u1: ChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "MoveOutStart", dstPath: "bar.0" },
+				2, // Skip A B
+				{ type: "End", side: Sibling.Next },
+			],
+			bar: [
+				{ type: "MoveIn", length: 2, srcPath: "foo.1" },
+			],
+		},
+	};
+
+	export const t_u2e1: ChangeFrame = {
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
+			],
+		},
+	};
+
+	export const t_u2e2: ChangeFrame = {
+		modify: {
+			foo: [
+				2, // Skip A X
+				{ type: "Insert", content: [{ id: "Y" }], moveRules: MovementRules.NeverMove },
+			],
+		},
+	};
+
+	export const t_u2e1_r_u1: RebasedChangeFrame = {
+		modify: {
+			bar: [
+				{ type: "Attach", seq: 1 }, // A
+				{ type: "Insert", content: [{ id: "X" }], moveRules: MovementRules.CommutativeMove },
+			],
+		},
+	};
+
+	export const t_u2e2_r_u1: RebasedChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "Detach", seq: 1 }, // A
+				1, // X <- at this stage we do not know what has happened to the previous insert
+				{ type: "Insert", content: [{ id: "Y" }], moveRules: MovementRules.NeverMove },
+			],
+		},
+	};
+
+	export const t_u2e2_r_u1u2e2: RebasedChangeFrame = {
+		modify: {
+			foo: [
+				{ type: "Detach", seq: 1 }, // A
+				{ type: "Temp", seq: 2 }, // X <- now we do
+				{ type: "Insert", content: [{ id: "Y" }], moveRules: MovementRules.NeverMove },
 			],
 		},
 	};

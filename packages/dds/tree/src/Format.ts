@@ -25,6 +25,18 @@ export interface ChangeSet {
 	// clipboard?: Map<NodeId, ClipboardEntry>;
 }
 
+export type Priors = PriorAttach | PriorDetach | PriorTemp;
+
+export type RebasedChangeFrame = ChangeFrame<LocalTypes<Priors>>;
+
+export interface RebasedTransaction {
+	seq: SeqNumber;
+	ref: SeqNumber;
+	frames: RebasedChangeFrame;
+	// revivals?: Map<NodeId, Revival[]>;
+	// clipboard?: Map<NodeId, ClipboardEntry>;
+}
+
 export type ConstraintFrame =
  | ConstrainedRange
  | ConstrainedTraitSet
@@ -68,8 +80,9 @@ export interface ConstrainedRange {
 	valueLock?: number;
 }
 
-export interface LocalTypes {
-	Modify: Modify;
+export interface LocalTypes<TPriors = never> {
+	Priors: TPriors;
+	Modify: Modify<LocalTypes<TPriors>>;
 	SetValue: SetValue;
 	SetValueMark: SetValueMark;
 	Insert: Insert;
@@ -84,15 +97,16 @@ export interface LocalTypes {
 
 export type PeerSetValue = SetValue & HasSeqValue;
 export type PeerSetValueMark = SetValueMark & HasSeqValue;
-export type PeerModify = Modify<PeerTypes>;
+export type PeerModify<TPriors> = Modify<PeerTypes<TPriors>>;
 export type PeerInsert = Insert<PeerTypes> & HasSeqValue;
 export type PeerDelete = Delete<PeerTypes> & HasSeqValue;
 export type PeerMoveIn = MoveIn<PeerTypes> & HasSeqValue;
 export type PeerMoveOut = MoveOut<PeerTypes> & HasSeqValue;
 export type PeerProtoNode = ProtoNode<PeerTypes>;
 
-export interface PeerTypes {
-	Modify: PeerModify;
+export interface PeerTypes<TPriors = never> {
+	Priors: TPriors;
+	Modify: PeerModify<TPriors>;
 	SetValue: PeerSetValue;
 	SetValueMark: PeerSetValueMark;
 	Insert: PeerInsert;
@@ -104,7 +118,7 @@ export interface PeerTypes {
 	DeleteStart: PeerDeleteStart;
 	SliceEnd: PeerSliceEnd;
 }
-export type TypeSet = LocalTypes | PeerTypes;
+export type TypeSet = LocalTypes<any> | PeerTypes<any>;
 
 export type ModifyType<T extends TypeSet> = T["Modify"];
 export type SetValueType<T extends TypeSet> = T["SetValue"];
@@ -119,6 +133,7 @@ export type DeleteStartType<T extends TypeSet> = T["DeleteStart"];
 export type SliceEndType<T extends TypeSet> = T["SliceEnd"];
 export type SliceStartType<T extends TypeSet> = MoveOutStartType<T> | DeleteStartType<T>;
 export type SliceBoundType<T extends TypeSet> = SliceStartType<T> | SliceEndType<T>;
+export type PriorTypes<T extends TypeSet> = T["Priors"];
 
 export type ChangeFrame<T extends TypeSet = LocalTypes> = ModifyType<T> | TraitMarks<T>;
 export type PeerChangeFrame = ChangeFrame<PeerTypes>;
@@ -167,7 +182,7 @@ export type ObjMark<T extends TypeSet = LocalTypes> =
 	| SegmentMark<T>
 	| SliceBoundType<T>;
 export type PeerObjMark = ObjMark<PeerTypes>;
-export type Mark<T extends TypeSet = LocalTypes> = ObjMark<T> | Race<T>;
+export type Mark<T extends TypeSet = LocalTypes> = ObjMark<T> | Race<T> | PriorTypes<T>;
 export type PeerMark = Mark<PeerTypes>;
 
 export type Mods<T extends TypeSet = LocalTypes> =
@@ -344,6 +359,26 @@ export interface SliceEnd {
 	 * Omit if `Sibling.Prev` for terseness.
 	 */
 	side?: Sibling.Next;
+}
+
+export interface PriorAttach extends HasSeqValue {
+	type: "Attach";
+	length?: number;
+}
+
+export interface PriorTemp extends HasSeqValue {
+	type: "Temp";
+	length?: number;
+	/**
+	 * The SeqNumber of the operation that detached the segment.
+	 * Omit if the same as `seq`.
+	 */
+	detachSeq?: SeqNumber;
+}
+
+export interface PriorDetach extends HasSeqValue {
+	type: "Detach";
+	length?: number;
 }
 
 export type SliceBound = MoveOutStart | DeleteStart | SliceEnd;
