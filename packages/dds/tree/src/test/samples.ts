@@ -3,7 +3,22 @@
  * Licensed under the MIT License.
  */
 
-import { ChangeFrame, MovementRules, PeerChangeFrame, RebasedChangeFrame, Sibling } from "../format";
+import { fail } from "assert";
+import {
+	ChangeFrame,
+	ConstrainedRange,
+	ConstraintFrame,
+	Delete,
+	MovementRules,
+	Offset,
+	PeerChangeFrame,
+	RebasedChangeFrame,
+	RebasedTransaction,
+	Sibling,
+	Transaction,
+	TransactionFrame,
+} from "../format";
+import { clone, isChangeFrame, isConstraintFrame } from "../Utils";
 
 export namespace ScenarioA1 {
 	/**
@@ -1003,6 +1018,189 @@ export namespace ScenarioG {
 				{ type: "Detach", seq: 1 }, // A
 				{ type: "Temp", seq: 2 }, // X <- now we do
 				{ type: "Insert", content: [{ id: "Y" }], moveRules: MovementRules.NeverMove },
+			],
+		},
+	};
+}
+
+export namespace TodoApp {
+	/*
+	Operations by User 1 (rebased branch):
+		O1a Delete all finished tasks: [delete task1, task3, task5]
+		O1b Change color of all tasks to green: [set task2.color=green, task4.color=green]
+	Operation by User 2 (base branch):
+		O2a Remove finished flag on task 5: [set task5.finished = false]
+
+	If O1a is rebased with respect to O2a, the delete for task 5 would be removed (either because the delete all
+	finished tasks command is fully re-executed, or because the rebase  handler knows, that if this flag changes on an
+	entry it has to be added / removed from the deletion set), giving the changeset O1a’ = [delete task1, task3]. If we
+	now compute the squashed changes for
+	(O1a-1 ∘ O2a ∘ O1a’ = [insert task1, task3, task5] ∘ [set task5.finished = false] ∘ [delete task1, task3])
+	the net result of this will be [insert task5(with finished = false)]. This is now the correct changeset that
+	describes the changes between the state before O1b and behind O1a’. When the change for O2b was generated, task5
+	did not exist and thus it was not taken into account in the creation of this command. To correctly handle the
+	conflict, the conflict handler needs to know that task5 got created (relative to its state).
+	*/
+
+	export enum Match {
+		Number = "5606bd4d-00b8-45e1-b038-f0186820fe03",
+	}
+
+	interface MatchOutputs {
+		[Match.Number]: number;
+	}
+
+	type MatchOutput<M extends Match> = MatchOutputs[M];
+
+	type MatchSelector<T, M extends Match> = {
+		readonly [K in keyof T]?: M | MatchSelector<T[K], M>;
+	};
+
+	const ms1: MatchSelector<ConstraintFrame, Match.Number> = { traits: { tasks: [{ length: Match.Number }] } };
+
+	export function match<T, M extends Match>(data: T, selector: MatchSelector<T,M>): MatchOutput<M> {
+		throw new Error("Unknown command");
+	}
+
+	/**
+	 * @returns True iff the given `transaction` was emitted by this client.
+	 */
+	export function isLocal(transaction: RebasedTransaction): boolean {
+		return false;
+	}
+
+	type DeleteAllFinishedTasksFrames = [
+		{
+			type: "ConstrainedTraitSet";
+			traits: {
+				tasks: [ConstrainedRange];
+			};
+		},
+		{
+			modify: {
+				tasks: (Delete | Offset)[];
+			};
+		},
+	];
+
+	/**
+	 * 
+	 */
+	const deleteAllFinishedTasks = {
+		name: "DeleteAllFinishedTasks",
+		deltaConflictHandler: (
+			old: Transaction<DeleteAllFinishedTasksFrames>,
+			interim: RebasedTransaction[],
+		): TransactionFrame[] => {
+			const [constraint, change] = old.frames;
+			let length = constraint.traits.tasks[0].length ?? 0;
+			const marks = clone(change.modify.tasks);
+			for (const priorTransaction of interim) {
+				if (isLocal(priorTransaction)) {
+					// We can't really skip those. For example a prior slice delete could have deleted
+					// tasks that were concurrently inserted. So while looking at non-local changes will tell me
+					// about the concurrently inserted tasks, I need to look at prior local changes to check if
+					// those new tasks got deleted or moved out.
+					for (const priorChange of priorTransaction.frames) {
+						const priorMarks = priorChange.modify?.
+					}
+				} else {
+					for (const priorChange of priorTransaction.frames) {
+						const priorMarks = priorChange.modify?.
+					}
+				}
+			}
+			throw new Error("Unknown command");
+		},
+	};
+
+	const markAllTasksGreen = {
+		name: "MarkAllTasksGreen",
+		deltaConflictHandler: (old: Transaction, interim: RebasedTransaction[]): TransactionFrame[] => {},
+	};
+
+	export const o1a: Transaction<DeleteAllFinishedTasksFrames> = {
+		command: deleteAllFinishedTasks.name,
+		frames: [
+			{
+				type: "ConstrainedTraitSet",
+				traits: {
+					tasks: [{
+						type: "ConstrainedRange",
+						endSide: Sibling.Next,
+						length: 5,
+						structureLock: 1, // Asserts that no elements in this range have been inserted or removed
+						valueLock: 2, // Asserts that no properties of the elements in this range have been changed
+					}],
+				},
+			},
+			{
+				modify: {
+					tasks: [
+						{ type: "Delete" }, // Task 1
+						1, // Task 2
+						{ type: "Delete" }, // Task 3
+						1, // Task 4
+						{ type: "Delete" }, // Task 5
+					],
+				},
+			},
+		],
+	};
+
+	export const o1b: Transaction = {
+		command: markAllTasksGreen.name,
+		frames: [
+			{
+				type: "ConstrainedTraitSet",
+				traits: {
+					tasks: [{
+						type: "ConstrainedRange",
+						endSide: Sibling.Next,
+						length: 2,
+						structureLock: 1, // Asserts that no elements in this range have been inserted or removed
+					}],
+				},
+			},
+			{
+				modify: {
+					tasks: [
+						{ modify: { color: { setValue: "green" } } }, // Task 2
+						{ modify: { color: { setValue: "green" } } }, // Task 4
+					],
+				},
+			},
+		],
+	};
+
+	export const o2a: ChangeFrame = {
+		modify: {
+			tasks: [
+				4, // Tasks 1 -> 4
+				{ modify: { finished: { setValue: false } } }, // Task 5
+			],
+		},
+	};
+
+	export function onConflict(old: Transaction, interim: RebasedTransaction[]): TransactionFrame[] {
+		switch (old.command) {
+			case deleteAllFinishedTasks.name:
+				return deleteAllFinishedTasks.deltaConflictHandler(
+					old as Transaction<DeleteAllFinishedTasksFrames>,
+					interim,
+				);
+			case markAllTasksGreen.name:
+				return markAllTasksGreen.deltaConflictHandler(old, interim);
+			default: throw new Error("Unknown command");
+		}
+	}
+
+	export const o1a_mk2: ChangeFrame = {
+		modify: {
+			tasks: [
+				{ type: "Delete" }, // Task 1
+				1, // Task 2
+				{ type: "Delete" }, // Task 3
 			],
 		},
 	};

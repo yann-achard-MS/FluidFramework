@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import structuredClone from "@ungap/structured-clone";
 import {
 	AttachMark,
 	ChangeFrame,
@@ -10,6 +11,7 @@ import {
 	DeleteStartType,
 	DeleteType,
 	DetachMark,
+	Index,
 	InsertType,
 	Mark,
 	Modify,
@@ -29,8 +31,14 @@ import {
 	SliceBoundType,
 	SliceEndType,
 	SliceStartType,
+	TraitLabel,
+	TraitMarks,
 	TypeSet,
 } from "./format";
+
+export function clone<T>(original: T): T {
+	return structuredClone(original) as T;
+}
 
 export type OneOrMany<T> = T | T[];
 
@@ -62,6 +70,9 @@ export interface Visitor<T extends TypeSet<never>> {
 	readonly onDeleteStart?: (mark: DeleteStartType<T>) => void;
 	readonly onSliceEnd?: (mark: SliceEndType<T>) => void;
 	readonly onOffset?: (mark: Offset) => void;
+
+	readonly onPopNode?: () => void;
+	readonly onPopTrait?: () => void;
 }
 
 export function visitFrame<T extends TypeSet<never>>(
@@ -300,4 +311,31 @@ export function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is Ch
 		|| innerType === "DeleteStart"
 		|| innerType === "SetValue"
 	;
+}
+
+export function getTraitMarks<T extends TypeSet>(change: ChangeFrame<T>, path: [TraitLabel, Index][]): TraitMarks<T> {
+	let pathIndex = 0;
+	const visitor: Visitor<T> = {
+
+	};
+	visitMarks(change, visitor);
+	// if (Array.isArray(change)) {
+	// 	// There were edits made at the root
+	// 	for (const mark of change) {
+	// 		if (isModify(mark)) {
+	// 			if (mark.modify === undefined) {
+	// 				return [];
+	// 			}
+	// 			const traitMarks = mark.modify[path[0][0]];
+	// 			if (traitMarks === undefined) {
+	// 				return [];
+	// 			}
+	// 			if (path.length === 1) {
+	// 				return Array.isArray(traitMarks) ? traitMarks : [traitMarks];
+	// 			}
+	// 			return 
+	// 		}
+	// 	}
+	// 	return change;
+	// }
 }
