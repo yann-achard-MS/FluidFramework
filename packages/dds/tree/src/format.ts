@@ -5,18 +5,13 @@
 
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
-export type TransactionFrame = ConstraintFrame | ChangeFrame;
-
-export type Command = string;
-
 /**
  * Edit constructed by clients and broadcast by Alfred.
  */
-export interface Transaction<TFrames extends TransactionFrame[] = TransactionFrame[]> {
+export interface Transaction {
 	seq: SeqNumber;
 	ref: SeqNumber;
-	command?: Command;
-	frames: TFrames;
+	frames: (ConstraintFrame | ChangeFrame)[];
 	// revivals?: Map<NodeId, Revival[]>;
 	// clipboard?: Map<NodeId, ClipboardEntry>;
 }
@@ -34,10 +29,10 @@ export type Priors = PriorAttach | PriorDetach | PriorTemp;
 
 export type RebasedChangeFrame = ChangeFrame<LocalTypes<Priors>>;
 
-export interface RebasedTransaction<TFrames extends RebasedChangeFrame[] = RebasedChangeFrame[]> {
+export interface RebasedTransaction {
 	seq: SeqNumber;
 	ref: SeqNumber;
-	frames: TFrames;
+	frames: RebasedChangeFrame;
 	// revivals?: Map<NodeId, Revival[]>;
 	// clipboard?: Map<NodeId, ClipboardEntry>;
 }
@@ -66,8 +61,6 @@ export type ConstraintSequence2 = [Index, ConstrainedRange | ConstrainedTraitSet
 export interface ConstrainedRange {
 	type: "ConstrainedRange";
 	length?: number;
-	startSide?: Sibling.Next;
-	endSide?: Sibling.Next;
 	/**
 	 * Could this just be `true` since we know the starting parent?
 	 * Only if we know the constraint was satisfied originally.
@@ -157,11 +150,12 @@ export interface Modify<T extends TypeSet = LocalTypes> {
 	modify?: { [key: string]: TraitMarks<T> | ModifyType<T> };
 }
 
-export type SetValue = Value | [Value, DrillDepth];
+export interface SetValue {
+	value: Value | [Value, DrillDepth];
+}
 
-export interface SetValueMark {
+export interface SetValueMark extends SetValue {
 	type: "SetValue";
-	value: SetValue;
 }
 
 /**
@@ -205,12 +199,12 @@ export interface HasMods<T extends TypeSet = LocalTypes> {
 	mods?: Mods<T>;
 	/**
 	 * Option 2:
-	 * The index approach lets us binary search faster within a long segment at the cost of maintaining indices.
+	 * The index approach lets us binary search faster within a long segment.
 	 */
 	mods2?: [Index, ModifyType<T> | SetValueMarkType<T>][];
 	/**
 	 * Option 3:
-	 * The index approach lets us lookup faster within a long segment at the cost of maintaining indices.
+	 * The index approach lets us lookup faster within a long segment.
 	 */
 	mods3?: { [key: number]: ModifyType<T> | SetValueMarkType<T> };
 }
@@ -255,9 +249,6 @@ export interface Attach<T extends TypeSet = LocalTypes> extends Segment<T> {
 
 export type PostAttachDetach<T extends TypeSet = LocalTypes> = (DeleteType<T> | MoveOutType<T>) & {
 	length?: undefined;
-	/**
-	 * Modifications of content that has been attached then detached are stored on the attach only.
-	 */
 	mods?: undefined;
 	mods2?: undefined;
 	mods3?: undefined;

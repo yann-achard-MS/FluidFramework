@@ -4,8 +4,8 @@
  */
 
 import { strict as assert } from "assert";
+import structuredClone from "@ungap/structured-clone";
 import { SeqNumber } from "../format";
-import { clone } from "../utils";
 import { CollabWindow, shrinkWindow } from "../window";
 import {
 	ScenarioA1,
@@ -16,6 +16,10 @@ import {
 	SwapCousins,
 	SwapParentChild,
 } from "./samples";
+
+function clone<T>(original: T): T {
+	return structuredClone(original) as T;
+}
 
 const empty: CollabWindow = {
 	transactions: [],
