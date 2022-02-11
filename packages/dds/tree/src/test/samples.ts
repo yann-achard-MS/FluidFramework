@@ -18,7 +18,7 @@ import {
 	Transaction,
 	TransactionFrame,
 } from "../format";
-import { clone, isChangeFrame, isConstraintFrame } from "../Utils";
+import { clone, getTraitMarks, isChangeFrame, isConstraintFrame } from "../Utils";
 
 export namespace ScenarioA1 {
 	/**
@@ -1090,33 +1090,21 @@ export namespace TodoApp {
 		name: "DeleteAllFinishedTasks",
 		deltaConflictHandler: (
 			old: Transaction<DeleteAllFinishedTasksFrames>,
-			interim: RebasedTransaction[],
+			concurrent: ChangeFrame,
 		): TransactionFrame[] => {
 			const [constraint, change] = old.frames;
 			let length = constraint.traits.tasks[0].length ?? 0;
 			const marks = clone(change.modify.tasks);
-			for (const priorTransaction of interim) {
-				if (isLocal(priorTransaction)) {
-					// We can't really skip those. For example a prior slice delete could have deleted
-					// tasks that were concurrently inserted. So while looking at non-local changes will tell me
-					// about the concurrently inserted tasks, I need to look at prior local changes to check if
-					// those new tasks got deleted or moved out.
-					for (const priorChange of priorTransaction.frames) {
-						const priorMarks = priorChange.modify?.
-					}
-				} else {
-					for (const priorChange of priorTransaction.frames) {
-						const priorMarks = priorChange.modify?.
-					}
-				}
-			}
+			const concurrentMarks = getTraitMarks(concurrent, )
 			throw new Error("Unknown command");
 		},
 	};
 
 	const markAllTasksGreen = {
 		name: "MarkAllTasksGreen",
-		deltaConflictHandler: (old: Transaction, interim: RebasedTransaction[]): TransactionFrame[] => {},
+		deltaConflictHandler: (old: Transaction, concurrent: ChangeFrame): TransactionFrame[] => {
+			throw new Error("Unknown command");
+		},
 	};
 
 	export const o1a: Transaction<DeleteAllFinishedTasksFrames> = {

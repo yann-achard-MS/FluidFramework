@@ -313,29 +313,39 @@ export function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is Ch
 	;
 }
 
-export function getTraitMarks<T extends TypeSet>(change: ChangeFrame<T>, path: [TraitLabel, Index][]): TraitMarks<T> {
-	let pathIndex = 0;
-	const visitor: Visitor<T> = {
+export namespace ChangeNav {
+	export function fromChange<T extends TypeSet>(change: ChangeFrame<T>): RootNav<T> {
+		return new RootNav(change);
+	}
 
-	};
-	visitMarks(change, visitor);
-	// if (Array.isArray(change)) {
-	// 	// There were edits made at the root
-	// 	for (const mark of change) {
-	// 		if (isModify(mark)) {
-	// 			if (mark.modify === undefined) {
-	// 				return [];
-	// 			}
-	// 			const traitMarks = mark.modify[path[0][0]];
-	// 			if (traitMarks === undefined) {
-	// 				return [];
-	// 			}
-	// 			if (path.length === 1) {
-	// 				return Array.isArray(traitMarks) ? traitMarks : [traitMarks];
-	// 			}
-	// 			return 
-	// 		}
-	// 	}
-	// 	return change;
-	// }
+	export class RootNav<T extends TypeSet> {
+		private readonly change: ChangeFrame<T>;
+
+		public constructor(change: ChangeFrame<T>) {
+			this.change = change;
+		}
+
+		public get isRemoved(): boolean {
+			if (isModify(this.change)) {
+				return false;
+			}
+
+		}
+		public trait(label: TraitLabel): TraitNav {
+
+			return new TraitNav();
+		}
+	}
+
+	export class TraitNav<T extends TypeSet> {
+		private readonly marks: TraitMarks<T>;
+
+		public constructor(marks: TraitMarks<T>) {
+			this.marks = marks;
+		}
+
+		public flatten(): (Offset | ObjMark<T> | PriorTypes<T>)[] {
+
+		}
+	}
 }
