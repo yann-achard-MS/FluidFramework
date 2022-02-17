@@ -4,69 +4,44 @@
  */
 
 import {
-	AttachMark,
-	ChangeFrame,
-	ConstraintFrame,
-	DeleteStartType,
-	DeleteType,
-	DetachMark,
-	InsertType,
-	Mark,
-	Modify,
-	ModifyType,
-	ModsMark,
-	MoveInType,
-	MoveOutStartType,
-	MoveOutType,
-	ObjMark,
 	Offset,
-	PeerSliceBound,
-	ProtoNodeType,
-	SegmentMark,
-	SetValueMarkType,
-	SetValueType,
-	SliceBound,
-	SliceBoundType,
-	SliceEndType,
-	SliceStartType,
-	TypeSet,
+	Rebased as R,
 } from "./format";
 
 export type OneOrMany<T> = T | T[];
 
 export type VisitOutput = boolean | undefined | void;
 
-export interface Visitor<T extends TypeSet<never>> {
-	readonly onChange?: (frame: ChangeFrame<T>) => VisitOutput;
-	readonly onConstraint?: (frame: ConstraintFrame) => VisitOutput;
+export interface RebasedFrameVisitor {
+	readonly onChange?: (frame: R.ChangeFrame) => VisitOutput;
+	readonly onConstraint?: (frame: R.ConstraintFrame) => VisitOutput;
 
-	readonly onMark?: (mark: Mark<T>) => VisitOutput;
-	readonly onObjMark?: (mark: ObjMark<T>) => VisitOutput;
-	readonly onNode?: (node: ProtoNodeType<T>) => VisitOutput;
+	readonly onMark?: (mark: R.Mark) => VisitOutput;
+	readonly onObjMark?: (mark: R.ObjMark) => VisitOutput;
+	readonly onNode?: (node: R.ProtoNode) => VisitOutput;
 
-	readonly onSegment?: (mark: SegmentMark<T>) => VisitOutput;
-	readonly onMod?: (mark: ModsMark<T>) => VisitOutput;
-	readonly onAttach?: (mark: AttachMark<T>) => VisitOutput;
-	readonly onDetach?: (mark: DetachMark<T>) => VisitOutput;
-	readonly onBound?: (mark: SliceBoundType<T>) => VisitOutput;
-	readonly onStartBound?: (mark: SliceStartType<T>) => VisitOutput;
+	readonly onSegment?: (mark: R.SegmentMark) => VisitOutput;
+	readonly onMod?: (mark: R.ModsMark) => VisitOutput;
+	readonly onAttach?: (mark: R.AttachMark) => VisitOutput;
+	readonly onDetach?: (mark: R.DetachMark) => VisitOutput;
+	readonly onBound?: (mark: R.SliceBound) => VisitOutput;
+	readonly onStartBound?: (mark: R.SliceStart) => VisitOutput;
 
-	readonly onModify?: (mark: ModifyType<T>) => VisitOutput;
-	readonly onSetValue?: (mark: SetValueType<T>) => void;
-	readonly onSetValueMark?: (mark: SetValueMarkType<T>) => void;
-	readonly onInsert?: (mark: InsertType<T>) => VisitOutput;
-	readonly onDelete?: (mark: DeleteType<T>) => VisitOutput;
-	readonly onMoveIn?: (mark: MoveInType<T>) => VisitOutput;
-	readonly onMoveOut?: (mark: MoveOutType<T>) => VisitOutput;
-	readonly onMoveOutStart?: (mark: MoveOutStartType<T>) => void;
-	readonly onDeleteStart?: (mark: DeleteStartType<T>) => void;
-	readonly onSliceEnd?: (mark: SliceEndType<T>) => void;
+	readonly onModify?: (mark: R.Modify) => VisitOutput;
+	readonly onSetValue?: (mark: R.SetValue) => void;
+	readonly onInsert?: (mark: R.Insert) => VisitOutput;
+	readonly onDelete?: (mark: R.Delete) => VisitOutput;
+	readonly onMoveIn?: (mark: R.MoveIn) => VisitOutput;
+	readonly onMoveOut?: (mark: R.MoveOut) => VisitOutput;
+	readonly onMoveOutStart?: (mark: R.MoveOutStart) => void;
+	readonly onDeleteStart?: (mark: R.DeleteStart) => void;
+	readonly onSliceEnd?: (mark: R.SliceEnd) => void;
 	readonly onOffset?: (mark: Offset) => void;
 }
 
-export function visitFrame<T extends TypeSet<never>>(
-	frame: ChangeFrame<T> | ConstraintFrame,
-	visitor: Visitor<T>,
+export function visitFrame(
+	frame: R.ChangeFrame | R.ConstraintFrame,
+	visitor: RebasedFrameVisitor,
 ): void {
 	if (isChangeFrame(frame)) {
 		const skip = visitor.onChange?.(frame);
@@ -80,7 +55,7 @@ export function visitFrame<T extends TypeSet<never>>(
 	}
 }
 
-export function visitMarks<T extends TypeSet<never>>(marks: ChangeFrame<T>, visitor: Visitor<T>): void {
+export function visitMarks(marks: R.ChangeFrame, visitor: RebasedFrameVisitor): void {
 	if (Array.isArray(marks)) {
 		for (const mark of marks) {
 			visitMark(mark, visitor);
@@ -90,9 +65,9 @@ export function visitMarks<T extends TypeSet<never>>(marks: ChangeFrame<T>, visi
 	}
 }
 
-export function visitMods<T extends TypeSet<never>>(
-	marks: ModifyType<T> | SetValueMarkType<T> | (Offset | ModifyType<T> | SetValueMarkType<T>)[],
-	visitor: Visitor<T>,
+export function visitMods(
+	marks: R.Modify | R.SetValue | (Offset | R.Modify | R.SetValue)[],
+	visitor: RebasedFrameVisitor,
 ): void {
 	if (Array.isArray(marks)) {
 		for (const mark of marks) {
@@ -103,7 +78,7 @@ export function visitMods<T extends TypeSet<never>>(
 	}
 }
 
-export function visitMark<T extends TypeSet<never>>(mark: Offset | Mark<T>, visitor: Visitor<T>): void {
+export function visitMark(mark: Offset | R.Mark, visitor: RebasedFrameVisitor): void {
 	if (typeof mark === "number") {
 		visitor.onOffset?.(mark);
 	} else if (typeof mark === "object") {
@@ -198,37 +173,37 @@ export function visitMark<T extends TypeSet<never>>(mark: Offset | Mark<T>, visi
 	}
 }
 
-export function isSetValueMark<T extends TypeSet>(mark: ObjMark<T>): mark is SetValueMarkType<T> {
+export function isSetValueMark(mark: R.ObjMark): mark is R.SetValue {
 	return mark.type === "SetValue";
 }
-export function isModify<T extends TypeSet>(mark: Mark<T>): mark is ModifyType<T> {
-	const partial = mark as Partial<Modify<T>>;
+export function isModify(mark: R.Mark): mark is R.Modify {
+	const partial = mark as Partial<R.Modify>;
 	return partial.modify !== undefined || partial.setValue !== undefined;
 }
-// export function isInsert<T extends TypeSet>(mark: Mark<T>): mark is InsertType<T> { return mark.type === "Insert"; }
-// export function isDelete<T extends TypeSet>(mark: Mark<T>): mark is DeleteType<T> { return mark.type === "Delete"; }
-// export function isMoveIn<T extends TypeSet>(mark: Mark<T>): mark is MoveInType<T> { return mark.type === "MoveIn"; }
-export function isMoveOutStart<T extends TypeSet>(mark: Mark<T>): mark is MoveOutStartType<T> {
-	return (mark as Partial<MoveOutStartType<T>>).type === "MoveOutStart";
+// export function isInsert(mark: R.Mark): mark is R.Insert { return mark.type === "Insert"; }
+// export function isDelete(mark: R.Mark): mark is R.Delete { return mark.type === "Delete"; }
+// export function isMoveIn(mark: R.Mark): mark is R.MoveIn { return mark.type === "MoveIn"; }
+export function isMoveOutStart(mark: R.Mark): mark is R.MoveOutStart {
+	return (mark as Partial<R.MoveOutStart>).type === "MoveOutStart";
 }
-export function isDeleteStart<T extends TypeSet>(mark: Mark<T>): mark is DeleteStartType<T> {
-	return (mark as Partial<DeleteStartType<T>>).type === "DeleteStart";
+export function isDeleteStart(mark: R.Mark): mark is R.DeleteStart {
+	return (mark as Partial<R.DeleteStart>).type === "DeleteStart";
 }
-export function isEnd<T extends TypeSet>(mark: Mark<T>): mark is SliceEndType<T> {
-	return (mark as Partial<SliceEndType<T>>).type === "End";
+export function isEnd(mark: R.Mark): mark is R.SliceEnd {
+	return (mark as Partial<R.SliceEnd>).type === "End";
 }
-export function isBound<T extends TypeSet>(mark: ObjMark<T>): mark is SliceBound | PeerSliceBound {
+export function isBound(mark: R.ObjMark): mark is R.SliceBound | R.SliceBound {
 	const markType = mark.type;
 	return markType === "MoveOutStart"
 		|| markType === "DeleteStart"
 		|| markType === "End"
 	;
 }
-export function isOffset<T extends TypeSet>(mark: Mark<T> | Offset | undefined): mark is Offset {
+export function isOffset(mark: R.Mark | Offset | undefined): mark is Offset {
 	return typeof mark === "number";
 }
-export function isSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
-	mark is InsertType<T> | DeleteType<T> | MoveInType<T> | MoveOutType<T> {
+export function isSegment(mark: R.ObjMark | Offset):
+	mark is R.Insert | R.Delete | R.MoveIn | R.MoveOut {
 	if (typeof mark === "number") {
 		return false;
 	}
@@ -240,8 +215,8 @@ export function isSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
 	;
 }
 
-export function isAttachSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
-	mark is InsertType<T> | MoveInType<T> {
+export function isAttachSegment(mark: R.ObjMark | Offset):
+	mark is R.Insert | R.MoveIn {
 	if (typeof mark === "number") {
 		return false;
 	}
@@ -251,8 +226,8 @@ export function isAttachSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
 	;
 }
 
-export function isDetachSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
-	mark is DeleteType<T> | MoveOutType<T> {
+export function isDetachSegment(mark: R.ObjMark | Offset):
+	mark is R.Delete | R.MoveOut {
 	if (typeof mark === "number") {
 		return false;
 	}
@@ -262,7 +237,7 @@ export function isDetachSegment<T extends TypeSet>(mark: ObjMark<T> | Offset):
 	;
 }
 
-export function isConstraintFrame(frame: ChangeFrame | ConstraintFrame): frame is ConstraintFrame {
+export function isConstraintFrame(frame: R.ChangeFrame | R.ConstraintFrame): frame is R.ConstraintFrame {
 	const innerObj = Array.isArray(frame) ? frame[0] : frame;
 	if (typeof innerObj !== "object" || Array.isArray(innerObj)) {
 		// Empty change frame
@@ -271,7 +246,7 @@ export function isConstraintFrame(frame: ChangeFrame | ConstraintFrame): frame i
 	return innerObj.type === "ConstrainedRange" || innerObj.type === "ConstrainedTraitSet";
 }
 
-export function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is ChangeFrame {
+export function isChangeFrame(frame: R.ChangeFrame | R.ConstraintFrame): frame is R.ChangeFrame {
 	if (isConstraintFrame(frame)) {
 		return false;
 	}
@@ -300,4 +275,41 @@ export function isChangeFrame(frame: ChangeFrame | ConstraintFrame): frame is Ch
 		|| innerType === "DeleteStart"
 		|| innerType === "SetValue"
 	;
+}
+
+export namespace ChangeNav {
+	export function fromChange(change: R.ChangeFrame): RootNav {
+		return new RootNav(change);
+	}
+
+	export class RootNav {
+		private readonly change: R.ChangeFrame;
+
+		public constructor(change: R.ChangeFrame) {
+			this.change = change;
+		}
+
+		public get isRemoved(): boolean {
+			if (isModify(this.change)) {
+				return false;
+			}
+
+		}
+		public trait(label: string): TraitNav {
+
+			return new TraitNav();
+		}
+	}
+
+	export class TraitNav {
+		private readonly marks: R.TraitMarks;
+
+		public constructor(marks: R.TraitMarks) {
+			this.marks = marks;
+		}
+
+		public flatten(): (Offset | R.ObjMark | R.PriorTypes)[] {
+
+		}
+	}
 }

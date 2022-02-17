@@ -5,392 +5,501 @@
 
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
-/**
- * Edit constructed by clients and broadcast by Alfred.
- */
-export interface Transaction {
-	seq: SeqNumber;
-	ref: SeqNumber;
-	frames: (ConstraintFrame | ChangeFrame)[];
-	// revivals?: Map<NodeId, Revival[]>;
-	// clipboard?: Map<NodeId, ClipboardEntry>;
-}
+// TODOs:
+// Clipboard
+// Rework constraint scheme
+
+export type If<Bool, T1, T2 = never> = Bool extends true ? T1 : T2;
 
 /**
- * Changeset used to rebasing peer edits.
+ * Edit originally constructed by clients.
+ * Note that a client can maintain a local branch of edits that are not committed.
+ * When that's the case those edits will start as Original edits but may become
+ * rebased in response to changes on the main branch.
  */
-export interface ChangeSet {
-	changes: ChangeFrame;
-	// revivals?: Map<NodeId, Revival[]>;
-	// clipboard?: Map<NodeId, ClipboardEntry>;
+export namespace Original {
+	/**
+	 * Edit constructed by clients and broadcast by Alfred.
+	 */
+	export interface Transaction {
+		ref: SeqNumber;
+		frames: TransactionFrame[];
+	}
+
+	export type TransactionFrame = ConstraintFrame | ChangeFrame;
+
+	export type ConstraintFrame = ConstraintSequence;
+
+	export interface ConstrainedTraitSet {
+		type: "ConstrainedTraitSet";
+		traits: { [key: string]: ConstraintSequence };
+	}
+
+	export type ConstraintSequence = (Offset | ConstrainedRange | ConstrainedTraitSet)[];
+
+	export interface ConstrainedRange {
+		type: "ConstrainedRange";
+		length?: number;
+		/**
+		 * Could this just be `true` since we know the starting parent?
+		 * Only if we know the constraint was satisfied originally.
+		 */
+		targetParent?: NodeId;
+		targetLabel?: TraitLabel; // Same
+		targetLength?: number; // Same
+		/**
+		 * Number of tree layers for which no structural changes can be made.
+		 * Defaults to 0: no locking.
+		 */
+		structureLock?: number;
+		/**
+		 * Number of tree layers for which no value changes can be made.
+		 * Defaults to 0: no locking.
+		 */
+		valueLock?: number;
+		nested?: (Offset | ConstrainedTraitSet)[];
+	}
+
+	export interface MoveEntry {
+		src: TreePath;
+		dst: TreePath;
+	}
+
+	export interface HasMoveId {
+		/**
+		 * The ID of the corresponding MoveIn/MoveOut/End/SliceStart.
+		 * Omit if 0.
+		 */
+		moveId?: MoveId;
+	}
+
+	export interface ChangeFrame {
+		moves?: MoveEntry[];
+		marks: Mark[];
+	}
+
+	export interface SetValue {
+		type: "SetValue";
+		value: Value | [Value, DrillDepth];
+	}
+
+	export interface Modify<TInner = Mark, AllowSetValue extends boolean = true> {
+		/**
+		 * We need this setValue (in addition to the SetValue mark because non-leaf nodes can have values)
+		 */
+		setValue?: If<AllowSetValue, Value | [Value, DrillDepth]>;
+		modify?: { [key: string]: (Offset | TInner)[] };
+	}
+
+	export type TraitMarks = (Offset | Mark)[];
+
+	export type ModsMark =
+		| SetValue
+		| Modify;
+	export type AttachMark =
+		| Insert
+		| MoveIn;
+	export type DetachMark =
+		| MoveOut
+		| Delete;
+	export type SegmentMark =
+		| AttachMark
+		| DetachMark;
+	export type ObjMark =
+		| ModsMark
+		| SegmentMark
+		| SliceBound;
+
+	export type Mark =
+		| ObjMark;
+
+	export interface HasMods {
+		mods?: (Offset | ModsMark)[];
+	}
+
+	export interface Place {
+		/**
+		 * Whether the attach operation was performed relative to the previous sibling or the next.
+		 * If no sibling exists on the indicated side then the insert was relative to the trait extremity.
+		 *
+		 * In a change that is being rebased, we need to know this in order to tell if this insertion should
+		 * go before or after another pre-existing insertion at the same index.
+		 * In a change that is being rebased over, we need to know this in order to tell if a new insertion
+		 * at the same index should go before or after this one.
+		 * Omit if `Sibling.Prev` for terseness.
+		 */
+		side?: Sibling.Next;
+		/**
+		 * Omit if not in peer change.
+		 * Omit if `Tiebreak.LastToFirst` for terseness.
+		 */
+		tiebreak?: Tiebreak.FirstToLast;
+		/**
+		 * Omit if not in peer change.
+		 * Omit if performed with a parent-based place anchor.
+		 * Omit if `Commutativity.Full`.
+		 */
+		commute?: Commutativity;
+		/**
+		 * Omit if no drill-down.
+		 */
+		drill?: DrillDepth;
+	}
+
+	export interface Insert extends Place, HasLength, HasMods {
+		type: "Insert";
+		content: ProtoNode[];
+	}
+
+	export interface MoveIn extends Place, HasLength, HasMods, HasMoveId {
+		type: "MoveIn";
+	}
+
+	/**
+	 * Used for set-like ranges and atomic ranges.
+	 */
+	export interface Delete extends HasLength {
+		type: "Delete";
+		/**
+		 * Applying a Delete over existing Modify marks has the follow effects on them and their descendants:
+		 * (These effects are also applied to Modify marks over which a slice-deletion is performed)
+		 * - setValue: removed
+		 * - SetValue: replaced by an offset of 1
+		 * - Insert: removed
+		 * - MoveIn from MoveOut: MoveIn is removed, the corresponding MoveOut becomes a Delete
+		 * - MoveIn from MoveOutStart: MoveIn is removed, the corresponding MoveOutStart becomes a StartDelete
+		 * - Delete: replaced by an offset
+		 * - MoveOut: preserved as is
+		 * - MoveOutStart+End: preserved as is
+		 */
+		mods?: (Offset | Modify<MoveOut | MoveOutStart | SliceEnd, false>)[];
+	}
+
+	/**
+	 * Used for set-like ranges and atomic ranges.
+	 */
+	export interface MoveOut extends HasLength, HasMoveId {
+		type: "MoveOut";
+		/**
+		 * Applying a MoveOut over existing Modify marks has the follow effects on them and their descendants:
+		 * (These effects are also applied to Modify marks over which a slice-move-out is performed)
+		 * - setValue: transplanted to the target location of the move.
+		 * - SetValue: replaced by an offset of 1 and transplanted to the target location of the move.
+		 * - Insert: transplanted to the target location of the move.
+		 * - MoveIn from MoveOut: transplanted to the target location of the move. The corresponding MoveOut
+		 *   is updated.
+		 * - MoveIn from MoveOutStart: transplanted to transplanted to the target location of the move. The
+		 *   corresponding MoveOutStart is updated.
+		 * - Delete: replaced by an offset
+		 * - MoveOut: preserved as is
+		 * - MoveOutStart+End: preserved as is
+		 */
+		mods?: (Offset | Modify<MoveOut | MoveOutStart | SliceEnd, false>)[];
+	}
+
+	/**
+	 * We need a pair of bounds to help capture what each bound was relative to: each bound needs to be able to enter a
+	 * race independently of the other.
+	 *
+	 * In original edits, the content within the bounds...
+	 *  - cannot grow
+	 *  - does not include all of the segments that existed there prior to the slice operation (see below).
+	 *
+	 * While multiple slices can coexist over a given region of a trait, a new slice can only relate to an old
+	 * (i.e., pre-existing one) with one of the following Allen's interval relationships:
+	 * - old > new
+	 * - old < new
+	 * - old m new
+	 * - old mi new
+	 * - old s new
+	 * - old d new
+	 * - old f new
+	 * - old = new
+	 *
+	 * In the case of a slice-deletion, preexisting segment over which the slice is place are affected as follows:
+	 * - SetValue:
+	 *   Replaced by an offset of 1.
+	 * - Insert:
+	 *   The insertion is removed. Any MoveIn segments under the insertion have their MoveOut replaced by a Delete or
+	 *   their MoveOutStart replaced by a DeleteStart.
+	 * - MoveIn from a MoveOut:
+	 *   The MoveIn is deleted. The MoveOut is replaced by a Deleted.
+	 * - MoveIn from a MoveOutStart:
+	 *   The MoveIn is preserved to act as landing strip for any attach operations that commute with the move but not
+	 *   the deletion. The mods of the MoveIn are purged from any operations except MoveOut segments.
+	 * - Delete:
+	 *   Replaced by an offset.
+	 * - DeleteStart:
+	 *   The DeleteStart and its matching End are removed.
+	 * - MoveOut & StartMoveOut+End:
+	 *   Those are preserved as is.
+	 * - Modify:
+	 *   The `setValue` field is cleared.
+	 *   The nested segments in the Modify's traits are purged as described in the Delete segment documentation.
+	 *   If this results in a Modify mark that had no effect then the mark can be replaced by an offset of 1.
+	 * In addition to the above, any segment that keeps track of mods to its nodes also has its mods purged as
+	 * described for the Modify mark above.
+	 *
+	 * In the case of a slice-move, preexisting segment over which the slice is place are affected as follows:
+	 * - SetValue:
+	 *   Replaced by an offset of 1.
+	 * - Insert:
+	 *   The Insert is moved to the target location of the move.
+	 * - MoveIn from a MoveOut:
+	 *   The MoveIn is moved to the target location of the move and its MoveOut is updated.
+	 * - MoveIn from a MoveOutStart:
+	 *   The MoveIn is moved to the target location of the move and its MoveOutStart is updated.
+	 * - Delete & DeleteStart+End:
+	 *   Those are preserved as is.
+	 * - MoveOut & StartMoveOut+End:
+	 *   Those are preserved as is.
+	 * - Modify:
+	 *   The `setValue` field is transplanted to a new Modify a the target location.
+	 *   The nested segments in the Modify's traits are purged as described in the MoveOut segment documentation.
+	 *   If this results in a Modify mark that had no effect then the mark can be replaced by an offset of 1.
+	 * In addition to the above, any segment that keeps track of mods to its nodes also has its mods purged as
+	 * described for the Modify mark above.
+	 */
+	export interface SliceStart extends HasMoveId {
+		/**
+		 * Omit if `Sibling.Prev` for terseness.
+		 */
+		side?: Sibling.Next;
+		/**
+		 * Omit if not in peer change.
+		 * Omit if `Tiebreak.LastToFirst` for terseness.
+		 */
+		tiebreak?: Tiebreak.FirstToLast;
+		/**
+		 * Omit if no drill-down.
+		 */
+		drill?: DrillDepth;
+	}
+
+	export interface MoveOutStart extends SliceStart {
+		type: "MoveOutStart";
+	}
+
+	export interface DeleteStart extends SliceStart {
+		type: "DeleteStart";
+	}
+
+	export interface SliceEnd extends HasMoveId {
+		type: "End";
+		/**
+		 * Omit if `Sibling.Prev` for terseness.
+		 */
+		side?: Sibling.Next;
+		/**
+		 * Omit if not in peer change.
+		 * Omit if `Tiebreak.LastToFirst` for terseness.
+		 */
+		tiebreak?: Tiebreak.FirstToLast;
+	}
+
+	export type SliceBound = MoveOutStart | DeleteStart | SliceEnd;
+
+	/**
+	 * The contents of a node to be created
+	 */
+	export interface ProtoNode {
+		id: string;
+		type?: string;
+		value?: Value;
+		traits?: ProtoTraits;
+	}
+
+	/**
+	 * The traits of a node to be created
+	 */
+	export interface ProtoTraits {
+		[key: string]: ProtoTrait;
+	}
+
+	/**
+	 * A trait within a node to be created.
+	 * May include MoveIn segments if content that was not inserted as part of this change gets moved into
+	 * the inserted subtree. That MoveIn segment may itself contain other kinds of segments.
+	 *
+	 * Other kinds of segments are unnecessary at this layer:
+	 * - Modify & SetValue:
+	 *   - for a ProtoNode the new value overwrites the original
+	 *   - for a moved-in node the new value is represented by a nested Modify or SetValue mark
+	 * - Insert:
+	 *   - inserted ProtoNodes are added to the relevant ProtoTrait
+	 * - MoveIn:
+	 *   - the MoveIn segment is added to the relevant ProtoTrait and the corresponding MoveOut is updated
+	 * - Delete & DeleteStart+End:
+	 *   - deleted ProtoNodes are removed from the relevant ProtoTrait
+	 *   - deleted moved-in nodes are deleted at their original location and the MoveIn segment is removed/truncated
+	 * - MoveOut & MoveOutStart+End
+	 *   - Moved out ProtoNodes are removed from the relevant ProtoTrait and a corresponding insert is created
+	 *   - Moved out moved-in nodes redirected to avoid the intermediate step (the MoveIn segment is removed/truncated)
+	 */
+	export type ProtoTrait = (ProtoNode | MoveIn)[];
 }
 
-export type Priors = PriorAttach | PriorDetach | PriorTemp;
+/**
+ * Edit that has been rebased and therefore includes scaffolding information
+ * for the edits over which it was rebased.
+ */
+export namespace Rebased {
+	// Use "interface" instead "type" to avoid TSC error
+	export interface Modify<TInner = Mark, AllowSetValue extends boolean = true> extends
+		Original.Modify<TInner, AllowSetValue> {}
+	export type SliceStart = Original.SliceStart;
+	export type MoveOutStart = Original.MoveOutStart;
+	export type DeleteStart = Original.DeleteStart;
+	export type SliceEnd = Original.SliceEnd;
+	export type SetValue = Original.SetValue;
+	export type MoveEntry = Original.MoveEntry;
+	export type ProtoNode = Original.ProtoNode;
+	export type HasMoveId = Original.HasMoveId;
 
-export type RebasedChangeFrame = ChangeFrame<LocalTypes<Priors>>;
+	export interface Transaction {
+		ref: SeqNumber;
+		frames: TransactionFrame[];
+	}
 
-export interface RebasedTransaction {
-	seq: SeqNumber;
-	ref: SeqNumber;
-	frames: RebasedChangeFrame;
-	// revivals?: Map<NodeId, Revival[]>;
-	// clipboard?: Map<NodeId, ClipboardEntry>;
+	export interface HasSeqNumber {
+		/**
+		 * Included in a mark to indicate the transaction it was part of.
+		 * This number is assigned by the Fluid service.
+		 */
+		seq: SeqNumber;
+	}
+
+	export interface HasPriorMoveId {
+		moveId: MoveId;
+	}
+
+	export interface PriorInsert extends HasSeqNumber, HasLength {
+		type: "PriorInsert";
+	}
+
+	export interface PriorMoveIn extends HasSeqNumber {
+		type: "PriorMoveIn";
+		contents: TraitMarks;
+	}
+
+	export interface PriorDetach extends HasSeqNumber, HasLength {
+		type: "Detach";
+	}
+
+	export interface PriorTemp extends HasSeqNumber, HasLength {
+		type: "Temp";
+		/**
+		 * The SeqNumber of the operation that detached the segment.
+		 * Omit if the same as `seq`.
+		 */
+		detachSeq?: SeqNumber;
+	}
+
+	export type PriorAttach = PriorInsert | PriorMoveIn;
+	export type Prior = PriorAttach | PriorDetach | PriorTemp;
+
+	export type TransactionFrame = ConstraintFrame | ChangeFrame;
+
+	export type ConstraintFrame = ConstraintSequence;
+
+	export interface ConstrainedTraitSet {
+		type: "ConstrainedTraitSet";
+		traits: { [key: string]: ConstraintSequence };
+	}
+
+	export type ConstraintSequence = (Offset | Prior | ConstrainedRange | ConstrainedTraitSet)[];
+
+	export interface ConstrainedRange {
+		type: "ConstrainedRange";
+		length?: number;
+		/**
+		 * Could this just be `true` since we know the starting parent?
+		 * Only if we know the constraint was satisfied originally.
+		 */
+		targetParent?: NodeId;
+		targetLabel?: TraitLabel; // Same
+		targetLength?: number; // Same
+		/**
+		 * Number of tree layers for which no structural changes can be made.
+		 * Defaults to 0: no locking.
+		 */
+		structureLock?: number;
+		/**
+		 * Number of tree layers for which no value changes can be made.
+		 * Defaults to 0: no locking.
+		 */
+		valueLock?: number;
+		nested?: (Offset | Prior | ConstrainedTraitSet)[];
+	}
+
+	export interface ChangeFrame {
+		moves?: MoveEntry[];
+		marks: Mark[];
+	}
+
+	export type TraitMarks = (Offset | Mark)[];
+
+	export type ModsMark =
+		| SetValue
+		| Modify;
+	export type AttachMark =
+		| Insert
+		| MoveIn;
+	export type DetachMark =
+		| MoveOut
+		| Delete;
+	export type SegmentMark =
+		| AttachMark
+		| DetachMark;
+	export type SliceBound =
+		| MoveOutStart
+		| DeleteStart
+		| SliceEnd;
+	export type ObjMark =
+		| ModsMark
+		| SegmentMark
+		| SliceBound
+		| Prior;
+
+	export type Mark =
+		| ObjMark;
+
+	export interface HasMods {
+		mods?: (Offset | ModsMark)[];
+	}
+
+	export interface Insert extends Original.Place, HasLength, HasMods {
+		type: "Insert";
+		content: ProtoNode[];
+	}
+
+	export interface MoveIn extends Original.Place, HasMods, HasMoveId {
+		type: "MoveIn";
+		contents: (Offset | Prior)[];
+	}
+
+	/**
+	 * Used for set-like ranges and atomic ranges.
+	 */
+	export interface Delete extends HasLength {
+		type: "Delete";
+		mods?: (Offset | Modify<Prior | MoveOut | MoveOutStart | SliceEnd, false>)[];
+	}
+
+	/**
+	 * Used for set-like ranges and atomic ranges.
+	 */
+	export interface MoveOut extends HasLength, HasMoveId {
+		type: "MoveOut";
+		mods?: (Offset | Modify<Prior | MoveOut | MoveOutStart | SliceEnd, false>)[];
+	}
 }
 
-export type ConstraintFrame =
- | ConstrainedRange
- | ConstrainedTraitSet
- | [ConstrainedRange, ConstrainedTraitSet]
- | [ConstrainedTraitSet, ConstrainedRange];
-
-export interface ConstrainedTraitSet {
-	type: "ConstrainedTraitSet";
-	traits: { [key: string]: ConstraintSequence };
-}
-
-// Option 1: like segments but constraints are not mutually exclusive
-// Simpler structure, O(1) fixup aside from splicing some constraints in, smaller integers for close-by constraints
-export type ConstraintSequence = (Offset | ConstrainedRange | ConstrainedTraitSet)[];
-// Option 2: indexed list
-// More nested, O(1) fixup aside from splicing some entries in
-// Maybe better if trying to look at a constraint for a specific region of the trait (can binary search the ordered
-// list and overlap test)
-// Closer to PSet format
-export type ConstraintSequence2 = [Index, ConstrainedRange | ConstrainedTraitSet][];
-
-export interface ConstrainedRange {
-	type: "ConstrainedRange";
+export interface HasLength {
+	/**
+	 * Omit if 1.
+	 */
 	length?: number;
-	/**
-	 * Could this just be `true` since we know the starting parent?
-	 * Only if we know the constraint was satisfied originally.
-	 */
-	targetParent?: NodeId;
-	targetLabel?: TraitLabel; // Same
-	targetLength?: number; // Same
-	/**
-	 * Number of tree layers for which no structural changes can be made.
-	 * Defaults to 0: no locking.
-	 */
-	structureLock?: number;
-	/**
-	 * Number of tree layers for which no value changes can be made.
-	 * Defaults to 0: no locking.
-	 */
-	valueLock?: number;
-}
-
-export interface LocalTypes<TPriors = never> {
-	Priors: TPriors;
-	Modify: Modify<LocalTypes<TPriors>>;
-	SetValue: SetValue;
-	SetValueMark: SetValueMark;
-	Insert: Insert;
-	Delete: Delete;
-	MoveIn: MoveIn;
-	MoveOut: MoveOut;
-	ProtoNode: ProtoNode;
-	MoveOutStart: MoveOutStart;
-	DeleteStart: DeleteStart;
-	SliceEnd: SliceEnd;
-}
-
-export type PeerSetValue = SetValue & HasSeqValue;
-export type PeerSetValueMark = SetValueMark & HasSeqValue;
-export type PeerModify<TPriors> = Modify<PeerTypes<TPriors>>;
-export type PeerInsert = Insert<PeerTypes> & HasSeqValue;
-export type PeerDelete = Delete<PeerTypes> & HasSeqValue;
-export type PeerMoveIn = MoveIn<PeerTypes> & HasSeqValue;
-export type PeerMoveOut = MoveOut<PeerTypes> & HasSeqValue;
-export type PeerProtoNode = ProtoNode<PeerTypes>;
-
-export interface PeerTypes<TPriors = never> {
-	Priors: TPriors;
-	Modify: PeerModify<TPriors>;
-	SetValue: PeerSetValue;
-	SetValueMark: PeerSetValueMark;
-	Insert: PeerInsert;
-	Delete: PeerDelete;
-	MoveIn: PeerMoveIn;
-	MoveOut: PeerMoveOut;
-	ProtoNode: PeerProtoNode;
-	MoveOutStart: PeerMoveOutStart;
-	DeleteStart: PeerDeleteStart;
-	SliceEnd: PeerSliceEnd;
-}
-export type TypeSet<TPriors = unknown> = LocalTypes<TPriors> | PeerTypes<TPriors>;
-
-export type ModifyType<T extends TypeSet> = T["Modify"];
-export type SetValueType<T extends TypeSet> = T["SetValue"];
-export type SetValueMarkType<T extends TypeSet> = T["SetValueMark"];
-export type InsertType<T extends TypeSet> = T["Insert"];
-export type DeleteType<T extends TypeSet> = T["Delete"];
-export type MoveInType<T extends TypeSet> = T["MoveIn"];
-export type MoveOutType<T extends TypeSet> = T["MoveOut"];
-export type ProtoNodeType<T extends TypeSet> = T["ProtoNode"];
-export type MoveOutStartType<T extends TypeSet> = T["MoveOutStart"];
-export type DeleteStartType<T extends TypeSet> = T["DeleteStart"];
-export type SliceEndType<T extends TypeSet> = T["SliceEnd"];
-export type SliceStartType<T extends TypeSet> = MoveOutStartType<T> | DeleteStartType<T>;
-export type SliceBoundType<T extends TypeSet> = SliceStartType<T> | SliceEndType<T>;
-export type PriorTypes<T extends TypeSet> = T["Priors"];
-
-export type ChangeFrame<T extends TypeSet = LocalTypes> = ModifyType<T> | TraitMarks<T>;
-export type PeerChangeFrame = ChangeFrame<PeerTypes>;
-
-// export interface Modify<T extends TypeSet = LocalTypes> {
-// 	type: "Modify";
-// 	[setValue]?: SetValueType<T>;
-// 	[key: string]: TraitMarks<T> | ModifyType<T>;
-// }
-
-export interface Modify<T extends TypeSet = LocalTypes> {
-	type?: never;
-	setValue?: SetValueType<T>;
-	modify?: { [key: string]: TraitMarks<T> | ModifyType<T> };
-}
-
-export interface SetValue {
-	value: Value | [Value, DrillDepth];
-}
-
-export interface SetValueMark extends SetValue {
-	type: "SetValue";
-}
-
-/**
- * Using offsets instead of indices to reduce the amount of updating needed.
- */
-export type TraitMarks<T extends TypeSet = LocalTypes> = (Offset | Mark<T>)[];
-export type PeerTraitMarks = TraitMarks<PeerTypes>;
-export type Race<T extends TypeSet = LocalTypes> = TraitMarks<T>[];
-export type PeerRace = Race<PeerTypes>;
-export type ModsMark<T extends TypeSet = LocalTypes> =
-	| SetValueMarkType<T>
-	| ModifyType<T>;
-export type AttachMark<T extends TypeSet = LocalTypes> =
-	| InsertType<T>
-	| MoveInType<T>;
-export type DetachMark<T extends TypeSet = LocalTypes> =
-	| MoveOutType<T>
-	| DeleteType<T>;
-export type SegmentMark<T extends TypeSet = LocalTypes> =
-	| AttachMark<T>
-	| DetachMark<T>;
-export type ObjMark<T extends TypeSet = LocalTypes> =
-	| ModsMark<T>
-	| SegmentMark<T>
-	| SliceBoundType<T>;
-export type PeerObjMark = ObjMark<PeerTypes>;
-export type Mark<T extends TypeSet = LocalTypes> = ObjMark<T> | Race<T> | PriorTypes<T>;
-export type PeerMark = Mark<PeerTypes>;
-
-export type Mods<T extends TypeSet = LocalTypes> =
-	| ModifyType<T>
-	| SetValueMarkType<T>
-	| (Offset | ModifyType<T> | SetValueMarkType<T>)[];
-
-export interface HasMods<T extends TypeSet = LocalTypes> {
-	/**
-	 * Always interpreted after `MoveIn.seq` and before `MoveOut.seq`.
-	 * The offset approach keeps numbers smaller and lets us split and join segments without updating the numbers.
-	 * Option 1:
-	 */
-	mods?: Mods<T>;
-	/**
-	 * Option 2:
-	 * The index approach lets us binary search faster within a long segment.
-	 */
-	mods2?: [Index, ModifyType<T> | SetValueMarkType<T>][];
-	/**
-	 * Option 3:
-	 * The index approach lets us lookup faster within a long segment.
-	 */
-	mods3?: { [key: number]: ModifyType<T> | SetValueMarkType<T> };
-}
-
-export interface Segment<T extends TypeSet = LocalTypes> extends HasMods<T> {
-	/**
-	 * 1 when omitted.
-	 */
-	length?: number;
-	/**
-	 * An ID that uniquely identifies the operation within the transaction/seq#.
-	 * Omit if 0.
-	 */
-	id?: ChangeId;
-}
-
-export interface Attach<T extends TypeSet = LocalTypes> extends Segment<T> {
-	/**
-	 * Omit if `Sibling.Prev` for terseness.
-	 */
-	side?: Sibling.Next;
-	/**
-	 * Omit if not in peer change.
-	 * Omit if `Tiebreak.LastToFirst` for terseness.
-	 */
-	tiebreak?: Tiebreak.FirstToLast;
-	/**
-	 * Omit if not in peer change.
-	 * Omit if performed with a parent-based place anchor.
-	 * Omit if SimpleMovementRules.NeverMove.
-	 */
-	moveRules?: MovementRules;
-	/**
-	 * Omit if no drill-down.
-	 */
-	drill?: DrillDepth;
-	/**
-	 * Omit if the attached range is not subsequently detached.
-	 */
-	detach?: PostAttachDetach<T>;
-}
-
-export type PostAttachDetach<T extends TypeSet = LocalTypes> = (DeleteType<T> | MoveOutType<T>) & {
-	length?: undefined;
-	mods?: undefined;
-	mods2?: undefined;
-	mods3?: undefined;
-};
-
-export interface Insert<T extends TypeSet = LocalTypes> extends Attach<T> {
-	type: "Insert";
-	content: ProtoNodeType<T>[];
-}
-
-export interface MoveIn<T extends TypeSet = LocalTypes> extends Attach<T> {
-	type: "MoveIn";
-	/**
-	 * The original location of the first moved node as per the edits known to the clients at the time.
-	 * Note that there could be multiple MoveOut segments there. Use `srcId` to differentiate.
-	 */
-	srcPath: TreePath;
-	/**
-	 * In case the source is less segmented than the MoveIn, start at this offset in the source.
-	 * This avoids having the split the source segment whenever we split the MoveIn segment.
-	 */
-	srcOffset?: number;
-}
-
-/**
- * Used for Delete and MoveOut of set-like ranges and atomic ranges.
- */
-export interface Detach<T extends TypeSet = LocalTypes> extends Segment<T> {}
-
-/**
- * Used for set-like ranges and atomic ranges.
- */
-export interface Delete<T extends TypeSet = LocalTypes> extends Detach<T> {
-	type: "Delete";
-}
-
-/**
- * Used for set-like ranges and atomic ranges.
- */
-export interface MoveOut<T extends TypeSet = LocalTypes> extends Detach<T>, HasDst {
-	type: "MoveOut";
-}
-
-export interface HasDst {
-	/**
-	 * The target location of the first moved node as per the edits known to the clients at the time.
-	 * Note that there could be multiple MoveIn segments there. Use `dstId` to differentiate.
-	 */
-	dstPath: TreePath;
-	/**
-	 * In case the destination is less segmented than the MoveOut, start at this offset in the destination.
-	 * This avoids having the split the destination segment whenever we split the MoveOut segment.
-	 */
-	dstOffset?: number;
-}
-
-/**
- * We need a pair of bounds to help capture what each bound was relative to: each bound needs to be able to enter a
- * race independently of the other.
- *
- * In peer edits, the content within the bounds...
- *  - includes all operations made prior to the detach of this slice
- *  - cannot grow
- *
- * In the collab window, the content within the bound...
- *  - includes all operations made prior to the detach of this slice
- *  - includes attaches (and potential subsequent detaches) made by transactions that were concurrent to the slice.
- *  - can grow
- */
-export interface SliceStart {
-	/**
-	 * An ID that uniquely identifies the detach operation within the transaction/seq#.
-	 * The matching SliceEnd (and MoveIn segment in the case of a move) will bear the same ID.
-	 * Omit if 0.
-	 */
-	id?: ChangeId;
-	/**
-	 * Omit if `Sibling.Prev` for terseness.
-	 */
-	side?: Sibling.Next;
-	/**
-	 * Omit if not in peer change.
-	 * Omit if `Tiebreak.LastToFirst` for terseness.
-	 */
-	tiebreak?: Tiebreak.FirstToLast;
-	/**
-	 * Omit if no drill-down.
-	 */
-	drill?: DrillDepth;
-}
-
-export interface MoveOutStart extends SliceStart, HasDst {
-	type: "MoveOutStart";
-}
-export interface DeleteStart extends SliceStart {
-	type: "DeleteStart";
-}
-
-export interface SliceEnd {
-	type: "End";
-	/**
-	 * An ID that uniquely identifies the detach operation within the transaction/seq#.
-	 * The matching SliceStart (and MoveIn segment in the case of a move) will bear the same ID.
-	 * Omit if 0.
-	 */
-	id?: ChangeId;
-	/**
-	 * Omit if `Sibling.Prev` for terseness.
-	 */
-	side?: Sibling.Next;
-}
-
-export interface PriorAttach extends HasSeqValue {
-	type: "Attach";
-	length?: number;
-}
-
-export interface PriorTemp extends HasSeqValue {
-	type: "Temp";
-	length?: number;
-	/**
-	 * The SeqNumber of the operation that detached the segment.
-	 * Omit if the same as `seq`.
-	 */
-	detachSeq?: SeqNumber;
-}
-
-export interface PriorDetach extends HasSeqValue {
-	type: "Detach";
-	length?: number;
-}
-
-export type SliceBound = MoveOutStart | DeleteStart | SliceEnd;
-
-export type PeerSliceStart = SliceStart & HasSeqValue;
-export type PeerMoveOutStart = MoveOutStart & HasSeqValue;
-export type PeerDeleteStart = DeleteStart & HasSeqValue;
-export type PeerSliceEnd = SliceEnd & HasSeqValue;
-export type PeerSliceBound = PeerMoveOutStart | PeerDeleteStart | PeerSliceEnd;
-
-export interface HasSeqValue {
-	seq: SeqNumber;
 }
 
 /**
@@ -420,40 +529,12 @@ export enum Sibling {
 	Next,
 }
 
-/**
- * The contents of a node to be created
- */
- export interface ProtoNode<T extends TypeSet = LocalTypes> {
-	id: string;
-	type?: string;
-	value?: Value;
-	traits?: ProtoTraits<T>;
-}
-
-/**
- * The traits of a node to be created
- */
-export interface ProtoTraits<T extends TypeSet = LocalTypes> {
-	[key: string]: ProtoTrait<T>;
-}
-
-/**
- * A trait within a node to be created.
- * May include change segments if the trait was edited after creation.
- *
- * Modify segments are now allowed here. Instead, modifications are reflected as follows:
- * - values are updated in place
- * - deleted nodes are replaced by a Delete segment in the relevant ProtoTrait
- * - other modifications (Insert, MoveIn, MoveOut) are represented by adding a segment in the relevant ProtoTrait.
- */
-export type ProtoTrait<T extends TypeSet = LocalTypes> = (ProtoNodeType<T> | Mark<T>)[];
-
 export type Offset = number;
 export type Index = number;
 export type SeqNumber = number;
-export type ChangeId = number;
 export type Value = number | string | boolean;
 export type NodeId = string;
+export type MoveId = number;
 export type TraitLabel = string;
 export enum Tiebreak { LastToFirst, FirstToLast }
-export enum MovementRules { NeverMove, CommutativeMoveInTrait, CommutativeMove }
+export enum Commutativity { Full, MoveOnly, DeleteOnly, None }
