@@ -46,7 +46,7 @@ export function visitFrame(
 	if (isChangeFrame(frame)) {
 		const skip = visitor.onChange?.(frame);
 		if (skip !== false) {
-			visitMarks(frame, visitor);
+			visitChangeFrame(frame, visitor);
 		}
 	} else if (isConstraintFrame(frame)) {
 		visitor.onConstraint?.(frame);
@@ -55,39 +55,36 @@ export function visitFrame(
 	}
 }
 
-export function visitMarks(marks: R.ChangeFrame, visitor: RebasedFrameVisitor): void {
-	if (Array.isArray(marks)) {
-		for (const mark of marks) {
-			visitMark(mark, visitor);
-		}
-	} else {
-		visitMark(marks, visitor);
+export function visitChangeFrame(changeFrame: R.ChangeFrame, visitor: RebasedFrameVisitor): void {
+	visitMarks(changeFrame.marks, visitor);
+}
+
+export function visitMarks(marks: (Offset | R.ObjMark)[], visitor: RebasedFrameVisitor): void {
+	for (const mark of marks) {
+		visitMark(mark, visitor);
 	}
 }
 
 export function visitMods(
-	marks: R.Modify | R.SetValue | (Offset | R.Modify | R.SetValue)[],
+	marks: (Offset | R.ModsMark)[],
 	visitor: RebasedFrameVisitor,
 ): void {
-	if (Array.isArray(marks)) {
-		for (const mark of marks) {
-			visitMark(mark, visitor);
-		}
-	} else {
-		visitMark(marks, visitor);
+	for (const mark of marks) {
+		visitMark(mark, visitor);
 	}
 }
 
-export function visitMark(mark: Offset | R.Mark, visitor: RebasedFrameVisitor): void {
+export function visitMark(
+	mark: Offset | R.Mark,
+	visitor: RebasedFrameVisitor,
+): void {
 	if (typeof mark === "number") {
 		visitor.onOffset?.(mark);
 	} else if (typeof mark === "object") {
 		const skipMark = visitor.onMark?.(mark);
 		if (skipMark !== false) {
 			if (Array.isArray(mark)) {
-				for (const lane of mark) {
-					visitMarks(lane, visitor);
-				}
+				// TODO: racing
 			} else {
 				const skipObjMark = visitor.onObjMark?.(mark);
 				if (skipObjMark !== false) {
@@ -96,24 +93,17 @@ export function visitMark(mark: Offset | R.Mark, visitor: RebasedFrameVisitor): 
 						if (skipMod !== false) {
 							const skipModify = visitor.onModify?.(mark);
 							if (skipModify !== false) {
-								if (mark.setValue !== undefined) {
-									visitor.onSetValue?.(mark.setValue);
-								}
 								if (mark.modify !== undefined) {
 									for (const modifyOrMarks of Object.values(mark.modify)) {
-										if (Array.isArray(modifyOrMarks)) {
-											visitMarks(modifyOrMarks, visitor);
-										} else {
-											visitMark(modifyOrMarks, visitor);
-										}
+										visitMarks(modifyOrMarks, visitor);
 									}
 								}
 							}
 						}
-					} else if (isSetValueMark(mark)) {
+					} else if (isSetValue(mark)) {
 						const skipMod = visitor.onMod?.(mark);
 						if (skipMod !== false) {
-							visitor.onSetValueMark?.(mark);
+							visitor.onSetValue?.(mark);
 						}
 					} else if (isBound(mark)) {
 						const skipBound = visitor.onBound?.(mark);
@@ -159,8 +149,8 @@ export function visitMark(mark: Offset | R.Mark, visitor: RebasedFrameVisitor): 
 										}
 									} else {
 										const skipMoveIn = visitor.onMoveIn?.(mark);
-										if (skipMoveIn !== false && mark.mods !== undefined) {
-											visitMods(mark.mods, visitor);
+										if (skipMoveIn !== false) {
+											visitMarks(mark.contents, visitor);
 										}
 									}
 								}
@@ -173,12 +163,13 @@ export function visitMark(mark: Offset | R.Mark, visitor: RebasedFrameVisitor): 
 	}
 }
 
-export function isSetValueMark(mark: R.ObjMark): mark is R.SetValue {
+export function isSetValue(mark: R.ObjMark): mark is R.SetValue {
 	return mark.type === "SetValue";
 }
 export function isModify(mark: R.Mark): mark is R.Modify {
 	const partial = mark as Partial<R.Modify>;
-	return partial.modify !== undefined || partial.setValue !== undefined;
+	return (partial.type === "Modify" || partial.type === undefined)
+		&& (partial.modify !== undefined || partial.setValue !== undefined);
 }
 // export function isInsert(mark: R.Mark): mark is R.Insert { return mark.type === "Insert"; }
 // export function isDelete(mark: R.Mark): mark is R.Delete { return mark.type === "Delete"; }
@@ -238,78 +229,46 @@ export function isDetachSegment(mark: R.ObjMark | Offset):
 }
 
 export function isConstraintFrame(frame: R.ChangeFrame | R.ConstraintFrame): frame is R.ConstraintFrame {
-	const innerObj = Array.isArray(frame) ? frame[0] : frame;
-	if (typeof innerObj !== "object" || Array.isArray(innerObj)) {
-		// Empty change frame
-		return false;
-	}
-	return innerObj.type === "ConstrainedRange" || innerObj.type === "ConstrainedTraitSet";
+	return Array.isArray(frame);
 }
 
 export function isChangeFrame(frame: R.ChangeFrame | R.ConstraintFrame): frame is R.ChangeFrame {
-	if (isConstraintFrame(frame)) {
-		return false;
-	}
-	const innerObj = Array.isArray(frame) ? frame[0] : frame;
-	if (innerObj === undefined) {
-		// Empty change frame
-		return true;
-	}
-	if (typeof innerObj === "number") {
-		// The innerObj is an Offset mark
-		return true;
-	}
-	if (Array.isArray(innerObj)) {
-		// The innerObj is a race mark
-		return true;
-	}
-	if (isModify(innerObj)) {
-		return true;
-	}
-	const innerType = innerObj.type;
-	return innerType === "Insert"
-		|| innerType === "Delete"
-		|| innerType === "MoveIn"
-		|| innerType === "MoveOut"
-		|| innerType === "MoveOutStart"
-		|| innerType === "DeleteStart"
-		|| innerType === "SetValue"
-	;
+	return !isConstraintFrame(frame);
 }
 
-export namespace ChangeNav {
-	export function fromChange(change: R.ChangeFrame): RootNav {
-		return new RootNav(change);
-	}
+// export namespace ChangeNav {
+// 	export function fromChange(change: R.ChangeFrame): RootNav {
+// 		return new RootNav(change);
+// 	}
 
-	export class RootNav {
-		private readonly change: R.ChangeFrame;
+// 	export class RootNav {
+// 		private readonly change: R.ChangeFrame;
 
-		public constructor(change: R.ChangeFrame) {
-			this.change = change;
-		}
+// 		public constructor(change: R.ChangeFrame) {
+// 			this.change = change;
+// 		}
 
-		public get isRemoved(): boolean {
-			if (isModify(this.change)) {
-				return false;
-			}
+// 		public get isRemoved(): boolean {
+// 			if (isModify(this.change)) {
+// 				return false;
+// 			}
 
-		}
-		public trait(label: string): TraitNav {
+// 		}
+// 		public trait(label: string): TraitNav {
 
-			return new TraitNav();
-		}
-	}
+// 			return new TraitNav();
+// 		}
+// 	}
 
-	export class TraitNav {
-		private readonly marks: R.TraitMarks;
+// 	export class TraitNav {
+// 		private readonly marks: R.TraitMarks;
 
-		public constructor(marks: R.TraitMarks) {
-			this.marks = marks;
-		}
+// 		public constructor(marks: R.TraitMarks) {
+// 			this.marks = marks;
+// 		}
 
-		public flatten(): (Offset | R.ObjMark | R.PriorTypes)[] {
+// 		public flatten(): (Offset | R.ObjMark | R.PriorTypes)[] {
 
-		}
-	}
-}
+// 		}
+// 	}
+// }

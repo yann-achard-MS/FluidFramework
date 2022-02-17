@@ -84,6 +84,7 @@ export namespace Original {
 	}
 
 	export interface Modify<TInner = Mark, AllowSetValue extends boolean = true> {
+		type?: "Modify";
 		/**
 		 * We need this setValue (in addition to the SetValue mark because non-leaf nodes can have values)
 		 */
@@ -473,9 +474,9 @@ export namespace Rebased {
 		content: ProtoNode[];
 	}
 
-	export interface MoveIn extends Original.Place, HasMods, HasMoveId {
+	export interface MoveIn extends Original.Place, HasMoveId {
 		type: "MoveIn";
-		contents: (Offset | Prior)[];
+		contents: (Offset | Prior | ModsMark)[];
 	}
 
 	/**
