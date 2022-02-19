@@ -3,6 +3,97 @@
  * Licensed under the MIT License.
  */
 
-export function rebase(): void {
+import { assert } from "@fluidframework/common-utils";
+import {
+	SeqNumber,
+	Sequenced as S,
+	Rebased as R,
+	Original as O,
+	Offset,
+} from "./format";
+import { isChangeFrame, isConstraintFrame } from "./utils";
 
+export type RebasableTransaction = O.Transaction | R.Transaction;
+
+export function rebase(original: RebasableTransaction, base: S.Transaction): R.Transaction {
+	return {
+		client: original.client,
+		ref: original.ref,
+		newRef: base.seq,
+		frames: original.frames.map((frame) => rebaseFrame(frame, original, base)),
+	};
+}
+
+function rebaseFrame(
+	frame: R.TransactionFrame,
+	original: RebasableTransaction,
+	base: S.Transaction,
+): R.TransactionFrame {
+	if (isConstraintFrame(frame)) {
+		return rebaseConstraintFrame(frame, original, base);
+	} else if (isChangeFrame(frame)) {
+		return rebaseChangeFrame(frame, original, base);
+	}
+	throw(new Error("Transaction frame is neither a constraint nor a change"));
+}
+
+function rebaseChangeFrame(
+	frameToRebase: R.ChangeFrame,
+	originalTransaction: RebasableTransaction,
+	baseTransaction: S.Transaction,
+): R.ChangeFrame {
+	const baseSeq = baseTransaction.seq;
+	const sameClient = originalTransaction.client === baseTransaction.client;
+	const moves: R.MoveEntry[] = [];
+
+	const frameToFrame = (
+		orig: R.ChangeFrame,
+		base: R.ChangeFrame,
+	): R.ChangeFrame => {
+		return {
+			...(moves.length === 0 ? {} : { moves }),
+			marks: marksToMarks(orig.marks, base.marks),
+		};
+	};
+
+	const marksToMarks = <TMarks extends R.TraitMarks>(
+		orig: TMarks,
+		base: TMarks,
+	): TMarks => {
+		const newMarks: TMarks = [];
+		let iOrig = 0;
+		let iBase = 0;
+		while (iOrig < orig.length || iBase < base.length) {
+			const mOrig = orig[iOrig];
+			const mBase = base[iBase];
+			if (mOrig === undefined) {
+				assert(mBase !== undefined, "The while loop should have terminated");
+				newMarks.push(typeof mBase === "number" ? mBase : scaffoldFrom(mBase, baseSeq));
+			} else if (mBase === undefined) {
+			} else {
+
+			}
+		}
+		return newMarks;
+	};
+
+	let newFrame: R.ChangeFrame = frameToRebase;
+	for (const baseFrame of baseTransaction.frames) {
+		if (isChangeFrame(baseFrame)) {
+			newFrame = frameToFrame(newFrame, baseFrame);
+		}
+	}
+	return newFrame;
+}
+
+function rebaseConstraintFrame(
+	frame: R.TransactionFrame,
+	original: RebasableTransaction,
+	base: S.Transaction,
+): R.ConstraintFrame {
+	throw new Error("Function not implemented.");
+}
+
+function scaffoldFrom(mBase: R.Mark, baseSeq: number): R.Prior {
+	throw new Error("Function not implemented.");
 }

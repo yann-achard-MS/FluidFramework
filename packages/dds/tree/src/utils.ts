@@ -3,8 +3,10 @@
  * Licensed under the MIT License.
  */
 
+import { assert } from "@fluidframework/common-utils";
 import {
 	Offset,
+	Original as O,
 	Rebased as R,
 } from "./format";
 
@@ -150,7 +152,7 @@ export function visitMark(
 									} else {
 										const skipMoveIn = visitor.onMoveIn?.(mark);
 										if (skipMoveIn !== false) {
-											visitMarks(mark.contents, visitor);
+											visitMarks(mark.content, visitor);
 										}
 									}
 								}
@@ -225,15 +227,33 @@ export function isDetachSegment(mark: R.ObjMark | Offset):
 	const markType = mark.type;
 	return markType === "Delete"
 		|| markType === "MoveOut"
+		|| markType === "Detach"
 	;
 }
 
-export function isConstraintFrame(frame: R.ChangeFrame | R.ConstraintFrame): frame is R.ConstraintFrame {
+export function isConstraintFrame(frame: O.TransactionFrame | R.TransactionFrame): frame is R.ConstraintFrame {
 	return Array.isArray(frame);
 }
 
-export function isChangeFrame(frame: R.ChangeFrame | R.ConstraintFrame): frame is R.ChangeFrame {
+export function isChangeFrame(frame: O.TransactionFrame | R.TransactionFrame): frame is R.ChangeFrame {
 	return !isConstraintFrame(frame);
+}
+
+export function markLength(mark: Offset | R.Mark): number {
+	if (isOffset(mark)) {
+		return mark;
+	}
+	if (isModify(mark) || isSetValue(mark)) {
+		return 1;
+	}
+	if (isBound(mark)) {
+		return 0;
+	}
+	if (isAttachSegment(mark)) {
+		return mark.content.length;
+	}
+	assert(isDetachSegment(mark), "Unknown mark type");
+	return mark.length ?? 1;
 }
 
 // export namespace ChangeNav {

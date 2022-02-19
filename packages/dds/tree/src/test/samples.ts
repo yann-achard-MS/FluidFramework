@@ -162,7 +162,7 @@ export namespace ScenarioA1 {
 					{ type: "End" },
 				],
 				bar: [
-					{ type: "MoveIn", contents: [1] },
+					{ type: "MoveIn", content: [1] },
 				],
 			},
 		}],
@@ -190,7 +190,7 @@ export namespace ScenarioA1 {
 				{
 					type: "PriorMoveIn",
 					seq: 2,
-					contents: [
+					content: [
 						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.Full },
 						1, // MoveIn D (from u2)
 					],
@@ -269,7 +269,7 @@ export namespace ScenarioA2 {
 					{ type: "End" },
 				],
 				bar: [
-					{ type: "MoveIn", contents: [1] },
+					{ type: "MoveIn", content: [1] },
 				],
 			},
 		}],
@@ -296,7 +296,7 @@ export namespace ScenarioA2 {
 				{
 					type: "PriorMoveIn",
 					seq: 2,
-					contents: [
+					content: [
 						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 						1, // D
 					],
@@ -363,7 +363,7 @@ export namespace ScenarioC {
 				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
 			],
 			bar: [
-				{ type: "PriorMoveIn", seq: 2, contents: [1] },
+				{ type: "PriorMoveIn", seq: 2, content: [1] },
 			],
 		},
 	};
@@ -437,14 +437,14 @@ export namespace ScenarioD {
 					{
 						type: "PriorMoveIn",
 						seq: 1,
-						contents: [
+						content: [
 							1, // B
 							{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 						],
 					},
 				],
 				baz: [
-					{ type: "MoveIn", contents: [2] }, // A C
+					{ type: "MoveIn", content: [2] }, // A C
 				],
 			},
 		}],
@@ -509,7 +509,7 @@ export namespace ScenarioE {
 				{
 					type: "PriorMoveIn",
 					seq: 1,
-					contents: [
+					content: [
 						1, // B
 						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 					],
@@ -555,12 +555,50 @@ export namespace ScenarioF {
 		},
 	};
 
+	export const e2inv: Original.Modify = {
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Delete", length: 2 },
+			],
+		},
+	};
+
 	export const e2_r_e1: Rebased.Modify = {
 		modify: {
 			foo: [
 				{ type: "PriorInsert", seq: 1 }, // r
 				1, // Skip A
 				{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
+			],
+		},
+	};
+
+	export const e3_r_e2inv: Rebased.Modify = {
+		modify: {
+			foo: [
+				1, // Skip A
+				{ type: "Detach", seq: -2 }, // x
+				{ type: "Insert", content: [{ id: "y" }] },
+				{ type: "Detach", seq: -2 }, // z
+			],
+		},
+	};
+	export const e3_r_e2inv_e1: Rebased.Modify = {
+		modify: {
+			foo: [
+				2, // Skip r, A
+				{ type: "Detach", seq: -2 }, // x
+				{ type: "Insert", content: [{ id: "y" }] },
+				{ type: "Detach", seq: -2 }, // z
+			],
+		},
+	};
+	export const e3_r_e2inv_e1_e2re1: Rebased.Modify = {
+		modify: {
+			foo: [
+				3, // Skip r, A, x
+				{ type: "Insert", content: [{ id: "y" }] },
 			],
 		},
 	};
@@ -650,7 +688,7 @@ export namespace ScenarioG {
 				{
 					type: "PriorMoveIn",
 					seq: 1,
-					contents: [
+					content: [
 						1, // A
 						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 						1, // B
@@ -669,7 +707,7 @@ export namespace ScenarioG {
 				{ type: "Detach", seq: 1 }, // B
 			],
 			bar: [
-				{ type: "PriorMoveIn", seq: 1, contents: [2] },
+				{ type: "PriorMoveIn", seq: 1, content: [2] },
 			],
 		},
 	};
@@ -693,7 +731,7 @@ export namespace ScenarioG {
 				{
 					type: "PriorMoveIn",
 					seq: 1,
-					contents: [
+					content: [
 						1, // A
 						{ type: "PriorInsert", seq: 2 }, // X
 						1, // B
