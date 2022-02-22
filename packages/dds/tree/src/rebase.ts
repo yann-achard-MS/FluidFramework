@@ -5,17 +5,12 @@
 
 import { assert } from "@fluidframework/common-utils";
 import {
-	SeqNumber,
 	Sequenced as S,
 	Rebased as R,
-	Original as O,
-	Offset,
 } from "./format";
 import { isChangeFrame, isConstraintFrame } from "./utils";
 
-export type RebasableTransaction = O.Transaction | R.Transaction;
-
-export function rebase(original: RebasableTransaction, base: S.Transaction): R.Transaction {
+export function rebase(original: R.Transaction, base: S.Transaction): R.Transaction {
 	return {
 		client: original.client,
 		ref: original.ref,
@@ -26,7 +21,7 @@ export function rebase(original: RebasableTransaction, base: S.Transaction): R.T
 
 function rebaseFrame(
 	frame: R.TransactionFrame,
-	original: RebasableTransaction,
+	original: R.Transaction,
 	base: S.Transaction,
 ): R.TransactionFrame {
 	if (isConstraintFrame(frame)) {
@@ -39,11 +34,11 @@ function rebaseFrame(
 
 function rebaseChangeFrame(
 	frameToRebase: R.ChangeFrame,
-	originalTransaction: RebasableTransaction,
+	originalTransaction: R.Transaction,
 	baseTransaction: S.Transaction,
 ): R.ChangeFrame {
 	const baseSeq = baseTransaction.seq;
-	const sameClient = originalTransaction.client === baseTransaction.client;
+	// const sameClient = originalTransaction.client === baseTransaction.client;
 	const moves: R.MoveEntry[] = [];
 
 	const frameToFrame = (
@@ -56,11 +51,11 @@ function rebaseChangeFrame(
 		};
 	};
 
-	const marksToMarks = <TMarks extends R.TraitMarks>(
-		orig: TMarks,
-		base: TMarks,
-	): TMarks => {
-		const newMarks: TMarks = [];
+	const marksToMarks = (
+		orig: R.TraitMarks,
+		base: R.TraitMarks,
+	): R.TraitMarks => {
+		const newMarks: R.TraitMarks = [];
 		let iOrig = 0;
 		let iBase = 0;
 		while (iOrig < orig.length || iBase < base.length) {
@@ -69,9 +64,12 @@ function rebaseChangeFrame(
 			if (mOrig === undefined) {
 				assert(mBase !== undefined, "The while loop should have terminated");
 				newMarks.push(typeof mBase === "number" ? mBase : scaffoldFrom(mBase, baseSeq));
+				iBase += 1;
 			} else if (mBase === undefined) {
+				iOrig += 1;
 			} else {
-
+				iBase += 1;
+				iOrig += 1;
 			}
 		}
 		return newMarks;
@@ -88,7 +86,7 @@ function rebaseChangeFrame(
 
 function rebaseConstraintFrame(
 	frame: R.TransactionFrame,
-	original: RebasableTransaction,
+	original: R.Transaction,
 	base: S.Transaction,
 ): R.ConstraintFrame {
 	throw new Error("Function not implemented.");

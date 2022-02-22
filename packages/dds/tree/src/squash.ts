@@ -3,15 +3,12 @@
  * Licensed under the MIT License.
  */
 
-import { assert } from "@fluidframework/common-utils";
 import {
-	SeqNumber,
 	Sequenced as S,
 	Rebased as R,
-	Offset,
 	ClientId,
 } from "./format";
-import { isChangeFrame, isConstraintFrame, isModify, isOffset, markLength } from "./utils";
+import { isChangeFrame, isOffset, markLength } from "./utils";
 
 export type Transaction = R.Transaction | S.Transaction;
 
