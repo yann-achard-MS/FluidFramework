@@ -12,14 +12,20 @@ import { strict as assert } from "assert";
 // } from "../format";
 import { squash } from "../squash";
 import {
-	originals,
+	allOriginals,
+	ScenarioF,
 } from "./samples";
 
 describe(squash.name, () => {
 	it("single", () => {
-		for (const original of originals) {
+		for (const original of allOriginals) {
 			const actual = squash([original]);
 			assert.deepEqual(actual, original.frames[0]);
 		}
+	});
+
+	it.skip("Scenario F", () => {
+		const actual = squash([ScenarioF.e2inv, ScenarioF.e1, ScenarioF.e2_r_e1]);
+		assert.deepEqual(actual, ScenarioF.e1.frames[0]);
 	});
 });

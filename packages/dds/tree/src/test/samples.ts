@@ -519,48 +519,78 @@ export namespace ScenarioF {
 	Expected outcome: 'rAxyzB'
 	*/
 
-	export const e1: Original.Modify = {
-		modify: {
-			foo: [
-				{ type: "Insert", content: [{ id: "r" }] },
-			],
-		},
+	export const e1: S.Transaction = {
+		ref: 0,
+		seq: 1,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						{ type: "Insert", content: [{ id: "r" }] },
+					],
+				},
+			}],
+		}],
 	};
 
-	export const e2: Original.Modify = {
-		modify: {
-			foo: [
-				1, // Skip A
-				{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
-			],
-		},
+	export const e2: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
+					],
+				},
+			}],
+		}],
 	};
 
-	export const e3: Original.Modify = {
-		modify: {
-			foo: [
-				2, // Skip A x
-				{ type: "Insert", content: [{ id: "y" }] },
-			],
-		},
+	export const e3: S.Transaction = {
+		ref: 0,
+		seq: 3,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						2, // Skip A x
+						{ type: "Insert", content: [{ id: "y" }] },
+					],
+				},
+			}],
+		}],
 	};
 
-	export const e2inv: Original.Modify = {
-		modify: {
-			foo: [
-				1, // Skip A
-				{ type: "Delete", length: 2 },
-			],
-		},
+	export const e2inv: S.Transaction = {
+		ref: 0,
+		seq: -2,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "Delete", length: 2 },
+					],
+				},
+			}],
+		}],
 	};
 
-	export const e2_r_e1: Rebased.Modify = {
-		modify: {
-			foo: [
-				2, // Skip r A
-				{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
-			],
-		},
+	export const e2_r_e1: S.Transaction = {
+		ref: 0,
+		seq: 1,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						2, // Skip r A
+						{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
+					],
+				},
+			}],
+		}],
 	};
 
 	export const e3_r_e2inv: Rebased.Modify = {
@@ -612,6 +642,8 @@ export namespace ScenarioF {
 			],
 		},
 	};
+
+	export const originals = [e1, e2, e3];
 }
 
 export namespace ScenarioG {
@@ -703,4 +735,7 @@ export namespace ScenarioG {
 	};
 }
 
-export const originals = [...ScenarioA1.originals];
+export const allOriginals = [
+	...ScenarioA1.originals,
+	...ScenarioF.originals,
+];
