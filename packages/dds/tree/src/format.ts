@@ -89,7 +89,7 @@ export namespace Original {
 		/**
 		 * We need this setValue (in addition to the SetValue mark because non-leaf nodes can have values)
 		 */
-		setValue?: If<AllowSetValue, Value | [Value, DrillDepth]>;
+		value?: If<AllowSetValue, Value | [Value, DrillDepth]>;
 		modify?: { [key: string]: (Offset | TInner)[] };
 	}
 
@@ -148,17 +148,13 @@ export namespace Original {
 		drill?: DrillDepth;
 	}
 
-	export interface Insert extends Place, HasLength, HasMods {
+	export interface Insert extends Place {
 		type: "Insert";
 		content: ProtoNode[];
 	}
 
-	export interface MoveIn extends Place, HasMoveId {
+	export interface MoveIn extends Place, HasLength, HasMods, HasMoveId {
 		type: "MoveIn";
-		// Technically the segment could just use HasMods and HasLength but
-		// this make Original.ChangeFrame assignable to Rebased.ChangeFrame
-		// which is convenient.
-		contents: (Offset | ModsMark)[];
 	}
 
 	/**
@@ -364,7 +360,7 @@ export namespace Rebased {
 	export type Place = Original.Place;
 
 	export interface Transaction {
-		client: ClientId;
+		// client: ClientId;
 		/**
 		 * The reference sequence number of the transaction that this transaction was originally
 		 * issued after.
@@ -373,8 +369,9 @@ export namespace Rebased {
 		/**
 		 * The reference sequence number of the transaction that this transaction has been
 		 * rebased over.
+		 * Omit when equal to `ref`.
 		 */
-		newRef: SeqNumber;
+		newRef?: SeqNumber;
 		frames: TransactionFrame[];
 	}
 
@@ -385,35 +382,6 @@ export namespace Rebased {
 		 */
 		seq: SeqNumber;
 	}
-
-	export interface HasPriorMoveId {
-		moveId: MoveId;
-	}
-
-	// export interface PriorInsert extends HasSeqNumber, HasLength {
-	// 	type: "PriorInsert";
-	// }
-
-	// export interface PriorMoveIn extends HasSeqNumber {
-	// 	type: "PriorMoveIn";
-	// 	contents: TraitMarks;
-	// }
-
-	export interface PriorDetach extends HasSeqNumber, HasLength {
-		type: "Detach";
-	}
-
-	// export interface PriorTemp extends HasSeqNumber, HasLength {
-	// 	type: "Temp";
-	// 	/**
-	// 	 * The SeqNumber of the operation that detached the segment.
-	// 	 * Omit if the same as `seq`.
-	// 	 */
-	// 	detachSeq?: SeqNumber;
-	// }
-
-	// export type PriorAttach = PriorInsert | PriorMoveIn;
-	export type Prior = PriorDetach;// | PriorAttach | PriorTemp;
 
 	export type TransactionFrame = ConstraintFrame | ChangeFrame;
 
@@ -454,7 +422,8 @@ export namespace Rebased {
 		marks: TraitMarks;
 	}
 
-	export type TraitMarks = (Offset | Mark)[];
+	export type TraitMark = Offset | Mark;
+	export type TraitMarks = TraitMark[];
 
 	export type ModsMark =
 		| SetValue
@@ -485,14 +454,13 @@ export namespace Rebased {
 		mods?: (Offset | ModsMark)[];
 	}
 
-	export interface Insert extends Place, HasLength, HasMods {
+	export interface Insert extends Place {
 		type: "Insert";
 		content: ProtoNode[];
 	}
 
-	export interface MoveIn extends Place, HasMoveId {
+	export interface MoveIn extends Place, HasLength, HasMods, HasMoveId {
 		type: "MoveIn";
-		content: (Offset | ModsMark)[];
 	}
 
 	/**
@@ -510,6 +478,35 @@ export namespace Rebased {
 		type: "MoveOut";
 		mods?: (Offset | Modify<Prior | MoveOut | MoveOutStart | SliceEnd, false>)[];
 	}
+
+	export interface PriorDetach extends HasSeqNumber, HasLength, HasMods {
+		type: "Detach";
+	}
+
+	// export interface HasPriorMoveId {
+	// 	moveId: MoveId;
+	// }
+
+	// export interface PriorInsert extends HasSeqNumber, HasLength {
+	// 	type: "PriorInsert";
+	// }
+
+	// export interface PriorMoveIn extends HasSeqNumber {
+	// 	type: "PriorMoveIn";
+	// 	contents: TraitMarks;
+	// }
+
+	// export interface PriorTemp extends HasSeqNumber, HasLength {
+	// 	type: "Temp";
+	// 	/**
+	// 	 * The SeqNumber of the operation that detached the segment.
+	// 	 * Omit if the same as `seq`.
+	// 	 */
+	// 	detachSeq?: SeqNumber;
+	// }
+
+	// export type PriorAttach = PriorInsert | PriorMoveIn;
+	export type Prior = PriorDetach;// | PriorAttach | PriorTemp;
 }
 
 export namespace Sequenced {

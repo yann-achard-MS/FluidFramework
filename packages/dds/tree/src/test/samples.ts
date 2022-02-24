@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { Commutativity, Original, Rebased, Sibling } from "../format";
+import { Commutativity, Original, Rebased, Sibling, Sequenced as S, } from "../format";
 
 export namespace SwapCousins {
 	// Swap the first nodes of traits foo and bar using set-like ranges
@@ -115,39 +115,56 @@ export namespace ScenarioA1 {
 	We need to know which node a given insertion or move-in was relative to.
 	*/
 
-	export const e1: Original.Modify = {
-		modify: {
-			foo: [
-				1, // Skip A
-				{ type: "Delete", length: 2 },
-			],
-		},
-	};
-
-	export const e2: Original.ChangeFrame = {
-		moves: [{src: "foo.1", dst: "bar.0"}],
-		marks: [{
-			modify: {
-				foo: [
-					1, // Skip A
-					{ type: "MoveOutStart", side: Sibling.Next },
-					3, // Skip B C D
-					{ type: "End" },
-				],
-				bar: [
-					{ type: "MoveIn", length: 3 },
-				],
-			},
+	export const e1: S.Transaction = {
+		ref: 0,
+		seq: 1,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "Delete", length: 2 },
+					],
+				},
+			}],
 		}],
 	};
 
-	export const e3: Original.Modify = {
-		modify: {
-			foo: [
-				2, // Skip A B
-				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.Full },
-			],
-		},
+	export const e2: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		frames: [{
+			moves: [{src: "foo.1", dst: "bar.0"}],
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "MoveOutStart", side: Sibling.Next },
+						3, // Skip B C D
+						{ type: "End" },
+					],
+					bar: [
+						{ type: "MoveIn", length: 3 },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e3: S.Transaction = {
+		ref: 0,
+		seq: 3,
+		frames: [{
+			moves: [{src: "foo.1", dst: "bar.0"}],
+			marks: [{
+				modify: {
+					foo: [
+						2, // Skip A B
+						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.Full },
+					],
+				},
+			}],
+		}],
 	};
 
 	export const e2_r_e1: Rebased.ChangeFrame = {
@@ -162,7 +179,7 @@ export namespace ScenarioA1 {
 					{ type: "End" },
 				],
 				bar: [
-					{ type: "MoveIn", content: [1] },
+					{ type: "MoveIn" },
 				],
 			},
 		}],
@@ -187,17 +204,12 @@ export namespace ScenarioA1 {
 				{ type: "Detach", seq: 2 }, // MoveOut D (from e2)
 			],
 			bar: [
-				{
-					type: "PriorMoveIn",
-					seq: 2,
-					content: [
-						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.Full },
-						1, // MoveIn D (from u2)
-					],
-				},
+				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.Full },
 			],
 		},
 	};
+
+	export const originals = [e1, e2, e3];
 }
 
 export namespace ScenarioA2 {
@@ -269,7 +281,7 @@ export namespace ScenarioA2 {
 					{ type: "End" },
 				],
 				bar: [
-					{ type: "MoveIn", content: [1] },
+					{ type: "MoveIn" },
 				],
 			},
 		}],
@@ -293,14 +305,7 @@ export namespace ScenarioA2 {
 				{ type: "Detach", seq: 2 }, // D
 			],
 			bar: [
-				{
-					type: "PriorMoveIn",
-					seq: 2,
-					content: [
-						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
-						1, // D
-					],
-				},
+				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 			],
 		},
 	};
@@ -361,9 +366,6 @@ export namespace ScenarioC {
 				2, // Skip A
 				{ type: "Detach", seq: 2 }, // B
 				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
-			],
-			bar: [
-				{ type: "PriorMoveIn", seq: 2, content: [1] },
 			],
 		},
 	};
@@ -434,17 +436,11 @@ export namespace ScenarioD {
 					{ type: "End" },
 				],
 				bar: [
-					{
-						type: "PriorMoveIn",
-						seq: 1,
-						content: [
-							1, // B
-							{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
-						],
-					},
+					1, // B
+					{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 				],
 				baz: [
-					{ type: "MoveIn", content: [2] }, // A C
+					{ type: "MoveIn", length: 2 }, // A C
 				],
 			},
 		}],
@@ -506,14 +502,8 @@ export namespace ScenarioE {
 				{ type: "End" },
 			],
 			bar: [
-				{
-					type: "PriorMoveIn",
-					seq: 1,
-					content: [
-						1, // B
-						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
-					],
-				},
+				1, // B
+				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 			],
 		},
 	};
@@ -567,8 +557,7 @@ export namespace ScenarioF {
 	export const e2_r_e1: Rebased.Modify = {
 		modify: {
 			foo: [
-				{ type: "PriorInsert", seq: 1 }, // r
-				1, // Skip A
+				2, // Skip r A
 				{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
 			],
 		},
@@ -609,8 +598,7 @@ export namespace ScenarioF {
 	export const e3_r_e1: Rebased.Modify = {
 		modify: {
 			foo: [
-				{ type: "PriorInsert", seq: 1 }, // r
-				2, // Skip A x
+				3, // Skip r A x
 				{ type: "Insert", content: [{ id: "y" }] },
 			],
 		},
@@ -619,11 +607,8 @@ export namespace ScenarioF {
 	export const e3re1_r_e2re1: Rebased.Modify = {
 		modify: {
 			foo: [
-				{ type: "PriorInsert", seq: 1 }, // r
-				1, // Skip A
-				{ type: "PriorInsert", seq: 2 }, // x
+				3, // Skip r A z
 				{ type: "Insert", content: [{ id: "y" }] },
-				{ type: "PriorInsert", seq: 2 }, // z
 			],
 		},
 	};
@@ -685,15 +670,8 @@ export namespace ScenarioG {
 				{ type: "Detach", seq: 1, length: 2 }, // A B
 			],
 			bar: [
-				{
-					type: "PriorMoveIn",
-					seq: 1,
-					content: [
-						1, // A
-						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
-						1, // B
-					],
-				},
+				1, // A
+				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 			],
 		},
 	};
@@ -706,14 +684,11 @@ export namespace ScenarioG {
 				{ type: "Insert", content: [{ id: "Y" }], commute: Commutativity.None },
 				{ type: "Detach", seq: 1 }, // B
 			],
-			bar: [
-				{ type: "PriorMoveIn", seq: 1, content: [2] },
-			],
 		},
 	};
 
 	// Temp is needed to allow multiple inserts like Y to be relatively ordered.
-	// For example if instead of inserting X e2 had inserted VXZ, then a branch bY had been created
+	// For example if instead of inserting X, e2 had inserted VXZ, then a branch bY had been created
 	// on which an e3 had inserted Y between X and Z, and a branch bW had been created on which
 	// an e4 had inserted W between V and X (making [AVWXYZB] locally)
 	// then the outcome should be that [WY] is left in trait foo, not [YW]. In order to make
@@ -722,22 +697,10 @@ export namespace ScenarioG {
 	export const e3re1_r_e2re1: Rebased.Modify = {
 		modify: {
 			foo: [
-				{ type: "Detach", seq: 1 }, // A
-				{ type: "Temp", seq: 2 }, // X <- needed to support local branching
 				{ type: "Insert", content: [{ id: "Y" }], commute: Commutativity.None },
-				{ type: "Detach", seq: 1 }, // B
-			],
-			bar: [
-				{
-					type: "PriorMoveIn",
-					seq: 1,
-					content: [
-						1, // A
-						{ type: "PriorInsert", seq: 2 }, // X
-						1, // B
-					],
-				},
 			],
 		},
 	};
 }
+
+export const originals = [...ScenarioA1.originals];

@@ -12,7 +12,6 @@ import { isChangeFrame, isConstraintFrame } from "./utils";
 
 export function rebase(original: R.Transaction, base: S.Transaction): R.Transaction {
 	return {
-		client: original.client,
 		ref: original.ref,
 		newRef: base.seq,
 		frames: original.frames.map((frame) => rebaseFrame(frame, original, base)),
