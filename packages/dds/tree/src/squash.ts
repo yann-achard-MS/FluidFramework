@@ -10,6 +10,7 @@ import {
 	Offset,
 	SeqNumber,
 } from "./format";
+import { normalizeFrame } from "./normalize";
 import {
 	isAttachSegment,
 	isBound,
@@ -48,10 +49,12 @@ export function squash(transactions: S.Transaction[]): R.ChangeFrame {
 		}
 	}
 
-	return {
+	const output = {
 		...(moves.length > 0 ? { moves } : {}),
 		marks,
 	};
+	normalizeFrame(output);
+	return output;
 }
 
 interface Pointer {
@@ -162,7 +165,9 @@ function squashMark(
 				} else if (isSetValue(mark)) {
 					marks[ptr.iMark] = newMark;
 				} else if (isModify(mark)) {
-					mark.value = newMark.value ?? mark.value;
+					if (newMark.value !== undefined) {
+						mark.value = newMark.value;
+					}
 					if (isModify(newMark)) {
 						const traitMods = mark.modify;
 						if (traitMods !== undefined) {
@@ -307,8 +312,7 @@ function advancePointer(ptr: Readonly<Pointer>, offset: number): Pointer {
 			off -= nodeCount - iNode;
 			iNode = 0;
 		} else {
-			iNode += off;
-			off = 0;
+			return { iMark, iNode: iNode + off, marks };
 		}
 	}
 	return { iMark, iNode, marks };

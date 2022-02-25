@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { Commutativity, Original, Rebased, Sibling, Sequenced as S, } from "../format";
+import { Commutativity, Original, Rebased, Sibling, Sequenced as S } from "../format";
 
 export namespace SwapCousins {
 	// Swap the first nodes of traits foo and bar using set-like ranges
@@ -571,7 +571,7 @@ export namespace ScenarioF {
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "Delete", length: 2 },
+						{ type: "Detach", seq: -2, length: 2 },
 					],
 				},
 			}],
@@ -580,7 +580,7 @@ export namespace ScenarioF {
 
 	export const e2_r_e1: S.Transaction = {
 		ref: 0,
-		seq: 1,
+		seq: 2,
 		frames: [{
 			marks: [{
 				modify: {
