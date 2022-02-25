@@ -14,6 +14,7 @@ import { squash } from "../squash";
 import {
 	allOriginals,
 	ScenarioF,
+	ScenarioG,
 } from "./samples";
 
 describe(squash.name, () => {
@@ -24,8 +25,13 @@ describe(squash.name, () => {
 		}
 	});
 
-	it.only("Scenario F", () => {
+	it("Scenario F", () => {
 		const actual = squash([ScenarioF.e2inv, ScenarioF.e1, ScenarioF.e2_r_e1]);
 		assert.deepEqual(actual, ScenarioF.e1.frames[0]);
+	});
+
+	it("Scenario G", () => {
+		const actual = squash([ScenarioG.e2inv, ScenarioG.e1, ScenarioG.e2p]);
+		assert.deepEqual(actual, ScenarioG.delta);
 	});
 });

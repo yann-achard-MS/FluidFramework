@@ -29,6 +29,9 @@ function normalizeMarks(marks: R.TraitMarks): void {
 			if (mark.mods !== undefined) {
 				normalizeMarks(mark.mods);
 			}
+			if (mark.length === 1) {
+				delete mark.length;
+			}
 		} else if (isModify(mark)) {
 			if (mark.modify !== undefined) {
 				for (const v of Object.values(mark.modify)) {

@@ -288,7 +288,7 @@ export function lengthFromMark(mark: Offset | R.Mark): number {
 	if (isInsert(mark)) {
 		return mark.content.length;
 	}
-	assert(isDetachSegment(mark), "Unknown mark type");
+	assert(isDetachSegment(mark) || isMoveIn(mark), "Unknown mark type");
 	return mark.length ?? 1;
 }
 

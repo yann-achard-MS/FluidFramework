@@ -68,7 +68,16 @@ interface Pointer {
 	 * This index must always be less than the length of the segment.
 	 */
 	iNode: number;
+	/**
+	 * The marks being pointed at.
+	 */
 	marks: R.TraitMarks;
+	/**
+	 * The seq number of the transaction relative to whom the segments are interpreted.
+	 * For example a prior segment will count as having a length of zero when viewed
+	 * relative to a transaction by a different client.
+	 */
+	seq: SeqNumber;
 }
 
 interface Context {
@@ -95,7 +104,7 @@ function squashMarks(
 	newMarks: R.TraitMarks,
 	startOffset: number = 0,
 ): void {
-	let ptr: Pointer = getPointer(marks, startOffset);
+	let ptr: Pointer = getPointer(marks, context.seq, startOffset);
 	for (const newMark of newMarks) {
 		ptr = squashMark(context, newMark, ptr);
 	}
@@ -124,7 +133,6 @@ function squashMark(
 			ptr.iMark += 1;
 		} else {
 			const markLength = lengthFromMark(newMark);
-			assert(markLength > 0, "Length-zero segments should be removed");
 			if (isAttachSegment(newMark)) {
 				const newMarkLength = lengthFromMark(newMark);
 				if (isPrior(mark) && mark.seq === inverseSeq) {
@@ -143,7 +151,7 @@ function squashMark(
 						}
 					} else {
 						// Only part of the insert survived the rebase.
-						ptr = ensureMarkStart({ iMark: ptr.iMark, iNode: newMarkLength, marks });
+						ptr = ensureMarkStart({ iMark: ptr.iMark, iNode: newMarkLength, marks, seq: context.seq });
 						marks.splice(ptr.iMark - 1, 1);
 					}
 				} else {
@@ -190,7 +198,7 @@ function squashMark(
 					updateProtoNode(mark.content[ptr.iNode], newMark);
 				} else if (isMoveIn(mark) || isPrior(mark)) {
 					if (mark.mods) {
-						squashMark(context, newMark, getPointer(mark.mods));
+						squashMark(context, newMark, getPointer(mark.mods, context.seq));
 					} else {
 						mark.mods = ptr.iNode > 0 ? [ptr.iNode, newMark] : [newMark];
 					}
@@ -203,7 +211,8 @@ function squashMark(
 				}
 				ptr = advancePointer(ptr, 1);
 			} else if (isBound(newMark)) {
-					assert(false, "TODO: support slice marks");
+				marks.splice(ptr.iMark, 0, newMark);
+				ptr = advancePointer(ptr, 0);
 			} else if (isDetachSegment(newMark)) {
 				ptr = ensureMarkStart(ptr);
 				if (isMoveOut(newMark)) {
@@ -248,7 +257,7 @@ function ensureMarkStart(ptr: Readonly<Pointer>): Pointer {
 			ptr.marks.splice(ptr.iMark, 1, ...markParts);
 		}
 	}
-	return advancePointer(ptr, ptr.iNode);
+	return advancePointer(ptr, 0);
 }
 
 function splitMark(mark: Readonly<Offset | R.Mark>, offset: number): [Offset | R.Mark, Offset | R.Mark] {
@@ -286,36 +295,38 @@ function splitMark(mark: Readonly<Offset | R.Mark>, offset: number): [Offset | R
 		}
 		return [
 			{ ...mark, length: offset },
-			{ ...mark, length: mLength },
+			{ ...mark, length: mLength - offset },
 		];
 	} else {
 		assert(false, "TODO: support other mark types");
 	}
 }
 
-function getPointer(marks: R.TraitMarks, offset: number = 0): Pointer {
-	return advancePointer({ iMark: 0, iNode: 0, marks }, offset);
+function getPointer(marks: R.TraitMarks, seq: number, offset: number = 0): Pointer {
+	return advancePointer({ iMark: 0, iNode: 0, marks, seq }, offset);
 }
 
 function advancePointer(ptr: Readonly<Pointer>, offset: number): Pointer {
 	assert(offset >= 0, "The offset must be >= to zero");
 	let off = offset;
 	let { iMark, iNode } = ptr;
-	const { marks } = ptr;
+	const { marks, seq } = ptr;
 	const markMax = marks.length;
 	// Note that we use `>= 0` instead of `> 0`.
 	// This ensures we skip over zero-length marks.
 	while (off >= 0 && iMark < markMax) {
-		const nodeCount = lengthFromMark(marks[iMark]);
+		const mark = marks[iMark];
+		// This `isPrior(mark) && mark.seq !== -seq` check needs to be in terms of the client number
+		const nodeCount = isPrior(mark) && mark.seq !== -seq ? 0 : lengthFromMark(mark);
 		if (iNode + off >= nodeCount) {
 			iMark += 1;
 			off -= nodeCount - iNode;
 			iNode = 0;
 		} else {
-			return { iMark, iNode: iNode + off, marks };
+			return { iMark, iNode: iNode + off, marks, seq };
 		}
 	}
-	return { iMark, iNode, marks };
+	return { iMark, iNode: iNode + off, marks, seq };
 }
 
 function updateProtoNode(proto: R.ProtoNode, mod: R.SetValue | R.Modify): void {

@@ -662,80 +662,120 @@ export namespace ScenarioG {
 	the offset of the index.
 	*/
 
-	export const e1: Original.ChangeFrame = {
+	export const e1: S.Transaction = {
+		ref: 0,
+		seq: 1,
+		frames: [{
+			moves: [{ src: "foo.0", dst: "bar.0" }],
+			marks: [{
+				modify: {
+					foo: [
+						{ type: "MoveOutStart" },
+						2, // Skip A B
+						{ type: "End", side: Sibling.Next },
+					],
+					bar: [
+						{ type: "MoveIn", length: 2 },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e2: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e3: S.Transaction = {
+		ref: 0,
+		seq: 3,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						2, // Skip A X
+						{ type: "Insert", content: [{ id: "Y" }], commute: Commutativity.None },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e2p: S.Transaction = {
+		ref: 0,
+		newRef: 1,
+		seq: 2,
+		frames: [{
+			marks: [{
+				modify: {
+					bar: [
+						1, // A
+						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e2inv: S.Transaction = {
+		ref: 0,
+		seq: -2,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "Detach", seq: -2 },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const delta: Rebased.ChangeFrame = {
 		moves: [{ src: "foo.0", dst: "bar.0" }],
 		marks: [{
 			modify: {
 				foo: [
 					{ type: "MoveOutStart" },
-					2, // Skip A B
+					1, // Skip A
+					{ type: "Detach", seq: -2 }, // X
+					1, // Skip B
 					{ type: "End", side: Sibling.Next },
 				],
 				bar: [
-					{ type: "MoveIn", length: 2 },
+					{ type: "MoveIn" }, // A
+					{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
+					{ type: "MoveIn" }, // B
 				],
 			},
 		}],
 	};
 
-	export const e2: Original.Modify = {
-		modify: {
-			foo: [
-				1, // Skip A
-				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
-			],
-		},
-	};
-
-	export const e3: Original.Modify = {
-		modify: {
-			foo: [
-				2, // Skip A X
-				{ type: "Insert", content: [{ id: "Y" }], commute: Commutativity.None },
-			],
-		},
-	};
-
-	export const e2_r_e1: Rebased.Modify = {
-		modify: {
-			foo: [
-				{ type: "Detach", seq: 1, length: 2 }, // A B
-			],
-			bar: [
-				1, // A
-				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
-			],
-		},
-	};
-
-	export const e3_r_e1: Rebased.Modify = {
-		modify: {
-			foo: [
-				{ type: "Detach", seq: 1 }, // A
-				1, // X <- at this stage we do not know what has happened to the previous insert
-				{ type: "Insert", content: [{ id: "Y" }], commute: Commutativity.None },
-				{ type: "Detach", seq: 1 }, // B
-			],
-		},
-	};
-
-	// Temp is needed to allow multiple inserts like Y to be relatively ordered.
-	// For example if instead of inserting X, e2 had inserted VXZ, then a branch bY had been created
-	// on which an e3 had inserted Y between X and Z, and a branch bW had been created on which
-	// an e4 had inserted W between V and X (making [AVWXYZB] locally)
-	// then the outcome should be that [WY] is left in trait foo, not [YW]. In order to make
-	// that happen we need to know where relative to the content introduced by e2 the insertions
-	// by e3 and e4 were made.
-	export const e3re1_r_e2re1: Rebased.Modify = {
+	export const e3p: Rebased.Modify = {
 		modify: {
 			foo: [
 				{ type: "Insert", content: [{ id: "Y" }], commute: Commutativity.None },
 			],
 		},
 	};
+
+	export const originals = [e1, e2, e3];
 }
 
 export const allOriginals = [
 	...ScenarioA1.originals,
 	...ScenarioF.originals,
+	...ScenarioG.originals,
 ];
