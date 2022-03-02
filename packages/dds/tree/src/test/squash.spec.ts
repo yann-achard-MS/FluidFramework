@@ -8,10 +8,8 @@ import {
 	Squashed as Sq,
 	Sequenced as S,
 	Rebased as R,
-	SeqNumber,
-	ClientId,
 } from "../format";
-import { SeqMetadata, squash } from "../squash";
+import { squash } from "../squash";
 import {
 	ScenarioF,
 	ScenarioG,
@@ -32,37 +30,23 @@ function deepFreeze<T>(object: T): void {
 
 function testSquash(
 	changes: (Sq.ChangeFrame | S.Transaction)[],
-	clients: (ClientId | undefined)[],
 ): R.ChangeFrame {
-	const seqClients = new Map<SeqNumber, SeqMetadata>(
-		clients.map((client, index) => [index + 1, { client, ref: 0 }]),
-	);
 	deepFreeze(changes);
-	return squash(changes, seqClients);
+	return squash(changes);
 }
 
 describe(squash.name, () => {
-	// it("single", () => {
-	// 	for (const original of allOriginals) {
-	// 		const actual = testSquash([original], []);
-	// 		assert.deepEqual(actual, original.frames[0]);
-	// 	}
-	// });
-
 	it("Scenario F", () => {
 		const actual = testSquash(
 			[ScenarioF.e2neg, ScenarioF.e1, ScenarioF.e2posp],
-			[1, 2],
 		);
 		assert.deepEqual(actual, ScenarioF.e3d);
 	});
 
 	describe("Scenario G", () => {
-		const clients = [1, 2, 2, 2, 2];
 		it("Delta for e3", () => {
 			const actual = testSquash(
 				[ScenarioG.e2neg, ScenarioG.e1, ScenarioG.e2posp],
-				clients,
 			);
 			assert.deepEqual(actual, ScenarioG.e3d);
 		});
@@ -75,14 +59,12 @@ describe(squash.name, () => {
 					ScenarioG.e2posp,
 					ScenarioG.e3posp,
 				],
-				clients,
 			);
 			assert.deepEqual(actual, ScenarioG.e4d);
 		});
 		it("Delta for e4 (reuse e3d)", () => {
 			const actual = testSquash(
 				[ScenarioG.e3neg, ScenarioG.e3d, ScenarioG.e3posp],
-				clients,
 			);
 			assert.deepEqual(actual, ScenarioG.e4d);
 		});
@@ -97,14 +79,12 @@ describe(squash.name, () => {
 					ScenarioG.e3posp,
 					ScenarioG.e4posp,
 				],
-				clients,
 			);
 			assert.deepEqual(actual, ScenarioG.e5d);
 		});
 		it("Delta for e5 (reuse e4d)", () => {
 			const actual = testSquash(
 				[ScenarioG.e4neg, ScenarioG.e4d, ScenarioG.e4posp],
-				clients,
 			);
 			assert.deepEqual(actual, ScenarioG.e5d);
 		});

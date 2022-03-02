@@ -42,22 +42,21 @@ export type SeqMetadataMap = ReadonlyMap<SeqNumber, SeqMetadata>;
 
 export function squash(
 	changes: (S.Transaction | Sq.ChangeFrame)[],
-	seqClients: SeqMetadataMap,
 ): Sq.ChangeFrame {
 	const frames: Sq.ChangeFrame[] = [];
 	for (const change of changes) {
 		if ("frames" in change) {
 			frames.push(...change.frames
 				.filter(isChangeFrame)
-				.map((frame) => toSquashFrame(frame, change.seq, change.ref, change.newRef ?? change.ref)));
+				.map((frame) => toSquashFrame(frame, change.seq, change.ref)));
 		} else {
 			frames.push(change);
 		}
 	}
-	return squashFrames(frames, seqClients);
+	return squashFrames(frames);
 }
 
-export function toSquashFrame(frame: R.ChangeFrame, seq: SeqNumber, ref: SeqNumber, newRef: SeqNumber): Sq.ChangeFrame {
+export function toSquashFrame(frame: R.ChangeFrame, seq: SeqNumber, ref: SeqNumber): Sq.ChangeFrame {
 	return {
 		ref,
 		minSeq: seq,
@@ -69,7 +68,6 @@ export function toSquashFrame(frame: R.ChangeFrame, seq: SeqNumber, ref: SeqNumb
 
 export function squashFrames(
 	frames: Sq.ChangeFrame[],
-	seqClients: SeqMetadataMap,
 ): Sq.ChangeFrame {
 	assert(frames.length > 0, "No frames to squash");
 	const moves: Sq.MoveEntry[] = [];
@@ -84,7 +82,6 @@ export function squashFrames(
 				frame,
 				moves,
 				moveOffset: 0,
-				seqClients,
 			},
 			marks,
 			frame,
@@ -233,7 +230,6 @@ class Pointer {
 
 interface ReadContext {
 	readonly frame: Sq.ChangeFrame;
-	readonly seqClients: SeqMetadataMap;
 }
 
 interface Context extends ReadContext{
