@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { Commutativity, Original, Rebased, Sibling, Sequenced as S } from "../format";
+import { Commutativity, Original, Rebased, Sibling, Sequenced as S, Squashed as Sq } from "../format";
 
 export namespace SwapCousins {
 	// Swap the first nodes of traits foo and bar using set-like ranges
@@ -563,23 +563,64 @@ export namespace ScenarioF {
 		}],
 	};
 
-	export const e2inv: S.Transaction = {
+	export const e2neg: Sq.ChangeFrame = {
 		ref: 0,
-		seq: -2,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{ type: "Detach", seq: -2, length: 2 },
-					],
-				},
-			}],
+		minSeq: -2,
+		maxSeq: -2,
+		marks: [{
+			modify: {
+				foo: [
+					1, // Skip A
+					{ type: "Delete", length: 2, provision: { seq: 2, opId: 0 } },
+				],
+			},
 		}],
 	};
 
-	export const e2_r_e1: S.Transaction = {
+	export const e2pos: Sq.ChangeFrame = {
 		ref: 0,
+		minSeq: 2,
+		maxSeq: 2,
+		marks: [{
+			modify: {
+				foo: [
+					1, // Skip A
+					{ type: "Insert", content: [{ id: "x" }, { id: "z" }], provision: { seq: 2, opId: 0 } },
+				],
+			},
+		}],
+	};
+
+	export const e2posp: Sq.ChangeFrame = {
+		ref: 0,
+		minSeq: 2,
+		maxSeq: 2,
+		marks: [{
+			modify: {
+				foo: [
+					2, // Skip r A
+					{ type: "Insert", content: [{ id: "x" }, { id: "z" }], provision: { seq: 2, opId: 0 } },
+				],
+			},
+		}],
+	};
+
+	export const e3d: Sq.ChangeFrame = {
+		ref: 0,
+		minSeq: -2,
+		maxSeq: 2,
+		marks: [{
+			modify: {
+				foo: [
+					{ type: "Insert", content: [{ id: "r" }] },
+				],
+			},
+		}],
+	};
+
+	export const e2p: S.Transaction = {
+		ref: 0,
+		newRef: 1,
 		seq: 2,
 		frames: [{
 			marks: [{
@@ -593,51 +634,10 @@ export namespace ScenarioF {
 		}],
 	};
 
-	export const e3_r_e2inv: Rebased.Modify = {
-		modify: {
-			foo: [
-				1, // Skip A
-				{ type: "Detach", seq: -2 }, // x
-				{ type: "Insert", content: [{ id: "y" }] },
-				{ type: "Detach", seq: -2 }, // z
-			],
-		},
-	};
-	export const e3_r_e2inv_e1: Rebased.Modify = {
-		modify: {
-			foo: [
-				2, // Skip r, A
-				{ type: "Detach", seq: -2 }, // x
-				{ type: "Insert", content: [{ id: "y" }] },
-				{ type: "Detach", seq: -2 }, // z
-			],
-		},
-	};
-	export const e3_r_e2inv_e1_e2re1: Rebased.Modify = {
+	export const e3p: Rebased.Modify = {
 		modify: {
 			foo: [
 				3, // Skip r, A, x
-				{ type: "Insert", content: [{ id: "y" }] },
-			],
-		},
-	};
-
-	// We need to first rebase e3 over e1 because it's possible e1 affects e3 in
-	// ways that the scaffold of e1 in e2_r_e1 does not specify.
-	// For example e1 could be making a slice-move that e3's insert falls into.
-	export const e3_r_e1: Rebased.Modify = {
-		modify: {
-			foo: [
-				3, // Skip r A x
-				{ type: "Insert", content: [{ id: "y" }] },
-			],
-		},
-	};
-
-	export const e3re1_r_e2re1: Rebased.Modify = {
-		modify: {
-			foo: [
-				3, // Skip r A z
 				{ type: "Insert", content: [{ id: "y" }] },
 			],
 		},
@@ -650,16 +650,13 @@ export namespace ScenarioG {
 	/*
 	In trait foo [A B]:
 	  User 1: move slice [A B] to some other trait bar
-	  User 2: insert X after A (with commutative-move semantics)
-	  User 2: insert Y after X (with never-move semantics)
+	  User 2: insert [X Y] after A (with commutative-move semantics)
+	  User 2: insert N after X (with never-move semantics)
+	  User 2: insert M before X (with never-move semantics)
+	  User 2: insert O after Y (with never-move semantics)
 
-	X should be inserted to into the bar trait.
-	Y should be inserted to into the foo trait.
-
-	Takeaways:
-	When inserting in a slice-range that is moved and not adopting (i.e., not commuting with) the move, it is
-	necessary to go look at the destination for any prior non-concurrent segments in order to correctly interpret
-	the offset of the index.
+	X Y should be inserted to into the bar trait.
+	M N O  should be inserted to into the foo trait (in that order).
 	*/
 
 	export const e1: S.Transaction = {
@@ -690,7 +687,7 @@ export namespace ScenarioG {
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
+						{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
 					],
 				},
 			}],
@@ -705,7 +702,37 @@ export namespace ScenarioG {
 				modify: {
 					foo: [
 						2, // Skip A X
-						{ type: "Insert", content: [{ id: "Y" }], commute: Commutativity.None },
+						{ type: "Insert", content: [{ id: "N" }], commute: Commutativity.None },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e4: S.Transaction = {
+		ref: 0,
+		seq: 4,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "Insert", content: [{ id: "M" }], side: Sibling.Next, commute: Commutativity.None },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e5: S.Transaction = {
+		ref: 0,
+		seq: 5,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						5, // Skip A X M N Y
+						{ type: "Insert", content: [{ id: "O" }], commute: Commutativity.None },
 					],
 				},
 			}],
@@ -721,57 +748,258 @@ export namespace ScenarioG {
 				modify: {
 					bar: [
 						1, // A
-						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
+						{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
 					],
 				},
 			}],
 		}],
 	};
 
-	export const e2inv: S.Transaction = {
+	export const e2neg: Sq.ChangeFrame = {
 		ref: 0,
-		seq: -2,
+		minSeq: -2,
+		maxSeq: -2,
+		marks: [{
+			modify: {
+				foo: [
+					1, // Skip A
+					{ type: "Delete", length: 2, provision: { seq: 2, opId: 0 } },
+				],
+			},
+		}],
+	};
+
+	export const e2pos: Sq.ChangeFrame = {
+		ref: 0,
+		minSeq: 2,
+		maxSeq: 2,
+		marks: [{
+			modify: {
+				foo: [
+					1, // Skip A
+					{
+						type: "Insert",
+						content: [{ id: "X" }, { id: "Y" }],
+						commute: Commutativity.Full,
+						provision: { seq: 2, opId: 0 },
+					},
+				],
+			},
+		}],
+	};
+
+	export const e2posp: Sq.ChangeFrame = {
+		ref: 0,
+		minSeq: 2,
+		maxSeq: 2,
+		marks: [{
+			modify: {
+				bar: [
+					1, // Skip A
+					{
+						type: "Insert",
+						content: [{ id: "X" }, { id: "Y" }],
+						commute: Commutativity.Full,
+					},
+				],
+			},
+		}],
+	};
+
+	export const e3neg: Sq.ChangeFrame = {
+		ref: 0,
+		minSeq: -3,
+		maxSeq: -3,
+		marks: [{
+			modify: {
+				foo: [
+					2, // Skip A X
+					{ type: "Delete", provision: { seq: 3, opId: 0 } },
+				],
+			},
+		}],
+	};
+
+	export const e3pos: Sq.ChangeFrame = {
+		ref: 0,
+		minSeq: 3,
+		maxSeq: 3,
+		marks: [{
+			modify: {
+				foo: [
+					2, // Skip A X
+					{
+						type: "Insert",
+						content: [{ id: "N" }],
+						commute: Commutativity.None,
+						provision: { seq: 3, opId: 0 },
+					},
+				],
+			},
+		}],
+	};
+
+	export const e3posp: Sq.ChangeFrame = {
+		ref: 0,
+		minSeq: 3,
+		maxSeq: 3,
+		marks: [{
+			modify: {
+				foo: [
+					{ type: "Detach", seq: 1 },
+					{ type: "Detach", seq: -2 },
+					{
+						type: "Insert",
+						content: [{ id: "N" }],
+						commute: Commutativity.None,
+						provision: { seq: 3, opId: 0 },
+					},
+					{ type: "Detach", seq: -2 },
+					{ type: "Detach", seq: 1 },
+				],
+			},
+		}],
+	};
+
+	export const e4inv: S.Transaction = {
+		ref: 0,
+		seq: -4,
 		frames: [{
 			marks: [{
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "Detach", seq: -2 },
+						{ type: "Detach", seq: -4 },
 					],
 				},
 			}],
 		}],
 	};
 
-	export const delta: Rebased.ChangeFrame = {
+	export const e3d: Sq.ChangeFrame = {
+		ref: 0,
+		minSeq: -2,
+		maxSeq: 2,
 		moves: [{ src: "foo.0", dst: "bar.0" }],
 		marks: [{
 			modify: {
 				foo: [
 					{ type: "MoveOutStart" },
 					1, // Skip A
-					{ type: "Detach", seq: -2 }, // X
+					{ type: "Delete", length: 2 }, // X Y
 					1, // Skip B
 					{ type: "End", side: Sibling.Next },
 				],
 				bar: [
 					{ type: "MoveIn" }, // A
-					{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
+					{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
 					{ type: "MoveIn" }, // B
 				],
 			},
 		}],
 	};
 
-	export const e3p: Rebased.Modify = {
-		modify: {
-			foo: [
-				{ type: "Insert", content: [{ id: "Y" }], commute: Commutativity.None },
-			],
-		},
+	export const e4d: Sq.ChangeFrame = {
+		ref: 0,
+		minSeq: -3,
+		maxSeq: 3,
+		moves: [{ src: "foo.0", dst: "bar.0" }],
+		marks: [{
+			modify: {
+				foo: [
+					{ type: "MoveOutStart" },
+					1, // Skip A
+					{ type: "Delete" }, // X
+					1, // N
+					{ type: "Delete" }, // Y
+					1, // Skip B
+					{ type: "End", side: Sibling.Next },
+				],
+				bar: [
+					{ type: "MoveIn" }, // A
+					{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
+					{ type: "MoveIn" }, // B
+				],
+			},
+		}],
 	};
 
-	export const originals = [e1, e2, e3];
+	export const e5d: Rebased.ChangeFrame = {
+		moves: [{ src: "foo.0", dst: "bar.0" }],
+		marks: [{
+			modify: {
+				foo: [
+					{ type: "MoveOutStart" },
+					2, // Skip A M
+					{ type: "Detach", seq: -2 }, // X
+					1, // N
+					{ type: "Detach", seq: -2 }, // Y
+					1, // Skip B
+					{ type: "End", side: Sibling.Next },
+				],
+				bar: [
+					{ type: "MoveIn" }, // A
+					{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
+					{ type: "MoveIn" }, // B
+				],
+			},
+		}],
+	};
+
+	export const e3p: S.Transaction = {
+		ref: 0,
+		newRef: 2,
+		seq: 3,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						{ type: "Detach", seq: 1 }, // A
+						{ type: "Detach", seq: -2 }, // X
+						{ type: "Insert", content: [{ id: "N" }], commute: Commutativity.None },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e4p: S.Transaction = {
+		ref: 0,
+		newRef: 3,
+		seq: 4,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						{ type: "Detach", seq: 1 }, // A
+						{ type: "Insert", content: [{ id: "M" }], commute: Commutativity.None },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e5p: S.Transaction = {
+		ref: 0,
+		newRef: 3,
+		seq: 4,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						{ type: "Detach", seq: 1 }, // A
+						1, // M
+						{ type: "Detach", seq: -2 }, // X
+						1, // N
+						{ type: "Detach", seq: -2 }, // Y
+						{ type: "Insert", content: [{ id: "O" }], commute: Commutativity.None },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const originals = [e1, e2, e3, e4, e5];
 }
 
 export const allOriginals = [

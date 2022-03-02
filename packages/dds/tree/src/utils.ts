@@ -7,8 +7,13 @@ import { assert } from "@fluidframework/common-utils";
 import {
 	Offset,
 	Original as O,
+	Squashed as Sq,
 	Rebased as R,
 } from "./format";
+
+export function fail(message: string): never {
+	throw new Error(message);
+}
 
 // type Wrap<T> = { o: T } extends any ? { o: T } : never;
 // type Unwrap<T> = T extends { o: infer U } ? U : never;
@@ -197,42 +202,95 @@ export type OneOrMany<T> = T | T[];
 // 	}
 // }
 
-export function isSetValue(mark: R.ObjMark): mark is R.SetValue {
-	return mark.type === "SetValue";
+export function isSetValue(mark: Offset | R.ObjMark): mark is R.SetValue;
+export function isSetValue(mark: Offset | Sq.ObjMark): mark is Sq.SetValue;
+export function isSetValue(mark: Offset | R.ObjMark | Sq.ObjMark): mark is R.SetValue | Sq.SetValue {
+	return typeof mark === "object" && mark.type === "SetValue";
 }
-export function isModify(mark: R.Mark): mark is R.Modify {
+
+export function isModify(mark: Offset | R.Mark): mark is R.Modify;
+export function isModify(mark: Offset | Sq.Mark): mark is Sq.Modify;
+export function isModify(mark: Offset | R.Mark | Sq.Mark): mark is R.Modify | Sq.Modify {
 	const partial = mark as Partial<R.Modify>;
-	return (partial.type === "Modify" || partial.type === undefined)
+	return isOffset(mark) === false
+		&& (partial.type === "Modify" || partial.type === undefined)
 		&& (partial.modify !== undefined || partial.value !== undefined);
 }
-export function isInsert(mark: R.Mark): mark is R.Insert { return mark.type === "Insert"; }
-export function isPrior(mark: Offset | R.Mark): mark is R.Prior {
+
+export function isInsert(mark: Offset | R.Mark): mark is R.Insert;
+export function isInsert(mark: Offset | Sq.Mark): mark is Sq.Insert;
+export function isInsert(mark: Offset | R.Mark | Sq.Mark): mark is R.Insert | Sq.Insert {
+	return typeof mark === "object" && mark.type === "Insert";
+}
+
+export function isPrior(mark: Offset | R.Mark): mark is R.Prior;
+export function isPrior(mark: Offset | Sq.Mark): mark is Sq.Prior;
+export function isPrior(mark: Offset | R.Mark | Sq.Mark): mark is R.Prior | Sq.Prior {
 	return typeof mark === "object" && mark.type === "Detach";
 }
-export function isDelete(mark: R.Mark): mark is R.Delete { return mark.type === "Delete"; }
-export function isMoveIn(mark: R.Mark): mark is R.MoveIn { return mark.type === "MoveIn"; }
-export function isMoveOut(mark: R.Mark): mark is R.MoveIn { return mark.type === "MoveOut"; }
+
+export function isDelete(mark: Offset | R.Mark): mark is R.Delete;
+export function isDelete(mark: Offset | Sq.Mark): mark is Sq.Delete;
+export function isDelete(mark: Offset | R.Mark | Sq.Mark): mark is R.Delete | Sq.Delete {
+	return typeof mark === "object" && mark.type === "Delete";
+}
+
+export function isMoveIn(mark: Offset | R.Mark): mark is R.MoveIn;
+export function isMoveIn(mark: Offset | Sq.Mark): mark is Sq.MoveIn;
+export function isMoveIn(mark: Offset | R.Mark | Sq.Mark): mark is R.MoveIn | Sq.MoveIn {
+	return typeof mark === "object" && mark.type === "MoveIn";
+}
+
+export function isMoveOut(mark: Offset | R.Mark): mark is R.MoveIn;
+export function isMoveOut(mark: Offset | Sq.Mark): mark is Sq.MoveIn;
+export function isMoveOut(mark: Offset | R.Mark | Sq.Mark): mark is R.MoveIn | Sq.MoveIn {
+	return typeof mark === "object" && mark.type === "MoveOut";
+}
+
 export function isMoveOutStart(mark: R.Mark): mark is R.MoveOutStart {
 	return (mark as Partial<R.MoveOutStart>).type === "MoveOutStart";
 }
 export function isDeleteStart(mark: R.Mark): mark is R.DeleteStart {
 	return (mark as Partial<R.DeleteStart>).type === "DeleteStart";
 }
-export function isEnd(mark: R.Mark): mark is R.SliceEnd {
+export function isEnd(mark: Offset | R.Mark): mark is R.SliceEnd;
+export function isEnd(mark: Offset | Sq.Mark): mark is Sq.SliceEnd;
+export function isEnd(mark: Offset | R.Mark | Sq.Mark): mark is R.SliceEnd | Sq.SliceEnd {
 	return (mark as Partial<R.SliceEnd>).type === "End";
 }
-export function isBound(mark: R.ObjMark): mark is R.SliceBound | R.SliceBound {
+
+export function isStartBound(mark: R.TraitMark): mark is R.SliceBound;
+export function isStartBound(mark: Sq.TraitMark): mark is Sq.SliceBound;
+export function isStartBound(mark: R.TraitMark | Sq.TraitMark): mark is Sq.SliceBound | Sq.SliceBound {
+	if (typeof mark === "number") {
+		return false;
+	}
+	const markType = mark.type;
+	return markType === "MoveOutStart"
+		|| markType === "DeleteStart"
+	;
+}
+
+export function isBound(mark: R.TraitMark): mark is R.SliceBound;
+export function isBound(mark: Sq.TraitMark): mark is Sq.SliceBound;
+export function isBound(mark: R.TraitMark | Sq.TraitMark): mark is R.SliceBound | Sq.SliceBound {
+	if (typeof mark === "number") {
+		return false;
+	}
 	const markType = mark.type;
 	return markType === "MoveOutStart"
 		|| markType === "DeleteStart"
 		|| markType === "End"
 	;
 }
-export function isOffset(mark: R.Mark | Offset | undefined): mark is Offset {
+
+export function isOffset(mark: unknown): mark is Offset {
 	return typeof mark === "number";
 }
-export function isSegment(mark: R.ObjMark | Offset):
-	mark is R.Insert | R.Delete | R.MoveIn | R.MoveOut {
+
+export function isSegment(mark: R.ObjMark | Offset): mark is R.SegmentMark;
+export function isSegment(mark: Sq.ObjMark | Offset): mark is Sq.SegmentMark;
+export function isSegment(mark: R.ObjMark | Sq.ObjMark | Offset): mark is Sq.SegmentMark | R.SegmentMark {
 	if (typeof mark === "number") {
 		return false;
 	}
@@ -244,8 +302,9 @@ export function isSegment(mark: R.ObjMark | Offset):
 	;
 }
 
-export function isAttachSegment(mark: R.ObjMark | Offset):
-	mark is R.Insert | R.MoveIn {
+export function isAttachSegment(mark: R.ObjMark | Offset): mark is R.AttachMark;
+export function isAttachSegment(mark: Sq.ObjMark | Offset): mark is Sq.AttachMark;
+export function isAttachSegment(mark: R.ObjMark | Sq.ObjMark | Offset): mark is R.AttachMark | Sq.AttachMark {
 	if (typeof mark === "number") {
 		return false;
 	}
@@ -255,8 +314,10 @@ export function isAttachSegment(mark: R.ObjMark | Offset):
 	;
 }
 
-export function isDetachSegment(mark: R.ObjMark | Offset):
-	mark is R.Delete | R.MoveOut {
+export function isDetachSegment(mark: R.ObjMark | Offset): mark is R.Delete | R.MoveOut;
+export function isDetachSegment(mark: Sq.ObjMark | Offset): mark is Sq.Delete | Sq.MoveOut;
+export function isDetachSegment(mark: Sq.ObjMark | R.ObjMark | Offset):
+	mark is R.Delete | R.MoveOut | Sq.Delete | Sq.MoveOut {
 	if (typeof mark === "number") {
 		return false;
 	}
@@ -275,15 +336,15 @@ export function isChangeFrame(frame: O.TransactionFrame | R.TransactionFrame): f
 	return !isConstraintFrame(frame);
 }
 
-export function lengthFromMark(mark: Offset | R.Mark): number {
+export function lengthFromMark(mark: Offset | R.Mark | undefined): number {
+	if (mark === undefined || isBound(mark)) {
+		return 0;
+	}
 	if (isOffset(mark)) {
 		return mark;
 	}
 	if (isModify(mark) || isSetValue(mark)) {
 		return 1;
-	}
-	if (isBound(mark)) {
-		return 0;
 	}
 	if (isInsert(mark)) {
 		return mark.content.length;
