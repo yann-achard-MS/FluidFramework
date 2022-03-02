@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import structuredClone from "@ungap/structured-clone";
 import { assert } from "@fluidframework/common-utils";
 import {
 	Offset,
@@ -10,6 +11,10 @@ import {
 	Squashed as Sq,
 	Rebased as R,
 } from "./format";
+
+export function clone<T>(original: T): T {
+	return structuredClone(original) as T;
+}
 
 export function fail(message: string): never {
 	throw new Error(message);

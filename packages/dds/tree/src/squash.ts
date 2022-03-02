@@ -14,6 +14,7 @@ import {
 } from "./format";
 import { normalizeFrame } from "./normalize";
 import {
+	clone,
 	fail,
 	isAttachSegment,
 	isBound,
@@ -272,20 +273,19 @@ function squashMark(
 	newMark: Sq.TraitMark,
 	dst: Pointer,
 ): Pointer {
-	const marks = dst.marks;
 	let ptr: Pointer = dst;
 	if (isOffset(newMark)) {
 		ptr = ptr.seek(newMark);
 	} else {
 		if (ptr.mark === undefined) {
-			ptr = ptr.insert(newMark);
+			ptr = ptr.insert(clone(newMark));
 		} else {
 			if (ptr.iNode > 0) {
 				ptr = ptr.ensureMarkStart();
 			}
 			const newMarkLength = lengthFromMark(newMark);
 			if (newMarkLength === 0) {
-				ptr = ptr.insert(newMark);
+				ptr = ptr.insert(clone(newMark));
 			} else {
 				const mark = ptr.mark ?? fail("Unexpected missing mark");
 				const markLength = lengthFromMark(mark);
@@ -305,20 +305,20 @@ function squashMark(
 							ptr = ptr.replaceMark(newMarkLength);
 						} else {
 							// Inserting or moving-in. In a way that does not cancel out.
-							ptr = ptr.insert(newMark);
+							ptr = ptr.insert(clone(newMark));
 						}
 					} else if (isPrior(newMark)) {
 						if (isOffset(mark)) {
 								if (ptr.inSlice > 0) {
 									ptr = ptr.skipMarks(1);
 								} else {
-									ptr = ptr.insert(newMark);
+									ptr = ptr.insert(clone(newMark));
 								}
 						} else if (isPrior(mark)) {
 							if (mark.seq === newMark.seq) {
 								ptr = ptr.skipMarks(1);
 							} else {
-								ptr = ptr.insert(newMark);
+								ptr = ptr.insert(clone(newMark));
 							}
 						} else if (isDetachSegment(mark)) {
 							ptr = ptr.skipMarks(1);
@@ -327,12 +327,9 @@ function squashMark(
 						}
 					} else if (isSetValue(newMark) || isModify(newMark)) {
 						if (isOffset(mark)) {
-							const remainder = mark - ptr.iNode - 1;
-							ptr = ptr.ensureMarkStart();
-							marks[ptr.iMark] = remainder;
-							marks.splice(ptr.iMark, 0, newMark);
+							ptr = ptr.replaceMark(clone(newMark));
 						} else if (isSetValue(mark)) {
-							marks[ptr.iMark] = newMark;
+							ptr = ptr.replaceMark(clone(newMark));
 						} else if (isModify(mark)) {
 							if (newMark.value !== undefined) {
 								mark.value = newMark.value;
@@ -345,14 +342,14 @@ function squashMark(
 										for (const [k,v] of Object.entries(newTraitMods)) {
 											const traitMod = traitMods[k];
 											if (traitMod === undefined) {
-												traitMods[k] = v;
+												traitMods[k] = clone(v);
 											} else {
 												squashMarks(context, traitMod, v);
 											}
 										}
 									}
 								} else {
-									mark.modify = newMark.modify;
+									mark.modify = clone(newMark.modify);
 								}
 							}
 						} else if (isInsert(mark)) {
@@ -378,13 +375,12 @@ function squashMark(
 						}
 						ptr = ptr.seek(1);
 					} else if (isBound(newMark)) {
-						ptr = ptr.insert(newMark);
+						ptr = ptr.insert(clone(newMark));
 					} else if (isDetachSegment(newMark)) {
 						if (isMoveOut(newMark)) {
 							assert(false, "TODO: support move-out");
 						}
-						marks[ptr.iMark] = newMark;
-						ptr = ptr.skipMarks(1);
+						ptr = ptr.replaceMark(clone(newMark));
 					}
 				}
 			}
@@ -437,7 +433,7 @@ function splitMark(mark: Readonly<Offset | Sq.Mark>, offset: number): [Offset | 
 			{ ...mark, length: mLength - offset },
 		];
 	} else {
-		assert(false, "TODO: support other mark types");
+		fail("TODO: support other mark types");
 	}
 }
 

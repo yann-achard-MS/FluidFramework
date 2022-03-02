@@ -861,18 +861,54 @@ export namespace ScenarioG {
 		}],
 	};
 
-	export const e4inv: S.Transaction = {
+	export const e4neg:  Sq.ChangeFrame = {
 		ref: 0,
-		seq: -4,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{ type: "Detach", seq: -4 },
-					],
-				},
-			}],
+		minSeq: -4,
+		maxSeq: -4,
+		marks: [{
+			modify: {
+				foo: [
+					1, // Skip A
+					{ type: "Delete", provision: { seq: 4, opId: 0 } },
+				],
+			},
+		}],
+	};
+
+	export const e4pos:  Sq.ChangeFrame = {
+		ref: 0,
+		minSeq: 4,
+		maxSeq: 4,
+		marks: [{
+			modify: {
+				foo: [
+					1, // Skip A
+					{ type: "Insert", content: [{ id: "M" }], side: Sibling.Next, commute: Commutativity.None },
+				],
+			},
+		}],
+	};
+
+	export const e4posp:  Sq.ChangeFrame = {
+		ref: 0,
+		minSeq: 4,
+		maxSeq: 4,
+		marks: [{
+			modify: {
+				foo: [
+					{ type: "Detach", seq: 1 },
+					{
+						type: "Insert",
+						content: [{ id: "M" }],
+						commute: Commutativity.None,
+						provision: { seq: 4, opId: 0 },
+					},
+					{ type: "Detach", seq: -2 },
+					1,
+					{ type: "Detach", seq: -2 },
+					{ type: "Detach", seq: 1 },
+				],
+			},
 		}],
 	};
 
@@ -924,16 +960,19 @@ export namespace ScenarioG {
 		}],
 	};
 
-	export const e5d: Rebased.ChangeFrame = {
+	export const e5d: Sq.ChangeFrame = {
+		ref: 0,
+		minSeq: -4,
+		maxSeq: 4,
 		moves: [{ src: "foo.0", dst: "bar.0" }],
 		marks: [{
 			modify: {
 				foo: [
 					{ type: "MoveOutStart" },
 					2, // Skip A M
-					{ type: "Detach", seq: -2 }, // X
+					{ type: "Delete" }, // X
 					1, // N
-					{ type: "Detach", seq: -2 }, // Y
+					{ type: "Delete" }, // Y
 					1, // Skip B
 					{ type: "End", side: Sibling.Next },
 				],

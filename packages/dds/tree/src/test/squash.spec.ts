@@ -17,6 +17,19 @@ import {
 	ScenarioG,
 } from "./samples";
 
+function deepFreeze<T>(object: T): void {
+	// Retrieve the property names defined on object
+	const propNames = Object.getOwnPropertyNames(object);
+	// Freeze properties before freezing self
+	for (const name of propNames) {
+		const value = object[name];
+		if (value && typeof value === "object") {
+			deepFreeze(value);
+		}
+	}
+	Object.freeze(object);
+}
+
 function testSquash(
 	changes: (Sq.ChangeFrame | S.Transaction)[],
 	clients: (ClientId | undefined)[],
@@ -24,7 +37,7 @@ function testSquash(
 	const seqClients = new Map<SeqNumber, SeqMetadata>(
 		clients.map((client, index) => [index + 1, { client, ref: 0 }]),
 	);
-	Object.freeze(changes);
+	deepFreeze(changes);
 	return squash(changes, seqClients);
 }
 
@@ -36,7 +49,7 @@ describe(squash.name, () => {
 	// 	}
 	// });
 
-	it.only("Scenario F", () => {
+	it("Scenario F", () => {
 		const actual = testSquash(
 			[ScenarioF.e2neg, ScenarioF.e1, ScenarioF.e2posp],
 			[1, 2],
@@ -76,13 +89,13 @@ describe(squash.name, () => {
 		it("Delta for e5 (no reuse)", () => {
 			const actual = testSquash(
 				[
-					ScenarioG.e4inv,
+					ScenarioG.e4neg,
 					ScenarioG.e3neg,
 					ScenarioG.e2neg,
 					ScenarioG.e1,
 					ScenarioG.e2posp,
 					ScenarioG.e3posp,
-					ScenarioG.e4p,
+					ScenarioG.e4posp,
 				],
 				clients,
 			);
@@ -90,7 +103,7 @@ describe(squash.name, () => {
 		});
 		it("Delta for e5 (reuse e4d)", () => {
 			const actual = testSquash(
-				[ScenarioG.e4inv, ScenarioG.e4d, ScenarioG.e4p],
+				[ScenarioG.e4neg, ScenarioG.e4d, ScenarioG.e4posp],
 				clients,
 			);
 			assert.deepEqual(actual, ScenarioG.e5d);
