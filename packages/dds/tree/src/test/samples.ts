@@ -921,15 +921,11 @@ export namespace ScenarioG {
 			modify: {
 				foo: [
 					{ type: "MoveOutStart" },
-					1, // Skip A
-					{ type: "Delete", length: 2 }, // X Y
-					1, // Skip B
+					4, // Skip A X Y B
 					{ type: "End", side: Sibling.Next },
 				],
 				bar: [
-					{ type: "MoveIn" }, // A
-					{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
-					{ type: "MoveIn" }, // B
+					{ type: "MoveIn", length: 4 }, // A X Y B
 				],
 			},
 		}],
