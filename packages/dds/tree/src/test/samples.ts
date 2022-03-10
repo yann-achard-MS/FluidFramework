@@ -15,12 +15,12 @@ export namespace SwapCousins {
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "MoveOut" },
-					{ type: "MoveIn" },
+					{ type: "MoveOut", moveId: 0 },
+					{ type: "MoveIn", moveId: 1 },
 				],
 				bar: [
-					{ type: "MoveIn" },
-					{ type: "MoveOut" },
+					{ type: "MoveIn", moveId: 0 },
+					{ type: "MoveOut", moveId: 1 },
 				],
 			},
 		}],
