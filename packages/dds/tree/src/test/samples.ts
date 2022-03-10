@@ -9,8 +9,8 @@ export namespace SwapCousins {
 	// Swap the first nodes of traits foo and bar using set-like ranges
 	export const e1: Original.ChangeFrame = {
 		moves: [
-			{ src: "bar.0", dst: "foo.0" },
 			{ src: "foo.0", dst: "bar.0" },
+			{ src: "bar.0", dst: "foo.0" },
 		],
 		marks: [{
 			modify: {
