@@ -80,10 +80,13 @@ describe("PropertyDDS", () => {
 		let opProcessingController: LoaderContainerTracker;
 		let container1: IContainer;
 		let container2: IContainer;
+		let container3: IContainer;
 		let dataObject1: ITestFluidObject;
 		let dataObject2: ITestFluidObject;
+		let dataObject3: ITestFluidObject;
 		let sharedPropertyTree1: SharedPropertyTree;
 		let sharedPropertyTree2: SharedPropertyTree;
+		let sharedPropertyTree3: SharedPropertyTree;
 
 		let errorHandler: (Error) => void;
 
@@ -177,11 +180,18 @@ describe("PropertyDDS", () => {
             sharedPropertyTree2 = await dataObject2.getSharedObject<SharedPropertyTree>(propertyDdsId);
             (sharedPropertyTree2 as any).__id = 2; // Add an id to simplify debugging via conditional breakpoints
 
+            // Load the Container that was created by the first client.
+            container3 = await loadContainer();
+            dataObject3 = await requestFluidObject<ITestFluidObject>(container3, "default");
+            sharedPropertyTree3 = await dataObject3.getSharedObject<SharedPropertyTree>(propertyDdsId);
+            (sharedPropertyTree3 as any).__id = 3; // Add an id to simplify debugging via conditional breakpoints
+
             if (mode) {
                 // Submitting empty changeset to make sure both trees are in "write" mode, so the tests could control
                 // which commits are being synced at every point of time.
                 sharedPropertyTree1.commit(true);
                 sharedPropertyTree2.commit(true);
+                sharedPropertyTree3.commit(true);
             }
 
             // Attach error handlers to make debugging easier and ensure that internal failures cause the test to fail
@@ -199,7 +209,59 @@ describe("PropertyDDS", () => {
                 }
             });
         }
+        function otherTests() {
+            describe("Other tests", () => {
+                beforeEach(async function() {
+                    this.timeout(10000);
+                    // Insert and prepare an array within the container
+                    sharedPropertyTree1.root.insert("array", PropertyFactory.create("String", "array"));
 
+                    const array = sharedPropertyTree1.root.get("array") as StringArrayProperty;
+                    array.push("A");
+                    array.push("B");
+                    array.push("C");
+                    array.push("D");
+                    sharedPropertyTree1.commit();
+
+                    // Make sure both shared trees are in sync
+                    await opProcessingController.ensureSynchronized();
+                    await opProcessingController.pauseProcessing();
+
+                    array.clear();
+                    sharedPropertyTree1.commit();
+                });
+
+                function insertInArray(tree: SharedPropertyTree, letter: string, index: number) {
+                    const array = tree.root.get("array") as StringArrayProperty;
+                    array.insert(index, letter);
+                    tree.commit();
+                }
+
+                it.only("Yann", async () => {
+                    insertInArray(sharedPropertyTree2, "V", 2); // _A_BVC_D
+                    expect(getString(sharedPropertyTree2)).to.equal("ABVCD");
+                    insertInArray(sharedPropertyTree2, "U", 0); // UA_BVC_D
+                    expect(getString(sharedPropertyTree2)).to.equal("UABVCD");
+
+                    insertInArray(sharedPropertyTree3, "Y", 3); // _A_B_CYD
+                    expect(getString(sharedPropertyTree3)).to.equal("ABCYD");
+                    insertInArray(sharedPropertyTree3, "X", 1); // _AXB_CYD
+                    expect(getString(sharedPropertyTree3)).to.equal("AXBCYD");
+
+                    await opProcessingController.ensureSynchronized();
+
+                    const expected = "UXVY";
+                    expect(getString(sharedPropertyTree1)).to.equal(expected);
+                    expect(getString(sharedPropertyTree2)).to.equal(expected);
+                    expect(getString(sharedPropertyTree3)).to.equal(expected);
+                });
+            });
+
+            function getString(tree: SharedPropertyTree): string {
+                const array = tree.root.get("array") as StringArrayProperty;
+                return Array.from(array.getEntriesReadOnly() as any).join("");
+            }
+        }
         function rebaseTests() {
             describe("with non overlapping inserts", () => {
                 let ACount: number;
@@ -232,7 +294,8 @@ describe("PropertyDDS", () => {
 
                     const array1 = sharedPropertyTree1.root.get("array") as StringArrayProperty;
                     const array2 = sharedPropertyTree2.root.get("array") as StringArrayProperty;
-                    for (const array of [array1, array2]) {
+                    const array3 = sharedPropertyTree2.root.get("array") as StringArrayProperty;
+                    for (const array of [array1, array2, array3]) {
                         for (const [i, value] of result.entries()) {
                             expect(array.get(i)).to.equal(value);
                         }
@@ -948,6 +1011,7 @@ describe("PropertyDDS", () => {
 			await setupContainers();
 		});
 
+        otherTests();
 		rebaseTests();
 	});
 
