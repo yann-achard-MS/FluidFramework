@@ -41,9 +41,6 @@ function normalizeMarks(marks: Sq.TraitMarks): void {
 				if (mark.length === 1) {
 					delete mark.length;
 				}
-				if ("provision" in mark) {
-					delete mark.provision;
-				}
 			}
 			if (prevMark !== undefined && (isSegment(prevMark) || isPrior(prevMark))) {
 				if (isInsert(mark)) {

@@ -571,7 +571,7 @@ export namespace ScenarioF {
 			modify: {
 				foo: [
 					1, // Skip A
-					{ type: "Delete", length: 2, provision: { seq: 2, opId: 0 } },
+					{ type: "Delete", length: 2 },
 				],
 			},
 		}],
@@ -585,7 +585,7 @@ export namespace ScenarioF {
 			modify: {
 				foo: [
 					1, // Skip A
-					{ type: "Insert", content: [{ id: "x" }, { id: "z" }], provision: { seq: 2, opId: 0 } },
+					{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
 				],
 			},
 		}],
@@ -599,7 +599,7 @@ export namespace ScenarioF {
 			modify: {
 				foo: [
 					2, // Skip r A
-					{ type: "Insert", content: [{ id: "x" }, { id: "z" }], provision: { seq: 2, opId: 0 } },
+					{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
 				],
 			},
 		}],
@@ -763,7 +763,7 @@ export namespace ScenarioG {
 			modify: {
 				foo: [
 					1, // Skip A
-					{ type: "Delete", length: 2, provision: { seq: 2, opId: 0 } },
+					{ type: "Delete", length: 2 },
 				],
 			},
 		}],
@@ -781,7 +781,6 @@ export namespace ScenarioG {
 						type: "Insert",
 						content: [{ id: "X" }, { id: "Y" }],
 						commute: Commutativity.Full,
-						provision: { seq: 2, opId: 0 },
 					},
 				],
 			},
@@ -814,7 +813,7 @@ export namespace ScenarioG {
 			modify: {
 				foo: [
 					2, // Skip A X
-					{ type: "Delete", provision: { seq: 3, opId: 0 } },
+					{ type: "Delete" },
 				],
 			},
 		}],
@@ -832,7 +831,6 @@ export namespace ScenarioG {
 						type: "Insert",
 						content: [{ id: "N" }],
 						commute: Commutativity.None,
-						provision: { seq: 3, opId: 0 },
 					},
 				],
 			},
@@ -852,7 +850,6 @@ export namespace ScenarioG {
 						type: "Insert",
 						content: [{ id: "N" }],
 						commute: Commutativity.None,
-						provision: { seq: 3, opId: 0 },
 					},
 					{ type: "Detach", seq: -2 },
 					{ type: "Detach", seq: 1 },
@@ -869,7 +866,7 @@ export namespace ScenarioG {
 			modify: {
 				foo: [
 					1, // Skip A
-					{ type: "Delete", provision: { seq: 4, opId: 0 } },
+					{ type: "Delete" },
 				],
 			},
 		}],
@@ -901,7 +898,6 @@ export namespace ScenarioG {
 						type: "Insert",
 						content: [{ id: "M" }],
 						commute: Commutativity.None,
-						provision: { seq: 4, opId: 0 },
 					},
 					{ type: "Detach", seq: -2 },
 					1,
