@@ -449,6 +449,8 @@ export namespace Rebased {
 		| ModsMark
 		| SegmentMark
 		| SliceBound
+		| Return
+		| Revive
 		| Prior;
 
 	export type Mark =
@@ -487,6 +489,14 @@ export namespace Rebased {
 		type: "Detach";
 	}
 
+	export interface Revive extends HasSeqNumber, HasLength {
+		type: "Revive";
+	}
+
+	export interface Return extends HasSeqNumber, HasLength, HasMoveId {
+		type: "Return";
+	}
+
 	// export interface HasPriorMoveId {
 	// 	moveId: MoveId;
 	// }
@@ -521,6 +531,8 @@ export namespace Squashed {
 	export type HasMoveId = Rebased.HasMoveId;
 	export type MoveEntry = Rebased.MoveEntry;
 	export type SliceEnd = Rebased.SliceEnd;
+	export type Return = Rebased.Return;
+	export type Revive = Rebased.Revive;
 	export type Place = Original.Place;
 
 	export interface ChangeFrame {
@@ -554,6 +566,8 @@ export namespace Squashed {
 		| ModsMark
 		| SegmentMark
 		| SliceBound
+		| Return
+		| Revive
 		| Prior;
 
 	export type Mark =

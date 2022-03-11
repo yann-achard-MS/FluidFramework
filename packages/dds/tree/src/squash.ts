@@ -459,14 +459,6 @@ function updateProtoNode(proto: Sq.ProtoNode, mod: Sq.SetValue | Sq.Modify): voi
 // 	: T
 // ;
 
-// function mapObject<T,U>(obj: T, f: (v: T[keyof T], k: keyof T) => U): ({ [K in keyof T]: U }) {
-// 	const out: { [K in keyof T]?: U } = {};
-// 	for (const [k,v] of Object.entries(obj)) {
-// 		obj[k] = f(v, k as keyof T);
-// 	}
-// 	return out as { [K in keyof T]: U };
-// }
-
 // function squashProtoNode(pn: R.ProtoNode, seq: SeqNumber): Sq.ProtoNode {
 // 	const out: Sq.ProtoNode = {
 // 		id: pn.id,

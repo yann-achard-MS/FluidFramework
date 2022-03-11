@@ -20,6 +20,14 @@ export function fail(message: string): never {
 	throw new Error(message);
 }
 
+export function mapObject<T,U>(obj: T, f: (v: T[keyof T], k: keyof T) => U): ({ [K in keyof T]: U }) {
+	const out: { [K in keyof T]?: U } = {};
+	for (const [k,v] of Object.entries(obj)) {
+		obj[k] = f(v, k as keyof T);
+	}
+	return out as { [K in keyof T]: U };
+}
+
 // type Wrap<T> = { o: T } extends any ? { o: T } : never;
 // type Unwrap<T> = T extends { o: infer U } ? U : never;
 
