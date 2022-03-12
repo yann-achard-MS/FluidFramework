@@ -250,7 +250,7 @@ export function isDelete(mark: Offset | R.Mark | R.Mark): mark is R.Delete | R.D
 export function isMoveIn(mark: Offset | R.Mark): mark is R.MoveIn;
 export function isMoveIn(mark: Offset | R.Mark): mark is R.MoveIn;
 export function isMoveIn(mark: Offset | R.Mark | R.Mark): mark is R.MoveIn | R.MoveIn {
-	return typeof mark === "object" && mark.type === "MoveIn";
+	return typeof mark === "object" && (mark.type === "MoveInSlice" || mark.type === "MoveInSet");
 }
 
 export function isMoveOut(mark: Offset | R.Mark): mark is R.MoveIn;
@@ -309,7 +309,8 @@ export function isSegment(mark: R.ObjMark | R.ObjMark | Offset): mark is R.Segme
 	const markType = mark.type;
 	return markType === "Insert"
 		|| markType === "Delete"
-		|| markType === "MoveIn"
+		|| markType === "MoveInSet"
+		|| markType === "MoveInSlice"
 		|| markType === "MoveOut"
 	;
 }
@@ -322,7 +323,8 @@ export function isAttachSegment(mark: R.ObjMark | R.ObjMark | Offset): mark is R
 	}
 	const markType = mark.type;
 	return markType === "Insert"
-		|| markType === "MoveIn"
+		|| markType === "MoveInSet"
+		|| markType === "MoveInSlice"
 	;
 }
 

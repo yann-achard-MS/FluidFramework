@@ -153,9 +153,15 @@ export namespace Original {
 		content: ProtoNode[];
 	}
 
-	export interface MoveIn extends Place, HasLength, HasMods, HasMoveId {
-		type: "MoveIn";
+	export interface MoveInSet extends Place, HasLength, HasMods, HasMoveId {
+		type: "MoveInSet";
 	}
+
+	export interface MoveInSlice extends Place, HasLength, HasMods, HasMoveId {
+		type: "MoveInSlice";
+	}
+
+	export type MoveIn = MoveInSet | MoveInSlice;
 
 	/**
 	 * Used for set-like ranges and atomic ranges.
@@ -472,9 +478,15 @@ export namespace Rebased {
 		content: ProtoNode[];
 	}
 
-	export interface MoveIn extends Place, HasLength, HasMods, HasMoveId {
-		type: "MoveIn";
+	export interface MoveInSet extends Place, HasLength, HasMods, HasMoveId {
+		type: "MoveInSet";
 	}
+
+	export interface MoveInSlice extends Place, HasLength, HasMods, HasMoveId {
+		type: "MoveInSlice";
+	}
+
+	export type MoveIn = MoveInSet | MoveInSlice;
 
 	/**
 	 * Used for set-like ranges and atomic ranges.

@@ -77,13 +77,33 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 					});
 					break;
 				}
-				case "MoveIn": {
-					// TODO: invert to a slice move-out
+				case "MoveInSet": {
 					newMarks.push({
 						type: "MoveOut",
 						moveId: mark.moveId,
 						...optLength(mark),
 						...optMods(mark, invertModsMarks(mark.mods, seq)),
+					});
+					break;
+				}
+				case "MoveInSlice": {
+					newMarks.push({
+						type: "MoveOutStart",
+						moveId: mark.moveId,
+					});
+					const mods = invertModsMarks(mark.mods, seq);
+					let length = 0;
+					for (const mod of mods ?? []) {
+						length += isOffset(mod) ? mod : 1;
+						newMarks.push(mod);
+					}
+					const expectedLength = mark.length ?? 1;
+					if (length < expectedLength) {
+						newMarks.push(expectedLength - length);
+					}
+					newMarks.push({
+						type: "End",
+						moveId: mark.moveId,
 					});
 					break;
 				}

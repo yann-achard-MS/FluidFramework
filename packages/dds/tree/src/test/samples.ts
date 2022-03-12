@@ -16,10 +16,10 @@ export namespace SwapCousins {
 			modify: {
 				foo: [
 					{ type: "MoveOut", moveId: 0 },
-					{ type: "MoveIn", moveId: 1 },
+					{ type: "MoveInSet", moveId: 1 },
 				],
 				bar: [
-					{ type: "MoveIn", moveId: 0 },
+					{ type: "MoveInSet", moveId: 0 },
 					{ type: "MoveOut", moveId: 1 },
 				],
 			},
@@ -65,19 +65,19 @@ export namespace SwapParentChild {
 						}],
 					},
 					{
-						type: "MoveIn", // C
+						type: "MoveInSet", // C
 						moveId: 1,
 						mods: [{ // Modify C
 							modify: {
 								bar: [
 									{
-										type: "MoveIn", // B
+										type: "MoveInSet", // B
 										moveId: 0,
 										mods: [{ // Modify B
 											modify: {
 												baz: [
 													{
-														type: "MoveIn", // D
+														type: "MoveInSet", // D
 														moveId: 2,
 													},
 												],
@@ -107,7 +107,7 @@ export namespace ScenarioA1 {
 	the fact that the move operation performed by user 2 was targeted not only at node D but also at nodes B and C. We
 	also need to preserve the fact that the insertion of X was made with respect to B. This is challenging because the
 	third edit will be rebased over the deletion of B C. This last point also holds for insertions of detached content
-	(i.e., `MoveIn`)
+	(i.e., `MoveIn*`)
 
 	Takeaways:
 	We need to preserve the layering of moves over deletions.
@@ -144,7 +144,7 @@ export namespace ScenarioA1 {
 						{ type: "End" },
 					],
 					bar: [
-						{ type: "MoveIn", length: 3 },
+						{ type: "MoveInSlice", length: 3 },
 					],
 				},
 			}],
@@ -179,7 +179,7 @@ export namespace ScenarioA1 {
 					{ type: "End" },
 				],
 				bar: [
-					{ type: "MoveIn" },
+					{ type: "MoveInSlice" },
 				],
 			},
 		}],
@@ -225,7 +225,7 @@ export namespace ScenarioA2 {
 	the fact that the move operation performed by user 2 was targeted not only at node D but also at nodes B and C. We
 	also need to preserve the fact that the insertion of X was made with respect to B. This is challenging because the
 	third edit will be rebased over the deletion of B C. This last point also holds for insertions of detached content
-	(i.e., `MoveIn`)
+	(i.e., `MoveIn*`)
 
 	Takeaways:
 	We need to preserve the layering of moves over deletions.
@@ -253,7 +253,7 @@ export namespace ScenarioA2 {
 					{ type: "End" },
 				],
 				bar: [
-					{ type: "MoveIn", length: 2 },
+					{ type: "MoveInSlice", length: 2 },
 				],
 			},
 		}],
@@ -281,7 +281,7 @@ export namespace ScenarioA2 {
 					{ type: "End" },
 				],
 				bar: [
-					{ type: "MoveIn" },
+					{ type: "MoveInSlice" },
 				],
 			},
 		}],
@@ -345,7 +345,7 @@ export namespace ScenarioC {
 					{ type: "MoveOut" },
 				],
 				bar: [
-					{ type: "MoveIn" },
+					{ type: "MoveInSet" },
 				],
 			},
 		}],
@@ -400,7 +400,7 @@ export namespace ScenarioD {
 					{ type: "End", side: Sibling.Next },
 				],
 				bar: [
-					{ type: "MoveIn" },
+					{ type: "MoveInSlice" },
 				],
 			},
 		}],
@@ -418,7 +418,7 @@ export namespace ScenarioD {
 					{ type: "End" },
 				],
 				baz: [
-					{ type: "MoveIn", length: 4 },
+					{ type: "MoveInSlice", length: 4 },
 				],
 			},
 		}],
@@ -440,7 +440,7 @@ export namespace ScenarioD {
 					{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 				],
 				baz: [
-					{ type: "MoveIn", length: 2 }, // A C
+					{ type: "MoveInSlice", length: 2 }, // A C
 				],
 			},
 		}],
@@ -474,7 +474,7 @@ export namespace ScenarioE {
 					{ type: "End", side: Sibling.Next },
 				],
 				bar: [
-					{ type: "MoveIn" }, // B
+					{ type: "MoveInSlice" }, // B
 				],
 			},
 		}],
@@ -672,7 +672,7 @@ export namespace ScenarioG {
 						{ type: "End", side: Sibling.Next },
 					],
 					bar: [
-						{ type: "MoveIn", length: 2 },
+						{ type: "MoveInSlice", length: 2 },
 					],
 				},
 			}],
@@ -921,7 +921,7 @@ export namespace ScenarioG {
 					{ type: "End", side: Sibling.Next },
 				],
 				bar: [
-					{ type: "MoveIn", length: 4 }, // A X Y B
+					{ type: "MoveInSlice", length: 4 }, // A X Y B
 				],
 			},
 		}],
@@ -944,9 +944,9 @@ export namespace ScenarioG {
 					{ type: "End", side: Sibling.Next },
 				],
 				bar: [
-					{ type: "MoveIn" }, // A
+					{ type: "MoveInSlice" }, // A
 					{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
-					{ type: "MoveIn" }, // B
+					{ type: "MoveInSlice" }, // B
 				],
 			},
 		}],
@@ -969,9 +969,9 @@ export namespace ScenarioG {
 					{ type: "End", side: Sibling.Next },
 				],
 				bar: [
-					{ type: "MoveIn" }, // A
+					{ type: "MoveInSlice" }, // A
 					{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
-					{ type: "MoveIn" }, // B
+					{ type: "MoveInSlice" }, // B
 				],
 			},
 		}],

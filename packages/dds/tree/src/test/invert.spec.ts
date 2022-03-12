@@ -18,6 +18,9 @@ function testInvert(frame: R.ChangeFrame, seq: SeqNumber = 0): R.ChangeFrame {
 
 describe.only(invert.name, () => {
 	it("The lot", () => {
+		const seq = 42;
+		const setValue: R.SetValue = { type: "SetValue", value: 1 };
+		const revertValue: R.RevertValue = { type: "RevertValue", seq: 42 };
 		const actual = testInvert({
 			moves: [
 				{ src: "foo.0.foo.4", dst: "bar.0" },
@@ -44,7 +47,7 @@ describe.only(invert.name, () => {
 							type: "MoveOutStart",
 							moveId: 1,
 						},
-						1,
+						4,
 						{
 							type: "Detach",
 							seq: 41,
@@ -73,17 +76,18 @@ describe.only(invert.name, () => {
 					],
 					bar: [
 						{
-							type: "MoveIn",
+							type: "MoveInSet",
 							moveId: 0,
-							mods: [{ type: "SetValue", value: 1 }],
+							mods: [setValue],
 						},
 					],
 					baz: [
 						1,
 						{
-							type: "MoveIn",
+							type: "MoveInSlice",
 							moveId: 1,
-							mods: [{ type: "SetValue", value: 1 }],
+							length: 4,
+							mods: [1, { type: "SetValue", value: 1 }],
 						},
 						{
 							type: "Return",
@@ -99,26 +103,25 @@ describe.only(invert.name, () => {
 					],
 				},
 			}],
-		}, 42);
-		const revertValue: R.RevertValue = { type: "RevertValue", seq: 42 };
+		}, seq);
 		const expected: R.ChangeFrame = {
 			moves: [
 				{ src: "bar.0", dst: "foo.0.foo.4" },
 				{ src: "baz.1", dst: "foo.1" },
 			],
 			marks: [{
-				value: { seq: 42 },
+				value: { seq },
 				modify: {
 					foo: [
 						{
 							type: "Revive",
-							seq: 42,
+							seq,
 							mods: [{ modify: {
 								foo: [
 									4,
 									{
 										type: "Return",
-										seq: 42,
+										seq,
 										moveId: 0,
 										length: 2,
 									},
@@ -127,7 +130,8 @@ describe.only(invert.name, () => {
 						},
 						{
 							type: "Return",
-							seq: 42,
+							length: 4,
+							seq,
 							moveId: 1,
 						},
 						{
@@ -136,7 +140,7 @@ describe.only(invert.name, () => {
 						},
 						{
 							type: "Revive",
-							seq: 42,
+							seq,
 						},
 						{
 							type: "Detach",
@@ -144,7 +148,7 @@ describe.only(invert.name, () => {
 						},
 						{
 							type: "Revive",
-							seq: 42,
+							seq,
 						},
 						1,
 						{
@@ -161,9 +165,15 @@ describe.only(invert.name, () => {
 					baz: [
 						1,
 						{
-							type: "MoveOut",
+							type: "MoveOutStart",
 							moveId: 1,
-							mods: [revertValue],
+						},
+						1,
+						revertValue,
+						2,
+						{
+							type: "End",
+							moveId: 1,
 						},
 						{
 							type: "MoveOut",
