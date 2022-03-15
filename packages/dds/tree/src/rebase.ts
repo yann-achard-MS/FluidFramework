@@ -24,7 +24,11 @@ import {
 	isModify,
 	isMoveOut,
 	isOffset,
+	isPrior,
 	isPriorDetach,
+	isReturn,
+	isRevert,
+	isRevive,
 	isSegment,
 	isSetValue,
 	lengthFromMark,
@@ -98,48 +102,74 @@ function rebaseOverMark(startPtr: Pointer, baseMark: R.TraitMark, context: Conte
 		}
 		const mark = ptr.mark;
 		if (mark === undefined) {
-			ptr = ptr.insert(priorFromTraitMark(baseMark, context));
+			ptr = insertPriorFromTraitMark(ptr, baseMark, context);
 		} else {
 			if (isAttachSegment(baseMark)) {
 				ptr = ptr.insert(lengthFromMark(baseMark));
 			} else {
 				ptr = ptr.ensureMarkStart();
-				const newMarkLength = lengthFromMark(baseMark);
+				const baseMarkLength = lengthFromMark(baseMark);
 				const markLength = lengthFromMark(mark);
-				if (newMarkLength < markLength) {
-					ptr.seek(newMarkLength).ensureMarkStart();
-				} else if (newMarkLength > markLength) {
+				if (baseMarkLength < markLength) {
+					ptr.seek(baseMarkLength).ensureMarkStart();
+				} else if (baseMarkLength > markLength) {
 					const [fst, snd] = splitMark(baseMark, markLength);
 					ptr = rebaseOverMark(ptr, fst, context);
 					ptr = rebaseOverMark(ptr, snd, context);
 				} else {
 					if (isModify(baseMark)) {
 						if (isModify(mark)) {
-							for (const [k,v] of Object.entries(baseMark.modify ?? {})) {
-								if (k in mark) {
-									marksToMarks(mark[k], v, context);
-								} else {
-									mark[k] = priorsFromTraitMarks([], v, context);
-								}
-							}
+							rebaseOverModify(mark, baseMark, context);
 						} else if (isSetValue(mark)) {
 							const mod: R.Modify = {
 								value: mark.value,
 								modify: priorsFromModify(baseMark, context).modify,
 							};
 							ptr = ptr.replaceMark(mod);
+						} else if (isDetachSegment(mark)) {
+							const mods = mark.mods ?? [1];
+							if (mark.mods === undefined) {
+								mark.mods = mods;
+							}
+							const mod = mods[0];
+							if (mod === undefined || isOffset(mod)) {
+								mods[0] = {
+									modify: priorsFromModify(baseMark, context).modify,
+								};
+							} else {
+								assert(isModify(mod), "Expected Modify mark");
+								rebaseOverModify(mod, baseMark, context);
+							}
+							ptr = ptr.skipMarks(1);
 						} else {
-							// Nothing to do here
-							assert(isDetachSegment(mark), "Unexpected segment type");
+							fail("Unexpected segment type");
 						}
+					} else if (isDelete(baseMark) || isMoveOut(baseMark)) {
+						ptr = ptr.insert({
+							type: "PriorDetach",
+							seq: context.seq,
+							...optLength(baseMark),
+						});
+					} else if (isOffset(baseMark)) {
+						ptr.seek(baseMarkLength);
 					} else {
-						ptr = ptr.insert(priorFromTraitMark(baseMark, context));
+						ptr = insertPriorFromTraitMark(ptr, baseMark, context);
 					}
 				}
 			}
 		}
 	}
 	return ptr;
+}
+
+function rebaseOverModify(mark: R.Modify, baseMark: R.Modify, context: Context): void {
+	for (const [k,v] of Object.entries(baseMark.modify ?? {})) {
+		if (k in mark) {
+			marksToMarks(mark[k], v, context);
+		} else {
+			mark[k] = priorsFromTraitMarks([], v, context);
+		}
+	}
 }
 
 type PriorTraitMark = R.Prior | R.Modify<R.Prior, false> | Offset;
@@ -160,30 +190,48 @@ function priorsFromTraitMarks(
 	context: Context,
 ): PriorTraitMark[] {
 	for (const baseMark of baseMarks) {
-		marks.push(priorFromTraitMark(baseMark, context));
+		const newMark = priorFromTraitMark(baseMark, context);
+		if (newMark !== undefined) {
+			marks.push();
+		}
 	}
 	return marks;
 }
 
-function priorFromTraitMark(
+function insertPriorFromTraitMark(
+	ptr: Pointer,
 	baseMark: R.TraitMark,
 	context: Context,
-): PriorTraitMark {
-	if (isModify(baseMark)) {
-		return priorsFromModify(baseMark, context);
+): Pointer {
+	const newMark = priorFromTraitMark(baseMark, context);
+	if (newMark !== undefined) {
+		return ptr.insert(newMark);
 	}
-	if (isDelete(baseMark) || isMoveOut(baseMark)) {
+	return ptr;
+}
+
+function priorFromTraitMark(
+	base: R.TraitMark,
+	context: Context,
+): PriorTraitMark | undefined {
+	if (isModify(base)) {
+		return priorsFromModify(base, context);
+	}
+	if (isDelete(base) || isMoveOut(base)) {
 		return {
 			type: "PriorDetach",
 			seq: context.seq,
-			...optLength(baseMark),
+			...optLength(base),
 		};
 	}
-	if (isOffset(baseMark) && isAttachSegment(baseMark)) {
-		return lengthFromMark(baseMark);
+	if (isOffset(base) || isAttachSegment(base) || isReturn(base) || isRevive(base) || isRevert(base)) {
+		return lengthFromMark(base);
 	}
-	if (isBound(baseMark)) {
-		return priorFromBound(baseMark, context);
+	if (isBound(base)) {
+		return priorFromBound(base, context);
+	}
+	if (isPrior(base) || isSetValue(base)) {
+		return undefined;
 	}
 	fail("Unexpected mark type");
 }
