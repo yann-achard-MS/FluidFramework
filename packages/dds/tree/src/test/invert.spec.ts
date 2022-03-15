@@ -37,7 +37,7 @@ describe.only(invert.name, () => {
 									4,
 									{
 										type: "MoveOut",
-										moveId: 0,
+										op: 0,
 										length: 2,
 									},
 								],
@@ -45,28 +45,30 @@ describe.only(invert.name, () => {
 						},
 						{
 							type: "MoveOutStart",
-							moveId: 1,
+							op: 1,
 						},
 						4,
 						{
-							type: "Detach",
+							type: "PriorDetach",
 							seq: 41,
 						},
 						{
 							type: "End",
-							moveId: 1,
+							op: 1,
 						},
 						{
 							type: "DeleteStart",
+							op: -1,
 						},
 						1,
 						{
-							type: "Detach",
+							type: "PriorDetach",
 							seq: 41,
 						},
 						1,
 						{
 							type: "End",
+							op: -1,
 						},
 						1,
 						{
@@ -77,7 +79,7 @@ describe.only(invert.name, () => {
 					bar: [
 						{
 							type: "MoveInSet",
-							moveId: 0,
+							op: 0,
 							mods: [setValue],
 						},
 					],
@@ -85,14 +87,14 @@ describe.only(invert.name, () => {
 						1,
 						{
 							type: "MoveInSlice",
-							moveId: 1,
+							op: 1,
 							length: 4,
 							mods: [1, { type: "SetValue", value: 1 }],
 						},
 						{
 							type: "Return",
 							seq: 41,
-							moveId: 2,
+							op: 2,
 							mods: [{ type: "SetValue", value: 1 }],
 						},
 						{
@@ -122,7 +124,7 @@ describe.only(invert.name, () => {
 									{
 										type: "Return",
 										seq,
-										moveId: 0,
+										op: 0,
 										length: 2,
 									},
 								],
@@ -132,10 +134,10 @@ describe.only(invert.name, () => {
 							type: "Return",
 							length: 4,
 							seq,
-							moveId: 1,
+							op: 1,
 						},
 						{
-							type: "Detach",
+							type: "PriorDetach",
 							seq: 41,
 						},
 						{
@@ -143,7 +145,7 @@ describe.only(invert.name, () => {
 							seq,
 						},
 						{
-							type: "Detach",
+							type: "PriorDetach",
 							seq: 41,
 						},
 						{
@@ -158,7 +160,7 @@ describe.only(invert.name, () => {
 					bar: [
 						{
 							type: "MoveOut",
-							moveId: 0,
+							op: 0,
 							mods: [revertValue],
 						},
 					],
@@ -166,18 +168,18 @@ describe.only(invert.name, () => {
 						1,
 						{
 							type: "MoveOutStart",
-							moveId: 1,
+							op: 1,
 						},
 						1,
 						revertValue,
 						2,
 						{
 							type: "End",
-							moveId: 1,
+							op: 1,
 						},
 						{
 							type: "MoveOut",
-							moveId: 2,
+							op: 2,
 							mods: [revertValue],
 						},
 						{

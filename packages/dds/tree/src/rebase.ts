@@ -7,8 +7,29 @@ import { assert } from "@fluidframework/common-utils";
 import {
 	Sequenced as S,
 	Rebased as R,
+	Offset,
+	SeqNumber,
 } from "./format";
-import { isChangeFrame, isConstraintFrame } from "./utils";
+import {
+	clone,
+	fail,
+	isAttachSegment,
+	isBound,
+	isChangeFrame,
+	isConstraintFrame,
+	isDelete,
+	isDetachSegment,
+	isEnd,
+	isInsert,
+	isModify,
+	isMoveOut,
+	isOffset,
+	isPriorDetach,
+	isSegment,
+	isSetValue,
+	lengthFromMark,
+	mapObject,
+} from "./utils";
 
 export function rebase(original: R.Transaction, base: S.Transaction): R.Transaction {
 	return {
@@ -28,7 +49,7 @@ function rebaseFrame(
 	} else if (isChangeFrame(frame)) {
 		return rebaseChangeFrame(frame, original, base);
 	}
-	throw(new Error("Transaction frame is neither a constraint nor a change"));
+	fail("Transaction frame is neither a constraint nor a change");
 }
 
 function rebaseChangeFrame(
@@ -38,49 +59,140 @@ function rebaseChangeFrame(
 ): R.ChangeFrame {
 	const baseSeq = baseTransaction.seq;
 	// const sameClient = originalTransaction.client === baseTransaction.client;
-	const moves: R.MoveEntry[] = [];
 
 	const frameToFrame = (
 		orig: R.ChangeFrame,
 		base: R.ChangeFrame,
-	): R.ChangeFrame => {
-		return {
-			...(moves.length === 0 ? {} : { moves }),
-			marks: marksToMarks(orig.marks, base.marks),
-		};
+		seq: SeqNumber,
+	): void => {
+		marksToMarks(orig.marks, base.marks, { seq, sliceIdOffset: orig.moves?.length ?? 0 });
 	};
 
-	const marksToMarks = (
-		orig: R.TraitMarks,
-		base: R.TraitMarks,
-	): R.TraitMarks => {
-		const newMarks: R.TraitMarks = [];
-		let iOrig = 0;
-		let iBase = 0;
-		while (iOrig < orig.length || iBase < base.length) {
-			const mOrig = orig[iOrig];
-			const mBase = base[iBase];
-			if (mOrig === undefined) {
-				assert(mBase !== undefined, "The while loop should have terminated");
-				newMarks.push(typeof mBase === "number" ? mBase : scaffoldFrom(mBase, baseSeq));
-				iBase += 1;
-			} else if (mBase === undefined) {
-				iOrig += 1;
-			} else {
-				iBase += 1;
-				iOrig += 1;
-			}
-		}
-		return newMarks;
-	};
-
-	let newFrame: R.ChangeFrame = frameToRebase;
+	const newFrame: R.ChangeFrame = clone(frameToRebase);
 	for (const baseFrame of baseTransaction.frames) {
 		if (isChangeFrame(baseFrame)) {
-			newFrame = frameToFrame(newFrame, baseFrame);
+			frameToFrame(newFrame, baseFrame, baseSeq);
 		}
 	}
 	return newFrame;
+}
+
+function marksToMarks(
+	curr: R.TraitMarks,
+	base: R.TraitMarks,
+	context: Context,
+): void {
+	let ptr = Pointer.fromMarks(curr);
+	for (const baseMark of base) {
+		ptr = rebaseOverMark(ptr, baseMark, context);
+	}
+}
+
+function rebaseOverMark(startPtr: Pointer, baseMark: R.TraitMark, context: Context): Pointer {
+	let ptr = startPtr;
+	if (isBound(baseMark)) {
+		ptr = ptr.insert(priorFromBound(baseMark, context));
+	} else {
+		while (ptr.mark !== undefined && (isAttachSegment(ptr.mark) || isBound(ptr.mark))) {
+			ptr = ptr.skipMarks(1);
+		}
+		const mark = ptr.mark;
+		if (mark === undefined) {
+			ptr = ptr.insert(priorFromTraitMark(baseMark, context));
+		} else {
+			if (isAttachSegment(baseMark)) {
+				ptr = ptr.insert(lengthFromMark(baseMark));
+			} else {
+				ptr = ptr.ensureMarkStart();
+				const newMarkLength = lengthFromMark(baseMark);
+				const markLength = lengthFromMark(mark);
+				if (newMarkLength < markLength) {
+					ptr.seek(newMarkLength).ensureMarkStart();
+				} else if (newMarkLength > markLength) {
+					const [fst, snd] = splitMark(baseMark, markLength);
+					ptr = rebaseOverMark(ptr, fst, context);
+					ptr = rebaseOverMark(ptr, snd, context);
+				} else {
+					if (isModify(baseMark)) {
+						if (isModify(mark)) {
+							for (const [k,v] of Object.entries(baseMark.modify ?? {})) {
+								if (k in mark) {
+									marksToMarks(mark[k], v, context);
+								} else {
+									mark[k] = priorsFromTraitMarks([], v, context);
+								}
+							}
+						} else if (isSetValue(mark)) {
+							const mod: R.Modify = {
+								value: mark.value,
+								modify: priorsFromModify(baseMark, context).modify,
+							};
+							ptr = ptr.replaceMark(mod);
+						} else {
+							// Nothing to do here
+							assert(isDetachSegment(mark), "Unexpected segment type");
+						}
+					} else {
+						ptr = ptr.insert(priorFromTraitMark(baseMark, context));
+					}
+				}
+			}
+		}
+	}
+	return ptr;
+}
+
+type PriorTraitMark = R.Prior | R.Modify<R.Prior, false> | Offset;
+
+function priorsFromModify(modify: R.Modify, context: Context): R.Modify<PriorTraitMark, false> {
+	const mods = modify.modify;
+	if (mods === undefined) {
+		return {};
+	}
+	return {
+		modify: mapObject(mods, (marks) => priorsFromTraitMarks([], marks, context)),
+	};
+}
+
+function priorsFromTraitMarks(
+	marks: PriorTraitMark[],
+	baseMarks: R.TraitMarks,
+	context: Context,
+): PriorTraitMark[] {
+	for (const baseMark of baseMarks) {
+		marks.push(priorFromTraitMark(baseMark, context));
+	}
+	return marks;
+}
+
+function priorFromTraitMark(
+	baseMark: R.TraitMark,
+	context: Context,
+): PriorTraitMark {
+	if (isModify(baseMark)) {
+		return priorsFromModify(baseMark, context);
+	}
+	if (isDelete(baseMark) || isMoveOut(baseMark)) {
+		return {
+			type: "PriorDetach",
+			seq: context.seq,
+			...optLength(baseMark),
+		};
+	}
+	if (isOffset(baseMark) && isAttachSegment(baseMark)) {
+		return lengthFromMark(baseMark);
+	}
+	if (isBound(baseMark)) {
+		return priorFromBound(baseMark, context);
+	}
+	fail("Unexpected mark type");
+}
+
+function optLength<T extends { length?: number; }>(input: T): ({ length?: number; }) {
+	if (input.length !== undefined && input.length !== 1) {
+		return { length: input.length };
+	}
+	return {};
 }
 
 function rebaseConstraintFrame(
@@ -88,9 +200,218 @@ function rebaseConstraintFrame(
 	original: R.Transaction,
 	base: S.Transaction,
 ): R.ConstraintFrame {
-	throw new Error("Function not implemented.");
+	fail("Function not implemented.");
 }
 
-function scaffoldFrom(mBase: R.Mark, baseSeq: number): R.Prior {
-	throw new Error("Function not implemented.");
+interface Context {
+	seq: SeqNumber;
+	sliceIdOffset: number;
+}
+
+class Pointer {
+	/**
+	 * The marks being pointed at.
+	 */
+	public readonly marks: R.TraitMarks;
+	/**
+	 * The index of the mark being pointed at within a list of marks.
+	 * This index must be inferior *or equal* to the length of the list of marks.
+	 */
+	public readonly iMark: number;
+	/**
+	 * The index of the tree node being pointed at within the segment.
+	 * This index must always be less than the length of the segment.
+	 */
+	public readonly iNode: number;
+	/**
+	 * The number of slices currently overlapping with the ptr position.
+	 */
+	public readonly inSlice: number;
+	// public readonly context: ReadContext;
+
+	private constructor(
+		marks: R.TraitMarks,
+		iMark: number,
+		iNode: number,
+		inSlice: number,
+		// context: Readonly<ReadContext>,
+	) {
+		this.marks = marks;
+		this.iMark = iMark;
+		this.iNode = iNode;
+		this.inSlice = inSlice;
+		// this.context = context;
+	}
+
+	public static fromMarks(
+		marks: R.TraitMarks,
+		// context: Readonly<ReadContext>,
+	): Pointer {
+		return new Pointer(
+			marks,
+			0,
+			0,
+			0,
+			// context
+		);
+	}
+
+	public get mark(): R.TraitMark | undefined {
+		return this.marks[this.iMark];
+	}
+
+	public replaceMark(newMark: R.TraitMark): Pointer {
+		assert(this.iNode === 0, "Only a whole mark can be replaced");
+		assert(
+			lengthFromMark(this.mark) === lengthFromMark(newMark),
+			"A mark should only be replaced by a mark of the same length",
+		);
+		this.marks.splice(this.iMark, 1, newMark);
+		return this.skipMarks(1);
+	}
+
+	public insert(newMark: R.TraitMark): Pointer {
+		const ptr = this.ensureMarkStart();
+		this.marks.splice(ptr.iMark, 0, newMark);
+		return ptr.skipMarks(1);
+	}
+
+	/**
+	 * @returns A Pointer to the location of the first node in the latter part of the split mark.
+	 */
+	public ensureMarkStart(): Pointer {
+		if (this.iNode === 0) {
+			return this;
+		}
+		const mark = this.mark;
+		if (mark === undefined) {
+			this.marks.push(this.iNode);
+		} else {
+			const mLength = lengthFromMark(mark);
+			if (mLength !== this.iNode) {
+				const markParts = splitMark(mark, this.iNode);
+				this.marks.splice(this.iMark, 1, ...markParts);
+			}
+		}
+		return this.seek(0);
+	}
+
+	public seek(nodeOffset: number): Pointer {
+		return this.advance(nodeOffset);
+	}
+
+	public skipMarks(markCount: number): Pointer {
+		const { marks, iMark, inSlice } = this;
+		return new Pointer(marks, iMark + markCount, 0, inSlice).seek(0);
+	}
+
+	private advance(nodeOffset: number): Pointer {
+		assert(nodeOffset >= 0, "The offset must be >= to zero");
+		let offset = nodeOffset;
+		let { iMark, iNode, inSlice } = this;
+		const { marks } = this;
+		const markMax = marks.length;
+		// Note that we use `>= 0` instead of `> 0`.
+		// This ensures we skip over zero-length marks.
+		while (offset >= 0 && iMark < markMax) {
+			const mark = marks[iMark];
+			const nodeCount = lengthFromMark(mark);
+			if (iNode + offset >= nodeCount) {
+				iMark += 1;
+				offset -= nodeCount - iNode;
+				iNode = 0;
+				if (isBound(mark)) {
+					if (isEnd(mark)) {
+						assert(inSlice > 0, "Unbalanced slice bounds");
+						inSlice -= 1;
+					} else {
+						inSlice += 1;
+					}
+				}
+			} else {
+				break;
+			}
+		}
+		return new Pointer(
+			marks,
+			iMark,
+			iNode + offset,
+			inSlice,
+			// context
+		);
+	}
+}
+
+function splitMark(mark: Readonly<Offset | R.Mark>, offset: number): [Offset | R.Mark, Offset | R.Mark] {
+	if (isOffset(mark)) {
+		return [offset, mark - offset];
+	}
+	if (offset === 0) {
+		return [0, { ...mark }];
+	}
+	const mLength = lengthFromMark(mark);
+	if (mLength === offset) {
+		return [{ ...mark }, 0];
+	}
+	if (isSegment(mark) || isPriorDetach(mark)) {
+		if (isInsert(mark)) {
+			return [
+				{ ...mark, content: mark.content.slice(0, offset) },
+				{ ...mark, content: mark.content.slice(offset) },
+			];
+		}
+		if (mark.mods) {
+			if (isPriorDetach(mark)) {
+				const mods = mark.mods;
+				return [
+					{ ...mark, length: offset,  mods: mods.slice(0, offset) },
+					{ ...mark, length: mLength - offset, mods: mods.slice(offset) },
+				];
+			} else if (isDetachSegment(mark)) {
+				const mods = mark.mods;
+				return [
+					{ ...mark, length: offset,  mods: mods.slice(0, offset) },
+					{ ...mark, length: mLength - offset, mods: mods.slice(offset) },
+				];
+			} else {
+				const mods = mark.mods;
+				return [
+					{ ...mark, length: offset,  mods: mods.slice(0, offset) },
+					{ ...mark, length: mLength - offset, mods: mods.slice(offset) },
+				];
+			}
+		}
+		return [
+			{ ...mark, length: offset },
+			{ ...mark, length: mLength - offset },
+		];
+	} else {
+		fail("TODO: support other mark types");
+	}
+}
+
+function priorFromBound(bound: R.SliceBound, context: Context): R.PriorSlice {
+	switch (bound.type) {
+		case "DeleteStart": {
+			return {
+				type: "PriorDeleteStart",
+				seq: context.seq,
+				op: bound.op + context.sliceIdOffset,
+			};
+		}
+		case "MoveOutStart": {
+			return {
+				type: "PriorMoveOutStart",
+				seq: context.seq,
+				op: bound.op + context.sliceIdOffset,
+			};
+		}
+		case "End": {
+			return {
+				type: "PriorSliceEnd",
+				op: bound.op + context.sliceIdOffset,
+			};
+		}
+		default: fail("Unexpected bound type");
+	}
 }

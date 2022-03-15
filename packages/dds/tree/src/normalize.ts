@@ -6,7 +6,17 @@
 import {
 	Squashed as Sq,
 } from "./format";
-import { isDelete, isInsert, isModify, isMoveIn, isMoveOut, isOffset, isPrior, isSegment } from "./utils";
+import {
+	isDelete,
+	isInsert,
+	isModify,
+	isMoveIn,
+	isMoveOut,
+	isOffset,
+	isPrior,
+	isPriorDetach,
+	isSegment,
+} from "./utils";
 
 export function normalizeFrame(frame: Sq.ChangeFrame): void {
 	if (frame.moves?.length === 0) {
@@ -28,19 +38,17 @@ function normalizeMarks(marks: Sq.TraitMarks): void {
 					marks.splice(iMark - 1, 2, mark + prevMark);
 				}
 			}
-		} else if (isDelete(mark) || isMoveOut(mark) || isMoveIn(mark) || isPrior(mark) || isInsert(mark)) {
-			if (!isInsert(mark)) {
-				if (mark.mods !== undefined) {
-					normalizeMarks(mark.mods);
-					if (mark.mods.length === 0 || (mark.mods.length === 1 && isOffset(mark.mods[0]))) {
-						delete mark.mods;
-					}
-				} else if ("mods" in mark) {
+		} else if (isDelete(mark) || isMoveOut(mark) || isMoveIn(mark) || isPriorDetach(mark) || isInsert(mark)) {
+			if (mark.mods !== undefined) {
+				normalizeMarks(mark.mods);
+				if (mark.mods.length === 0 || (mark.mods.length === 1 && isOffset(mark.mods[0]))) {
 					delete mark.mods;
 				}
-				if (mark.length === 1) {
-					delete mark.length;
-				}
+			} else if ("mods" in mark) {
+				delete mark.mods;
+			}
+			if (!isInsert(mark) && mark.length === 1) {
+				delete mark.length;
 			}
 			if (prevMark !== undefined && (isSegment(prevMark) || isPrior(prevMark))) {
 				if (isInsert(mark)) {
@@ -49,8 +57,8 @@ function normalizeMarks(marks: Sq.TraitMarks): void {
 						marks.splice(iMark, 1);
 					}
 				} else if (
-					(isPrior(mark) === false && mark.type === prevMark.type)
-					|| (isPrior(mark) && isPrior(prevMark) && mark.seq === prevMark.seq)
+					(isPriorDetach(mark) === false && mark.type === prevMark.type)
+					|| (isPriorDetach(mark) && isPriorDetach(prevMark) && mark.seq === prevMark.seq)
 				) {
 					const prevLen = prevMark.length ?? 1;
 					const mods = prevMark.mods ?? [];

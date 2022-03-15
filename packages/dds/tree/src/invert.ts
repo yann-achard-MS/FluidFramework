@@ -80,7 +80,7 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 				case "MoveInSet": {
 					newMarks.push({
 						type: "MoveOut",
-						moveId: mark.moveId,
+						op: mark.op,
 						...optLength(mark),
 						...optMods(mark, invertModsMarks(mark.mods, seq)),
 					});
@@ -89,7 +89,7 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 				case "MoveInSlice": {
 					newMarks.push({
 						type: "MoveOutStart",
-						moveId: mark.moveId,
+						op: mark.op,
 					});
 					const mods = invertModsMarks(mark.mods, seq);
 					let length = 0;
@@ -103,7 +103,7 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 					}
 					newMarks.push({
 						type: "End",
-						moveId: mark.moveId,
+						op: mark.op,
 					});
 					break;
 				}
@@ -111,7 +111,7 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 					newMarks.push({
 						type: "Return",
 						seq,
-						moveId: mark.moveId,
+						op: mark.op,
 						...optLength(mark),
 						...optMods(mark, invertModsMarks(mark.mods, seq)),
 					});
@@ -120,7 +120,7 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 				case "Return": {
 					newMarks.push({
 						type: "MoveOut",
-						moveId: mark.moveId,
+						op: mark.op,
 						...optLength(mark),
 						...optMods(mark, invertModsMarks(mark.mods, seq)),
 					});
@@ -138,7 +138,7 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 							});
 						} else if (isPrior(markInSlice)) {
 							newMarks.push(markInSlice);
-						} else if (isEnd(markInSlice) && markInSlice.moveId === mark.moveId) {
+						} else if (isEnd(markInSlice) && markInSlice.op === mark.op) {
 							break;
 						} else {
 							fail("Unexpected mark within deleted slice");
@@ -159,11 +159,11 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 								type: "Return",
 								seq,
 								...(markInSlice > 1 ? { length: markInSlice } : {}),
-								moveId: mark.moveId,
+								op: mark.op,
 							});
 						} else if (isPrior(markInSlice)) {
 							newMarks.push(markInSlice);
-						} else if (isEnd(markInSlice) && markInSlice.moveId === mark.moveId) {
+						} else if (isEnd(markInSlice) && markInSlice.op === mark.op) {
 							break;
 						} else {
 							fail("Unexpected mark within deleted slice");

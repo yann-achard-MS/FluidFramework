@@ -15,12 +15,12 @@ export namespace SwapCousins {
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "MoveOut", moveId: 0 },
-					{ type: "MoveInSet", moveId: 1 },
+					{ type: "MoveOut", op: 0 },
+					{ type: "MoveInSet", op: 1 },
 				],
 				bar: [
-					{ type: "MoveInSet", moveId: 0 },
-					{ type: "MoveOut", moveId: 1 },
+					{ type: "MoveInSet", op: 0 },
+					{ type: "MoveOut", op: 1 },
 				],
 			},
 		}],
@@ -42,19 +42,19 @@ export namespace SwapParentChild {
 				foo: [
 					{
 						type: "MoveOut", // B,
-						moveId: 0,
+						op: 0,
 						mods: [{ // Modify B
 							modify: {
 								bar: [
 									{
 										type: "MoveOut", // C
-										moveId: 1,
+										op: 1,
 										mods: [{ // Modify C
 											modify: {
 												baz: [
 													{
 														type: "MoveOut", // D
-														moveId: 2,
+														op: 2,
 													},
 												],
 											},
@@ -66,19 +66,19 @@ export namespace SwapParentChild {
 					},
 					{
 						type: "MoveInSet", // C
-						moveId: 1,
+						op: 1,
 						mods: [{ // Modify C
 							modify: {
 								bar: [
 									{
 										type: "MoveInSet", // B
-										moveId: 0,
+										op: 0,
 										mods: [{ // Modify B
 											modify: {
 												baz: [
 													{
 														type: "MoveInSet", // D
-														moveId: 2,
+														op: 2,
 													},
 												],
 											},
@@ -139,12 +139,12 @@ export namespace ScenarioA1 {
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "MoveOutStart", side: Sibling.Next },
+						{ type: "MoveOutStart", side: Sibling.Next, op: 0 },
 						3, // Skip B C D
-						{ type: "End" },
+						{ type: "End", op: 0 },
 					],
 					bar: [
-						{ type: "MoveInSlice", length: 3 },
+						{ type: "MoveInSlice", length: 3, op: 0 },
 					],
 				},
 			}],
@@ -173,13 +173,13 @@ export namespace ScenarioA1 {
 			modify: {
 				foo: [
 					1, // Skip A
-					{ type: "MoveOutStart", side: Sibling.Next },
-					{ type: "Detach", seq: 1, length: 2 }, // Delete B C
+					{ type: "MoveOutStart", side: Sibling.Next, op: 0 },
+					{ type: "PriorDetach", seq: 1, length: 2 }, // Delete B C
 					1, // Skip D
-					{ type: "End" },
+					{ type: "End", op: 0 },
 				],
 				bar: [
-					{ type: "MoveInSlice" },
+					{ type: "MoveInSlice", op: 0 },
 				],
 			},
 		}],
@@ -189,9 +189,9 @@ export namespace ScenarioA1 {
 		modify: {
 			foo: [
 				1, // Skip A
-				{ type: "Detach", seq: 1 }, // Delete of B
+				{ type: "PriorDetach", seq: 1 }, // Delete of B
 				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.Full },
-				{ type: "Detach", seq: 1 }, // Delete of C
+				{ type: "PriorDetach", seq: 1 }, // Delete of C
 			],
 		},
 	};
@@ -200,8 +200,8 @@ export namespace ScenarioA1 {
 		modify: {
 			foo: [
 				1, // Skip A
-				{ type: "Detach", seq: 1, length: 2 }, // Delete of B C (from e1)
-				{ type: "Detach", seq: 2 }, // MoveOut D (from e2)
+				{ type: "PriorDetach", seq: 1, length: 2 }, // Delete of B C (from e1)
+				{ type: "PriorDetach", seq: 2 }, // MoveOut D (from e2)
 			],
 			bar: [
 				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.Full },
@@ -248,12 +248,12 @@ export namespace ScenarioA2 {
 			modify: {
 				foo: [
 					2, // Skip A B
-					{ type: "MoveOutStart", side: Sibling.Next },
+					{ type: "MoveOutStart", side: Sibling.Next, op: 0 },
 					2, // Skip C D
-					{ type: "End" },
+					{ type: "End", op: 0 },
 				],
 				bar: [
-					{ type: "MoveInSlice", length: 2 },
+					{ type: "MoveInSlice", length: 2, op: 0 },
 				],
 			},
 		}],
@@ -274,14 +274,14 @@ export namespace ScenarioA2 {
 			modify: {
 				foo: [
 					1, // Skip A
-					{ type: "Detach", seq: 1 }, // B
-					{ type: "MoveOutStart", side: Sibling.Next },
-					{ type: "Detach", seq: 1 }, // C
+					{ type: "PriorDetach", seq: 1 }, // B
+					{ type: "MoveOutStart", side: Sibling.Next, op: 0 },
+					{ type: "PriorDetach", seq: 1 }, // C
 					1, // Skip D
-					{ type: "End" },
+					{ type: "End", op: 0 },
 				],
 				bar: [
-					{ type: "MoveInSlice" },
+					{ type: "MoveInSlice", op: 0 },
 				],
 			},
 		}],
@@ -291,7 +291,7 @@ export namespace ScenarioA2 {
 		modify: {
 			foo: [
 				1, // Skip A
-				{ type: "Detach", seq: 1, length: 2 }, // B C
+				{ type: "PriorDetach", seq: 1, length: 2 }, // B C
 				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 			],
 		},
@@ -301,8 +301,8 @@ export namespace ScenarioA2 {
 		modify: {
 			foo: [
 				1, // Skip A
-				{ type: "Detach", seq: 1, length: 2 }, // B C
-				{ type: "Detach", seq: 2 }, // D
+				{ type: "PriorDetach", seq: 1, length: 2 }, // B C
+				{ type: "PriorDetach", seq: 2 }, // D
 			],
 			bar: [
 				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
@@ -342,10 +342,10 @@ export namespace ScenarioC {
 			modify: {
 				foo: [
 					1, // Skip A
-					{ type: "MoveOut" },
+					{ type: "MoveOut", op: 0 },
 				],
 				bar: [
-					{ type: "MoveInSet" },
+					{ type: "MoveInSet", op: 0 },
 				],
 			},
 		}],
@@ -364,7 +364,7 @@ export namespace ScenarioC {
 		modify: {
 			foo: [
 				2, // Skip A
-				{ type: "Detach", seq: 2 }, // B
+				{ type: "PriorDetach", seq: 2 }, // B
 				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
 			],
 		},
@@ -395,12 +395,12 @@ export namespace ScenarioD {
 			modify: {
 				foo: [
 					1, // Skip A
-					{ type: "MoveOutStart" },
+					{ type: "MoveOutStart", op: 0 },
 					1, // Skip B
-					{ type: "End", side: Sibling.Next },
+					{ type: "End", side: Sibling.Next, op: 0 },
 				],
 				bar: [
-					{ type: "MoveInSlice" },
+					{ type: "MoveInSlice", op: 0 },
 				],
 			},
 		}],
@@ -411,14 +411,14 @@ export namespace ScenarioD {
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "MoveOutStart" },
+					{ type: "MoveOutStart", op: 0 },
 					2, // Skip A B
 					{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 					1, // Skip C
-					{ type: "End" },
+					{ type: "End", op: 0 },
 				],
 				baz: [
-					{ type: "MoveInSlice", length: 4 },
+					{ type: "MoveInSlice", length: 4, op: 0 },
 				],
 			},
 		}],
@@ -429,18 +429,18 @@ export namespace ScenarioD {
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "MoveOutStart" },
+					{ type: "MoveOutStart", op: 0 },
 					1, // Skip A
-					{ type: "Detach", seq: 1 }, // B
+					{ type: "PriorDetach", seq: 1 }, // B
 					1, // Skip C
-					{ type: "End" },
+					{ type: "End", op: 0 },
 				],
 				bar: [
 					1, // B
 					{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 				],
 				baz: [
-					{ type: "MoveInSlice", length: 2 }, // A C
+					{ type: "MoveInSlice", length: 2, op: 0 }, // A C
 				],
 			},
 		}],
@@ -469,12 +469,12 @@ export namespace ScenarioE {
 			modify: {
 				foo: [
 					1, // Skip A
-					{ type: "MoveOutStart" },
+					{ type: "MoveOutStart", op: 0 },
 					1, // Skip B
-					{ type: "End", side: Sibling.Next },
+					{ type: "End", side: Sibling.Next, op: 0 },
 				],
 				bar: [
-					{ type: "MoveInSlice" }, // B
+					{ type: "MoveInSlice", op: 0 }, // B
 				],
 			},
 		}],
@@ -483,11 +483,11 @@ export namespace ScenarioE {
 	export const e2: Original.Modify = {
 		modify: {
 			foo: [
-				{ type: "DeleteStart" },
+				{ type: "DeleteStart", op: 0 },
 				2, // Skip A B
 				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
 				1, // Skip C
-				{ type: "End" },
+				{ type: "End", op: 0 },
 			],
 		},
 	};
@@ -495,11 +495,11 @@ export namespace ScenarioE {
 	export const e2_r_e1: Rebased.Modify = {
 		modify: {
 			foo: [
-				{ type: "DeleteStart" },
+				{ type: "DeleteStart", op: 0 },
 				1, // Skip A
-				{ type: "Detach", seq: 1 },
+				{ type: "PriorDetach", seq: 1 },
 				1, // Skip C
-				{ type: "End" },
+				{ type: "End", op: 0 },
 			],
 			bar: [
 				1, // B
@@ -667,12 +667,12 @@ export namespace ScenarioG {
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "MoveOutStart" },
+						{ type: "MoveOutStart", op: 0 },
 						2, // Skip A B
-						{ type: "End", side: Sibling.Next },
+						{ type: "End", side: Sibling.Next, op: 0 },
 					],
 					bar: [
-						{ type: "MoveInSlice", length: 2 },
+						{ type: "MoveInSlice", length: 2, op: 0 },
 					],
 				},
 			}],
@@ -844,15 +844,15 @@ export namespace ScenarioG {
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "Detach", seq: 1 },
-					{ type: "Detach", seq: -2 },
+					{ type: "PriorDetach", seq: 1 },
+					{ type: "PriorDetach", seq: -2 },
 					{
 						type: "Insert",
 						content: [{ id: "N" }],
 						commute: Commutativity.None,
 					},
-					{ type: "Detach", seq: -2 },
-					{ type: "Detach", seq: 1 },
+					{ type: "PriorDetach", seq: -2 },
+					{ type: "PriorDetach", seq: 1 },
 				],
 			},
 		}],
@@ -893,16 +893,16 @@ export namespace ScenarioG {
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "Detach", seq: 1 },
+					{ type: "PriorDetach", seq: 1 },
 					{
 						type: "Insert",
 						content: [{ id: "M" }],
 						commute: Commutativity.None,
 					},
-					{ type: "Detach", seq: -2 },
+					{ type: "PriorDetach", seq: -2 },
 					1,
-					{ type: "Detach", seq: -2 },
-					{ type: "Detach", seq: 1 },
+					{ type: "PriorDetach", seq: -2 },
+					{ type: "PriorDetach", seq: 1 },
 				],
 			},
 		}],
@@ -916,12 +916,12 @@ export namespace ScenarioG {
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "MoveOutStart" },
+					{ type: "MoveOutStart", op: 0 },
 					4, // Skip A X Y B
-					{ type: "End", side: Sibling.Next },
+					{ type: "End", side: Sibling.Next, op: 0 },
 				],
 				bar: [
-					{ type: "MoveInSlice", length: 4 }, // A X Y B
+					{ type: "MoveInSlice", length: 4, op: 0 }, // A X Y B
 				],
 			},
 		}],
@@ -935,18 +935,18 @@ export namespace ScenarioG {
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "MoveOutStart" },
+					{ type: "MoveOutStart", op: 0 },
 					1, // Skip A
 					{ type: "Delete" }, // X
 					1, // N
 					{ type: "Delete" }, // Y
 					1, // Skip B
-					{ type: "End", side: Sibling.Next },
+					{ type: "End", side: Sibling.Next, op: 0 },
 				],
 				bar: [
-					{ type: "MoveInSlice" }, // A
+					{ type: "MoveInSlice", op: 0 }, // A
 					{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
-					{ type: "MoveInSlice" }, // B
+					{ type: "MoveInSlice", op: 0 }, // B
 				],
 			},
 		}],
@@ -960,18 +960,18 @@ export namespace ScenarioG {
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "MoveOutStart" },
+					{ type: "MoveOutStart", op: 0 },
 					2, // Skip A M
 					{ type: "Delete" }, // X
 					1, // N
 					{ type: "Delete" }, // Y
 					1, // Skip B
-					{ type: "End", side: Sibling.Next },
+					{ type: "End", side: Sibling.Next, op: 0 },
 				],
 				bar: [
-					{ type: "MoveInSlice" }, // A
+					{ type: "MoveInSlice", op: 0 }, // A
 					{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
-					{ type: "MoveInSlice" }, // B
+					{ type: "MoveInSlice", op: 0 }, // B
 				],
 			},
 		}],
@@ -985,8 +985,8 @@ export namespace ScenarioG {
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "Detach", seq: 1 }, // A
-						{ type: "Detach", seq: -2 }, // X
+						{ type: "PriorDetach", seq: 1 }, // A
+						{ type: "PriorDetach", seq: -2 }, // X
 						{ type: "Insert", content: [{ id: "N" }], commute: Commutativity.None },
 					],
 				},
@@ -1002,7 +1002,7 @@ export namespace ScenarioG {
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "Detach", seq: 1 }, // A
+						{ type: "PriorDetach", seq: 1 }, // A
 						{ type: "Insert", content: [{ id: "M" }], commute: Commutativity.None },
 					],
 				},
@@ -1018,11 +1018,11 @@ export namespace ScenarioG {
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "Detach", seq: 1 }, // A
+						{ type: "PriorDetach", seq: 1 }, // A
 						1, // M
-						{ type: "Detach", seq: -2 }, // X
+						{ type: "PriorDetach", seq: -2 }, // X
 						1, // N
-						{ type: "Detach", seq: -2 }, // Y
+						{ type: "PriorDetach", seq: -2 }, // Y
 						{ type: "Insert", content: [{ id: "O" }], commute: Commutativity.None },
 					],
 				},

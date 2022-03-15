@@ -236,9 +236,12 @@ export function isInsert(mark: Offset | R.Mark | R.Mark): mark is R.Insert | R.I
 }
 
 export function isPrior(mark: Offset | R.Mark): mark is R.Prior;
-export function isPrior(mark: Offset | R.Mark): mark is R.Prior;
 export function isPrior(mark: Offset | R.Mark | R.Mark): mark is R.Prior | R.Prior {
-	return typeof mark === "object" && mark.type === "Detach";
+	return typeof mark === "object" && mark.type?.startsWith("Prior") === true;
+}
+
+export function isPriorDetach(mark: Offset | R.Mark): mark is R.PriorDetach {
+	return typeof mark === "object" && mark.type === "PriorDetach";
 }
 
 export function isDelete(mark: Offset | R.Mark): mark is R.Delete;
@@ -338,7 +341,7 @@ export function isDetachSegment(mark: R.ObjMark | R.ObjMark | Offset):
 	const markType = mark.type;
 	return markType === "Delete"
 		|| markType === "MoveOut"
-		|| markType === "Detach"
+		|| markType === "PriorDetach"
 	;
 }
 

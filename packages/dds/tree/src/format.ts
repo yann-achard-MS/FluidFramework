@@ -66,12 +66,11 @@ export namespace Original {
 		dst: TreePath;
 	}
 
-	export interface HasMoveId {
+	export interface HasOpId {
 		/**
 		 * The ID of the corresponding MoveIn/MoveOut/End/SliceStart.
-		 * Omit if 0.
 		 */
-		moveId?: MoveId;
+		op: OpId;
 	}
 
 	export interface ChangeFrame {
@@ -90,7 +89,7 @@ export namespace Original {
 		 * We need this setValue (in addition to the SetValue mark because non-leaf nodes can have values)
 		 */
 		value?: If<AllowSetValue, Value | [Value, DrillDepth] | { seq: SeqNumber }>;
-		modify?: { [key: string]: (Offset | TInner)[] };
+		modify?: { [key: string]: (Offset | TInner | Modify<TInner, AllowSetValue>)[] };
 	}
 
 	export type TraitMarks = (Offset | Mark)[];
@@ -153,11 +152,11 @@ export namespace Original {
 		content: ProtoNode[];
 	}
 
-	export interface MoveInSet extends Place, HasLength, HasMods, HasMoveId {
+	export interface MoveInSet extends Place, HasLength, HasMods, HasOpId {
 		type: "MoveInSet";
 	}
 
-	export interface MoveInSlice extends Place, HasLength, HasMods, HasMoveId {
+	export interface MoveInSlice extends Place, HasLength, HasMods, HasOpId {
 		type: "MoveInSlice";
 	}
 
@@ -186,7 +185,7 @@ export namespace Original {
 	/**
 	 * Used for set-like ranges and atomic ranges.
 	 */
-	export interface MoveOut extends HasLength, HasMoveId {
+	export interface MoveOut extends HasLength, HasOpId {
 		type: "MoveOut";
 		/**
 		 * Applying a MoveOut over existing Modify marks has the follow effects on them and their descendants:
@@ -268,7 +267,7 @@ export namespace Original {
 	 * In addition to the above, any segment that keeps track of mods to its nodes also has its mods purged as
 	 * described for the Modify mark above.
 	 */
-	export interface SliceStart extends HasMoveId {
+	export interface SliceStart extends HasOpId {
 		/**
 		 * Omit if `Sibling.Prev` for terseness.
 		 */
@@ -292,7 +291,7 @@ export namespace Original {
 		type: "DeleteStart";
 	}
 
-	export interface SliceEnd extends HasMoveId {
+	export interface SliceEnd extends HasOpId {
 		type: "End";
 		/**
 		 * Omit if `Sibling.Prev` for terseness.
@@ -363,7 +362,7 @@ export namespace Rebased {
 	export type SetValue = Original.SetValue;
 	export type MoveEntry = Original.MoveEntry;
 	export type ProtoNode = Original.ProtoNode;
-	export type HasMoveId = Original.HasMoveId;
+	export type HasSliceId = Original.HasOpId;
 	export type Place = Original.Place;
 
 	export interface Transaction {
@@ -478,11 +477,11 @@ export namespace Rebased {
 		content: ProtoNode[];
 	}
 
-	export interface MoveInSet extends Place, HasLength, HasMods, HasMoveId {
+	export interface MoveInSet extends Place, HasLength, HasMods, HasSliceId {
 		type: "MoveInSet";
 	}
 
-	export interface MoveInSlice extends Place, HasLength, HasMods, HasMoveId {
+	export interface MoveInSlice extends Place, HasLength, HasMods, HasSliceId {
 		type: "MoveInSlice";
 	}
 
@@ -500,25 +499,42 @@ export namespace Rebased {
 	/**
 	 * Used for set-like ranges and atomic ranges.
 	 */
-	export interface MoveOut extends HasLength, HasMoveId {
+	export interface MoveOut extends HasLength, HasSliceId {
 		type: "MoveOut";
 		// mods?: (Offset | Modify<Mark, false>)[];
 		mods?: ModsTrail;
 	}
 
 	export interface PriorDetach extends HasSeqNumber, HasLength, HasMods {
-		type: "Detach";
+		type: "PriorDetach";
+	}
+
+	export interface PriorMoveOutStart extends HasSeqNumber, HasSliceId {
+		type: "PriorMoveOutStart";
+	}
+
+	export interface PriorDeleteStart extends HasSeqNumber, HasSliceId {
+		type: "PriorDeleteStart";
+	}
+
+	export interface PriorSliceEnd extends HasSliceId {
+		type: "PriorSliceEnd";
 	}
 
 	export interface Revive extends HasSeqNumber, HasLength, HasMods {
 		type: "Revive";
 	}
 
-	export interface Return extends HasSeqNumber, HasLength, HasMoveId, HasMods {
+	export interface Return extends HasSeqNumber, HasLength, HasSliceId, HasMods {
 		type: "Return";
 	}
 
-	export type Prior = PriorDetach;
+	export type PriorSlice =
+		| PriorDeleteStart
+		| PriorMoveOutStart
+		| PriorSliceEnd
+	;
+	export type Prior = PriorDetach | PriorSlice;
 }
 
 export namespace Squashed {
@@ -526,7 +542,7 @@ export namespace Squashed {
 	export interface Modify<TInner = Mark, AllowSetValue extends boolean = true> extends
 		Original.Modify<TInner, AllowSetValue> {}
 	export type HasSeqNumber = Rebased.HasSeqNumber;
-	export type HasMoveId = Rebased.HasMoveId;
+	export type HasSliceId = Rebased.HasSliceId;
 	export type MoveEntry = Rebased.MoveEntry;
 	export type SliceEnd = Rebased.SliceEnd;
 	export type Return = Rebased.Return;
@@ -601,7 +617,7 @@ export namespace Squashed {
 // 		content: ProtoNode[];
 // 	}
 
-// 	export interface MoveIn extends Place, HasLength, HasMods, HasMoveId {
+// 	export interface MoveIn extends Place, HasLength, HasMods, HasSliceId {
 // 		type: "MoveIn";
 // 		provision?: Provision;
 // 	}
@@ -619,14 +635,14 @@ export namespace Squashed {
 // 	/**
 // 	 * Used for set-like ranges and atomic ranges.
 // 	 */
-// 	export interface MoveOut extends HasLength, HasMoveId {
+// 	export interface MoveOut extends HasLength, HasSliceId {
 // 		type: "MoveOut";
 // 		provision?: Provision;
 // 		// mods?: (Offset | Modify<Mark, false>)[];
 // 		mods?: (Offset | ModsMark)[];
 // 	}
 
-// 	export interface SliceStart extends HasMoveId {
+// 	export interface SliceStart extends HasSliceId {
 // 		/**
 // 		 * Omit if `Sibling.Prev` for terseness.
 // 		 */
@@ -718,7 +734,7 @@ export type Index = number;
 export type SeqNumber = number;
 export type Value = number | string | boolean;
 export type NodeId = string;
-export type MoveId = number | string;
+export type OpId = number;
 export type ClientId = number;
 export type TraitLabel = string;
 export enum Tiebreak { LastToFirst, FirstToLast }
