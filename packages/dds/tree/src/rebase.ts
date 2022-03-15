@@ -10,6 +10,7 @@ import {
 	Offset,
 	SeqNumber,
 } from "./format";
+import { normalizeFrame } from "./normalize";
 import {
 	clone,
 	fail,
@@ -62,8 +63,6 @@ function rebaseChangeFrame(
 	baseTransaction: S.Transaction,
 ): R.ChangeFrame {
 	const baseSeq = baseTransaction.seq;
-	// const sameClient = originalTransaction.client === baseTransaction.client;
-
 	const frameToFrame = (
 		orig: R.ChangeFrame,
 		base: R.ChangeFrame,
@@ -78,6 +77,7 @@ function rebaseChangeFrame(
 			frameToFrame(newFrame, baseFrame, baseSeq);
 		}
 	}
+	normalizeFrame(newFrame);
 	return newFrame;
 }
 
@@ -163,11 +163,14 @@ function rebaseOverMark(startPtr: Pointer, baseMark: R.TraitMark, context: Conte
 }
 
 function rebaseOverModify(mark: R.Modify, baseMark: R.Modify, context: Context): void {
+	if (mark.modify === undefined) {
+		mark.modify = {};
+	}
 	for (const [k,v] of Object.entries(baseMark.modify ?? {})) {
-		if (k in mark) {
-			marksToMarks(mark[k], v, context);
+		if (k in mark.modify) {
+			marksToMarks(mark.modify[k], v, context);
 		} else {
-			mark[k] = priorsFromTraitMarks([], v, context);
+			mark.modify[k] = priorsFromTraitMarks([], v, context);
 		}
 	}
 }

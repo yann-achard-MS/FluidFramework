@@ -23,7 +23,7 @@ function testSquash(
 	return squash(changes);
 }
 
-describe(squash.name, () => {
+describe.skip(squash.name, () => {
 	it("Scenario F", () => {
 		const actual = testSquash(
 			[ScenarioF.e2neg, ScenarioF.e1, ScenarioF.e2posp],

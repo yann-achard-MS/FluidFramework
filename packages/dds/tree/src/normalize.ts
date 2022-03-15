@@ -4,7 +4,7 @@
  */
 
 import {
-	Squashed as Sq,
+	Rebased as R,
 } from "./format";
 import {
 	isDelete,
@@ -18,17 +18,17 @@ import {
 	isSegment,
 } from "./utils";
 
-export function normalizeFrame(frame: Sq.ChangeFrame): void {
+export function normalizeFrame(frame: R.ChangeFrame): void {
 	if (frame.moves?.length === 0) {
 		delete frame.moves;
 	}
 	normalizeMarks(frame.marks);
 }
 
-function normalizeMarks(marks: Sq.TraitMarks): void {
+function normalizeMarks(marks: R.TraitMarks): void {
 	let iMark = marks.length - 1;
 	while (iMark >= 0) {
-		const prevMark = marks[iMark - 1] as Sq.TraitMark | undefined;
+		const prevMark = marks[iMark - 1] as R.TraitMark | undefined;
 		const mark = marks[iMark];
 		if (isOffset(mark)) {
 			if (iMark === marks.length - 1) {

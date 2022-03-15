@@ -16,7 +16,7 @@ function testInvert(frame: R.ChangeFrame, seq: SeqNumber = 0): R.ChangeFrame {
 	return invert(frame, seq);
 }
 
-describe.only(invert.name, () => {
+describe(invert.name, () => {
 	it("The lot", () => {
 		const seq = 42;
 		const setValue: R.SetValue = { type: "SetValue", value: 1 };
