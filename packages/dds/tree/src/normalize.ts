@@ -15,7 +15,6 @@ import {
 	isOffset,
 	isPrior,
 	isPriorDetach,
-	isSegment,
 } from "./utils";
 
 export function normalizeFrame(frame: R.ChangeFrame): void {
@@ -47,10 +46,10 @@ function normalizeMarks(marks: R.TraitMarks): void {
 			} else if ("mods" in mark) {
 				delete mark.mods;
 			}
-			if (!isInsert(mark) && mark.length === 1) {
+			if (!isInsert(mark) && "length" in mark && mark.length === 1) {
 				delete mark.length;
 			}
-			if (prevMark !== undefined && (isSegment(prevMark) || isPrior(prevMark))) {
+			if (prevMark !== undefined && (isInsert(prevMark) || isDelete(prevMark) || isPrior(prevMark))) {
 				if (isInsert(mark)) {
 					if (isInsert(prevMark)) {
 						prevMark.content.push(...mark.content);

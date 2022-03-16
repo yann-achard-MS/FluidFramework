@@ -280,6 +280,17 @@ export function isBound(mark: R.TraitMark): mark is R.SliceBound {
 	;
 }
 
+export function isPriorBound(mark: R.TraitMark): mark is R.PriorSliceBound {
+	if (typeof mark === "number") {
+		return false;
+	}
+	const markType = mark.type;
+	return markType === "PriorDeleteStart"
+		|| markType === "PriorMoveOutStart"
+		|| markType === "PriorSliceEnd"
+	;
+}
+
 export function isOffset(mark: unknown): mark is Offset {
 	return typeof mark === "number";
 }
@@ -320,12 +331,12 @@ export function isDetachSegment(mark: R.ObjMark | Offset):
 	;
 }
 
-export function isReturn(mark: R.ObjMark | Offset):	mark is R.Return {
-	return typeof mark === "object" && mark.type === "Return";
+export function isReturn(mark: R.ObjMark | Offset):	mark is R.ReturnSet | R.ReturnSlice {
+	return typeof mark === "object" && (mark.type === "ReturnSet" || mark.type === "ReturnSlice");
 }
 
 export function isRevive(mark: R.ObjMark | Offset):	mark is R.Revive {
-	return typeof mark === "object" && mark.type === "Return";
+	return typeof mark === "object" && mark.type === "Revive";
 }
 
 export function isRevert(mark: R.ObjMark | Offset):	mark is R.RevertValue {
@@ -341,7 +352,7 @@ export function isChangeFrame(frame: O.TransactionFrame | R.TransactionFrame): f
 }
 
 export function lengthFromMark(mark: Offset | R.Mark | undefined): number {
-	if (mark === undefined || isBound(mark)) {
+	if (mark === undefined || isBound(mark) || isPriorBound(mark)) {
 		return 0;
 	}
 	if (isOffset(mark)) {
@@ -353,43 +364,162 @@ export function lengthFromMark(mark: Offset | R.Mark | undefined): number {
 	if (isInsert(mark)) {
 		return mark.content.length;
 	}
-	assert(isDetachSegment(mark) || isMoveIn(mark), "Unknown mark type");
 	return mark.length ?? 1;
 }
 
-// export namespace ChangeNav {
-// 	export function fromChange(change: R.ChangeFrame): RootNav {
-// 		return new RootNav(change);
-// 	}
+export class Pointer {
+	/**
+	 * The marks being pointed at.
+	 */
+	public readonly marks: R.TraitMarks;
+	/**
+	 * The index of the mark being pointed at within a list of marks.
+	 * This index must be inferior *or equal* to the length of the list of marks.
+	 */
+	public readonly iMark: number;
+	/**
+	 * The index of the tree node being pointed at within the segment.
+	 * This index must always be less than the length of the segment.
+	 */
+	public readonly iNode: number;
+	/**
+	 * The number of slices currently overlapping with the ptr position.
+	 */
+	public readonly inSlice: number;
 
-// 	export class RootNav {
-// 		private readonly change: R.ChangeFrame;
+	private constructor(
+		marks: R.TraitMarks,
+		iMark: number,
+		iNode: number,
+		inSlice: number,
+	) {
+		this.marks = marks;
+		this.iMark = iMark;
+		this.iNode = iNode;
+		this.inSlice = inSlice;
+	}
 
-// 		public constructor(change: R.ChangeFrame) {
-// 			this.change = change;
-// 		}
+	public static fromMarks(
+		marks: R.TraitMarks,
+	): Pointer {
+		return new Pointer(
+			marks,
+			0,
+			0,
+			0,
+		);
+	}
 
-// 		public get isRemoved(): boolean {
-// 			if (isModify(this.change)) {
-// 				return false;
-// 			}
+	public get mark(): R.TraitMark | undefined {
+		return this.marks[this.iMark];
+	}
 
-// 		}
-// 		public trait(label: string): TraitNav {
+	public replaceMark(newMark: R.TraitMark): Pointer {
+		assert(this.iNode === 0, "Only a whole mark can be replaced");
+		this.marks.splice(this.iMark, 1, newMark);
+		return this.skipMarks(1);
+	}
 
-// 			return new TraitNav();
-// 		}
-// 	}
+	public insert(newMark: R.TraitMark): Pointer {
+		const ptr = this.ensureMarkStart();
+		this.marks.splice(ptr.iMark, 0, newMark);
+		return ptr.skipMarks(1);
+	}
 
-// 	export class TraitNav {
-// 		private readonly marks: R.TraitMarks;
+	/**
+	 * @returns A Pointer to the location of the first node in the latter part of the split mark.
+	 */
+	public ensureMarkStart(): Pointer {
+		if (this.iNode === 0) {
+			return this;
+		}
+		const mark = this.mark;
+		if (mark === undefined) {
+			this.marks.push(this.iNode);
+		} else {
+			const mLength = lengthFromMark(mark);
+			if (mLength !== this.iNode) {
+				const markParts = splitMark(mark, this.iNode);
+				this.marks.splice(this.iMark, 1, ...markParts);
+			}
+		}
+		return this.seek(0);
+	}
 
-// 		public constructor(marks: R.TraitMarks) {
-// 			this.marks = marks;
-// 		}
+	public skipMarks(markCount: number): Pointer {
+		const { marks, iMark, inSlice } = this;
+		return new Pointer(marks, iMark + markCount, 0, inSlice).seek(0);
+	}
 
-// 		public flatten(): (Offset | R.ObjMark | R.PriorTypes)[] {
+	public seek(nodeOffset: number): Pointer {
+		assert(nodeOffset >= 0, "The offset must be >= to zero");
+		let offset = nodeOffset;
+		let { iMark, iNode, inSlice } = this;
+		const { marks } = this;
+		const markMax = marks.length;
+		// Note that we use `>= 0` instead of `> 0`.
+		// This ensures we skip over zero-length marks.
+		while (offset >= 0 && iMark < markMax) {
+			const mark = marks[iMark];
+			const nodeCount = lengthFromMark(mark);
+			if (iNode + offset >= nodeCount) {
+				iMark += 1;
+				offset -= nodeCount - iNode;
+				iNode = 0;
+				if (isBound(mark)) {
+					if (isEnd(mark)) {
+						assert(inSlice > 0, "Unbalanced slice bounds");
+						inSlice -= 1;
+					} else {
+						inSlice += 1;
+					}
+				}
+			} else {
+				break;
+			}
+		}
+		return new Pointer(
+			marks,
+			iMark,
+			iNode + offset,
+			inSlice,
+		);
+	}
+}
 
-// 		}
-// 	}
-// }
+export function splitMark(mark: Readonly<Offset | R.Mark>, offset: number): [Offset | R.Mark, Offset | R.Mark] {
+	if (isOffset(mark)) {
+		return [offset, mark - offset];
+	}
+	if (offset === 0 || isMoveIn(mark)) {
+		return [0, { ...mark }];
+	}
+	const mLength = lengthFromMark(mark);
+	if (mLength === offset) {
+		return [{ ...mark }, 0];
+	}
+	if (isSegment(mark) || isPriorDetach(mark)) {
+		if (isInsert(mark)) {
+			return [
+				{ ...mark, content: mark.content.slice(0, offset) },
+				{ ...mark, content: mark.content.slice(offset) },
+			];
+		}
+		const mods = mark.mods !== undefined ? [mark.mods.slice(0, offset), mark.mods.slice(offset)] : [];
+		if (isMoveOut(mark)) {
+			return [
+				{ ...mark, mods: mods[0] },
+				{ ...mark, mods: mods[1] },
+			];
+		} else if (isPriorDetach(mark) || isDelete(mark)) {
+			return [
+				{ ...mark, length: offset, mods: mods[0] },
+				{ ...mark, length: mLength - offset, mods: mods[1] },
+			];
+		} else {
+			fail("Unexpected mark type");
+		}
+	} else {
+		fail("TODO: support other mark types");
+	}
+}

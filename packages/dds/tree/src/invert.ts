@@ -5,35 +5,79 @@
 
 import {
 	Offset,
+	OpId,
 	Rebased as R,
 	SeqNumber,
+	Sibling,
+	Tiebreak,
 } from "./format";
-import { fail, isEnd, isModify, isOffset, isPrior, mapObject } from "./utils";
+import { fail, isEnd, isModify, isOffset, isPrior, isSetValue, mapObject, Pointer } from "./utils";
 
 export function invert(frame: R.ChangeFrame, seq: SeqNumber): R.ChangeFrame {
+	const newSetMoveOuts = new Map<OpId, R.MoveOut>();
+	const newSetMoveOutMods = new Map<OpId, R.ModsTrail>();
+	const newSliceMoveOuts = new Map<OpId, Pointer>();
+	const newSliceMoveOutMods = new Map<OpId, R.TraitMarks>();
+	const context: Context = {
+		frame,
+		seq,
+		newSetMoveOuts,
+		newSetMoveOutMods,
+		newSliceMoveOuts,
+		newSliceMoveOutMods,
+	};
 	const moves = frame.moves?.map((mv) => ({ src: mv.dst, dst: mv.src }));
-	const marks = invertMarks(frame.marks, seq);
+	const marks = invertMarks(frame.marks, context);
+
+	for (const [op, newSet] of newSetMoveOuts) {
+		const mods = newSetMoveOutMods.get(op) ?? fail("No matching mods for the given move-out");
+		newSet.mods = mods;
+	}
+
+	for (const [op, newSetPtr] of newSliceMoveOuts) {
+		const mods = newSliceMoveOutMods.get(op) ?? fail("No matching mods for the given move-out");
+		let ptr = newSetPtr;
+		for (const mod of mods) {
+			ptr = ptr.insert(mod);
+		}
+	}
+
+	if (moves !== undefined) {
+		return {
+			moves,
+			marks,
+		};
+	}
 	return {
-		moves,
 		marks,
 	};
 }
 
-function optLength<T extends { length?: number; }>(input: T): ({ length?: number; }) {
+function optLengthFromObj<T extends { length?: number; }>(input: T): ({ length?: number; }) {
 	if (input.length !== undefined && input.length !== 1) {
 		return { length: input.length };
 	}
 	return {};
 }
 
-function optMods<T extends R.HasMods>(input: T, output: R.ModsTrail | undefined): R.HasMods {
+function optModsFromObj<T extends R.HasMods>(input: T, output: R.ModsTrail | undefined): R.HasMods {
 	if (input.mods !== undefined && input.mods.length !== 0) {
 		return { mods: output };
 	}
 	return {};
 }
 
-function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
+interface Context {
+	readonly frame: Readonly<R.ChangeFrame>
+	readonly seq: SeqNumber;
+	readonly newSetMoveOuts: Map<OpId, R.MoveOut>;
+	readonly newSetMoveOutMods: Map<OpId, R.ModsTrail>;
+	readonly newSliceMoveOuts: Map<OpId, Pointer>;
+	readonly newSliceMoveOutMods: Map<OpId, R.TraitMarks>;
+}
+
+function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
+	const { seq } = context;
 	const newMarks: R.TraitMarks = [];
 	let iMark = 0;
 	while (iMark < marks.length) {
@@ -41,7 +85,7 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 		if (isOffset(mark) || isPrior(mark)) {
 			newMarks.push(mark);
 		} else if (isModify(mark)) {
-			newMarks.push(invertModify(mark, seq));
+			newMarks.push(invertModify(mark, context));
 		} else {
 			switch (mark.type) {
 				case "SetValue": {
@@ -56,7 +100,7 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 					newMarks.push({
 						type: "Delete",
 						...(mark.content.length !== 1 ? { length: mark.content.length } : {}),
-						...optMods(mark, invertModsMarks(mark.mods, seq)),
+						...optModsFromObj(mark, invertModsMarks(mark.mods, context)),
 					});
 					break;
 				}
@@ -64,66 +108,57 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 					newMarks.push({
 						type: "Revive",
 						seq,
-						...optLength(mark),
-						...optMods(mark, invertModsMarks(mark.mods, seq)),
+						...optLengthFromObj(mark),
+						...optModsFromObj(mark, invertModsMarks(mark.mods, context)),
 					});
 					break;
 				}
 				case "Revive": {
 					newMarks.push({
 						type: "Delete",
-						...optLength(mark),
-						...optMods(mark, invertModsMarks(mark.mods, seq)),
+						...optLengthFromObj(mark),
+						...optModsFromObj(mark, invertModsMarks(mark.mods, context)),
 					});
 					break;
 				}
 				case "MoveInSet": {
-					newMarks.push({
+					const moveOut: R.MoveOut = {
 						type: "MoveOut",
 						op: mark.op,
-						...optLength(mark),
-						...optMods(mark, invertModsMarks(mark.mods, seq)),
-					});
+					};
+					newMarks.push(moveOut);
+					context.newSetMoveOuts.set(mark.op, moveOut);
 					break;
 				}
 				case "MoveInSlice": {
 					newMarks.push({
 						type: "MoveOutStart",
 						op: mark.op,
+						side: Sibling.Next,
+						tiebreak: Tiebreak.LastToFirst,
 					});
-					const mods = invertModsMarks(mark.mods, seq);
-					let length = 0;
-					for (const mod of mods ?? []) {
-						length += isOffset(mod) ? mod : 1;
-						newMarks.push(mod);
-					}
-					const expectedLength = mark.length ?? 1;
-					if (length < expectedLength) {
-						newMarks.push(expectedLength - length);
-					}
+					context.newSliceMoveOuts.set(mark.op, Pointer.fromMarks(newMarks).skipMarks(newMarks.length));
 					newMarks.push({
 						type: "End",
 						op: mark.op,
+						side: Sibling.Prev,
+						tiebreak: Tiebreak.FirstToLast,
 					});
 					break;
 				}
 				case "MoveOut": {
+					context.newSetMoveOutMods.set(mark.op, invertModsMarks(mark.mods, context) ?? []);
 					newMarks.push({
-						type: "Return",
+						type: "ReturnSet",
 						seq,
 						op: mark.op,
-						...optLength(mark),
-						...optMods(mark, invertModsMarks(mark.mods, seq)),
 					});
 					break;
 				}
-				case "Return": {
-					newMarks.push({
-						type: "MoveOut",
-						op: mark.op,
-						...optLength(mark),
-						...optMods(mark, invertModsMarks(mark.mods, seq)),
-					});
+				case "ReturnSet": {
+					break;
+				}
+				case "ReturnSlice": {
 					break;
 				}
 				case "DeleteStart": {
@@ -134,7 +169,22 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 							newMarks.push({
 								type: "Revive",
 								seq,
-								...(markInSlice > 1 ? { length: markInSlice } : {}),
+								...(markInSlice !== 1 ? { length: markInSlice } : {}),
+							});
+						} else if (isSetValue(markInSlice)) {
+							newMarks.push({
+								type: "Revive",
+								seq,
+								mods: [{
+									type: "RevertValue",
+									seq,
+								}],
+							});
+						} else if (isModify(markInSlice)) {
+							newMarks.push({
+								type: "Revive",
+								seq,
+								mods: [invertModify(markInSlice, context)],
 							});
 						} else if (isPrior(markInSlice)) {
 							newMarks.push(markInSlice);
@@ -151,29 +201,17 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 					break;
 				}
 				case "MoveOutStart": {
-					let iMarkInSlice = iMark + 1;
-					do {
-						const markInSlice = marks[iMarkInSlice];
-						if (isOffset(markInSlice)) {
-							newMarks.push({
-								type: "Return",
-								seq,
-								...(markInSlice > 1 ? { length: markInSlice } : {}),
-								op: mark.op,
-							});
-						} else if (isPrior(markInSlice)) {
-							newMarks.push(markInSlice);
-						} else if (isEnd(markInSlice) && markInSlice.op === mark.op) {
-							break;
-						} else {
-							fail("Unexpected mark within deleted slice");
-						}
-						iMarkInSlice += 1;
-					}
-					// eslint-disable-next-line no-constant-condition
-					while (true);
-					// This leaves iMark on the "End" mark.
-					iMark = iMarkInSlice;
+					newMarks.push({
+						type: "ReturnSlice",
+						seq,
+						op: mark.op,
+					});
+					const endIndex =
+						findIndexFrom(marks, iMark + 1, (m) => isEnd(m) && m.op === mark.op)
+						?? fail("No matching end mark for MoveOutStart")
+					;
+					context.newSliceMoveOutMods.set(mark.op, invertMarks(marks.slice(iMark + 1, endIndex), context));
+					iMark = endIndex;
 					break;
 				}
 				default: fail("Unexpected mark type");
@@ -186,21 +224,21 @@ function invertMarks(marks: R.TraitMarks, seq: SeqNumber): R.TraitMarks {
 
 function invertModify(
 	mark: R.Modify,
-	seq: SeqNumber,
+	context: Context,
 ): R.Modify | Offset {
 	const modify: R.Modify = {};
 	if (mark.value !== undefined) {
-		modify.value = { seq };
+		modify.value = { seq: context.seq };
 	}
 	if (mark.modify !== undefined) {
-		modify.modify = mapObject(mark.modify, (ms) => invertMarks(ms, seq));
+		modify.modify = mapObject(mark.modify, (ms) => invertMarks(ms, context));
 	}
 	return modify;
 }
 
 function invertModsMarks(
 	marks: (Offset | R.ModsMark)[] | undefined,
-	seq: SeqNumber,
+	context: Context,
 ): (Offset | R.ModsMark)[] | undefined {
 	if (marks === undefined) {
 		return undefined;
@@ -212,11 +250,11 @@ function invertModsMarks(
 		if (isOffset(mark)) {
 			newMarks.push(mark);
 		} else if (isModify(mark)) {
-			newMarks.push(invertModify(mark, seq));
+			newMarks.push(invertModify(mark, context));
 		} else {
 			switch (mark.type) {
 				case "SetValue": {
-					newMarks.push({ type: "RevertValue", seq });
+					newMarks.push({ type: "RevertValue", seq: context.seq });
 					break;
 				}
 				case "RevertValue": {
@@ -229,4 +267,19 @@ function invertModsMarks(
 		iMark += 1;
 	}
 	return newMarks;
+}
+
+function findIndexFrom<T>(
+	elements: readonly T[],
+	startIndex: number,
+	predicate: (element: Readonly<T>) => boolean,
+): number | undefined {
+	let index = startIndex;
+	while (index < elements.length) {
+		if (predicate(elements[index])) {
+			return index;
+		}
+		index += 1;
+	}
+	return undefined;
 }
