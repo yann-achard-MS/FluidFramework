@@ -88,12 +88,9 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 			newMarks.push(invertModify(mark, context));
 		} else {
 			switch (mark.type) {
-				case "SetValue": {
-					newMarks.push({ type: "RevertValue", seq });
-					break;
-				}
+				case "SetValue":
 				case "RevertValue": {
-					newMarks.push(1);
+					newMarks.push({ type: "RevertValue", seq });
 					break;
 				}
 				case "Insert": {
