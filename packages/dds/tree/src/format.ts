@@ -464,7 +464,8 @@ export namespace Rebased {
 		| SliceBound
 		| ReturnSlice
 		| ReturnSet
-		| Revive
+		| ReviveSet
+		| ReviveSlice
 		| Prior;
 
 	export type Prior = PriorDetach | PriorSliceBound;
@@ -529,16 +530,20 @@ export namespace Rebased {
 		type: "PriorSliceEnd";
 	}
 
-	export interface Revive extends HasSeqNumber, HasLength, HasMods {
-		type: "Revive";
+	export interface ReviveSet extends HasSeqNumber, HasLength, HasMods {
+		type: "ReviveSet";
 	}
 
-	export interface ReturnSlice extends HasSeqNumber, HasLength, HasOpId {
-		type: "ReturnSlice";
-	}
-
-	export interface ReturnSet extends HasSeqNumber, HasLength, HasOpId {
+	export interface ReturnSet extends HasSeqNumber, HasLength, HasMods, HasOpId {
 		type: "ReturnSet";
+	}
+
+	export interface ReviveSlice extends HasSeqNumber, HasLength, HasMods, HasOpId {
+		type: "ReviveSlice";
+	}
+
+	export interface ReturnSlice extends HasSeqNumber, HasLength, HasOpId { // Doesn't this need mods?
+		type: "ReturnSlice";
 	}
 }
 
@@ -552,7 +557,8 @@ export namespace Squashed {
 	export type SliceEnd = Rebased.SliceEnd;
 	export type ReturnSet = Rebased.ReturnSet;
 	export type ReturnSlice = Rebased.ReturnSlice;
-	export type Revive = Rebased.Revive;
+	export type ReviveSet = Rebased.ReviveSet;
+	export type ReviveSlice = Rebased.ReviveSlice;
 	export type RevertValue = Rebased.RevertValue;
 	export type Place = Original.Place;
 	export type Mark = Rebased.Mark;

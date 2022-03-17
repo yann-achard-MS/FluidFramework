@@ -8,10 +8,17 @@ import {
 	OpId,
 	Rebased as R,
 	SeqNumber,
-	Sibling,
-	Tiebreak,
 } from "./format";
-import { fail, isEnd, isModify, isOffset, isPrior, isSetValue, mapObject, Pointer } from "./utils";
+import {
+	fail,
+	isEnd,
+	isModify,
+	isOffset,
+	isPrior,
+	lengthFromMark,
+	mapObject,
+	Pointer,
+} from "./utils";
 
 export function invert(frame: R.ChangeFrame, seq: SeqNumber): R.ChangeFrame {
 	const newSetMoveOuts = new Map<OpId, R.MoveOut>();
@@ -31,7 +38,9 @@ export function invert(frame: R.ChangeFrame, seq: SeqNumber): R.ChangeFrame {
 
 	for (const [op, newSet] of newSetMoveOuts) {
 		const mods = newSetMoveOutMods.get(op) ?? fail("No matching mods for the given move-out");
-		newSet.mods = mods;
+		if (mods.length > 0) {
+			newSet.mods = mods;
+		}
 	}
 
 	for (const [op, newSetPtr] of newSliceMoveOuts) {
@@ -103,14 +112,14 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 				}
 				case "Delete": {
 					newMarks.push({
-						type: "Revive",
+						type: "ReviveSet",
 						seq,
 						...optLengthFromObj(mark),
 						...optModsFromObj(mark, invertModsMarks(mark.mods, context)),
 					});
 					break;
 				}
-				case "Revive": {
+				case "ReviveSet": {
 					newMarks.push({
 						type: "Delete",
 						...optLengthFromObj(mark),
@@ -118,28 +127,53 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 					});
 					break;
 				}
+				case "ReviveSlice": {
+					newMarks.push({
+						type: "DeleteStart",
+						op: mark.op,
+						// TODO: side and tiebreak
+					});
+					const mods = invertModsMarks(mark.mods, context);
+					const length = mark.length ?? 1;
+					let modsLength = 0;
+					if (mods) {
+						newMarks.push(...mods);
+						modsLength = mods.reduce<number>((l, m) => l + lengthFromMark(m), 0);
+					}
+					if (modsLength < length) {
+						newMarks.push(length - modsLength);
+					}
+					newMarks.push({
+						type: "End",
+						op: mark.op,
+						// TODO: side and tiebreak
+					});
+					break;
+				}
+				case "ReturnSet":
 				case "MoveInSet": {
 					const moveOut: R.MoveOut = {
 						type: "MoveOut",
 						op: mark.op,
+						...optLengthFromObj(mark),
+						// TODO: side and tiebreak
 					};
 					newMarks.push(moveOut);
 					context.newSetMoveOuts.set(mark.op, moveOut);
 					break;
 				}
+				case "ReturnSlice":
 				case "MoveInSlice": {
 					newMarks.push({
 						type: "MoveOutStart",
 						op: mark.op,
-						side: Sibling.Next,
-						tiebreak: Tiebreak.LastToFirst,
+						// TODO: side and tiebreak
 					});
 					context.newSliceMoveOuts.set(mark.op, Pointer.fromMarks(newMarks).skipMarks(newMarks.length));
 					newMarks.push({
 						type: "End",
 						op: mark.op,
-						side: Sibling.Prev,
-						tiebreak: Tiebreak.FirstToLast,
+						// TODO: side and tiebreak
 					});
 					break;
 				}
@@ -149,52 +183,35 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 						type: "ReturnSet",
 						seq,
 						op: mark.op,
+						...optLengthFromObj(mark),
 					});
 					break;
 				}
-				case "ReturnSet": {
-					break;
-				}
-				case "ReturnSlice": {
-					break;
-				}
 				case "DeleteStart": {
-					let iMarkInSlice = iMark + 1;
-					do {
-						const markInSlice = marks[iMarkInSlice];
-						if (isOffset(markInSlice)) {
-							newMarks.push({
-								type: "Revive",
-								seq,
-								...(markInSlice !== 1 ? { length: markInSlice } : {}),
-							});
-						} else if (isSetValue(markInSlice)) {
-							newMarks.push({
-								type: "Revive",
-								seq,
-								mods: [{
-									type: "RevertValue",
-									seq,
-								}],
-							});
-						} else if (isModify(markInSlice)) {
-							newMarks.push({
-								type: "Revive",
-								seq,
-								mods: [invertModify(markInSlice, context)],
-							});
-						} else if (isPrior(markInSlice)) {
-							newMarks.push(markInSlice);
-						} else if (isEnd(markInSlice) && markInSlice.op === mark.op) {
-							break;
-						} else {
-							fail("Unexpected mark within deleted slice");
-						}
-						iMarkInSlice += 1;
+					const firstMod = iMark + 1;
+					const endBound =
+						findIndexFrom(marks, firstMod, (m) => isEnd(m) && m.op === mark.op)
+						?? fail("No matching end mark for DeleteStart")
+					;
+					let lastSubstantiveMod = endBound - 1;
+					while (isOffset(marks[lastSubstantiveMod]) && lastSubstantiveMod >= firstMod) {
+						lastSubstantiveMod -= 1;
 					}
-					// eslint-disable-next-line no-constant-condition
-					while (true);
-					iMark = iMarkInSlice;
+					const revive: R.ReviveSlice = {
+						type: "ReviveSlice",
+						seq,
+						op: mark.op,
+						// TODO: side and tiebreak
+					};
+					const mods = invertMarks(marks.slice(firstMod, lastSubstantiveMod + 1), context) as R.ModsTrail;
+					if (endBound - firstMod !== 1) {
+						revive.length = endBound - firstMod;
+					}
+					if (mods.length > 0) {
+						revive.mods = mods;
+					}
+					newMarks.push(revive);
+					iMark = endBound;
 					break;
 				}
 				case "MoveOutStart": {
@@ -202,6 +219,7 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 						type: "ReturnSlice",
 						seq,
 						op: mark.op,
+						// TODO: side and tiebreak
 					});
 					const endIndex =
 						findIndexFrom(marks, iMark + 1, (m) => isEnd(m) && m.op === mark.op)

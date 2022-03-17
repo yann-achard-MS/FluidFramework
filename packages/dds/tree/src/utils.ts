@@ -335,8 +335,8 @@ export function isReturn(mark: R.ObjMark | Offset):	mark is R.ReturnSet | R.Retu
 	return typeof mark === "object" && (mark.type === "ReturnSet" || mark.type === "ReturnSlice");
 }
 
-export function isRevive(mark: R.ObjMark | Offset):	mark is R.Revive {
-	return typeof mark === "object" && mark.type === "Revive";
+export function isRevive(mark: R.ObjMark | Offset):	mark is R.ReviveSet | R.ReviveSlice {
+	return typeof mark === "object" && (mark.type === "ReviveSet" || mark.type === "ReviveSlice");
 }
 
 export function isRevert(mark: R.ObjMark | Offset):	mark is R.RevertValue {
