@@ -169,7 +169,10 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 						op: mark.op,
 						// TODO: side and tiebreak
 					});
-					context.newSliceMoveOuts.set(mark.op, Pointer.fromMarks(newMarks).skipMarks(newMarks.length));
+					// We skip over `newMarks.length - 1` instead of `newMarks.length` so that the Pointer sees
+					// the MoveOutStart mark. This is needed so it doesn't complain when it encounters the End mark
+					// and its bound stack is empty.
+					context.newSliceMoveOuts.set(mark.op, Pointer.fromMarks(newMarks).skipMarks(newMarks.length - 1));
 					newMarks.push({
 						type: "End",
 						op: mark.op,
@@ -215,18 +218,28 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 					break;
 				}
 				case "MoveOutStart": {
+					const firstMod = iMark + 1;
+					const endBound =
+						findIndexFrom(marks, firstMod, (m) => isEnd(m) && m.op === mark.op)
+						?? fail("No matching end mark for MoveOutStart")
+					;
+					// let lastSubstantiveMod = endBound - 1;
+					// while (isOffset(marks[lastSubstantiveMod]) && lastSubstantiveMod >= firstMod) {
+					// 	lastSubstantiveMod -= 1;
+					// }
+					const mods = invertMarks(marks.slice(firstMod, endBound), context);
+					// const modsLength = mods.reduce<number>((l, m) => l + lengthFromMark(m), 0);
+					// if (modsLength < length) {
+					// 	mods.push(length - modsLength);
+					// }
+					context.newSliceMoveOutMods.set(mark.op, mods);
 					newMarks.push({
 						type: "ReturnSlice",
 						seq,
 						op: mark.op,
 						// TODO: side and tiebreak
 					});
-					const endIndex =
-						findIndexFrom(marks, iMark + 1, (m) => isEnd(m) && m.op === mark.op)
-						?? fail("No matching end mark for MoveOutStart")
-					;
-					context.newSliceMoveOutMods.set(mark.op, invertMarks(marks.slice(iMark + 1, endIndex), context));
-					iMark = endIndex;
+					iMark = endBound;
 					break;
 				}
 				default: fail("Unexpected mark type");

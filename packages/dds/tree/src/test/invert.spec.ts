@@ -226,7 +226,35 @@ const moveSetInTrait: R.ChangeFrame = {
 		},
 	],
 };
-const moveSetAcrossTrait: R.ChangeFrame = {
+const moveSliceInTrait: R.ChangeFrame = {
+	moves: [
+		{ src: "foo.2", dst: "foo.1" },
+	],
+	marks: [
+		{
+			modify: {
+				foo: [
+					1,
+					{
+						type: "MoveInSlice",
+						op: 0,
+					},
+					1,
+					{
+						type: "MoveOutStart",
+						op: 0,
+					},
+					1,
+					{
+						type: "End",
+						op: 0,
+					},
+				],
+			},
+		},
+	],
+};
+const moveSetAcrossTraits: R.ChangeFrame = {
 	moves: [
 		{ src: "foo.0", dst: "bar.0" },
 	],
@@ -242,6 +270,34 @@ const moveSetAcrossTrait: R.ChangeFrame = {
 				bar: [
 					{
 						type: "MoveInSet",
+						op: 0,
+					},
+				],
+			},
+		},
+	],
+};
+const moveSliceAcrossTraits: R.ChangeFrame = {
+	moves: [
+		{ src: "foo.0", dst: "bar.0" },
+	],
+	marks: [
+		{
+			modify: {
+				foo: [
+					{
+						type: "MoveOutStart",
+						op: 0,
+					},
+					1,
+					{
+						type: "End",
+						op: 0,
+					},
+				],
+				bar: [
+					{
+						type: "MoveInSlice",
 						op: 0,
 					},
 				],
@@ -273,7 +329,36 @@ const returnSetInTrait: R.ChangeFrame = {
 		},
 	],
 };
-const returnSetAcrossTrait: R.ChangeFrame = {
+const returnSliceInTrait: R.ChangeFrame = {
+	moves: [
+		{ src: "foo.1", dst: "foo.2" },
+	],
+	marks: [
+		{
+			modify: {
+				foo: [
+					1,
+					{
+						type: "MoveOutStart",
+						op: 0,
+					},
+					1,
+					{
+						type: "End",
+						op: 0,
+					},
+					1,
+					{
+						type: "ReturnSlice",
+						op: 0,
+						seq,
+					},
+				],
+			},
+		},
+	],
+};
+const returnSetAcrossTraits: R.ChangeFrame = {
 	moves: [
 		{ src: "bar.0", dst: "foo.0" },
 	],
@@ -290,6 +375,35 @@ const returnSetAcrossTrait: R.ChangeFrame = {
 				bar: [
 					{
 						type: "MoveOut",
+						op: 0,
+					},
+				],
+			},
+		},
+	],
+};
+const returnSliceAcrossTraits: R.ChangeFrame = {
+	moves: [
+		{ src: "bar.0", dst: "foo.0" },
+	],
+	marks: [
+		{
+			modify: {
+				foo: [
+					{
+						type: "ReturnSlice",
+						seq,
+						op: 0,
+					},
+				],
+				bar: [
+					{
+						type: "MoveOutStart",
+						op: 0,
+					},
+					1,
+					{
+						type: "End",
 						op: 0,
 					},
 				],
@@ -321,7 +435,36 @@ const returnTwiceSetInTrait: R.ChangeFrame = {
 		},
 	],
 };
-const returnTwiceSetAcrossTrait: R.ChangeFrame = {
+const returnTwiceSliceInTrait: R.ChangeFrame = {
+	moves: [
+		{ src: "foo.2", dst: "foo.1" },
+	],
+	marks: [
+		{
+			modify: {
+				foo: [
+					1,
+					{
+						type: "ReturnSlice",
+						op: 0,
+						seq,
+					},
+					1,
+					{
+						type: "MoveOutStart",
+						op: 0,
+					},
+					1,
+					{
+						type: "End",
+						op: 0,
+					},
+				],
+			},
+		},
+	],
+};
+const returnTwiceSetAcrossTraits: R.ChangeFrame = {
 	moves: [
 		{ src: "foo.0", dst: "bar.0" },
 	],
@@ -345,8 +488,47 @@ const returnTwiceSetAcrossTrait: R.ChangeFrame = {
 		},
 	],
 };
+const returnTwiceSliceAcrossTraits: R.ChangeFrame = {
+	moves: [
+		{ src: "foo.0", dst: "bar.0" },
+	],
+	marks: [
+		{
+			modify: {
+				foo: [
+					{
+						type: "MoveOutStart",
+						op: 0,
+					},
+					1,
+					{
+						type: "End",
+						op: 0,
+					},
+				],
+				bar: [
+					{
+						type: "ReturnSlice",
+						seq,
+						op: 0,
+					},
+				],
+			},
+		},
+	],
+};
 
 describe.only(invert.name, () => {
+	it("SetValue -> RevertValue", () => {
+		const actual = testInvert(setValue);
+		assert.deepEqual(actual, revertValue);
+	});
+
+	it("RevertValue -> RevertValue", () => {
+		const actual = testInvert(revertValue);
+		assert.deepEqual(actual, revertValue);
+	});
+
 	it("Insert -> Delete", () => {
 		const actual = testInvert(insert);
 		assert.deepEqual(actual, deleteSet);
@@ -374,16 +556,6 @@ describe.only(invert.name, () => {
 		});
 	});
 
-	it("SetValue -> RevertValue", () => {
-		const actual = testInvert(setValue);
-		assert.deepEqual(actual, revertValue);
-	});
-
-	it("RevertValue -> RevertValue", () => {
-		const actual = testInvert(revertValue);
-		assert.deepEqual(actual, revertValue);
-	});
-
 	describe("[MoveOut MoveIn] -> [Return MoveOut]", () => {
 		describe("For set ranges", () => {
 			it("Within traits", () => {
@@ -391,41 +563,67 @@ describe.only(invert.name, () => {
 				assert.deepEqual(actual, returnSetInTrait);
 			});
 			it("Across traits", () => {
-				const actual = testInvert(moveSetAcrossTrait);
-				assert.deepEqual(actual, returnSetAcrossTrait);
+				const actual = testInvert(moveSetAcrossTraits);
+				assert.deepEqual(actual, returnSetAcrossTraits);
 			});
 		});
-		// describe("For slice ranges", () => {
-		// 	it("Within traits", () => {
-		// 		const actual = testInvert(moveSetInTrait);
-		// 		assert.deepEqual(actual, returnSetInTrait);
-		// 	});
-		// 	it("Across traits", () => {
-		// 		const actual = testInvert(moveSetAcrossTrait);
-		// 		assert.deepEqual(actual, returnSetAcrossTrait);
-		// 	});
-		// });
+		describe("For slice ranges", () => {
+			describe("For set ranges", () => {
+				it("Within traits", () => {
+					const actual = testInvert(moveSliceInTrait);
+					assert.deepEqual(actual, returnSliceInTrait);
+				});
+				it("Across traits", () => {
+					const actual = testInvert(moveSliceAcrossTraits);
+					assert.deepEqual(actual, returnSliceAcrossTraits);
+				});
+			});
+		});
 	});
 
 	describe("[Return MoveOut] -> [MoveOut Return]", () => {
-		it("Within traits", () => {
-			const actual = testInvert(returnSetInTrait);
-			assert.deepEqual(actual, returnTwiceSetInTrait);
+		describe("For set ranges", () => {
+			it("Within traits", () => {
+				const actual = testInvert(returnSetInTrait);
+				assert.deepEqual(actual, returnTwiceSetInTrait);
+			});
+			it("Across traits", () => {
+				const actual = testInvert(returnSetAcrossTraits);
+				assert.deepEqual(actual, returnTwiceSetAcrossTraits);
+			});
 		});
-		it("Across traits", () => {
-			const actual = testInvert(returnSetAcrossTrait);
-			assert.deepEqual(actual, returnTwiceSetAcrossTrait);
+		describe("For slice ranges", () => {
+			it("Within traits", () => {
+				const actual = testInvert(returnSliceInTrait);
+				assert.deepEqual(actual, returnTwiceSliceInTrait);
+			});
+			it("Across traits", () => {
+				const actual = testInvert(returnSliceAcrossTraits);
+				assert.deepEqual(actual, returnTwiceSliceAcrossTraits);
+			});
 		});
 	});
 
 	describe("[MoveOut Return] -> [Return MoveOut]", () => {
-		it("Within traits", () => {
-			const actual = testInvert(returnTwiceSetInTrait);
-			assert.deepEqual(actual, returnSetInTrait);
+		describe("For set ranges", () => {
+				it("Within traits", () => {
+				const actual = testInvert(returnTwiceSetInTrait);
+				assert.deepEqual(actual, returnSetInTrait);
+			});
+			it("Across traits", () => {
+				const actual = testInvert(returnTwiceSetAcrossTraits);
+				assert.deepEqual(actual, returnSetAcrossTraits);
+			});
 		});
-		it("Across traits", () => {
-			const actual = testInvert(returnTwiceSetAcrossTrait);
-			assert.deepEqual(actual, returnSetAcrossTrait);
+		describe("For slice ranges", () => {
+				it("Within traits", () => {
+				const actual = testInvert(returnTwiceSliceInTrait);
+				assert.deepEqual(actual, returnSliceInTrait);
+			});
+			it("Across traits", () => {
+				const actual = testInvert(returnTwiceSliceAcrossTraits);
+				assert.deepEqual(actual, returnSliceAcrossTraits);
+			});
 		});
 	});
 });
