@@ -541,47 +541,62 @@ export namespace ScenarioE {
 	B should be deleted (as opposed to inserted in trait bar).
 	*/
 
-	export const e1: Original.ChangeFrame = {
-		moves: [{ src: "foo.1", dst: "bar.0"}],
-		marks: [{
-			modify: {
-				foo: [
-					1, // Skip A
-					{ type: "MoveOutStart", op: 0 },
-					1, // Skip B
-					{ type: "End", side: Sibling.Next, op: 0 },
-				],
-				bar: [
-					{ type: "MoveInSlice", op: 0 }, // B
-				],
-			},
+	export const e1: S.Transaction = {
+		seq: 1,
+		ref: 0,
+		frames: [{
+			moves: [{ src: "foo.1", dst: "bar.0"}],
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "MoveOutStart", op: 0 },
+						1, // Skip B
+						{ type: "End", side: Sibling.Next, op: 0 },
+					],
+					bar: [
+						{ type: "MoveInSlice", op: 0 }, // B
+					],
+				},
+			}],
 		}],
 	};
 
-	export const e2: Original.Modify = {
-		modify: {
-			foo: [
-				{ type: "DeleteStart", op: 0 },
-				2, // Skip A B C
-				{ type: "End", op: 0 },
-			],
-		},
+	export const e2: S.Transaction = {
+		seq: 2,
+		ref: 0,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						{ type: "DeleteStart", op: 0 },
+						3, // Skip A B C
+						{ type: "End", op: 0 },
+					],
+				},
+			}],
+		}],
 	};
 
-	export const e2p: Rebased.ChangeFrame = {
-		priorMoves: { 1: [{ src: "foo.1", dst: "bar.0"}] },
-		marks: [{
-			modify: {
-				foo: [
-					{ type: "DeleteStart", op: 0 },
-					1, // Skip A
-					{ type: "PriorMoveOutStart", seq: 1, op: 0 },
-					1, // Skip B
-					{ type: "PriorSliceEnd", seq: 1, op: 0 },
-					1, // Skip C
-					{ type: "End", op: 0 },
-				],
-			},
+	export const e2p: S.Transaction = {
+		seq: 2,
+		ref: 0,
+		newRef: 1,
+		frames: [{
+			priorMoves: { 1: [{ src: "foo.1", dst: "bar.0"}] },
+			marks: [{
+				modify: {
+					foo: [
+						{ type: "DeleteStart", op: 0 },
+						1, // Skip A
+						{ type: "PriorMoveOutStart", seq: 1, op: 0 },
+						1, // Skip B
+						{ type: "PriorSliceEnd", seq: 1, op: 0 },
+						1, // Skip C
+						{ type: "End", op: 0 },
+					],
+				},
+			}],
 		}],
 	};
 }
