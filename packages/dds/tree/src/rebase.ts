@@ -115,6 +115,7 @@ function rebaseOverMark(startPtr: Pointer, baseMark: R.TraitMark, context: Conte
 				const markLength = lengthFromMark(mark);
 				if (baseMarkLength < markLength) {
 					ptr.seek(baseMarkLength).ensureMarkStart();
+					ptr = rebaseOverMark(ptr, baseMark, context);
 				} else if (baseMarkLength > markLength) {
 					const [fst, snd] = splitMark(baseMark, markLength);
 					ptr = rebaseOverMark(ptr, fst, context);
@@ -135,13 +136,13 @@ function rebaseOverMark(startPtr: Pointer, baseMark: R.TraitMark, context: Conte
 							fail("Unexpected segment type");
 						}
 					} else if (isDelete(baseMark)) {
-						ptr = ptr.insert({
+						ptr = ptr.replaceMark({
 							type: "PriorDetach",
 							seq: context.seq,
 							length: baseMark.length,
 						});
 					} else if (isMoveOut(baseMark)) {
-						ptr = ptr.insert({
+						ptr = ptr.replaceMark({
 							type: "PriorDetach",
 							seq: context.seq,
 							length: baseMark.length,

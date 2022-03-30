@@ -518,7 +518,7 @@ const returnTwiceSliceAcrossTraits: R.ChangeFrame = {
 	],
 };
 
-describe.only(invert.name, () => {
+describe(invert.name, () => {
 	it("SetValue -> RevertValue", () => {
 		const actual = testInvert(setValue);
 		assert.deepEqual(actual, revertValue);
