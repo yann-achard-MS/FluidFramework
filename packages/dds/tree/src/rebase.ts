@@ -23,6 +23,7 @@ import {
 	isMoveOut,
 	isOffset,
 	isPrior,
+	isPriorDetach,
 	isReturn,
 	isRevert,
 	isRevive,
@@ -155,6 +156,14 @@ function rebaseOverMark(startPtr: Pointer, baseMark: R.TraitMark, context: Conte
 							});
 						} else if (isOffset(baseMark)) {
 							ptr = ptr.seek(baseMarkLength);
+						} else if (isRevive(baseMark)) {
+							if (isPriorDetach(mark)) {
+								ptr = ptr.replaceMark(markLength);
+							} else {
+								fail("A Revive segment should always match up with a PriorDetach segment");
+							}
+						} else if (isReturn(baseMark)) {
+							fail("TODO");
 						} else {
 							ptr = insertPriorFromTraitMark(ptr, baseMark, context);
 						}
@@ -243,7 +252,7 @@ function priorFromTraitMark(
 			length: base.length,
 		};
 	}
-	if (isOffset(base) || isAttachSegment(base) || isReturn(base) || isRevive(base) || isRevert(base)) {
+	if (isOffset(base) || isAttachSegment(base) || isRevert(base)) {
 		return lengthFromMark(base);
 	}
 	if (isBound(base)) {

@@ -499,7 +499,7 @@ export function splitMark(mark: Readonly<Offset | R.Mark>, offset: number): [Off
 	if (mLength === offset) {
 		return [{ ...mark }, 0];
 	}
-	if (isSegment(mark) || isPriorDetach(mark)) {
+	if (isSegment(mark) || isPriorDetach(mark) || isRevive(mark)) {
 		if (isInsert(mark)) {
 			return [
 				{ ...mark, content: mark.content.slice(0, offset) },
@@ -507,14 +507,10 @@ export function splitMark(mark: Readonly<Offset | R.Mark>, offset: number): [Off
 			];
 		}
 		const mods = mark.mods !== undefined ? [mark.mods.slice(0, offset), mark.mods.slice(offset)] : [];
-		if (isMoveOut(mark) || isPriorDetach(mark) || isDelete(mark)) {
-			return [
-				{ ...mark, length: offset, mods: mods[0] },
-				{ ...mark, length: mLength - offset, mods: mods[1] },
-			];
-		} else {
-			fail("Unexpected mark type");
-		}
+		return [
+			{ ...mark, length: offset, mods: mods[0] },
+			{ ...mark, length: mLength - offset, mods: mods[1] },
+		];
 	} else {
 		fail("TODO: support other mark types");
 	}
