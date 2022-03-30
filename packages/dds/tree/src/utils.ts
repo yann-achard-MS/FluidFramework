@@ -507,12 +507,7 @@ export function splitMark(mark: Readonly<Offset | R.Mark>, offset: number): [Off
 			];
 		}
 		const mods = mark.mods !== undefined ? [mark.mods.slice(0, offset), mark.mods.slice(offset)] : [];
-		if (isMoveOut(mark)) {
-			return [
-				{ ...mark, mods: mods[0] },
-				{ ...mark, mods: mods[1] },
-			];
-		} else if (isPriorDetach(mark) || isDelete(mark)) {
+		if (isMoveOut(mark) || isPriorDetach(mark) || isDelete(mark)) {
 			return [
 				{ ...mark, length: offset, mods: mods[0] },
 				{ ...mark, length: mLength - offset, mods: mods[1] },
