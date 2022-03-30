@@ -169,10 +169,7 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 						op: mark.op,
 						// TODO: side and tiebreak
 					});
-					// We skip over `newMarks.length - 1` instead of `newMarks.length` so that the Pointer sees
-					// the MoveOutStart mark. This is needed so it doesn't complain when it encounters the End mark
-					// and its bound stack is empty.
-					context.newSliceMoveOuts.set(mark.op, Pointer.fromMarks(newMarks).skipMarks(newMarks.length - 1));
+					context.newSliceMoveOuts.set(mark.op, Pointer.fromMarks(newMarks).skipMarks(newMarks.length));
 					newMarks.push({
 						type: "End",
 						op: mark.op,

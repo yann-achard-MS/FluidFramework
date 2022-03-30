@@ -13,6 +13,7 @@ import {
 	ScenarioA1,
 	ScenarioA2,
 	ScenarioC,
+	ScenarioD,
 	ScenarioF,
 	ScenarioG,
 } from "./samples";
@@ -43,6 +44,13 @@ describe(rebase.name, () => {
 		it("e2", () => {
 			const actual = rebase(ScenarioC.e3, ScenarioC.e2);
 			assert.deepEqual(actual.frames, ScenarioC.e3p.frames);
+		});
+	});
+
+	describe("ScenarioD", () => {
+		it("e2", () => {
+			const actual = rebase(ScenarioD.e2, ScenarioD.e1);
+			assert.deepEqual(actual.frames, ScenarioD.e2p.frames);
 		});
 	});
 

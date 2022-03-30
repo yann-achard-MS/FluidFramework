@@ -100,57 +100,64 @@ function rebaseOverMark(startPtr: Pointer, baseMark: R.TraitMark, context: Conte
 	if (isBound(baseMark)) {
 		ptr = ptr.insert(priorFromBound(baseMark, context));
 	} else {
-		while (ptr.mark !== undefined && (isAttachSegment(ptr.mark) || isBound(ptr.mark))) {
+		while (ptr.mark !== undefined && isAttachSegment(ptr.mark)) {
 			ptr = ptr.skipMarks(1);
 		}
-		const mark = ptr.mark;
-		if (mark === undefined) {
+		if (ptr.mark === undefined || isBound(baseMark)) {
 			ptr = insertPriorFromTraitMark(ptr, baseMark, context);
 		} else {
-			if (isAttachSegment(baseMark)) {
-				ptr = ptr.insert(lengthFromMark(baseMark));
+			while (ptr.mark !== undefined && (isAttachSegment(ptr.mark) || isBound(ptr.mark))) {
+				ptr = ptr.skipMarks(1);
+			}
+			const mark = ptr.mark;
+			if (mark === undefined) {
+				ptr = insertPriorFromTraitMark(ptr, baseMark, context);
 			} else {
-				ptr = ptr.ensureMarkStart();
-				const baseMarkLength = lengthFromMark(baseMark);
-				const markLength = lengthFromMark(mark);
-				if (baseMarkLength < markLength) {
-					ptr.seek(baseMarkLength).ensureMarkStart();
-					ptr = rebaseOverMark(ptr, baseMark, context);
-				} else if (baseMarkLength > markLength) {
-					const [fst, snd] = splitMark(baseMark, markLength);
-					ptr = rebaseOverMark(ptr, fst, context);
-					ptr = rebaseOverMark(ptr, snd, context);
+				if (isAttachSegment(baseMark)) {
+					ptr = ptr.insert(lengthFromMark(baseMark));
 				} else {
-					if (isModify(baseMark)) {
-						if (isModify(mark)) {
-							rebaseOverModify(mark, baseMark, context);
-						} else if (isSetValue(mark)) {
-							ptr = ptr.skipMarks(1);
-						} else if (isDetachSegment(mark)) {
-							const mods = mark.mods ?? [1];
-							if (mark.mods !== undefined && isModify(mods[0])) {
-								rebaseOverModify(mods[0], baseMark, context);
-							}
-							ptr = ptr.skipMarks(1);
-						} else {
-							fail("Unexpected segment type");
-						}
-					} else if (isDelete(baseMark)) {
-						ptr = ptr.replaceMark({
-							type: "PriorDetach",
-							seq: context.seq,
-							length: baseMark.length,
-						});
-					} else if (isMoveOut(baseMark)) {
-						ptr = ptr.replaceMark({
-							type: "PriorDetach",
-							seq: context.seq,
-							length: baseMark.length,
-						});
-					} else if (isOffset(baseMark)) {
-						ptr = ptr.seek(baseMarkLength);
+					ptr = ptr.ensureMarkStart();
+					const baseMarkLength = lengthFromMark(baseMark);
+					const markLength = lengthFromMark(mark);
+					if (baseMarkLength < markLength) {
+						ptr.seek(baseMarkLength).ensureMarkStart();
+						ptr = rebaseOverMark(ptr, baseMark, context);
+					} else if (baseMarkLength > markLength) {
+						const [fst, snd] = splitMark(baseMark, markLength);
+						ptr = rebaseOverMark(ptr, fst, context);
+						ptr = rebaseOverMark(ptr, snd, context);
 					} else {
-						ptr = insertPriorFromTraitMark(ptr, baseMark, context);
+						if (isModify(baseMark)) {
+							if (isModify(mark)) {
+								rebaseOverModify(mark, baseMark, context);
+							} else if (isSetValue(mark)) {
+								ptr = ptr.skipMarks(1);
+							} else if (isDetachSegment(mark)) {
+								const mods = mark.mods ?? [1];
+								if (mark.mods !== undefined && isModify(mods[0])) {
+									rebaseOverModify(mods[0], baseMark, context);
+								}
+								ptr = ptr.skipMarks(1);
+							} else {
+								fail("Unexpected segment type");
+							}
+						} else if (isDelete(baseMark)) {
+							ptr = ptr.replaceMark({
+								type: "PriorDetach",
+								seq: context.seq,
+								length: baseMark.length,
+							});
+						} else if (isMoveOut(baseMark)) {
+							ptr = ptr.replaceMark({
+								type: "PriorDetach",
+								seq: context.seq,
+								length: baseMark.length,
+							});
+						} else if (isOffset(baseMark)) {
+							ptr = ptr.seek(baseMarkLength);
+						} else {
+							ptr = insertPriorFromTraitMark(ptr, baseMark, context);
+						}
 					}
 				}
 			}
@@ -165,7 +172,9 @@ function rebaseOverModify(mark: R.Modify, baseMark: R.Modify, context: Context):
 	}
 	for (const [k,v] of Object.entries(baseMark.modify ?? {})) {
 		if (k in mark.modify) {
+			console.log(`Entering trait ${k}`);
 			rebaseMarks(mark.modify[k], v, context);
+			console.log(`Exiting trait ${k}`);
 		} else {
 			// The line below is disabled because we shouldn't need priors in traits
 			// that the rebased change doesn't touch. Note that it's still an open

@@ -427,93 +427,105 @@ export namespace ScenarioD {
 	The commutativity of the insertion of X could still be leveraged if user 1 moved content from trait baz
 	*/
 
-	export const e1: Original.ChangeFrame = {
-		moves: [{ src: "foo.1", dst: "bar.0"}],
-		marks: [{
-			modify: {
-				foo: [
-					1, // Skip A
-					{ type: "MoveOutStart", op: 0 },
-					1, // Skip B
-					{ type: "End", side: Sibling.Next, op: 0 },
-				],
-				bar: [
-					{ type: "MoveInSlice", op: 0 },
-				],
-			},
+	export const e1: S.Transaction = {
+		seq: 1,
+		ref: 0,
+		frames: [{
+			moves: [{ src: "foo.1", dst: "bar.0"}],
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "MoveOutStart", op: 0 },
+						1, // Skip B
+						{ type: "End", side: Sibling.Next, op: 0 },
+					],
+					bar: [
+						{ type: "MoveInSlice", op: 0 },
+					],
+				},
+			}],
 		}],
 	};
 
-	export const e2: Original.ChangeFrame = {
-		moves: [
-			{ src: "foo.0", dst: "baz.0" },
-			{ src: "foo.2", dst: "baz.3"},
-		],
-		marks: [{
-			modify: {
-				foo: [
-					{ type: "MoveOutStart", op: 0 },
-					2, // A B
-					{
-						type: "End",
-						op: 0,
-						side: Sibling.Next,
-						tiebreak: Tiebreak.FirstToLast,
-					},
-					{
-						type: "MoveOutStart",
-						op: 1,
-						side: Sibling.Prev,
-						tiebreak: Tiebreak.LastToFirst,
-					},
-					1, // C
-					{ type: "End", op: 1 },
-				],
-				baz: [
-					{ type: "MoveInSlice", op: 0, length: 2 }, // A B
-					{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
-					{ type: "MoveInSlice", op: 1 }, // C
-				],
-			},
+	export const e2: S.Transaction = {
+		seq: 2,
+		ref: 0,
+		frames: [{
+			moves: [
+				{ src: "foo.0", dst: "baz.0" },
+				{ src: "foo.2", dst: "baz.3"},
+			],
+			marks: [{
+				modify: {
+					foo: [
+						{ type: "MoveOutStart", op: 0 },
+						2, // A B
+						{
+							type: "End",
+							op: 0,
+							side: Sibling.Next,
+							tiebreak: Tiebreak.FirstToLast,
+						},
+						{
+							type: "MoveOutStart",
+							op: 1,
+							side: Sibling.Prev,
+							tiebreak: Tiebreak.LastToFirst,
+						},
+						1, // C
+						{ type: "End", op: 1 },
+					],
+					baz: [
+						{ type: "MoveInSlice", op: 0, length: 2 }, // A B
+						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
+						{ type: "MoveInSlice", op: 1 }, // C
+					],
+				},
+			}],
 		}],
 	};
 
-	export const e2p: Rebased.ChangeFrame = {
-		moves: [
-			{ src: "foo.0", dst: "baz.0" },
-			{ src: "foo.2", dst: "baz.3"},
-		],
-		priorMoves: { 1: [{ src: "foo.1", dst: "bar.0"}] },
-		marks: [{
-			modify: {
-				foo: [
-					{ type: "MoveOutStart", op: 0 },
-					1, // A
-					{ type: "PriorMoveOutStart", seq: 1, op: 0 },
-					1, // B
-					{ type: "PriorSliceEnd", seq: 1, op: 0 },
-					1, // C
-					{
-						type: "End",
-						op: 0,
-						side: Sibling.Next,
-						tiebreak: Tiebreak.FirstToLast,
-					},
-					{
-						type: "MoveOutStart",
-						op: 1,
-						side: Sibling.Prev,
-						tiebreak: Tiebreak.LastToFirst,
-					},
-					1, // C
-					{ type: "End", op: 1 },
-				],
-				baz: [
-					{ type: "MoveInSlice", op: 0, length: 2 }, // A
-					{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
-					{ type: "MoveInSlice", op: 1 }, // C
-				],
-			},
+	export const e2p: S.Transaction = {
+		seq: 2,
+		ref: 0,
+		newRef: 1,
+		frames: [{
+			moves: [
+				{ src: "foo.0", dst: "baz.0" },
+				{ src: "foo.2", dst: "baz.3"},
+			],
+			priorMoves: { 1: [{ src: "foo.1", dst: "bar.0"}] },
+			marks: [{
+				modify: {
+					foo: [
+						{ type: "MoveOutStart", op: 0 },
+						1, // A
+						{ type: "PriorMoveOutStart", seq: 1, op: 0 },
+						1, // B
+						{ type: "PriorSliceEnd", seq: 1, op: 0 },
+						{
+							type: "End",
+							op: 0,
+							side: Sibling.Next,
+							tiebreak: Tiebreak.FirstToLast,
+						},
+						{
+							type: "MoveOutStart",
+							op: 1,
+							side: Sibling.Prev,
+							tiebreak: Tiebreak.LastToFirst,
+						},
+						1, // C
+						{ type: "End", op: 1 },
+					],
+					baz: [
+						{ type: "MoveInSlice", op: 0, length: 2 }, // A
+						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
+						{ type: "MoveInSlice", op: 1 }, // C
+					],
+				},
+			}],
 		}],
 	};
 }

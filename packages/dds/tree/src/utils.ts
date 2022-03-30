@@ -454,26 +454,24 @@ export class Pointer {
 	public seek(nodeOffset: number): Pointer {
 		assert(nodeOffset >= 0, "The offset must be >= to zero");
 		let offset = nodeOffset;
-		let { iMark, iNode, inSlice } = this;
-		const { marks } = this;
+		let { iMark, iNode } = this;
+		const { marks, inSlice } = this;
 		const markMax = marks.length;
-		// Note that we use `>= 0` instead of `> 0`.
-		// This ensures we skip over zero-length marks.
-		while (offset >= 0 && iMark < markMax) {
+		while (offset > 0 && iMark < markMax) {
 			const mark = marks[iMark];
 			const nodeCount = lengthFromMark(mark);
 			if (iNode + offset >= nodeCount) {
 				iMark += 1;
 				offset -= nodeCount - iNode;
 				iNode = 0;
-				if (isBound(mark)) {
-					if (isEnd(mark)) {
-						assert(inSlice > 0, "Unbalanced slice bounds");
-						inSlice -= 1;
-					} else {
-						inSlice += 1;
-					}
-				}
+				// if (isBound(mark)) {
+				// 	if (isEnd(mark)) {
+				// 		assert(inSlice > 0, "Unbalanced slice bounds");
+				// 		inSlice -= 1;
+				// 	} else {
+				// 		inSlice += 1;
+				// 	}
+				// }
 			} else {
 				break;
 			}
@@ -488,11 +486,14 @@ export class Pointer {
 }
 
 export function splitMark(mark: Readonly<Offset | R.Mark>, offset: number): [Offset | R.Mark, Offset | R.Mark] {
+	if (offset === 0) {
+		fail("Cannot split a mark with an offset of 0");
+	}
 	if (isOffset(mark)) {
 		return [offset, mark - offset];
 	}
-	if (offset === 0 || isMoveIn(mark)) {
-		return [0, { ...mark }];
+	if (isMoveIn(mark)) {
+		fail("Cannot split a MoveIn mark");
 	}
 	const mLength = lengthFromMark(mark);
 	if (mLength === offset) {
