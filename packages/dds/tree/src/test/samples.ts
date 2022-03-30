@@ -237,29 +237,39 @@ export namespace ScenarioA2 {
 	We need to know which node a given insertion or move-in was relative to.
 	*/
 
-	export const e1: Original.Modify = {
-		modify: {
-			foo: [
-				1, // Skip A
-				{ type: "Delete", length: 2 },
-			],
-		},
+	export const e1: S.Transaction = {
+		ref: 0,
+		seq: 1,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "Delete", length: 2 },
+					],
+				},
+			}],
+		}],
 	};
 
-	export const e2: Original.ChangeFrame = {
-		moves: [{src: "foo.2", dst: "bar.0"}],
-		marks: [{
-			modify: {
-				foo: [
-					2, // Skip A B
-					{ type: "MoveOutStart", side: Sibling.Next, op: 0 },
-					2, // Skip C D
-					{ type: "End", op: 0 },
-				],
-				bar: [
-					{ type: "MoveInSlice", op: 0, length: 2 },
-				],
-			},
+	export const e2: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		frames: [{
+			moves: [{src: "foo.2", dst: "bar.0"}],
+			marks: [{
+				modify: {
+					foo: [
+						2, // Skip A B
+						{ type: "MoveOutStart", side: Sibling.Next, op: 0 },
+						2, // Skip C D
+						{ type: "End", op: 0 },
+					],
+					bar: [
+						{ type: "MoveInSlice", op: 0, length: 2 },
+					],
+				},
+			}],
 		}],
 	};
 
@@ -272,22 +282,27 @@ export namespace ScenarioA2 {
 		},
 	};
 
-	export const e2p: Rebased.ChangeFrame = {
-		moves: [{src: "foo.1", dst: "bar.0"}],
-		marks: [{
-			modify: {
-				foo: [
-					1, // Skip A
-					{ type: "PriorDetach", seq: 1 }, // B
-					{ type: "MoveOutStart", side: Sibling.Next, op: 0 },
-					{ type: "PriorDetach", seq: 1 }, // C
-					1, // Skip D
-					{ type: "End", op: 0 },
-				],
-				bar: [
-					{ type: "MoveInSlice", op: 0, length: 2 },
-				],
-			},
+	export const e2p: S.Transaction = {
+		seq: 2,
+		ref: 0,
+		newRef: 1,
+		frames: [{
+			moves: [{src: "foo.2", dst: "bar.0"}],
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "PriorDetach", seq: 1 }, // B
+						{ type: "MoveOutStart", side: Sibling.Next, op: 0 },
+						{ type: "PriorDetach", seq: 1 }, // C
+						1, // Skip D
+						{ type: "End", op: 0 },
+					],
+					bar: [
+						{ type: "MoveInSlice", op: 0, length: 2 },
+					],
+				},
+			}],
 		}],
 	};
 
@@ -331,47 +346,71 @@ export namespace ScenarioC {
 	Note: this scenario motivates this being is true across commits but not within commits.
 	*/
 
-	export const e1: Original.Modify = {
-		modify: {
-			foo: [
-				1, // Skip A
-				{ type: "Insert", content: [{ id: "B" }] },
-			],
-		},
-	};
-
-	export const e2: Original.ChangeFrame = {
-		moves: [{ src: "foo.1", dst: "bar.0"}],
-		marks: [{
-			modify: {
-				foo: [
-					1, // Skip A
-					{ type: "MoveOut", op: 0 },
-				],
-				bar: [
-					{ type: "MoveInSet", op: 0 },
-				],
-			},
+	export const e1: S.Transaction = {
+		ref: 0,
+		seq: 1,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "Insert", content: [{ id: "B" }] },
+					],
+				},
+			}],
 		}],
 	};
 
-	export const e3: Original.Modify = {
-		modify: {
-			foo: [
-				2, // Skip A B
-				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
-			],
-		},
+	export const e2: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		frames: [{
+			moves: [{ src: "foo.1", dst: "bar.0"}],
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "MoveOut", op: 0 },
+					],
+					bar: [
+						{ type: "MoveInSet", op: 0 },
+					],
+				},
+			}],
+		}],
 	};
 
-	export const e3_r_e2: Rebased.Modify = {
-		modify: {
-			foo: [
-				2, // Skip A
-				{ type: "PriorDetach", seq: 2 }, // B
-				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
-			],
-		},
+	export const e3: S.Transaction = {
+		ref: 0,
+		seq: 3,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						2, // Skip A B
+						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e3p: S.Transaction = {
+		seq: 3,
+		ref: 0,
+		newRef: 2,
+		frames: [{
+			priorMoves: { 2: [{ src: "foo.1", dst: "bar.0"}]},
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "PriorDetach", seq: 2 }, // B
+						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
+					],
+				},
+			}],
+		}],
 	};
 }
 

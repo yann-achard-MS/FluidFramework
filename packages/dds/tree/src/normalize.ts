@@ -46,7 +46,7 @@ function normalizeMarks(marks: R.TraitMarks): void {
 			} else if ("mods" in mark) {
 				delete mark.mods;
 			}
-			if (!isInsert(mark) && "length" in mark && mark.length === 1) {
+			if ("length" in mark && (mark.length === 1 || mark.length === undefined)) {
 				delete mark.length;
 			}
 			if (prevMark !== undefined && (isInsert(prevMark) || isDelete(prevMark) || isPrior(prevMark))) {
