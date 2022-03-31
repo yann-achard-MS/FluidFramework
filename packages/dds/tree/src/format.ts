@@ -267,7 +267,7 @@ export namespace Original {
 	 * In addition to the above, any segment that keeps track of mods to its nodes also has its mods purged as
 	 * described for the Modify mark above.
 	 */
-	export interface SliceStart extends HasOpId {
+	export interface IsSliceStart extends HasOpId {
 		/**
 		 * Omit if `Sibling.Prev` for terseness.
 		 */
@@ -283,11 +283,11 @@ export namespace Original {
 		drill?: DrillDepth;
 	}
 
-	export interface MoveOutStart extends SliceStart {
+	export interface MoveOutStart extends IsSliceStart {
 		type: "MoveOutStart";
 	}
 
-	export interface DeleteStart extends SliceStart {
+	export interface DeleteStart extends IsSliceStart {
 		type: "DeleteStart";
 	}
 
@@ -355,7 +355,7 @@ export namespace Rebased {
 	// Use "interface" instead "type" to avoid TSC error
 	export interface Modify<TInner = Mark, AllowSetValue extends boolean = true> extends
 		Original.Modify<TInner, AllowSetValue> {}
-	export type SliceStart = Original.SliceStart;
+	export type IsSliceStart = Original.IsSliceStart;
 	export type MoveOutStart = Original.MoveOutStart;
 	export type DeleteStart = Original.DeleteStart;
 	export type SliceEnd = Original.SliceEnd;
@@ -467,6 +467,12 @@ export namespace Rebased {
 		| ReviveSet
 		| ReviveSlice
 		| Prior;
+
+	export type SliceStart =
+		| MoveOutStart
+		| DeleteStart
+		| PriorDeleteStart
+		| PriorMoveOutStart;
 
 	export type Prior = PriorDetach | PriorSliceBound;
 

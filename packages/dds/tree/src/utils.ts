@@ -263,7 +263,7 @@ export function isPriorSliceEnd(mark: Offset | R.Mark): mark is R.PriorSliceEnd 
 	return typeof mark === "object" && mark.type === "PriorSliceEnd";
 }
 
-export function isStartBound(mark: R.TraitMark): mark is R.SliceBound {
+export function isStartBound(mark: R.TraitMark): mark is R.MoveOutStart | R.DeleteStart {
 	if (typeof mark === "number") {
 		return false;
 	}
@@ -283,6 +283,17 @@ export function isBound(mark: R.TraitMark): mark is R.SliceBound {
 		|| markType === "End"
 	;
 }
+
+export function isPriorStartBound(mark: R.TraitMark): mark is R.PriorDeleteStart | R.PriorMoveOutStart {
+	if (typeof mark === "number") {
+		return false;
+	}
+	const markType = mark.type;
+	return markType === "PriorDeleteStart"
+		|| markType === "PriorMoveOutStart"
+	;
+}
+
 
 export function isPriorBound(mark: R.TraitMark): mark is R.PriorSliceBound {
 	if (typeof mark === "number") {
