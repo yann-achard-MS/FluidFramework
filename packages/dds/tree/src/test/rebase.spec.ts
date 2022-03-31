@@ -763,8 +763,8 @@ describe(rebase.name, () => {
 		});
 	});
 
-	describe("Prior Segments", () => {
-		describe("PriorDetach ↷ ReviveSet", () => {
+	describe("Inverse-only Segments", () => {
+		describe("PriorDetachSet ↷ ReviveSet", () => {
 			const e1: S.Transaction = {
 				ref: 0,
 				seq: 1,
@@ -862,6 +862,134 @@ describe(rebase.name, () => {
 									{ type: "PriorDetach", seq: 0, length: 2 },
 									{ type: "Insert", content: [] },
 									{ type: "PriorDetach", seq: 0 },
+								],
+							},
+						}],
+					}],
+				};
+				const e2p: S.Transaction = {
+					seq: 2,
+					ref: 0,
+					newRef: 1,
+					frames: [{
+						marks: [{
+							modify: {
+								foo: [
+									3,
+									{ type: "Insert", content: [] },
+								],
+							},
+						}],
+					}],
+				};
+				const actual = rebase(e2, e1);
+				assert.deepEqual(actual.frames, e2p.frames);
+			});
+		});
+		describe("PriorDetachSlice ↷ ReviveSlice", () => {
+			const e1: S.Transaction = {
+				ref: 0,
+				seq: 1,
+				frames: [{
+					marks: [{
+						modify: {
+							foo: [
+								1,
+								{ type: "ReviveSlice", op: 0, seq: 0, length: 3 },
+							],
+						},
+					}],
+				}],
+			};
+			it("base before new", () => {
+				const e2: S.Transaction = {
+					seq: 2,
+					ref: 0,
+					newRef: 1,
+					frames: [{
+						marks: [{
+							modify: {
+								foo: [
+									1,
+									{ type: "PriorDeleteStart", seq: 0, op: 0 },
+									3,
+									{ type: "PriorSliceEnd", seq: 0, op: 0 },
+									{ type: "Insert", content: [] },
+								],
+							},
+						}],
+					}],
+				};
+				const e2p: S.Transaction = {
+					seq: 2,
+					ref: 0,
+					newRef: 1,
+					frames: [{
+						marks: [{
+							modify: {
+								foo: [
+									4,
+									{ type: "Insert", content: [] },
+								],
+							},
+						}],
+					}],
+				};
+				const actual = rebase(e2, e1);
+				assert.deepEqual(actual.frames, e2p.frames);
+			});
+			it("new before base", () => {
+				const e2: S.Transaction = {
+					seq: 2,
+					ref: 0,
+					newRef: 1,
+					frames: [{
+						marks: [{
+							modify: {
+								foo: [
+									1,
+									{ type: "Insert", content: [] },
+									{ type: "PriorDeleteStart", seq: 0, op: 0 },
+									3,
+									{ type: "PriorSliceEnd", seq: 0, op: 0 },
+								],
+							},
+						}],
+					}],
+				};
+				const e2p: S.Transaction = {
+					seq: 2,
+					ref: 0,
+					newRef: 1,
+					frames: [{
+						marks: [{
+							modify: {
+								foo: [
+									1,
+									{ type: "Insert", content: [] },
+								],
+							},
+						}],
+					}],
+				};
+				const actual = rebase(e2, e1);
+				assert.deepEqual(actual.frames, e2p.frames);
+			});
+			it("new within base", () => {
+				const e2: S.Transaction = {
+					seq: 2,
+					ref: 0,
+					newRef: 1,
+					frames: [{
+						marks: [{
+							modify: {
+								foo: [
+									1,
+									{ type: "PriorDeleteStart", seq: 0, op: 0 },
+									2,
+									{ type: "Insert", content: [] },
+									1,
+									{ type: "PriorSliceEnd", seq: 0, op: 0 },
 								],
 							},
 						}],

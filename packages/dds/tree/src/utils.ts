@@ -256,7 +256,11 @@ export function isDeleteStart(mark: R.Mark): mark is R.DeleteStart {
 	return (mark as Partial<R.DeleteStart>).type === "DeleteStart";
 }
 export function isEnd(mark: Offset | R.Mark): mark is R.SliceEnd {
-	return (mark as Partial<R.SliceEnd>).type === "End";
+	return typeof mark === "object" && mark.type === "End";
+}
+
+export function isPriorSliceEnd(mark: Offset | R.Mark): mark is R.PriorSliceEnd {
+	return typeof mark === "object" && mark.type === "PriorSliceEnd";
 }
 
 export function isStartBound(mark: R.TraitMark): mark is R.SliceBound {
@@ -331,15 +335,23 @@ export function isDetachSegment(mark: R.ObjMark | Offset):
 	;
 }
 
-export function isReturn(mark: R.ObjMark | Offset):	mark is R.ReturnSet | R.ReturnSlice {
+export function isReturn(mark: R.ObjMark | Offset): mark is R.ReturnSet | R.ReturnSlice {
 	return typeof mark === "object" && (mark.type === "ReturnSet" || mark.type === "ReturnSlice");
 }
 
-export function isRevive(mark: R.ObjMark | Offset):	mark is R.ReviveSet | R.ReviveSlice {
+export function isRevive(mark: R.ObjMark | Offset): mark is R.ReviveSet | R.ReviveSlice {
 	return typeof mark === "object" && (mark.type === "ReviveSet" || mark.type === "ReviveSlice");
 }
 
-export function isRevert(mark: R.ObjMark | Offset):	mark is R.RevertValue {
+export function isReviveSet(mark: R.ObjMark | Offset): mark is R.ReviveSet {
+	return typeof mark === "object" && mark.type === "ReviveSet";
+}
+
+export function isReviveSlice(mark: R.ObjMark | Offset): mark is R.ReviveSlice {
+	return typeof mark === "object" && mark.type === "ReviveSlice";
+}
+
+export function isRevert(mark: R.ObjMark | Offset): mark is R.RevertValue {
 	return typeof mark === "object" && mark.type === "RevertValue";
 }
 
@@ -414,6 +426,12 @@ export class Pointer {
 		return this.marks[this.iMark];
 	}
 
+	public deleteMarks(markCount: number): Pointer {
+		assert(this.iNode === 0, "Only a whole mark can be delete");
+		this.marks.splice(this.iMark, markCount);
+		return this;
+	}
+
 	public replaceMark(newMark: R.TraitMark): Pointer {
 		assert(this.iNode === 0, "Only a whole mark can be replaced");
 		this.marks.splice(this.iMark, 1, newMark);
@@ -424,6 +442,29 @@ export class Pointer {
 		const ptr = this.ensureMarkStart();
 		this.marks.splice(ptr.iMark, 0, newMark);
 		return ptr.skipMarks(1);
+	}
+
+	public findSliceEnd(startMark: R.SliceBound | R.PriorSliceBound): Pointer {
+		let index;
+		if (isPrior(startMark)) {
+			index = findIndexFrom(
+				this.marks,
+				this.iMark,
+				(m) => isPriorSliceEnd(m) && m.op === startMark.op && m.seq === startMark.seq,
+			);
+		} else {
+			index = findIndexFrom(
+				this.marks,
+				this.iMark,
+				(m) => isEnd(m) && m.op === startMark.op,
+			);
+		}
+		return new Pointer(
+			this.marks,
+			index ?? fail("No matching end mark"),
+			0,
+			0,
+		);
 	}
 
 	/**
@@ -514,4 +555,19 @@ export function splitMark(mark: Readonly<Offset | R.Mark>, offset: number): [Off
 	} else {
 		fail("TODO: support other mark types");
 	}
+}
+
+export function findIndexFrom<T>(
+	elements: readonly T[],
+	startIndex: number,
+	predicate: (element: Readonly<T>) => boolean,
+): number | undefined {
+	let index = startIndex;
+	while (index < elements.length) {
+		if (predicate(elements[index])) {
+			return index;
+		}
+		index += 1;
+	}
+	return undefined;
 }

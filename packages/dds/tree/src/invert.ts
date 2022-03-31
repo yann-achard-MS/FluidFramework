@@ -11,6 +11,7 @@ import {
 } from "./format";
 import {
 	fail,
+	findIndexFrom,
 	isEnd,
 	isModify,
 	isOffset,
@@ -292,19 +293,4 @@ function invertModsMarks(
 		iMark += 1;
 	}
 	return newMarks;
-}
-
-function findIndexFrom<T>(
-	elements: readonly T[],
-	startIndex: number,
-	predicate: (element: Readonly<T>) => boolean,
-): number | undefined {
-	let index = startIndex;
-	while (index < elements.length) {
-		if (predicate(elements[index])) {
-			return index;
-		}
-		index += 1;
-	}
-	return undefined;
 }

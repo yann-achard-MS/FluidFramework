@@ -23,10 +23,12 @@ import {
 	isMoveOut,
 	isOffset,
 	isPrior,
+	isPriorBound,
 	isPriorDetach,
 	isReturn,
 	isRevert,
-	isRevive,
+	isReviveSet,
+	isReviveSlice,
 	isSetValue,
 	lengthFromMark,
 	mapObject,
@@ -116,56 +118,110 @@ function rebaseOverMark(startPtr: Pointer, baseMark: R.TraitMark, context: Conte
 			} else {
 				if (isAttachSegment(baseMark)) {
 					ptr = ptr.insert(lengthFromMark(baseMark));
+				} else if (isPriorBound(mark)) {
+					if (isReviveSlice(baseMark)) {
+						// Temporarily remove the starting bound
+						ptr = ptr.deleteMarks(1);
+						let foundEnd = false;
+						let reviveCount = baseMark.length ?? 1;
+						while (foundEnd === false && reviveCount > 0) {
+							const innerMark = ptr.mark ?? fail("Missing slice end");
+							if (isAttachSegment(innerMark)) {
+								ptr = ptr.skipMarks(1);
+							} else if (isOffset(innerMark)) {
+								if (innerMark > reviveCount) {
+									fail("TODO"); // Is this even possible?
+								} else {
+									reviveCount -= innerMark;
+									ptr = ptr.skipMarks(1);
+								}
+							} else if (
+								isPriorBound(innerMark)
+								&& innerMark.seq === mark.seq
+								&& innerMark.op === mark.op
+							) {
+								foundEnd = true;
+							} else {
+								fail("Unexpected segment kind");
+							}
+						}
+						if (foundEnd) {
+							ptr = ptr.deleteMarks(1);
+							if (reviveCount > 0) {
+								const snd = splitMark(baseMark, (baseMark.length ?? 1) - reviveCount)[1];
+								ptr = rebaseOverMark(ptr, snd, context);
+							}
+						} else {
+							const innerMark = ptr.mark ?? fail("Missing slice end");
+							if (
+								isPriorBound(innerMark)
+								&& innerMark.seq === mark.seq
+								&& innerMark.op === mark.op
+							) {
+								ptr = ptr.deleteMarks(1);
+							} else {
+								// Reintroduce the mark
+								ptr = ptr.insert(mark);
+							}
+						}
+					} else {
+						const endPtr = ptr.findSliceEnd(mark);
+						ptr = rebaseOverMark(endPtr.skipMarks(1), baseMark, context);
+					}
 				} else {
 					ptr = ptr.ensureMarkStart();
 					const baseMarkLength = lengthFromMark(baseMark);
 					const markLength = lengthFromMark(mark);
-					if (baseMarkLength < markLength) {
-						ptr.seek(baseMarkLength).ensureMarkStart();
-						ptr = rebaseOverMark(ptr, baseMark, context);
-					} else if (baseMarkLength > markLength) {
-						const [fst, snd] = splitMark(baseMark, markLength);
-						ptr = rebaseOverMark(ptr, fst, context);
-						ptr = rebaseOverMark(ptr, snd, context);
+					if (markLength === 0 || baseMarkLength === 0) {
+						fail("Unexpected segment type");
 					} else {
-						if (isModify(baseMark)) {
-							if (isModify(mark)) {
-								rebaseOverModify(mark, baseMark, context);
-							} else if (isSetValue(mark)) {
-								ptr = ptr.skipMarks(1);
-							} else if (isDetachSegment(mark)) {
-								const mods = mark.mods ?? [1];
-								if (mark.mods !== undefined && isModify(mods[0])) {
-									rebaseOverModify(mods[0], baseMark, context);
-								}
-								ptr = ptr.skipMarks(1);
-							} else {
-								fail("Unexpected segment type");
-							}
-						} else if (isDelete(baseMark)) {
-							ptr = ptr.replaceMark({
-								type: "PriorDetach",
-								seq: context.seq,
-								length: baseMark.length,
-							});
-						} else if (isMoveOut(baseMark)) {
-							ptr = ptr.replaceMark({
-								type: "PriorDetach",
-								seq: context.seq,
-								length: baseMark.length,
-							});
-						} else if (isOffset(baseMark)) {
-							ptr = ptr.seek(baseMarkLength);
-						} else if (isRevive(baseMark)) {
-							if (isPriorDetach(mark)) {
-								ptr = ptr.replaceMark(markLength);
-							} else {
-								fail("A Revive segment should always match up with a PriorDetach segment");
-							}
-						} else if (isReturn(baseMark)) {
-							fail("TODO");
+						if (baseMarkLength < markLength) {
+							ptr.seek(baseMarkLength).ensureMarkStart();
+							ptr = rebaseOverMark(ptr, baseMark, context);
+						} else if (baseMarkLength > markLength) {
+							const [fst, snd] = splitMark(baseMark, markLength);
+							ptr = rebaseOverMark(ptr, fst, context);
+							ptr = rebaseOverMark(ptr, snd, context);
 						} else {
-							ptr = insertPriorFromTraitMark(ptr, baseMark, context);
+							if (isModify(baseMark)) {
+								if (isModify(mark)) {
+									rebaseOverModify(mark, baseMark, context);
+								} else if (isSetValue(mark)) {
+									ptr = ptr.skipMarks(1);
+								} else if (isDetachSegment(mark)) {
+									const mods = mark.mods ?? [1];
+									if (mark.mods !== undefined && isModify(mods[0])) {
+										rebaseOverModify(mods[0], baseMark, context);
+									}
+									ptr = ptr.skipMarks(1);
+								} else {
+									fail("Unexpected segment type");
+								}
+							} else if (isDelete(baseMark)) {
+								ptr = ptr.replaceMark({
+									type: "PriorDetach",
+									seq: context.seq,
+									length: baseMark.length,
+								});
+							} else if (isMoveOut(baseMark)) {
+								ptr = ptr.replaceMark({
+									type: "PriorDetach",
+									seq: context.seq,
+									length: baseMark.length,
+								});
+							} else if (isOffset(baseMark)) {
+								ptr = ptr.seek(baseMarkLength);
+							} else if (isReviveSet(baseMark)) {
+								if (isPriorDetach(mark)) {
+									ptr = ptr.replaceMark(markLength);
+								} else {
+									fail("A Revive segment should always match up with a PriorDetach segment");
+								}
+							} else if (isReturn(baseMark)) {
+								fail("TODO");
+							} else {
+								ptr = insertPriorFromTraitMark(ptr, baseMark, context);
+							}
 						}
 					}
 				}
