@@ -764,7 +764,7 @@ describe(rebase.name, () => {
 	});
 
 	describe("Inverse-only Segments", () => {
-		describe("PriorDetachSet ↷ ReviveSet", () => {
+		describe("PriorDetachSet ↷ ReviveSet = Offset", () => {
 			const e1: S.Transaction = {
 				ref: 0,
 				seq: 1,
@@ -886,7 +886,7 @@ describe(rebase.name, () => {
 				assert.deepEqual(actual.frames, e2p.frames);
 			});
 		});
-		describe("PriorDetachSlice ↷ ReviveSlice", () => {
+		describe("PriorDetachSlice ↷ ReviveSlice = Offset", () => {
 			const e1: S.Transaction = {
 				ref: 0,
 				seq: 1,
@@ -1014,7 +1014,7 @@ describe(rebase.name, () => {
 				assert.deepEqual(actual.frames, e2p.frames);
 			});
 		});
-		describe("ReviveSet ↷ Delete", () => {
+		describe("ReviveSet ↷ DeleteSet = ReviveSet & PriorDetach", () => {
 			const e1: S.Transaction = {
 				ref: 0,
 				seq: 1,
@@ -1038,7 +1038,7 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									1,
+									5,
 									{ type: "ReviveSet", seq: 0, length: 3 },
 									{ type: "Insert", content: [] },
 								],
@@ -1056,6 +1056,8 @@ describe(rebase.name, () => {
 								foo: [
 									1,
 									{ type: "PriorDetach", seq: 1, length: 3 },
+									1,
+									{ type: "ReviveSet", seq: 0, length: 3 },
 									{ type: "Insert", content: [] },
 								],
 							},
@@ -1074,7 +1076,6 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									1,
 									{ type: "Insert", content: [] },
 									{ type: "ReviveSet", seq: 0, length: 3 },
 								],
@@ -1090,8 +1091,9 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									1,
 									{ type: "Insert", content: [] },
+									{ type: "ReviveSet", seq: 0, length: 3 },
+									1,
 									{ type: "PriorDetach", seq: 1, length: 3 },
 								],
 							},
@@ -1110,7 +1112,7 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									1,
+									3,
 									{ type: "ReviveSet", seq: 0, length: 2 },
 									{ type: "Insert", content: [] },
 									{ type: "ReviveSet", seq: 0 },
@@ -1129,7 +1131,9 @@ describe(rebase.name, () => {
 								foo: [
 									1,
 									{ type: "PriorDetach", seq: 1, length: 2 },
+									{ type: "ReviveSet", seq: 0, length: 2 },
 									{ type: "Insert", content: [] },
+									{ type: "ReviveSet", seq: 0 },
 									{ type: "PriorDetach", seq: 1 },
 								],
 							},
@@ -1140,7 +1144,7 @@ describe(rebase.name, () => {
 				assert.deepEqual(actual.frames, e2p.frames);
 			});
 		});
-		describe.skip("ReviveSlice ↷ DeleteSlice = PriorDeleteSlice", () => {
+		describe("ReviveSlice ↷ DeleteSlice = ReviveSlice & PriorDeleteSlice", () => {
 			const e1: S.Transaction = {
 				ref: 0,
 				seq: 1,
@@ -1166,7 +1170,7 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									1,
+									5,
 									{ type: "ReviveSlice", seq: 0, op: 0, length: 3 },
 									{ type: "Insert", content: [] },
 								],
@@ -1186,6 +1190,8 @@ describe(rebase.name, () => {
 									{ type: "PriorDeleteStart", seq: 1, op: 0 },
 									3,
 									{ type: "PriorSliceEnd", seq: 1, op: 0 },
+									1,
+									{ type: "ReviveSlice", seq: 0, op: 0, length: 3 },
 									{ type: "Insert", content: [] },
 								],
 							},
@@ -1204,7 +1210,6 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									1,
 									{ type: "Insert", content: [] },
 									{ type: "ReviveSlice", seq: 0, op: 0, length: 3 },
 								],
@@ -1220,8 +1225,9 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									1,
 									{ type: "Insert", content: [] },
+									{ type: "ReviveSlice", seq: 0, op: 0, length: 3 },
+									1,
 									{ type: "PriorDeleteStart", seq: 1, op: 0 },
 									3,
 									{ type: "PriorSliceEnd", seq: 1, op: 0 },
@@ -1242,12 +1248,10 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									1,
-									{ type: "PriorDeleteStart", seq: 1, op: 0 },
-									2,
+									3,
+									{ type: "ReviveSlice", seq: 0, op: 0, length: 2 },
 									{ type: "Insert", content: [] },
-									1,
-									{ type: "PriorSliceEnd", seq: 1, op: 0 },
+									{ type: "ReviveSlice", seq: 0, op: 0 },
 								],
 							},
 						}],
@@ -1261,10 +1265,14 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									3,
-									{ type: "PriorDetach", seq: 1, length: 2 },
+									1,
+									{ type: "PriorDeleteStart", seq: 1, op: 0 },
+									2,
+									{ type: "ReviveSlice", seq: 0, op: 0, length: 2 },
 									{ type: "Insert", content: [] },
-									{ type: "PriorDetach", seq: 1 },
+									{ type: "ReviveSlice", seq: 0, op: 0 },
+									1,
+									{ type: "PriorSliceEnd", seq: 1, op: 0 },
 								],
 							},
 						}],

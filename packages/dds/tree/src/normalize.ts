@@ -15,6 +15,7 @@ import {
 	isOffset,
 	isPrior,
 	isPriorDetach,
+	isRevive,
 } from "./utils";
 
 export function normalizeFrame(frame: R.ChangeFrame): void {
@@ -37,7 +38,14 @@ function normalizeMarks(marks: R.TraitMarks): void {
 					marks.splice(iMark - 1, 2, mark + prevMark);
 				}
 			}
-		} else if (isDelete(mark) || isMoveOut(mark) || isMoveIn(mark) || isPriorDetach(mark) || isInsert(mark)) {
+		} else if (
+			isDelete(mark)
+			|| isMoveOut(mark)
+			|| isMoveIn(mark)
+			|| isPriorDetach(mark)
+			|| isInsert(mark)
+			|| isRevive(mark)
+		) {
 			if (mark.mods !== undefined) {
 				normalizeMarks(mark.mods);
 				if (mark.mods.length === 0 || (mark.mods.length === 1 && isOffset(mark.mods[0]))) {

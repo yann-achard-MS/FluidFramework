@@ -174,7 +174,7 @@ function rebaseOverMark(
 	context: Context,
 ): Pointer {
 	let ptr = startPtr;
-	while (ptr.mark !== undefined && isAttachSegment(ptr.mark)) {
+	while (ptr.mark !== undefined && (isAttachSegment(ptr.mark) || isReviveSet(ptr.mark) || isReviveSlice(ptr.mark))) {
 		ptr = ptr.skipMarks(1);
 	}
 	const mark1 = ptr.mark;
@@ -183,7 +183,7 @@ function rebaseOverMark(
 	} else if (isBound(baseMark)) {
 		fail("TODO");
 	} else {
-		while (ptr.mark !== undefined && (isAttachSegment(ptr.mark) || isBound(ptr.mark))) {
+		while (ptr.mark !== undefined && (isAttachSegment(ptr.mark) || isBound(ptr.mark) || isReviveSet(ptr.mark))) {
 			ptr = ptr.skipMarks(1);
 		}
 		const mark = ptr.mark;
