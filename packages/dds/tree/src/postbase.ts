@@ -8,6 +8,7 @@ import {
 	Rebased as R,
 	Offset,
 	SeqNumber,
+	TraitLabel,
 } from "./format";
 import { normalizeFrame } from "./normalize";
 import {
@@ -22,6 +23,7 @@ import {
 	isDetachSegment,
 	isEnd,
 	isModify,
+	isMoveIn,
 	isMoveOut,
 	isOffset,
 	isPrior,
@@ -89,15 +91,16 @@ function postbaseOverFrame(
 	base: R.ChangeFrame,
 	seq: SeqNumber,
 ): void {
-	postbaseMarks(orig.marks, base.marks, { seq, base });
+	postbaseMarks(orig.marks, base.marks, { seq, base, moves: orig.moves }, undefined);
 }
 
 function postbaseMarks(
 	curr: R.TraitMarks,
 	base: R.TraitMarks,
 	context: Context,
+	parent: { label: TraitLabel; ptr: Pointer } | undefined,
 ): void {
-	let ptr = Pointer.fromMarks(curr);
+	let ptr = Pointer.fromMarks(curr, parent);
 	let iBaseMark = 0;
 	while (iBaseMark < base.length) {
 		const baseMark = base[iBaseMark];
@@ -134,6 +137,8 @@ function postbaseMarks(
 		}
 		iBaseMark += 1;
 	}
+	// We need to find all the remaining move sources or destinations and update their paths.
+	// TODO: only do this if the number of added and removed nodes do not cancel-out.
 }
 
 function postbaseOverSlice(
@@ -175,6 +180,11 @@ function postbaseOverMark(
 ): Pointer {
 	let ptr = startPtr;
 	while (ptr.mark !== undefined && (isAttachSegment(ptr.mark) || isReviveSet(ptr.mark) || isReviveSlice(ptr.mark))) {
+		const mark = ptr.mark;
+		if (isMoveIn(mark)) {
+			const moveEntry = (context.moves ?? fail("Missing move entry in frame"))[mark.op];
+			moveEntry.dst = ptr.asDstPath();
+		}
 		ptr = ptr.skipMarks(1);
 	}
 	const mark1 = ptr.mark;
@@ -239,18 +249,17 @@ function postbaseOverMark(
 						}
 					}
 				} else {
-					const endPtr = ptr.findSliceEnd(mark);
+					const endPtr = ptr.findSliceEnd();
 					ptr = postbaseOverMark(endPtr.skipMarks(1), baseMark, context);
 				}
 			} else {
-				ptr = ptr.ensureMarkStart();
 				const baseMarkLength = lengthFromMark(baseMark);
 				const markLength = lengthFromMark(mark);
 				if (markLength === 0 || baseMarkLength === 0) {
 					fail("Unexpected segment type");
 				} else {
 					if (baseMarkLength < markLength) {
-						ptr.seek(baseMarkLength).ensureMarkStart();
+						ptr.ensureMarkStart(baseMarkLength);
 						ptr = postbaseOverMark(ptr, baseMark, context);
 					} else if (baseMarkLength > markLength) {
 						const [fst, snd] = splitMark(baseMark, markLength);
@@ -259,13 +268,13 @@ function postbaseOverMark(
 					} else {
 						if (isModify(baseMark)) {
 							if (isModify(mark)) {
-								postbaseOverModify(mark, baseMark, context);
+								postbaseOverModify(mark, baseMark, context, ptr);
 							} else if (isSetValue(mark)) {
 								ptr = ptr.skipMarks(1);
 							} else if (isDetachSegment(mark)) {
 								const mods = mark.mods ?? [1];
 								if (mark.mods !== undefined && isModify(mods[0])) {
-									postbaseOverModify(mods[0], baseMark, context);
+									postbaseOverModify(mods[0], baseMark, context, ptr);
 								}
 								ptr = ptr.skipMarks(1);
 							} else {
@@ -284,7 +293,7 @@ function postbaseOverMark(
 								length: baseMark.length,
 							});
 						} else if (isOffset(baseMark)) {
-							ptr = ptr.seek(baseMarkLength);
+							ptr = ptr.ensureMarkStart(baseMarkLength);
 						} else if (isReviveSet(baseMark)) {
 							if (isPriorDetach(mark)) {
 								ptr = ptr.replaceMark(markLength);
@@ -304,14 +313,14 @@ function postbaseOverMark(
 	return ptr;
 }
 
-function postbaseOverModify(mark: R.Modify, baseMark: R.Modify, context: Context): void {
+function postbaseOverModify(mark: R.Modify, baseMark: R.Modify, context: Context, ptr: Pointer): void {
 	if (mark.modify === undefined) {
 		mark.modify = {};
 	}
 	for (const [k,v] of Object.entries(baseMark.modify ?? {})) {
 		if (k in mark.modify) {
 			console.log(`Entering trait ${k}`);
-			postbaseMarks(mark.modify[k], v, context);
+			postbaseMarks(mark.modify[k], v, context, { label: k, ptr });
 			console.log(`Exiting trait ${k}`);
 		} else {
 			// This branch is empty because we shouldn't need offsets or tombstones in traits
@@ -419,6 +428,7 @@ function priorFromBound(bound: R.SliceBound, context: Context): R.PriorSliceBoun
 }
 
 interface Context {
-	seq: SeqNumber;
-	base: R.ChangeFrame;
+	readonly seq: SeqNumber;
+	readonly base: R.ChangeFrame;
+	readonly moves?: readonly R.MoveEntry[];
 }

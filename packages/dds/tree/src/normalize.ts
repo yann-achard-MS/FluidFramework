@@ -4,7 +4,7 @@
  */
 
 import {
-	Rebased as R,
+	Rebased as R, TreePath,
 } from "./format";
 import {
 	isDelete,
@@ -19,8 +19,12 @@ import {
 } from "./utils";
 
 export function normalizeFrame(frame: R.ChangeFrame): void {
-	if (frame.moves?.length === 0) {
-		delete frame.moves;
+	if (frame.moves !== undefined) {
+		if (frame.moves.length === 0) {
+			delete frame.moves;
+		} else {
+			frame.moves = frame.moves.map((m) => ({ src: normalizePath(m.src), dst: normalizePath(m.dst) }));
+		}
 	}
 	normalizeMarks(frame.marks);
 }
@@ -89,4 +93,11 @@ function normalizeMarks(marks: R.TraitMarks): void {
 		}
 		iMark -= 1;
 	}
+}
+
+export function normalizePath(path: TreePath): TreePath {
+	if (typeof path === "object" && path[0] !== undefined) {
+		return path[0] as TreePath;
+	}
+	return path;
 }

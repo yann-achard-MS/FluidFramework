@@ -29,7 +29,7 @@ function postbase(original: R.Transaction, base: S.Transaction): R.Transaction {
 
 describe(postbase.name, () => {
 	describe("Basic Segments Matrix", () => {
-		describe("Insert ↷ *", () => {
+		describe("* ↷ Insert", () => {
 			const e2: S.Transaction = {
 				ref: 0,
 				seq: 2,

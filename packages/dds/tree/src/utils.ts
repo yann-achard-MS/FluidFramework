@@ -9,6 +9,9 @@ import {
 	Offset,
 	Original as O,
 	Rebased as R,
+	TraitLabel,
+	TreeChildPath,
+	TreePath,
 } from "./format";
 
 export function clone<T>(original: T): T {
@@ -294,7 +297,6 @@ export function isPriorStartBound(mark: R.TraitMark): mark is R.PriorDeleteStart
 	;
 }
 
-
 export function isPriorBound(mark: R.TraitMark): mark is R.PriorSliceBound {
 	if (typeof mark === "number") {
 		return false;
@@ -400,36 +402,43 @@ export class Pointer {
 	 * This index must be inferior *or equal* to the length of the list of marks.
 	 */
 	public readonly iMark: number;
+
+	public readonly iSrcNode: number;
+	public readonly iDstNode: number;
 	/**
-	 * The index of the tree node being pointed at within the segment.
-	 * This index must always be less than the length of the segment.
+	 * The slices that the pointer is currently iterating over (if any).
 	 */
-	public readonly iNode: number;
-	/**
-	 * The number of slices currently overlapping with the ptr position.
-	 */
-	public readonly inSlice: number;
+	public readonly sliceStack: readonly R.SliceStart[];
+
+	public readonly parent?: { label: TraitLabel; ptr: Pointer };
 
 	private constructor(
 		marks: R.TraitMarks,
 		iMark: number,
-		iNode: number,
-		inSlice: number,
+		iSrcNode: number,
+		iDstNode: number,
+		sliceStack: readonly R.SliceStart[],
+		parent: { label: TraitLabel; ptr: Pointer } | undefined,
 	) {
 		this.marks = marks;
 		this.iMark = iMark;
-		this.iNode = iNode;
-		this.inSlice = inSlice;
+		this.iSrcNode = iSrcNode;
+		this.iDstNode = iDstNode;
+		this.sliceStack = sliceStack;
+		this.parent = parent;
 	}
 
 	public static fromMarks(
 		marks: R.TraitMarks,
+		parent?: { label: TraitLabel; ptr: Pointer },
 	): Pointer {
 		return new Pointer(
 			marks,
 			0,
 			0,
 			0,
+			[],
+			parent,
 		);
 	}
 
@@ -438,102 +447,129 @@ export class Pointer {
 	}
 
 	public deleteMarks(markCount: number): Pointer {
-		assert(this.iNode === 0, "Only a whole mark can be delete");
 		this.marks.splice(this.iMark, markCount);
 		return this;
 	}
 
 	public replaceMark(newMark: R.TraitMark): Pointer {
-		assert(this.iNode === 0, "Only a whole mark can be replaced");
 		this.marks.splice(this.iMark, 1, newMark);
 		return this.skipMarks(1);
 	}
 
 	public insert(newMark: R.TraitMark): Pointer {
-		const ptr = this.ensureMarkStart();
-		this.marks.splice(ptr.iMark, 0, newMark);
-		return ptr.skipMarks(1);
+		this.marks.splice(this.iMark, 0, newMark);
+		return this.skipMarks(1);
 	}
 
-	public findSliceEnd(startMark: R.SliceBound | R.PriorSliceBound): Pointer {
+	public findSliceEnd(): Pointer {
+		const startMark = this.mark;
+		assert(
+			startMark !== undefined && (isStartBound(startMark) || isPriorStartBound(startMark)),
+			"Must be starting from a slice mark",
+		);
 		let index;
 		if (isPrior(startMark)) {
 			index = findIndexFrom(
 				this.marks,
-				this.iMark,
+				this.iMark + 1,
 				(m) => isPriorSliceEnd(m) && m.op === startMark.op && m.seq === startMark.seq,
 			);
 		} else {
 			index = findIndexFrom(
 				this.marks,
-				this.iMark,
+				this.iMark + 1,
 				(m) => isEnd(m) && m.op === startMark.op,
 			);
 		}
-		return new Pointer(
-			this.marks,
-			index ?? fail("No matching end mark"),
-			0,
-			0,
-		);
+		assert(index !== undefined, "No matching end mark");
+		return this.skipMarks(index - this.iMark);
 	}
 
 	/**
-	 * @returns A Pointer to the location of the first node in the latter part of the split mark.
+	 * @returns A Pointer to the location of the first node in the latter part of the mark being split.
 	 */
-	public ensureMarkStart(): Pointer {
-		if (this.iNode === 0) {
-			return this;
-		}
-		const mark = this.mark;
-		if (mark === undefined) {
-			this.marks.push(this.iNode);
-		} else {
+	public ensureMarkStart(nodeOffset: number): Pointer {
+		let remaining = nodeOffset;
+		let ptr: Pointer = this.skipMarks(0);
+		while (remaining > 0) {
+			const mark = ptr.mark;
+			if (mark === undefined) {
+				return ptr.insert(nodeOffset);
+			}
 			const mLength = lengthFromMark(mark);
-			if (mLength !== this.iNode) {
-				const markParts = splitMark(mark, this.iNode);
-				this.marks.splice(this.iMark, 1, ...markParts);
+			if (remaining < mLength) {
+				const markParts = splitMark(mark, remaining);
+				this.marks.splice(ptr.iMark, 1, ...markParts);
+				return this.skipMarks(1);
 			}
+			ptr = ptr.skipMarks(1);
+			remaining -= mLength;
 		}
-		return this.seek(0);
+		return ptr;
 	}
 
-	public skipMarks(markCount: number): Pointer {
-		const { marks, iMark, inSlice } = this;
-		return new Pointer(marks, iMark + markCount, 0, inSlice).seek(0);
+	public asSrcPath(tail?: TreeChildPath): TreePath {
+		const selfAndTail = tail === undefined ? this.iSrcNode : { [this.iSrcNode]: tail };
+		if (this.parent === undefined) {
+			return selfAndTail;
+		}
+		return this.parent.ptr.asSrcPath({ [this.parent.label]: selfAndTail });
 	}
 
-	public seek(nodeOffset: number): Pointer {
-		assert(nodeOffset >= 0, "The offset must be >= to zero");
-		let offset = nodeOffset;
-		let { iMark, iNode } = this;
-		const { marks, inSlice } = this;
-		const markMax = marks.length;
-		while (offset > 0 && iMark < markMax) {
-			const mark = marks[iMark];
-			const nodeCount = lengthFromMark(mark);
-			if (iNode + offset >= nodeCount) {
-				iMark += 1;
-				offset -= nodeCount - iNode;
-				iNode = 0;
-				// if (isBound(mark)) {
-				// 	if (isEnd(mark)) {
-				// 		assert(inSlice > 0, "Unbalanced slice bounds");
-				// 		inSlice -= 1;
-				// 	} else {
-				// 		inSlice += 1;
-				// 	}
-				// }
+	public asDstPath(tail?: TreeChildPath): TreePath {
+		const selfAndTail = tail === undefined ? this.iDstNode : { [this.iDstNode]: tail };
+		if (this.parent === undefined) {
+			return selfAndTail;
+		}
+		return this.parent.ptr.asDstPath({ [this.parent.label]: selfAndTail });
+	}
+
+	public skipMarks(markCount: number, isNew = false): Pointer {
+		const { marks, iMark, iSrcNode, iDstNode, sliceStack, parent } = this;
+		const stack = [...sliceStack];
+		let srcOffset = 0;
+		let dstOffset = 0;
+		const iTarget = iMark + markCount;
+		assert(iTarget <= marks.length, "Cannot skip non-existent marks");
+		for (let idx = iMark; idx < iTarget; idx += 1) {
+			const mark = marks[idx];
+			if (isStartBound(mark) || isPriorStartBound(mark)) {
+				stack.push(mark);
+			} else if (isEnd(mark)) {
+				const startMark = stack.pop();
+				assert(
+					startMark !== undefined && isStartBound(startMark) && startMark.op === mark.op,
+					"Unbalanced slice bounds: no matching start mark",
+				);
+			} else if (isPriorSliceEnd(mark)) {
+				const startMark = stack.pop();
+				assert(
+					startMark !== undefined
+					&& isPriorStartBound(startMark)
+					&& startMark.op === mark.op
+					&& startMark.seq === mark.seq,
+					"Unbalanced slice bounds: no matching start mark",
+				);
 			} else {
-				break;
+				const length = lengthFromMark(mark);
+				if (isAttachSegment(mark)) {
+					dstOffset += length;
+				} else if (isDetachSegment(mark)) {
+					srcOffset += length;
+				} else if (isOffset(mark)) {
+					const slice = stack[stack.length - 1];
+					if (slice === undefined) {
+						dstOffset += length;
+						srcOffset += length;
+					} else if (isPrior(slice)) {
+						// Nothing?
+					} else {
+						srcOffset += length;
+					}
+				}
 			}
 		}
-		return new Pointer(
-			marks,
-			iMark,
-			iNode + offset,
-			inSlice,
-		);
+		return new Pointer(marks, iTarget, iSrcNode + srcOffset, iDstNode + dstOffset, stack, parent);
 	}
 }
 

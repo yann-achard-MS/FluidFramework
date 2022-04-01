@@ -239,18 +239,17 @@ function rebaseOverMark(
 						}
 					}
 				} else {
-					const endPtr = ptr.findSliceEnd(mark);
+					const endPtr = ptr.findSliceEnd();
 					ptr = rebaseOverMark(endPtr.skipMarks(1), baseMark, context);
 				}
 			} else {
-				ptr = ptr.ensureMarkStart();
 				const baseMarkLength = lengthFromMark(baseMark);
 				const markLength = lengthFromMark(mark);
 				if (markLength === 0 || baseMarkLength === 0) {
 					fail("Unexpected segment type");
 				} else {
 					if (baseMarkLength < markLength) {
-						ptr.seek(baseMarkLength).ensureMarkStart();
+						ptr.ensureMarkStart(baseMarkLength);
 						ptr = rebaseOverMark(ptr, baseMark, context);
 					} else if (baseMarkLength > markLength) {
 						const [fst, snd] = splitMark(baseMark, markLength);
@@ -284,7 +283,7 @@ function rebaseOverMark(
 								length: baseMark.length,
 							});
 						} else if (isOffset(baseMark)) {
-							ptr = ptr.seek(baseMarkLength);
+							ptr = ptr.ensureMarkStart(baseMarkLength);
 						} else if (isReviveSet(baseMark)) {
 							if (isPriorDetach(mark)) {
 								ptr = ptr.replaceMark(markLength);
