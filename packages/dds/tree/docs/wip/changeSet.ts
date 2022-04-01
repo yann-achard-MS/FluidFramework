@@ -658,12 +658,12 @@ namespace Swaps {
 	const swap: ChangeSet = {
 		changes: {
 			foo: [
-				{ type: 'MoveOut', seq: 1, count: 1, dst: "bar.1" },
-				{ type: 'MoveIn', seq: 1, count: 1, src: "bar.0" },
+				{ type: 'MoveOut', seq: 1, count: 1, dst: { bar: 1 } },
+				{ type: 'MoveIn', seq: 1, count: 1, src: { bar: 0 } },
 			],
 			bar: [
-				{ type: 'MoveOut', seq: 1, count: 1, dst: "foo.1" },
-				{ type: 'MoveIn', seq: 1, count: 1, src: "foo.0" },
+				{ type: 'MoveOut', seq: 1, count: 1, dst: { foo: 1 } },
+				{ type: 'MoveIn', seq: 1, count: 1, src: { foo: 0 } },
 			],
 		}
 	};
@@ -672,12 +672,12 @@ namespace Swaps {
 	const swapTerse: ChangeSet = {
 		changes: {
 			foo: [
-				{ seq: 1, dst: "bar.1" },
-				{ seq: 1, src: "bar.0" },
+				{ seq: 1, dst: { bar: 1 } },
+				{ seq: 1, src: { bar: 0 } },
 			],
 			bar: [
-				{ seq: 1, dst: "foo.1" },
-				{ seq: 1, src: "foo.0" },
+				{ seq: 1, dst: { foo: 1 } },
+				{ seq: 1, src: { foo: 0 } },
 			],
 		}
 	};
@@ -686,25 +686,25 @@ namespace Swaps {
 	const swapAndBack: ChangeSet = {
 		changes: {
 			foo: [
-				{ type: 'MoveOut', seq: 1, dst: "bar.1" },
+				{ type: 'MoveOut', seq: 1, dst: { bar: 1 } },
 				{
 					type: 'MoveIn',
 					seq: 1,
-					src: "bar.0",
+					src: { bar: 0 },
 					changes: [
-						{ type: 'MoveOut', seq: 2, dst: "bar.2" },
+						{ type: 'MoveOut', seq: 2, dst: { bar: 2 } },
 					],
 				},
 				{ type: 'MoveIn', seq: 2, src: "bar.1.0" },
 			],
 			bar: [
-				{ type: 'MoveOut', seq: 1, dst: "foo.1" },
+				{ type: 'MoveOut', seq: 1, dst: { foo: 1 } },
 				{
 					type: 'MoveIn',
 					seq: 1,
-					src: "foo.0",
+					src: { foo: 0 },
 					changes: [
-						{ type: 'MoveOut', seq: 2, dst: "foo.2" },
+						{ type: 'MoveOut', seq: 2, dst: { foo: 2 } },
 					],
 				},
 				{ type: 'MoveIn', seq: 2, src: "foo.1.0" },
@@ -733,14 +733,14 @@ namespace Swaps {
 								{
 									type: 'MoveIn',
 									seq: 1,
-									src: "foo.0",
+									src: { foo: 0 },
 									changes: [
 										{
 											bar: [
 												{
 													type: 'MoveOut',
 													seq: 1,
-													dst: "foo.1",
+													dst: { foo: 1 },
 												},
 											],
 										},
@@ -775,14 +775,14 @@ namespace Swaps {
 								{
 									type: 'MoveIn', // B
 									seq: 1,
-									src: "foo.0",
+									src: { foo: 0 },
 									changes: [
 										{
 											bar: [
 												{
 													type: 'MoveOut', // C
 													seq: 1,
-													dst: "foo.1",
+													dst: { foo: 1 },
 												},
 											],
 											baz: [
@@ -831,7 +831,7 @@ namespace Swaps {
 								{
 									type: 'MoveIn', // B
 									seq: 1,
-									src: "foo.0",
+									src: { foo: 0 },
 									// count: 1,
 									// side: Sibling.Previous,
 									// tiebreak: Tiebreak.LastToFirst,
@@ -841,7 +841,7 @@ namespace Swaps {
 												{
 													type: 'MoveOut', // C
 													seq: 1,
-													dst: "foo.1",
+													dst: { foo: 1 },
 													// count: 1,
 												},
 											],
@@ -887,10 +887,10 @@ namespace Swaps {
 					src: ".0.bar.0.0.bar.0",
 					changes: {
 						bar: {
-							src: "foo.0",
+							src: { foo: 0 },
 							changes: {
 								bar: {
-									dst: "foo.1",
+									dst: { foo: 1 },
 								},
 								baz: {
 										src: "foo.1.0.baz.0",
@@ -988,10 +988,10 @@ namespace MoveToMovedLocation {
 	const e1: ChangeSet = {
 		changes: {
 			bar: [
-				{ type: 'MoveOut', seq: 0, dst: "baz.0" },
+				{ type: 'MoveOut', seq: 0, dst: { baz: 0 } },
 			],
 			baz: [
-				{ type: 'MoveIn', seq: 0, src: "bar.0" },
+				{ type: 'MoveIn', seq: 0, src: { bar: 0 } },
 			],
 		}
 	};
@@ -1007,11 +1007,11 @@ namespace MoveToMovedLocation {
 	const e2a: ChangeSet = {
 		changes: {
 			foo: [
-				{ type: 'MoveOut', seq: 1, dst: "bar.1", count: 2, bounds: {}},
+				{ type: 'MoveOut', seq: 1, dst: { bar: 1 }, count: 2, bounds: {}},
 			],
 			bar: [
 				1,
-				{ type: 'MoveIn', seq: 1, src: "foo.0", count: 2 },
+				{ type: 'MoveIn', seq: 1, src: { foo: 0 }, count: 2 },
 			],
 		}
 	};
@@ -1038,14 +1038,14 @@ namespace MoveToMovedLocation {
 	const e2ae2b: ChangeSet = {
 		changes: {
 			foo: [
-				{ type: 'MoveOut', seq: 1, dst: "bar.1", count: 2, bounds: {}},
+				{ type: 'MoveOut', seq: 1, dst: { bar: 1 }, count: 2, bounds: {}},
 			],
 			bar: [
 				1,
 				{
 					type: 'MoveIn',
 					seq: 1,
-					src: "foo.0",
+					src: { foo: 0 },
 					count: 2,
 					changes: [
 						1,
@@ -1060,11 +1060,11 @@ namespace MoveToMovedLocation {
 	const e2aPrime: ChangeSet = {
 		changes: {
 			foo: [
-				{ type: 'MoveOut', seq: 1, dst: "baz.1", count: 2, bounds: {}},
+				{ type: 'MoveOut', seq: 1, dst: { baz: 1 }, count: 2, bounds: {}},
 			],
 			baz: [
 				1,
-				{ type: 'MoveIn', seq: 1, src: "foo.0", count: 2 },
+				{ type: 'MoveIn', seq: 1, src: { foo: 0 }, count: 2 },
 			],
 		}
 	};
@@ -1083,14 +1083,14 @@ namespace MoveToMovedLocation {
 	const e1e2ap: ChangeSet = {
 		changes: {
 			foo: [
-				{ type: 'MoveOut', seq: 1, dst: "baz.1", count: 2, bounds: {}},
+				{ type: 'MoveOut', seq: 1, dst: { baz: 1 }, count: 2, bounds: {}},
 			],
 			bar: [
-				{ type: 'MoveOut', seq: 0, dst: "baz.0" },
+				{ type: 'MoveOut', seq: 0, dst: { baz: 0 } },
 			],
 			baz: [
-				{ type: 'MoveIn', seq: 0, src: "bar.0" },
-				{ type: 'MoveIn', seq: 1, src: "foo.0", count: 2 },
+				{ type: 'MoveIn', seq: 0, src: { bar: 0 } },
+				{ type: 'MoveIn', seq: 1, src: { foo: 0 }, count: 2 },
 			],
 		}
 	};
@@ -1100,25 +1100,25 @@ namespace MoveToMovedLocation {
 	const e1e2ape2bp_follow: ChangeSet = {
 		changes: {
 			foo: [
-				{ type: 'MoveOut', seq: 1, dst: "baz.1", count: 2, bounds: {}}, // AB
+				{ type: 'MoveOut', seq: 1, dst: { baz: 1 }, count: 2, bounds: {}}, // AB
 			],
 			bar: [
 				{
 					type: 'MoveOut', // Move U
 					seq: 0,
-					dst: "baz.0",
+					dst: { baz: 0 },
 					changes: [
 						1, // Skip U
 						{
 							type: 'MoveIn', // AB
 							seq: 1, // ??
-							src: "foo.0",
+							src: { foo: 0 },
 							count: 2,
 							changes: [
 								{
 									type: 'MoveOut', // AB
 									seq: 1, // ??
-									dst: "baz.1",
+									dst: { baz: 1 },
 									count: 2,
 									bounds: {},
 									changes: [
@@ -1132,7 +1132,7 @@ namespace MoveToMovedLocation {
 				},
 			],
 			baz: [
-				{ type: 'MoveIn', seq: 0, src: "bar.0" }, // U
+				{ type: 'MoveIn', seq: 0, src: { bar: 0 } }, // U
 				{
 					type: 'MoveIn', // AB
 					seq: 1, // ??
@@ -1147,17 +1147,17 @@ namespace MoveToMovedLocation {
 	const e1e2ape2bp_stay: ChangeSet = {
 		changes: {
 			foo: [
-				{ type: 'MoveOut', seq: 1, dst: "baz.1", count: 2, bounds: {}},
+				{ type: 'MoveOut', seq: 1, dst: { baz: 1 }, count: 2, bounds: {}},
 			],
 			bar: [
-				{ type: 'MoveOut', seq: 0, dst: "baz.0" },
+				{ type: 'MoveOut', seq: 0, dst: { baz: 0 } },
 			],
 			baz: [
-				{ type: 'MoveIn', seq: 0, src: "bar.0" },
+				{ type: 'MoveIn', seq: 0, src: { bar: 0 } },
 				{
 					type: 'MoveIn',
 					seq: 1,
-					src: "foo.0",
+					src: { foo: 0 },
 					count: 2,
 					changes: [
 						1, // Skip A

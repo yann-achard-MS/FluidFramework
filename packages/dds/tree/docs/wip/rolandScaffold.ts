@@ -12,7 +12,7 @@ export const t_u2_rebased: ChangeFrame = {
 					}
 				]
 			}, // Skip A (and when squashing with previous commit also the deleted B)
-			{ type: "MoveOutStart", side: Sibling.Next, dstPath: "bar.0" },
+			{ type: "MoveOutStart", side: Sibling.Next, dstPath: { bar: 0 } },
 			// Do we need this additional skip for C, or is this redundant at this point, since we could just keep the
 			// remaining delete?
 			{
@@ -28,7 +28,7 @@ export const t_u2_rebased: ChangeFrame = {
 			{ type: "End" },
 		],
 		bar: [
-			{ type: "MoveIn", srcPath: "foo.2", length: 2 },
+			{ type: "MoveIn", srcPath: { foo: 2 }, length: 2 },
 		],
 	},
 };

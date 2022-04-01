@@ -730,8 +730,12 @@ export interface HasLength {
  */
 export type DrillDepth = number | [TreePath[], number];
 
-/** A string that represents a path from the root to a particular node. */
-export type TreePath = string;
+/** A structure that represents a path from the root to a particular node. */
+export interface TreePath {
+	[label: string]: {
+		[index: number]: TreePath;
+	} | number;
+}
 
 /**
  * The relative location of the sibling based on which a segment or segment boundary is defined.

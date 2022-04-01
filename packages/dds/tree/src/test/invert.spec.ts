@@ -205,7 +205,7 @@ const revertValue: R.ChangeFrame = {
 };
 const moveSetInTrait: R.ChangeFrame = {
 	moves: [
-		{ src: "foo.2", dst: "foo.1" },
+		{ src: { foo: 2 }, dst: { foo: 1 } },
 	],
 	marks: [
 		{
@@ -228,7 +228,7 @@ const moveSetInTrait: R.ChangeFrame = {
 };
 const moveSliceInTrait: R.ChangeFrame = {
 	moves: [
-		{ src: "foo.2", dst: "foo.1" },
+		{ src: { foo: 2 }, dst: { foo: 1 } },
 	],
 	marks: [
 		{
@@ -256,7 +256,7 @@ const moveSliceInTrait: R.ChangeFrame = {
 };
 const moveSetAcrossTraits: R.ChangeFrame = {
 	moves: [
-		{ src: "foo.0", dst: "bar.0" },
+		{ src: { foo: 0 }, dst: { bar: 0 } },
 	],
 	marks: [
 		{
@@ -279,7 +279,7 @@ const moveSetAcrossTraits: R.ChangeFrame = {
 };
 const moveSliceAcrossTraits: R.ChangeFrame = {
 	moves: [
-		{ src: "foo.0", dst: "bar.0" },
+		{ src: { foo: 0 }, dst: { bar: 0 } },
 	],
 	marks: [
 		{
@@ -307,7 +307,7 @@ const moveSliceAcrossTraits: R.ChangeFrame = {
 };
 const returnSetInTrait: R.ChangeFrame = {
 	moves: [
-		{ src: "foo.1", dst: "foo.2" },
+		{ src: { foo: 1 }, dst: { foo: 2 } },
 	],
 	marks: [
 		{
@@ -331,7 +331,7 @@ const returnSetInTrait: R.ChangeFrame = {
 };
 const returnSliceInTrait: R.ChangeFrame = {
 	moves: [
-		{ src: "foo.1", dst: "foo.2" },
+		{ src: { foo: 1 }, dst: { foo: 2 } },
 	],
 	marks: [
 		{
@@ -360,7 +360,7 @@ const returnSliceInTrait: R.ChangeFrame = {
 };
 const returnSetAcrossTraits: R.ChangeFrame = {
 	moves: [
-		{ src: "bar.0", dst: "foo.0" },
+		{ src: { bar: 0 }, dst: { foo: 0 } },
 	],
 	marks: [
 		{
@@ -384,7 +384,7 @@ const returnSetAcrossTraits: R.ChangeFrame = {
 };
 const returnSliceAcrossTraits: R.ChangeFrame = {
 	moves: [
-		{ src: "bar.0", dst: "foo.0" },
+		{ src: { bar: 0 }, dst: { foo: 0 } },
 	],
 	marks: [
 		{
@@ -413,7 +413,7 @@ const returnSliceAcrossTraits: R.ChangeFrame = {
 };
 const returnTwiceSetInTrait: R.ChangeFrame = {
 	moves: [
-		{ src: "foo.2", dst: "foo.1" },
+		{ src: { foo: 2 }, dst: { foo: 1 } },
 	],
 	marks: [
 		{
@@ -437,7 +437,7 @@ const returnTwiceSetInTrait: R.ChangeFrame = {
 };
 const returnTwiceSliceInTrait: R.ChangeFrame = {
 	moves: [
-		{ src: "foo.2", dst: "foo.1" },
+		{ src: { foo: 2 }, dst: { foo: 1 } },
 	],
 	marks: [
 		{
@@ -466,7 +466,7 @@ const returnTwiceSliceInTrait: R.ChangeFrame = {
 };
 const returnTwiceSetAcrossTraits: R.ChangeFrame = {
 	moves: [
-		{ src: "foo.0", dst: "bar.0" },
+		{ src: { foo: 0 }, dst: { bar: 0 } },
 	],
 	marks: [
 		{
@@ -490,7 +490,7 @@ const returnTwiceSetAcrossTraits: R.ChangeFrame = {
 };
 const returnTwiceSliceAcrossTraits: R.ChangeFrame = {
 	moves: [
-		{ src: "foo.0", dst: "bar.0" },
+		{ src: { foo: 0 }, dst: { bar: 0 } },
 	],
 	marks: [
 		{

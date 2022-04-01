@@ -117,7 +117,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "bar.0", dst: "foo.0" }],
+							moves: [{ src: { bar: 0 }, dst: { foo: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -132,7 +132,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "bar.0", dst: "foo.0" }] },
+							priorMoves: { 1: [{ src: { bar: 0 }, dst: { foo: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -151,7 +151,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "bar.0", dst: "foo.5" }],
+							moves: [{ src: { bar: 0 }, dst: { foo: 5 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -167,7 +167,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "bar.0", dst: "foo.5" }] },
+							priorMoves: { 1: [{ src: { bar: 0 }, dst: { foo: 5 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -188,7 +188,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "bar.0", dst: "foo.0" }],
+							moves: [{ src: { bar: 0 }, dst: { foo: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -203,7 +203,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "bar.0", dst: "foo.0" }] },
+							priorMoves: { 1: [{ src: { bar: 0 }, dst: { foo: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -222,7 +222,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "bar.0", dst: "foo.5" }],
+							moves: [{ src: { bar: 0 }, dst: { foo: 5 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -238,7 +238,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "bar.0", dst: "foo.5" }] },
+							priorMoves: { 1: [{ src: { bar: 0 }, dst: { foo: 5 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -364,7 +364,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "foo.0", dst: "bar.0" }],
+							moves: [{ src: { foo: 0 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -379,7 +379,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "foo.0", dst: "bar.0" }] },
+							priorMoves: { 1: [{ src: { foo: 0 }, dst: { bar: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -399,7 +399,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "foo.5", dst: "bar.0" }],
+							moves: [{ src: { foo: 5 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -415,7 +415,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "foo.5", dst: "bar.0" }] },
+							priorMoves: { 1: [{ src: { foo: 5 }, dst: { bar: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -436,7 +436,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "foo.1", dst: "bar.0" }],
+							moves: [{ src: { foo: 1 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -452,7 +452,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "foo.1", dst: "bar.0" }] },
+							priorMoves: { 1: [{ src: { foo: 1 }, dst: { bar: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -617,7 +617,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "foo.0", dst: "bar.0" }],
+							moves: [{ src: { foo: 0 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -634,7 +634,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "foo.0", dst: "bar.0" }] },
+							priorMoves: { 1: [{ src: { foo: 0 }, dst: { bar: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -656,7 +656,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "foo.5", dst: "bar.0" }],
+							moves: [{ src: { foo: 5 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -674,7 +674,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "foo.5", dst: "bar.0" }] },
+							priorMoves: { 1: [{ src: { foo: 5 }, dst: { bar: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -697,7 +697,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "foo.1", dst: "bar.0" }],
+							moves: [{ src: { foo: 1 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -716,7 +716,7 @@ describe(rebase.name, () => {
 							ref: 0,
 							newRef: 1,
 							frames: [{
-								priorMoves: { 1: [{ src: "foo.1", dst: "bar.0" }] },
+								priorMoves: { 1: [{ src: { foo: 1 }, dst: { bar: 0 } }] },
 								marks: [{
 									modify: {
 										foo: [
@@ -740,7 +740,7 @@ describe(rebase.name, () => {
 							ref: 0,
 							newRef: 1,
 							frames: [{
-								priorMoves: { 1: [{ src: "foo.1", dst: "bar.0" }] },
+								priorMoves: { 1: [{ src: { foo: 1 }, dst: { bar: 0 } }] },
 								marks: [{
 									modify: {
 										foo: [

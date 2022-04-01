@@ -124,13 +124,13 @@ describe(postbase.name, () => {
 					assert.deepEqual(actual.frames, e1p.frames);
 				});
 			});
-			describe.only("MoveInSlice ↷ Insert", () => {
+			describe.skip("MoveInSlice ↷ Insert", () => {
 				it("new before base", () => {
 					const e1: S.Transaction = {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "bar.0", dst: "foo.0" }],
+							moves: [{ src: { bar: 0 }, dst: { foo: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -145,7 +145,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						newRef: 2,
 						frames: [{
-							moves: [{ src: "bar.0", dst: "foo.0" }],
+							moves: [{ src: { bar: 0 }, dst: { foo: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -163,7 +163,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "bar.0", dst: "foo.5" }],
+							moves: [{ src: { bar: 0 }, dst: { foo: 5 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -179,7 +179,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						newRef: 0,
 						frames: [{
-							moves: [{ src: "bar.0", dst: "foo.6" }],
+							moves: [{ src: { bar: 0 }, dst: { foo: 6 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -194,13 +194,13 @@ describe(postbase.name, () => {
 					assert.deepEqual(actual.frames, e1p.frames);
 				});
 			});
-			describe("Insert ↷ MoveInSet", () => {
+			describe.skip("Insert ↷ MoveInSet", () => {
 				it("base before new", () => {
 					const e1: S.Transaction = {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "bar.0", dst: "foo.0" }],
+							moves: [{ src: { bar: 0 }, dst: { foo: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -215,7 +215,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "bar.0", dst: "foo.0" }] },
+							priorMoves: { 1: [{ src: { bar: 0 }, dst: { foo: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -234,7 +234,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "bar.0", dst: "foo.5" }],
+							moves: [{ src: { bar: 0 }, dst: { foo: 5 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -250,7 +250,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "bar.0", dst: "foo.5" }] },
+							priorMoves: { 1: [{ src: { bar: 0 }, dst: { foo: 5 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -265,7 +265,7 @@ describe(postbase.name, () => {
 					assert.deepEqual(actual.frames, e2p.frames);
 				});
 			});
-			describe("Insert ↷ DeleteSet", () => {
+			describe.skip("Insert ↷ DeleteSet", () => {
 				it("base before new", () => {
 					const e1: S.Transaction = {
 						ref: 0,
@@ -370,13 +370,13 @@ describe(postbase.name, () => {
 					assert.deepEqual(actual.frames, e2p.frames);
 				});
 			});
-			describe("Insert ↷ MoveOutSet", () => {
+			describe.skip("Insert ↷ MoveOutSet", () => {
 				it("base before new", () => {
 					const e1: S.Transaction = {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "foo.0", dst: "bar.0" }],
+							moves: [{ src: { foo: 0 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -391,7 +391,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "foo.0", dst: "bar.0" }] },
+							priorMoves: { 1: [{ src: { foo: 0 }, dst: { bar: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -411,7 +411,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "foo.5", dst: "bar.0" }],
+							moves: [{ src: { foo: 5 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -427,7 +427,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "foo.5", dst: "bar.0" }] },
+							priorMoves: { 1: [{ src: { foo: 5 }, dst: { bar: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -448,7 +448,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "foo.1", dst: "bar.0" }],
+							moves: [{ src: { foo: 1 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -464,7 +464,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "foo.1", dst: "bar.0" }] },
+							priorMoves: { 1: [{ src: { foo: 1 }, dst: { bar: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -481,7 +481,7 @@ describe(postbase.name, () => {
 					assert.deepEqual(actual.frames, e2p.frames);
 				});
 			});
-			describe("Insert ↷ DeleteSlice", () => {
+			describe.skip("Insert ↷ DeleteSlice", () => {
 				it("base before new", () => {
 					const e1: S.Transaction = {
 						ref: 0,
@@ -623,13 +623,13 @@ describe(postbase.name, () => {
 					});
 				});
 			});
-			describe("Insert ↷ MoveOutSlice", () => {
+			describe.skip("Insert ↷ MoveOutSlice", () => {
 				it("base before new", () => {
 					const e1: S.Transaction = {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "foo.0", dst: "bar.0" }],
+							moves: [{ src: { foo: 0 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -646,7 +646,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "foo.0", dst: "bar.0" }] },
+							priorMoves: { 1: [{ src: { foo: 0 }, dst: { bar: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -668,7 +668,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "foo.5", dst: "bar.0" }],
+							moves: [{ src: { foo: 5 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -686,7 +686,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: "foo.5", dst: "bar.0" }] },
+							priorMoves: { 1: [{ src: { foo: 5 }, dst: { bar: 0 } }] },
 							marks: [{
 								modify: {
 									foo: [
@@ -709,7 +709,7 @@ describe(postbase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: "foo.1", dst: "bar.0" }],
+							moves: [{ src: { foo: 1 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -728,7 +728,7 @@ describe(postbase.name, () => {
 							ref: 0,
 							newRef: 1,
 							frames: [{
-								priorMoves: { 1: [{ src: "foo.1", dst: "bar.0" }] },
+								priorMoves: { 1: [{ src: { foo: 1 }, dst: { bar: 0 } }] },
 								marks: [{
 									modify: {
 										foo: [
@@ -752,7 +752,7 @@ describe(postbase.name, () => {
 							ref: 0,
 							newRef: 1,
 							frames: [{
-								priorMoves: { 1: [{ src: "foo.1", dst: "bar.0" }] },
+								priorMoves: { 1: [{ src: { foo: 1 }, dst: { bar: 0 } }] },
 								marks: [{
 									modify: {
 										foo: [
@@ -775,7 +775,7 @@ describe(postbase.name, () => {
 		});
 	});
 
-	describe("Inverse-only Segments", () => {
+	describe.skip("Inverse-only Segments", () => {
 		describe("PriorDetachSet ↷ ReviveSet = Offset", () => {
 			const e1: S.Transaction = {
 				ref: 0,
@@ -1296,7 +1296,7 @@ describe(postbase.name, () => {
 		});
 	});
 
-	describe("Scenarios", () => {
+	describe.skip("Scenarios", () => {
 		describe("ScenarioA1", () => {
 			it("e2", () => {
 				const actual = postbase(ScenarioA1.e2, ScenarioA1.e1);

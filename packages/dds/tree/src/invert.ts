@@ -10,6 +10,7 @@ import {
 	SeqNumber,
 } from "./format";
 import {
+	clone,
 	fail,
 	findIndexFrom,
 	isEnd,
@@ -34,7 +35,7 @@ export function invert(frame: R.ChangeFrame, seq: SeqNumber): R.ChangeFrame {
 		newSliceMoveOuts,
 		newSliceMoveOutMods,
 	};
-	const moves = frame.moves?.map((mv) => ({ src: mv.dst, dst: mv.src }));
+	const moves = frame.moves?.map((mv) => ({ src: clone(mv.dst), dst: clone(mv.src) }));
 	const marks = invertMarks(frame.marks, context);
 
 	for (const [op, newSet] of newSetMoveOuts) {
