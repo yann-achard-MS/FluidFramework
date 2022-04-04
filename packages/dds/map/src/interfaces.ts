@@ -4,7 +4,7 @@
  */
 
 import { ISharedObject, ISharedObjectEvents } from "@fluidframework/shared-object-base";
-import { IEvent, IEventProvider, IEventThisPlaceHolder } from "@fluidframework/common-definitions";
+import { IDisposable, IEvent, IEventProvider, IEventThisPlaceHolder } from "@fluidframework/common-definitions";
 
 /**
  * Type of "valueChanged" event parameter.
@@ -27,7 +27,7 @@ export interface IValueChanged {
  * @remarks
  * When used as a Map, operates on its keys.
  */
-export interface IDirectory extends Map<string, any>, IEventProvider<IDirectoryEvents> {
+export interface IDirectory extends Map<string, any>, IEventProvider<IDirectoryEvents>, Partial<IDisposable> {
     /**
      * The absolute path of the directory.
      */
@@ -39,14 +39,6 @@ export interface IDirectory extends Map<string, any>, IEventProvider<IDirectoryE
      * @returns The stored value, or undefined if the key is not set
      */
     get<T = any>(key: string): T | undefined;
-
-    /**
-     * A form of get except it will only resolve the promise once the key exists in the directory.
-     * @param key - Key to retrieve from
-     * @returns The stored value once available
-     * @deprecated 0.55 - This method will be removed in an upcoming release.  See BREAKING.md for migration options.
-     */
-    wait<T = any>(key: string): Promise<T>;
 
     /**
      * Sets the value stored at key to the provided value.
@@ -172,11 +164,26 @@ export interface ISharedDirectoryEvents extends ISharedObjectEvents {
  * - `local` - Whether the change originated from the this client.
  *
  * - `target` - The IDirectory itself.
+ *
+ * ### "disposed"
+ *
+ * The dispose event is emitted when this sub directory is deleted.
+ *
+ * #### Listener signature
+ *
+ * ```typescript
+ * (local: boolean, target: IEventThisPlaceHolder) => void
+ * ```
+ *
+ * - `target` - The IDirectory itself.
  */
 export interface IDirectoryEvents extends IEvent {
     (event: "containedValueChanged", listener: (
         changed: IValueChanged,
         local: boolean,
+        target: IEventThisPlaceHolder,
+    ) => void);
+    (event: "disposed", listener: (
         target: IEventThisPlaceHolder,
     ) => void);
 }
@@ -264,14 +271,6 @@ export interface ISharedMap extends ISharedObject<ISharedMapEvents>, Map<string,
      * @returns The stored value, or undefined if the key is not set
      */
     get<T = any>(key: string): T | undefined;
-
-    /**
-     * A form of get except it will only resolve the promise once the key exists in the map.
-     * @param key - Key to retrieve from
-     * @returns The stored value once available
-     * @deprecated 0.55 - This method will be removed in an upcoming release.  See BREAKING.md for migration options.
-     */
-    wait<T = any>(key: string): Promise<T>;
 
     /**
      * Sets the value stored at key to the provided value.

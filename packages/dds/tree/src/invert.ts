@@ -38,14 +38,14 @@ export function invert(frame: R.ChangeFrame, seq: SeqNumber): R.ChangeFrame {
 	const moves = frame.moves?.map((mv) => ({ src: clone(mv.dst), dst: clone(mv.src) }));
 	const marks = invertMarks(frame.marks, context);
 
-	for (const [op, newSet] of newSetMoveOuts) {
+	for (const [op, newSet] of Array.from(newSetMoveOuts)) {
 		const mods = newSetMoveOutMods.get(op) ?? fail("No matching mods for the given move-out");
 		if (mods.length > 0) {
 			newSet.mods = mods;
 		}
 	}
 
-	for (const [op, newSetPtr] of newSliceMoveOuts) {
+	for (const [op, newSetPtr] of Array.from(newSliceMoveOuts)) {
 		const mods = newSliceMoveOutMods.get(op) ?? fail("No matching mods for the given move-out");
 		let ptr = newSetPtr;
 		for (const mod of mods) {

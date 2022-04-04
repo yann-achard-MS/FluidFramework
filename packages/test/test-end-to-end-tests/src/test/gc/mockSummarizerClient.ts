@@ -22,6 +22,7 @@ import { ITestObjectProvider } from "@fluidframework/test-utils";
 import { ITelemetryLogger } from "@fluidframework/common-definitions";
 import { ISummaryTree, SummaryType } from "@fluidframework/protocol-definitions";
 import { IGarbageCollectionState } from "@fluidframework/runtime-definitions";
+import { ILoaderProps } from "@fluidframework/container-loader";
 
 // data store that exposes container runtime for testing.
 export class TestDataObject extends DataObject {
@@ -36,6 +37,10 @@ export class TestDataObject extends DataObject {
     public get containerRuntime(): ContainerRuntime {
         return this.context.containerRuntime as ContainerRuntime;
     }
+
+    public get _context() {
+        return this.context;
+    }
 }
 
 /**
@@ -46,6 +51,7 @@ export async function loadSummarizer(
     runtimeFactory: IRuntimeFactory,
     sequenceNumber: number,
     summaryVersion?: string,
+    loaderProps?: Partial<ILoaderProps>,
 ) {
     const requestHeader = {
         [LoaderHeader.cache]: false,
@@ -58,7 +64,7 @@ export async function loadSummarizer(
         [LoaderHeader.sequenceNumber]: sequenceNumber,
         [LoaderHeader.version]: summaryVersion,
     };
-    const summarizer = await provider.loadContainer(runtimeFactory, undefined /* options */, requestHeader);
+    const summarizer = await provider.loadContainer(runtimeFactory, loaderProps, requestHeader);
 
     // Fail fast if we receive a nack as something must have gone wrong.
     const summaryCollection = new SummaryCollection(summarizer.deltaManager, new TelemetryNullLogger());

@@ -14,7 +14,7 @@ import { ICreateBlobResponse } from "@fluidframework/protocol-definitions";
 import { requestFluidObject } from "@fluidframework/runtime-utils";
 import { SharedString } from "@fluidframework/sequence";
 import { ITestContainerConfig, ITestObjectProvider } from "@fluidframework/test-utils";
-import { describeFullCompat, describeNoCompat, ITestDataObject } from "@fluidframework/test-version-utils";
+import { describeFullCompat, describeNoCompat, ITestDataObject, itExpects } from "@fluidframework/test-version-utils";
 import { v4 as uuid } from "uuid";
 
 const testContainerConfig: ITestContainerConfig = {
@@ -39,7 +39,7 @@ class MockDetachedBlobStorage implements IDetachedBlobStorage {
     public async createBlob(content: ArrayBufferLike): Promise<ICreateBlobResponse> {
         const id = this.size.toString();
         this.blobs.set(id, content);
-        return { id, url: "" };
+        return { id };
     }
 
     public async readBlob(blobId: string): Promise<ArrayBufferLike> {
@@ -64,6 +64,7 @@ describeFullCompat("blobs", (getTestObjectProvider) => {
 
         const blobOpP = new Promise<void>((resolve, reject) => container.on("op", (op) => {
             if (op.contents?.type === ContainerMessageType.BlobAttach) {
+                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
                 op.metadata?.blobId ? resolve() : reject(new Error("no op metadata"));
             }
         }));
@@ -97,11 +98,16 @@ describeFullCompat("blobs", (getTestObjectProvider) => {
     });
 
     it("loads from snapshot", async function() {
+        // GitHub Issue: #9534
+        if(provider.driver.type === "odsp") {
+            this.skip();
+        }
         const container1 = await provider.makeTestContainer(testContainerConfig);
         const dataStore = await requestFluidObject<ITestDataObject>(container1, "default");
 
         const attachOpP = new Promise<void>((resolve, reject) => container1.on("op", (op) => {
             if (op.contents?.type === ContainerMessageType.BlobAttach) {
+                // eslint-disable-next-line @typescript-eslint/no-unused-expressions
                 op.metadata?.blobId ? resolve() : reject(new Error("no op metadata"));
             }
         }));
@@ -181,7 +187,7 @@ describeFullCompat("blobs", (getTestObjectProvider) => {
         }
     });
 
-    it("correctly handles simultaneous identical blob upload", async () => {
+    it("correctly handles simultaneous identical blob upload on one container", async () => {
         const container = await provider.makeTestContainer(testContainerConfig);
         const dataStore = await requestFluidObject<ITestDataObject>(container, "default");
         const blob = stringToBuffer("some different yet still random text", "utf-8");
@@ -228,9 +234,15 @@ describeNoCompat("blobs", (getTestObjectProvider) => {
         }
     });
 
-    it("works in detached container", async function() {
+    itExpects("works in detached container", [
+        { eventName: "fluid:telemetry:Container:ContainerClose", error: "0x202" },
+    ], async function() {
+        // GitHub issue: #9534
+        if(provider.driver.type === "tinylicious") {
+            this.skip();
+        }
         const detachedBlobStorage = new MockDetachedBlobStorage();
-        const loader = provider.makeTestLoader(testContainerConfig, detachedBlobStorage);
+        const loader = provider.makeTestLoader({ ...testContainerConfig, loaderProps: {detachedBlobStorage}});
         const container = await loader.createDetachedContainer(provider.defaultCodeDetails);
 
         const text = "this is some example text";
@@ -259,7 +271,8 @@ describeNoCompat("blobs", (getTestObjectProvider) => {
     });
 
     it("serialize/rehydrate container with blobs", async function() {
-        const loader = provider.makeTestLoader(testContainerConfig, new MockDetachedBlobStorage());
+        const loader = provider.makeTestLoader(
+            {...testContainerConfig, loaderProps: {detachedBlobStorage: new MockDetachedBlobStorage()}});
         const serializeContainer = await loader.createDetachedContainer(provider.defaultCodeDetails);
 
         const text = "this is some example text";
@@ -276,9 +289,14 @@ describeNoCompat("blobs", (getTestObjectProvider) => {
         assert.strictEqual(bufferToString(await rehydratedDataStore._root.get("my blob").get(), "utf-8"), text);
     });
 
-    it("redirect table saved in snapshot", async function() {
+    itExpects("redirect table saved in snapshot",[
+        { eventName: "fluid:telemetry:Container:ContainerClose", message: "0x202" },
+    ], async function() {
+        if(provider.driver.type === "tinylicious") {
+            this.skip();
+        }
         const detachedBlobStorage = new MockDetachedBlobStorage();
-        const loader = provider.makeTestLoader(testContainerConfig, detachedBlobStorage);
+        const loader = provider.makeTestLoader({ ...testContainerConfig, loaderProps: {detachedBlobStorage}});
         const detachedContainer = await loader.createDetachedContainer(provider.defaultCodeDetails);
 
         const text = "this is some example text";
@@ -308,8 +326,15 @@ describeNoCompat("blobs", (getTestObjectProvider) => {
         assert.strictEqual(bufferToString(await (attachedDataStore._root.get("my blob")).get(), "utf-8"), text);
     });
 
-    it("serialize/rehydrate then attach", async function() {
-        const loader = provider.makeTestLoader(testContainerConfig, new MockDetachedBlobStorage());
+    itExpects("serialize/rehydrate then attach", [
+        { eventName: "fluid:telemetry:Container:ContainerClose", error: "0x202" },
+    ], async function() {
+        // GitHub issue: #9534
+        if(provider.driver.type === "tinylicious") {
+            this.skip();
+        }
+        const loader = provider.makeTestLoader(
+            {...testContainerConfig, loaderProps: {detachedBlobStorage: new MockDetachedBlobStorage()}});
         const serializeContainer = await loader.createDetachedContainer(provider.defaultCodeDetails);
 
         const text = "this is some example text";
@@ -335,8 +360,15 @@ describeNoCompat("blobs", (getTestObjectProvider) => {
         assert.strictEqual(bufferToString(await (attachedDataStore._root.get("my blob")).get(), "utf-8"), text);
     });
 
-    it("serialize/rehydrate multiple times then attach", async function() {
-        const loader = provider.makeTestLoader(testContainerConfig, new MockDetachedBlobStorage());
+    itExpects("serialize/rehydrate multiple times then attach", [
+        { eventName: "fluid:telemetry:Container:ContainerClose", error: "0x202" },
+    ], async function() {
+        // GitHub issue: #9534
+        if(provider.driver.type === "tinylicious") {
+            this.skip();
+        }
+        const loader = provider.makeTestLoader(
+            {...testContainerConfig, loaderProps: {detachedBlobStorage: new MockDetachedBlobStorage()}});
         let container = await loader.createDetachedContainer(provider.defaultCodeDetails);
 
         const text = "this is some example text";
@@ -367,7 +399,7 @@ describeNoCompat("blobs", (getTestObjectProvider) => {
 
     it("rehydrating without detached blob storage results in error", async function() {
         const detachedBlobStorage = new MockDetachedBlobStorage();
-        const loader = provider.makeTestLoader(testContainerConfig, detachedBlobStorage);
+        const loader = provider.makeTestLoader({ ...testContainerConfig, loaderProps: {detachedBlobStorage}});
         const serializeContainer = await loader.createDetachedContainer(provider.defaultCodeDetails);
 
         const text = "this is some example text";
@@ -379,5 +411,23 @@ describeNoCompat("blobs", (getTestObjectProvider) => {
 
         const loaderWithNoBlobStorage = provider.makeTestLoader(testContainerConfig);
         await assert.rejects(loaderWithNoBlobStorage.rehydrateDetachedContainerFromSnapshot(snapshot));
+    });
+
+    // regression test for https://github.com/microsoft/FluidFramework/issues/9702
+    // this was fixed in 0.58.3000
+    it("correctly handles simultaneous identical blob upload on separate containers", async () => {
+        const container1 = await provider.makeTestContainer(testContainerConfig);
+        const container2 = await provider.loadTestContainer(testContainerConfig);
+        const dataStore1 = await requestFluidObject<ITestDataObject>(container1, "default");
+        const dataStore2 = await requestFluidObject<ITestDataObject>(container2, "default");
+        const blob = stringToBuffer("some different yet still random text", "utf-8");
+
+        // pause so the ops are in flight at the same time
+        await provider.opProcessingController.pauseProcessing();
+
+        // upload the blob twice and make sure nothing bad happens.
+        const uploadP = Promise.all([dataStore1._runtime.uploadBlob(blob), dataStore2._runtime.uploadBlob(blob)]);
+        provider.opProcessingController.resumeProcessing();
+        await uploadP;
     });
 });

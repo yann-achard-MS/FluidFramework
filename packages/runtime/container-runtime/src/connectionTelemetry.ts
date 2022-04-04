@@ -9,6 +9,7 @@ import { IDeltaManager } from "@fluidframework/container-definitions";
 import {
     IDocumentMessage,
     ISequencedDocumentMessage,
+    MessageType,
 } from "@fluidframework/protocol-definitions";
 import { assert, performance } from "@fluidframework/common-utils";
 
@@ -19,14 +20,19 @@ export const latencyThreshold = 5000;
 
 class OpPerfTelemetry {
     private pongCount: number = 0;
-    private socketLatency = 0;
+    private pingLatency: number | undefined;
 
     // Collab window tracking. This is timestamp of %1000 message.
-    private opSendTimeForLatencyStatisticsForMsnStatistics: number | undefined;
+    private sequenceNumberForMsnTracking: number | undefined;
+    private msnTrackingTimestamp: number = 0;
 
     // To track round trip time for every %1000 client message.
     private opSendTimeForLatencyStatistics: number | undefined;
+
     private clientSequenceNumberForLatencyStatistics: number | undefined;
+
+    private opTimeSittingInInboundQueue: number | undefined;
+    private durationSittingInInboundQueue: number | undefined;
 
     private firstConnection = true;
     private connectionOpSeqNumber: number | undefined;
@@ -61,9 +67,35 @@ class OpPerfTelemetry {
             }
         });
         this.deltaManager.on("disconnect", () => {
+            this.sequenceNumberForMsnTracking = undefined;
             this.clientSequenceNumberForLatencyStatistics = undefined;
+            this.opTimeSittingInInboundQueue = undefined;
+            this.durationSittingInInboundQueue = undefined;
             this.connectionOpSeqNumber = undefined;
             this.firstConnection = false;
+        });
+
+        this.deltaManager.outbound.on("push", (messages) => {
+            for (const msg of messages) {
+                if (msg.type === MessageType.Operation &&
+                    this.clientSequenceNumberForLatencyStatistics === msg.clientSequenceNumber) {
+                    assert(this.opTimeSittingInInboundQueue === undefined,
+                        "OpTimeSittingInboundQueue should be undefined");
+                    assert(this.durationSittingInInboundQueue === undefined,
+                        "durationSittingInInboundQueue should be undefined");
+                     this.opTimeSittingInInboundQueue = Date.now();
+                }
+            }
+        });
+
+        this.deltaManager.inbound.on("push", (message: ISequencedDocumentMessage) => {
+            if (this.clientId === message.clientId &&
+                message.type === MessageType.Operation &&
+                this.clientSequenceNumberForLatencyStatistics === message.clientSequenceNumber &&
+                this.opTimeSittingInInboundQueue !== undefined) {
+                this.durationSittingInInboundQueue = Date.now() - this.opTimeSittingInInboundQueue;
+                this.opTimeSittingInInboundQueue = undefined;
+            }
         });
 
         this.deltaManager.inbound.on("idle", (count: number, duration: number) => {
@@ -99,21 +131,24 @@ class OpPerfTelemetry {
 
     private recordPingTime(latency: number) {
         this.pongCount++;
-        this.socketLatency += latency;
-        const aggregateCount = 100;
-        if (this.pongCount === aggregateCount) {
+        this.pingLatency = latency;
+        // logging one in every 100 pongs
+        if (this.pongCount === 100) {
             this.logger.sendPerformanceEvent({
                 eventName: "DeltaLatency",
-                duration: this.socketLatency / aggregateCount,
+                duration: latency,
             });
             this.pongCount = 0;
-            this.socketLatency = 0;
         }
     }
 
     private beforeOpSubmit(message: IDocumentMessage) {
         // start with first client op and measure latency every 500 client ops
-        if (this.clientSequenceNumberForLatencyStatistics === undefined && message.clientSequenceNumber % 500 === 1) {
+        if (this.clientSequenceNumberForLatencyStatistics === undefined &&
+            message.clientSequenceNumber % 500 === 1) {
+            assert(this.opTimeSittingInInboundQueue === undefined, "OpTimeSittingInboundQueue should be undefined");
+            assert(this.durationSittingInInboundQueue === undefined,
+                "durationSittingInInboundQueue should be undefined");
             this.opSendTimeForLatencyStatistics = Date.now();
             this.clientSequenceNumberForLatencyStatistics = message.clientSequenceNumber;
         }
@@ -127,16 +162,19 @@ class OpPerfTelemetry {
         }
 
         // Record collab window max size after every 1000th op.
-        if (sequenceNumber % 1000 === 0) {
-            if (this.opSendTimeForLatencyStatisticsForMsnStatistics !== undefined) {
-                this.logger.sendPerformanceEvent({
-                    eventName: "MsnStatistics",
-                    sequenceNumber,
-                    msnDistance: this.deltaManager.lastSequenceNumber - this.deltaManager.minimumSequenceNumber,
-                    duration: message.timestamp - this.opSendTimeForLatencyStatisticsForMsnStatistics,
-                });
-            }
-            this.opSendTimeForLatencyStatisticsForMsnStatistics = message.timestamp;
+        if (this.sequenceNumberForMsnTracking === undefined && sequenceNumber % 1000 === 0) {
+            this.sequenceNumberForMsnTracking = sequenceNumber;
+            this.msnTrackingTimestamp = message.timestamp;
+        }
+        if (this.sequenceNumberForMsnTracking !== undefined &&
+                message.minimumSequenceNumber >= this.sequenceNumberForMsnTracking) {
+            this.logger.sendPerformanceEvent({
+                eventName: "MsnStatistics",
+                sequenceNumber,
+                msnDistance: sequenceNumber - this.sequenceNumberForMsnTracking,
+                duration: message.timestamp - this.msnTrackingTimestamp,
+            });
+            this.sequenceNumberForMsnTracking = undefined;
         }
 
         if (this.clientId === message.clientId &&
@@ -161,8 +199,12 @@ class OpPerfTelemetry {
                 referenceSequenceNumber: message.referenceSequenceNumber,
                 duration,
                 category,
+                pingLatency: this.pingLatency,
+                msnDistance: this.deltaManager.lastSequenceNumber - this.deltaManager.minimumSequenceNumber,
+                durationInboundQueue: this.durationSittingInInboundQueue,
             });
             this.clientSequenceNumberForLatencyStatistics = undefined;
+            this.durationSittingInInboundQueue = undefined;
         }
     }
 }

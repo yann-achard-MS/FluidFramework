@@ -45,6 +45,19 @@ export function validateTokenClaims(
 }
 
 /**
+ * Generates a document creation JWT token, this token doesn't provide any sort of authorization to the user.
+ * But it can be used by other services to validate the document creator identity upon creating a document.
+ */
+export function getCreationToken(token: string, key: string, documentId: string, lifetime = 5 * 60) {
+ // Current time in seconds
+ const tokenClaims = jwt.decode(token) as ITokenClaims;
+
+ const { tenantId, user } = tokenClaims;
+
+ return generateToken(tenantId, documentId, key, [], user, lifetime);
+}
+
+/**
  * Generates a JWT token to authorize routerlicious. This function uses a large auth library (jsonwebtoken)
  * and should only be used in server context.
  */
@@ -96,7 +109,6 @@ interface IVerifyTokenOptions {
 /**
  * Verifies the storage token claims and calls riddler to validate the token.
  */
-// eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 export function verifyStorageToken(
     tenantManager: ITenantManager,
     config: Provider,
@@ -163,7 +175,6 @@ export function verifyStorageToken(
     };
 }
 
-// eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 export function getParam(params: Params, key: string) {
     return Array.isArray(params) ? undefined : params[key];
 }
