@@ -28,9 +28,5 @@
     "[azure-pipelines].customSchemaFile": "",
     "deno.enable": false,
     "deno.lint": false,
-	"deno.unstable": false,
-	"cSpell.words": [
-		"postbase",
-		"postbased"
-	],
+    "deno.unstable": false,
 }
