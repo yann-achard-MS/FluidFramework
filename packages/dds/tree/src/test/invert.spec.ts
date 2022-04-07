@@ -50,10 +50,12 @@ const deleteSet: R.ChangeFrame = {
 		modify: {
 			foo: [
 				{
-					type: "Delete",
+					type: "DeleteSet",
+					op: -1,
 				},
 				{
-					type: "Delete",
+					type: "DeleteSet",
+					op: -2,
 					length: 3,
 					mods: [
 						1,
@@ -61,7 +63,8 @@ const deleteSet: R.ChangeFrame = {
 							modify: {
 								bar: [
 									{
-										type: "Delete",
+										type: "DeleteSet",
+										op: -3,
 									},
 								],
 							},
@@ -121,10 +124,12 @@ const revive: R.ChangeFrame = {
 				{
 					type: "ReviveSet",
 					seq,
+					op: -1,
 				},
 				{
 					type: "ReviveSet",
 					seq,
+					op: -2,
 					length: 3,
 					mods: [
 						1,
@@ -134,6 +139,7 @@ const revive: R.ChangeFrame = {
 									{
 										type: "ReviveSet",
 										seq,
+										op: -3,
 									},
 								],
 							},
@@ -213,12 +219,12 @@ const moveSetInTrait: R.ChangeFrame = {
 				foo: [
 					1,
 					{
-						type: "MoveInSet",
+						type: "MoveIn",
 						op: 0,
 					},
 					1,
 					{
-						type: "MoveOut",
+						type: "MoveOutSet",
 						op: 0,
 					},
 				],
@@ -263,13 +269,13 @@ const moveSetAcrossTraits: R.ChangeFrame = {
 			modify: {
 				foo: [
 					{
-						type: "MoveOut",
+						type: "MoveOutSet",
 						op: 0,
 					},
 				],
 				bar: [
 					{
-						type: "MoveInSet",
+						type: "MoveIn",
 						op: 0,
 					},
 				],
@@ -315,7 +321,7 @@ const returnSetInTrait: R.ChangeFrame = {
 				foo: [
 					1,
 					{
-						type: "MoveOut",
+						type: "MoveOutSet",
 						op: 0,
 					},
 					1,
@@ -374,7 +380,7 @@ const returnSetAcrossTraits: R.ChangeFrame = {
 				],
 				bar: [
 					{
-						type: "MoveOut",
+						type: "MoveOutSet",
 						op: 0,
 					},
 				],
@@ -427,7 +433,7 @@ const returnTwiceSetInTrait: R.ChangeFrame = {
 					},
 					1,
 					{
-						type: "MoveOut",
+						type: "MoveOutSet",
 						op: 0,
 					},
 				],
@@ -473,7 +479,7 @@ const returnTwiceSetAcrossTraits: R.ChangeFrame = {
 			modify: {
 				foo: [
 					{
-						type: "MoveOut",
+						type: "MoveOutSet",
 						op: 0,
 					},
 				],

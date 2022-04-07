@@ -127,7 +127,7 @@ function postbaseMarks(
 			postbaseOverPriorSlice(
 				ptr,
 				baseMark,
-				base[endIndex] as R.PriorSliceEnd,
+				base[endIndex] as R.PriorRangeEnd,
 				base.slice(iBaseMark + 1, endIndex),
 				context,
 			);
@@ -160,7 +160,7 @@ function postbaseOverSlice(
 function postbaseOverPriorSlice(
 	startPtr: Pointer,
 	baseStart: R.PriorDeleteStart | R.PriorMoveOutStart,
-	baseEnd: R.PriorSliceEnd,
+	baseEnd: R.PriorRangeEnd,
 	slice: R.TraitMarks,
 	context: Context,
 ): Pointer {
@@ -282,13 +282,13 @@ function postbaseOverMark(
 							}
 						} else if (isDelete(baseMark)) {
 							ptr = ptr.replaceMark({
-								type: "PriorDetach",
+								type: "PriorSetDetachStart",
 								seq: context.seq,
 								length: baseMark.length,
 							});
 						} else if (isMoveOut(baseMark)) {
 							ptr = ptr.replaceMark({
-								type: "PriorDetach",
+								type: "PriorSetDetachStart",
 								seq: context.seq,
 								length: baseMark.length,
 							});
@@ -298,7 +298,7 @@ function postbaseOverMark(
 							if (isPriorDetach(mark)) {
 								ptr = ptr.replaceMark(markLength);
 							} else {
-								fail("A Revive segment should always match up with a PriorDetach segment");
+								fail("A Revive segment should always match up with a PriorSetDetach segment");
 							}
 						} else if (isReturn(baseMark)) {
 							fail("TODO");
@@ -329,7 +329,7 @@ function postbaseOverModify(mark: R.Modify, baseMark: R.Modify, context: Context
 	}
 }
 
-type PriorTraitMark = R.Prior | R.Modify<R.Prior, false> | Offset;
+type PriorTraitMark = R.PriorBound | R.Modify<R.PriorBound, false> | Offset;
 
 function priorsFromModify(modify: R.Modify, context: Context): R.Modify<PriorTraitMark, false> {
 	const mods = modify.modify;
@@ -376,14 +376,14 @@ function priorFromTraitMark(
 	}
 	if (isDelete(base)) {
 		return {
-			type: "PriorDetach",
+			type: "PriorSetDetachStart",
 			seq: context.seq,
 			length: base.length,
 		};
 	}
 	if (isMoveOut(base)) {
 		return {
-			type: "PriorDetach",
+			type: "PriorSetDetachStart",
 			seq: context.seq,
 			length: base.length,
 		};
@@ -418,7 +418,7 @@ function priorFromBound(bound: R.SliceBound, context: Context): R.PriorSliceBoun
 		}
 		case "End": {
 			return {
-				type: "PriorSliceEnd",
+				type: "PriorRangeEnd",
 				seq: context.seq,
 				op: bound.op,
 			};

@@ -23,7 +23,7 @@ import {
 } from "./utils";
 
 export function invert(frame: R.ChangeFrame, seq: SeqNumber): R.ChangeFrame {
-	const newSetMoveOuts = new Map<OpId, R.MoveOut>();
+	const newSetMoveOuts = new Map<OpId, R.MoveOutSet>();
 	const newSetMoveOutMods = new Map<OpId, R.ModsTrail>();
 	const newSliceMoveOuts = new Map<OpId, Pointer>();
 	const newSliceMoveOutMods = new Map<OpId, R.TraitMarks>();
@@ -81,7 +81,7 @@ function optModsFromObj<T extends R.HasMods>(input: T, output: R.ModsTrail | und
 interface Context {
 	readonly frame: Readonly<R.ChangeFrame>
 	readonly seq: SeqNumber;
-	readonly newSetMoveOuts: Map<OpId, R.MoveOut>;
+	readonly newSetMoveOuts: Map<OpId, R.MoveOutSet>;
 	readonly newSetMoveOutMods: Map<OpId, R.ModsTrail>;
 	readonly newSliceMoveOuts: Map<OpId, Pointer>;
 	readonly newSliceMoveOutMods: Map<OpId, R.TraitMarks>;
@@ -106,7 +106,8 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 				}
 				case "Insert": {
 					newMarks.push({
-						type: "Delete",
+						type: "DeleteSet",
+						op: mark.op,
 						...(mark.content.length !== 1 ? { length: mark.content.length } : {}),
 						...optModsFromObj(mark, invertModsMarks(mark.mods, context)),
 					});
@@ -116,6 +117,7 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 					newMarks.push({
 						type: "ReviveSet",
 						seq,
+						op: mark.op,
 						...optLengthFromObj(mark),
 						...optModsFromObj(mark, invertModsMarks(mark.mods, context)),
 					});
@@ -123,7 +125,8 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 				}
 				case "ReviveSet": {
 					newMarks.push({
-						type: "Delete",
+						type: "DeleteSet",
+						op: mark.op,
 						...optLengthFromObj(mark),
 						...optModsFromObj(mark, invertModsMarks(mark.mods, context)),
 					});
@@ -154,8 +157,8 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 				}
 				case "ReturnSet":
 				case "MoveInSet": {
-					const moveOut: R.MoveOut = {
-						type: "MoveOut",
+					const moveOut: R.MoveOutSet = {
+						type: "MoveOutSet",
 						op: mark.op,
 						...optLengthFromObj(mark),
 						// TODO: side and tiebreak

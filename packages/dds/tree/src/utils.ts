@@ -232,15 +232,19 @@ export function isInsert(mark: Offset | R.Mark): mark is R.Insert {
 	return typeof mark === "object" && mark.type === "Insert";
 }
 
-export function isPrior(mark: Offset | R.Mark): mark is R.Prior {
+export function isPrior(mark: Offset | R.Mark): mark is R.PriorBound {
 	return typeof mark === "object" && mark.type?.startsWith("Prior") === true;
 }
 
-export function isPriorDetach(mark: Offset | R.Mark): mark is R.PriorDetach {
-	return typeof mark === "object" && mark.type === "PriorDetach";
+export function isPriorSetDetach(mark: Offset | R.Mark): mark is R.PriorSetDetachStart {
+	return typeof mark === "object" && mark.type === "PriorSetDetach";
 }
 
-export function isDelete(mark: Offset | R.Mark): mark is R.Delete {
+export function isPriorSliceDetach(mark: Offset | R.Mark): mark is R.PriorSetDetachStart {
+	return typeof mark === "object" && mark.type === "PriorSliceDetach";
+}
+
+export function isDelete(mark: Offset | R.Mark): mark is R.DeleteSet {
 	return typeof mark === "object" && mark.type === "Delete";
 }
 
@@ -248,7 +252,7 @@ export function isMoveIn(mark: Offset | R.Mark): mark is R.MoveIn {
 	return typeof mark === "object" && (mark.type === "MoveInSlice" || mark.type === "MoveInSet");
 }
 
-export function isMoveOut(mark: Offset | R.Mark): mark is R.MoveOut {
+export function isMoveOut(mark: Offset | R.Mark): mark is R.MoveOutSet {
 	return typeof mark === "object" && mark.type === "MoveOut";
 }
 
@@ -262,7 +266,7 @@ export function isEnd(mark: Offset | R.Mark): mark is R.SliceEnd {
 	return typeof mark === "object" && mark.type === "End";
 }
 
-export function isPriorSliceEnd(mark: Offset | R.Mark): mark is R.PriorSliceEnd {
+export function isPriorSliceEnd(mark: Offset | R.Mark): mark is R.PriorRangeEnd {
 	return typeof mark === "object" && mark.type === "PriorSliceEnd";
 }
 
@@ -287,24 +291,28 @@ export function isBound(mark: R.TraitMark): mark is R.SliceBound {
 	;
 }
 
-export function isPriorStartBound(mark: R.TraitMark): mark is R.PriorDeleteStart | R.PriorMoveOutStart {
+export function isPriorStartBound(
+	mark: R.TraitMark,
+): mark is R.PriorDeleteStart | R.PriorMoveOutStart | R.PriorSetDetachStart {
 	if (typeof mark === "number") {
 		return false;
 	}
 	const markType = mark.type;
 	return markType === "PriorDeleteStart"
 		|| markType === "PriorMoveOutStart"
+		|| markType === "PriorSetDetachStart"
 	;
 }
 
-export function isPriorBound(mark: R.TraitMark): mark is R.PriorSliceBound {
+export function isPriorBound(mark: R.TraitMark): mark is R.PriorBound {
 	if (typeof mark === "number") {
 		return false;
 	}
 	const markType = mark.type;
 	return markType === "PriorDeleteStart"
 		|| markType === "PriorMoveOutStart"
-		|| markType === "PriorSliceEnd"
+		|| markType === "PriorSetDetachStart"
+		|| markType === "PriorRangeEnd"
 	;
 }
 
@@ -337,14 +345,13 @@ export function isAttachSegment(mark: R.ObjMark | Offset): mark is R.AttachMark 
 }
 
 export function isDetachSegment(mark: R.ObjMark | Offset):
-	mark is R.Delete | R.MoveOut {
+	mark is R.DeleteSet | R.MoveOutSet {
 	if (typeof mark === "number") {
 		return false;
 	}
 	const markType = mark.type;
 	return markType === "Delete"
 		|| markType === "MoveOut"
-		|| markType === "PriorDetach"
 	;
 }
 

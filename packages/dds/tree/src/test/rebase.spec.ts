@@ -192,7 +192,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "MoveInSet", op: 0, length: 2 },
+										{ type: "MoveIn", op: 0, length: 2 },
 									],
 								},
 							}],
@@ -227,7 +227,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "MoveInSet", op: 0, length: 2 },
+										{ type: "MoveIn", op: 0, length: 2 },
 									],
 								},
 							}],
@@ -262,7 +262,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "Delete", length: 2 },
+										{ type: "DeleteSet", op: -1, length: 2 },
 									],
 								},
 							}],
@@ -276,7 +276,9 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorDetach", seq: 1, length: 2 },
+										{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+										2,
+										{ type: "PriorRangeEnd", seq: 1, op: -1 },
 										1,
 										{ type: "Insert", content: [{ id: "X" }] },
 									],
@@ -296,7 +298,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "Delete", length: 2 },
+										{ type: "DeleteSet", op: -1, length: 2 },
 									],
 								},
 							}],
@@ -313,7 +315,9 @@ describe(rebase.name, () => {
 										3,
 										{ type: "Insert", content: [{ id: "X" }] },
 										2,
-										{ type: "PriorDetach", seq: 1, length: 2 },
+										{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+										2,
+										{ type: "PriorRangeEnd", seq: 1, op: -1 },
 									],
 								},
 							}],
@@ -331,7 +335,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "Delete", length: 3 },
+										{ type: "DeleteSet", op: -1, length: 3 },
 									],
 								},
 							}],
@@ -346,9 +350,11 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "PriorDetach", seq: 1, length: 2 },
+										{ type: "PriorSetDetachStart", op: -1, seq: 1 },
+										2,
 										{ type: "Insert", content: [{ id: "X" }] },
-										{ type: "PriorDetach", seq: 1 },
+										1,
+										{ type: "PriorRangeEnd", seq: 1, op: -1 },
 									],
 								},
 							}],
@@ -368,7 +374,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "MoveOut", op: 0, length: 2 },
+										{ type: "MoveOutSet", op: 0, length: 2 },
 									],
 								},
 							}],
@@ -383,7 +389,9 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorDetach", seq: 1, length: 2 },
+										{ type: "PriorSetDetachStart", seq: 1, op: 0 },
+										2,
+										{ type: "PriorRangeEnd", seq: 1, op: 0 },
 										1,
 										{ type: "Insert", content: [{ id: "X" }] },
 									],
@@ -404,7 +412,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "MoveOut", op: 0, length: 2 },
+										{ type: "MoveOutSet", op: 0, length: 2 },
 									],
 								},
 							}],
@@ -422,7 +430,9 @@ describe(rebase.name, () => {
 										3,
 										{ type: "Insert", content: [{ id: "X" }] },
 										2,
-										{ type: "PriorDetach", seq: 1, length: 2 },
+										{ type: "PriorSetDetachStart", seq: 1, op: 0 },
+										2,
+										{ type: "PriorRangeEnd", seq: 1, op: 0 },
 									],
 								},
 							}],
@@ -441,7 +451,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "MoveOut", op: 0, length: 3 },
+										{ type: "MoveOutSet", op: 0, length: 3 },
 									],
 								},
 							}],
@@ -457,9 +467,11 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "PriorDetach", seq: 1, length: 2 },
+										{ type: "PriorSetDetachStart", seq: 1, op: 0 },
+										2,
 										{ type: "Insert", content: [{ id: "X" }] },
-										{ type: "PriorDetach", seq: 1 },
+										1,
+										{ type: "PriorRangeEnd", seq: 1, op: 0 },
 									],
 								},
 							}],
@@ -496,7 +508,7 @@ describe(rebase.name, () => {
 									foo: [
 										{ type: "PriorDeleteStart", seq: 1, op: 0 },
 										2,
-										{ type: "PriorSliceEnd", seq: 1, op: 0 },
+										{ type: "PriorRangeEnd", seq: 1, op: 0 },
 										1,
 										{ type: "Insert", content: [{ id: "X" }] },
 									],
@@ -537,7 +549,7 @@ describe(rebase.name, () => {
 										2,
 										{ type: "PriorDeleteStart", seq: 1, op: 0 },
 										2,
-										{ type: "PriorSliceEnd", seq: 1, op: 0 },
+										{ type: "PriorRangeEnd", seq: 1, op: 0 },
 									],
 								},
 							}],
@@ -577,7 +589,7 @@ describe(rebase.name, () => {
 											2,
 											{ type: "Insert", content: [{ id: "X" }] },
 											1,
-											{ type: "PriorSliceEnd", seq: 1, op: 0 },
+											{ type: "PriorRangeEnd", seq: 1, op: 0 },
 										],
 									},
 								}],
@@ -600,7 +612,7 @@ describe(rebase.name, () => {
 											2,
 											{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
 											1,
-											{ type: "PriorSliceEnd", seq: 1, op: 0 },
+											{ type: "PriorRangeEnd", seq: 1, op: 0 },
 										],
 									},
 								}],
@@ -640,7 +652,7 @@ describe(rebase.name, () => {
 									foo: [
 										{ type: "PriorMoveOutStart", seq: 1, op: 0 },
 										2,
-										{ type: "PriorSliceEnd", seq: 1, op: 0 },
+										{ type: "PriorRangeEnd", seq: 1, op: 0 },
 										1,
 										{ type: "Insert", content: [{ id: "X" }] },
 									],
@@ -683,7 +695,7 @@ describe(rebase.name, () => {
 										2,
 										{ type: "PriorMoveOutStart", seq: 1, op: 0 },
 										2,
-										{ type: "PriorSliceEnd", seq: 1, op: 0 },
+										{ type: "PriorRangeEnd", seq: 1, op: 0 },
 									],
 								},
 							}],
@@ -725,7 +737,7 @@ describe(rebase.name, () => {
 											2,
 											{ type: "Insert", content: [{ id: "X" }] },
 											1,
-											{ type: "PriorSliceEnd", seq: 1, op: 0 },
+											{ type: "PriorRangeEnd", seq: 1, op: 0 },
 										],
 									},
 								}],
@@ -749,7 +761,7 @@ describe(rebase.name, () => {
 											2,
 											{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
 											1,
-											{ type: "PriorSliceEnd", seq: 1, op: 0 },
+											{ type: "PriorRangeEnd", seq: 1, op: 0 },
 										],
 									},
 								}],
@@ -758,6 +770,272 @@ describe(rebase.name, () => {
 						const actual = rebase(e2nc, e1);
 						assert.deepEqual(actual.frames, e2p.frames);
 					});
+				});
+			});
+		});
+		describe("DeleteSet ↷ *", () => {
+			const e2: S.Transaction = {
+				ref: 0,
+				seq: 2,
+				frames: [{
+					marks: [{
+						modify: {
+							foo: [
+								2,
+								{ type: "DeleteSet", op: -1, length: 3 },
+							],
+						},
+					}],
+				}],
+			};
+			describe("DeleteSet ↷ Insert", () => {
+				it("base before new", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										{ type: "Insert", content: [{ id: "X" }] },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										3,
+										{ type: "DeleteSet", op: -1, length: 3 },
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
+				});
+				it("new before base", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										6,
+										{ type: "Insert", content: [{ id: "X" }] },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										2,
+										{ type: "DeleteSet", op: -1, length: 3 },
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
+				});
+				it("base within new", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										4,
+										{ type: "Insert", content: [{ id: "X" }] },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										2,
+										{ type: "DeleteSet", op: -1, length: 2 },
+										1,
+										{ type: "DeleteSet", op: -2 },
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
+				});
+			});
+			describe("DeleteSet ↷ DeleteSet", () => {
+				it("base before new", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										{ type: "DeleteSet", op: -1 },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+										1,
+										{ type: "PriorRangeEnd", seq: 1, op: -1 },
+										1,
+										{ type: "DeleteSet", op: -1, length: 3 },
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
+				});
+				it("new before base", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										6,
+										{ type: "DeleteSet", op: -1 },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										2,
+										{ type: "DeleteSet", op: -1, length: 3 },
+										1,
+										{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+										1,
+										{ type: "PriorRangeEnd", seq: 1, op: -1 },
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
+				});
+				it("base within new", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										4,
+										{ type: "DeleteSet", op: -1 },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										2,
+										{ type: "DeleteSet", op: -1 },
+										{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+										1,
+										{ type: "PriorRangeEnd", seq: 1, op: -1 },
+										{ type: "DeleteSet", op: -2 },
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
+				});
+				it("new within base", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										1,
+										{ type: "DeleteSet", op: -1, length: 5 },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										1,
+										{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+										1,
+										{ type: "DeleteSet", op: 0, length: 3 },
+										1,
+										{ type: "PriorRangeEnd", seq: 1, op: -1 },
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
 				});
 			});
 		});
@@ -773,7 +1051,7 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								1,
-								{ type: "ReviveSet", seq: 0, length: 3 },
+								{ type: "ReviveSet", seq: 0, op: -1, length: 3 },
 							],
 						},
 					}],
@@ -789,7 +1067,9 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorDetach", seq: 0, length: 3 },
+									{ type: "PriorSetDetachStart", seq: 0, op: -1 },
+									3,
+									{ type: "PriorRangeEnd", seq: 0, op: -1 },
 									{ type: "Insert", content: [] },
 								],
 							},
@@ -825,7 +1105,9 @@ describe(rebase.name, () => {
 								foo: [
 									1,
 									{ type: "Insert", content: [] },
-									{ type: "PriorDetach", seq: 0, length: 3 },
+									{ type: "PriorSetDetachStart", seq: 0, op: -1 },
+									3,
+									{ type: "PriorRangeEnd", seq: 0, op: -1 },
 								],
 							},
 						}],
@@ -859,9 +1141,11 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorDetach", seq: 0, length: 2 },
+									{ type: "PriorSetDetachStart", seq: 0, op: -1 },
+									2,
 									{ type: "Insert", content: [] },
-									{ type: "PriorDetach", seq: 0 },
+									1,
+									{ type: "PriorRangeEnd", seq: 0, op: -1 },
 								],
 							},
 						}],
@@ -913,7 +1197,7 @@ describe(rebase.name, () => {
 									1,
 									{ type: "PriorDeleteStart", seq: 0, op: 0 },
 									3,
-									{ type: "PriorSliceEnd", seq: 0, op: 0 },
+									{ type: "PriorRangeEnd", seq: 0, op: 0 },
 									{ type: "Insert", content: [] },
 								],
 							},
@@ -951,7 +1235,7 @@ describe(rebase.name, () => {
 									{ type: "Insert", content: [] },
 									{ type: "PriorDeleteStart", seq: 0, op: 0 },
 									3,
-									{ type: "PriorSliceEnd", seq: 0, op: 0 },
+									{ type: "PriorRangeEnd", seq: 0, op: 0 },
 								],
 							},
 						}],
@@ -989,7 +1273,7 @@ describe(rebase.name, () => {
 									2,
 									{ type: "Insert", content: [] },
 									1,
-									{ type: "PriorSliceEnd", seq: 0, op: 0 },
+									{ type: "PriorRangeEnd", seq: 0, op: 0 },
 								],
 							},
 						}],
@@ -1014,7 +1298,7 @@ describe(rebase.name, () => {
 				assert.deepEqual(actual.frames, e2p.frames);
 			});
 		});
-		describe("ReviveSet ↷ DeleteSet = ReviveSet & PriorDetach", () => {
+		describe("ReviveSet ↷ DeleteSet = ReviveSet & PriorSetDetach", () => {
 			const e1: S.Transaction = {
 				ref: 0,
 				seq: 1,
@@ -1023,7 +1307,7 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								1,
-								{ type: "Delete", length: 3 },
+								{ type: "DeleteSet", op: -1, length: 3 },
 							],
 						},
 					}],
@@ -1039,7 +1323,7 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									5,
-									{ type: "ReviveSet", seq: 0, length: 3 },
+									{ type: "ReviveSet", seq: 0, op: -1, length: 3 },
 									{ type: "Insert", content: [] },
 								],
 							},
@@ -1055,9 +1339,11 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorDetach", seq: 1, length: 3 },
+									{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+									3,
+									{ type: "PriorRangeEnd", seq: 1, op: -1 },
 									1,
-									{ type: "ReviveSet", seq: 0, length: 3 },
+									{ type: "ReviveSet", seq: 0, op: -1, length: 3 },
 									{ type: "Insert", content: [] },
 								],
 							},
@@ -1077,7 +1363,7 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									{ type: "Insert", content: [] },
-									{ type: "ReviveSet", seq: 0, length: 3 },
+									{ type: "ReviveSet", seq: 0, op: -1, length: 3 },
 								],
 							},
 						}],
@@ -1092,9 +1378,11 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									{ type: "Insert", content: [] },
-									{ type: "ReviveSet", seq: 0, length: 3 },
+									{ type: "ReviveSet", seq: 0, op: -1, length: 3 },
 									1,
-									{ type: "PriorDetach", seq: 1, length: 3 },
+									{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+									3,
+									{ type: "PriorRangeEnd", seq: 1, op: -1 },
 								],
 							},
 						}],
@@ -1113,9 +1401,8 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									3,
-									{ type: "ReviveSet", seq: 0, length: 2 },
+									{ type: "ReviveSet", seq: 0, op: -1, length: 2 },
 									{ type: "Insert", content: [] },
-									{ type: "ReviveSet", seq: 0 },
 								],
 							},
 						}],
@@ -1130,11 +1417,11 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorDetach", seq: 1, length: 2 },
-									{ type: "ReviveSet", seq: 0, length: 2 },
+									{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+									2,
+									{ type: "ReviveSet", seq: 0, op: -1, length: 2 },
 									{ type: "Insert", content: [] },
-									{ type: "ReviveSet", seq: 0 },
-									{ type: "PriorDetach", seq: 1 },
+									{ type: "PriorRangeEnd", seq: 1, op: -1 },
 								],
 							},
 						}],
@@ -1189,7 +1476,7 @@ describe(rebase.name, () => {
 									1,
 									{ type: "PriorDeleteStart", seq: 1, op: 0 },
 									3,
-									{ type: "PriorSliceEnd", seq: 1, op: 0 },
+									{ type: "PriorRangeEnd", seq: 1, op: 0 },
 									1,
 									{ type: "ReviveSlice", seq: 0, op: 0, length: 3 },
 									{ type: "Insert", content: [] },
@@ -1230,7 +1517,7 @@ describe(rebase.name, () => {
 									1,
 									{ type: "PriorDeleteStart", seq: 1, op: 0 },
 									3,
-									{ type: "PriorSliceEnd", seq: 1, op: 0 },
+									{ type: "PriorRangeEnd", seq: 1, op: 0 },
 								],
 							},
 						}],
@@ -1272,7 +1559,7 @@ describe(rebase.name, () => {
 									{ type: "Insert", content: [] },
 									{ type: "ReviveSlice", seq: 0, op: 0 },
 									1,
-									{ type: "PriorSliceEnd", seq: 1, op: 0 },
+									{ type: "PriorRangeEnd", seq: 1, op: 0 },
 								],
 							},
 						}],
