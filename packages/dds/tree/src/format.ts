@@ -68,9 +68,7 @@ export namespace Original {
 
 	export interface HasOpId {
 		/**
-		 * An identifier that is unique within the containing frame.
-		 * This allows different changesets to unambiguously refer to the same
-		 * change.
+		 * The sequential ID assigned to the change within the change frame.
 		 */
 		op: OpId;
 	}
@@ -97,7 +95,7 @@ export namespace Original {
 	export type RangeMods<
 		TMods,
 		AllowSetValue extends boolean = true
-	> = (Offset | TMods | Modify<TMods, AllowSetValue>)[];
+		> = (Offset | TMods | Modify<TMods, AllowSetValue>)[];
 
 	export type TraitMarks = (Offset | Mark)[];
 
@@ -125,7 +123,6 @@ export namespace Original {
 
 	export interface MoveIn extends IsPlace, HasOpId, HasLength {
 		type: "MoveIn";
-		id: MoveId;
 		range: RangeType;
 		mods?: RangeMods<Mark>;
 	}
@@ -143,8 +140,8 @@ export namespace Original {
 	 * - old d new (during)
 	 * - old f new (finish of)
 	 * - old = new (same)
-	 * Note that `old o new` (overlap) is not included. This is because one cannot create a slice over node that
-	 * have already been detached.
+	 * Note that `old o new` (overlap) is not included. This is because one cannot anchor the extremity of
+	 * a slice to a node that have already been detached.
 	 */
 	export type DetachMark = Delete | MoveOut;
 
@@ -238,13 +235,11 @@ export namespace Original {
 
 	export interface MoveOutSet extends HasOpId, HasLength {
 		type: "MoveOutSet";
-		id: MoveId;
 		mods?: RangeMods<MoveOut | Delete, false>;
 	}
 
 	export interface MoveOutSlice extends IsSlice, HasOpId, HasLength {
 		type: "MoveOutSlice";
-		id: MoveId;
 		mods?: RangeMods<MoveOut | Delete, false>;
 	}
 
@@ -324,7 +319,7 @@ export namespace Original {
 export namespace Rebased {
 	// Use "interface" instead "type" to avoid TSC error
 	export interface Modify<TInner = Mark, AllowSetValue extends boolean = true> extends
-		Original.Modify<TInner, AllowSetValue> {}
+		Original.Modify<TInner, AllowSetValue> { }
 	export type SetValue = Original.SetValue;
 	export type MoveEntry = Original.MoveEntry;
 	export type ProtoNode = Original.ProtoNode;
@@ -407,8 +402,8 @@ export namespace Rebased {
 		| Insert
 		| MoveIn;
 	export type DetachMark =
-		| MoveOutSet
-		| DeleteSet;
+		| MoveOut
+		| Delete;
 	export type SegmentMark =
 		| AttachMark
 		| DetachMark;
@@ -424,7 +419,7 @@ export namespace Rebased {
 	export type RangeMods<
 		TMods,
 		AllowSetValue extends boolean = true
-	> = (Offset | TMods | Modify<TMods, AllowSetValue>)[];
+		> = (Offset | TMods | Modify<TMods, AllowSetValue>)[];
 
 	export interface Insert extends IsPlace, HasOpId {
 		type: "Insert";
@@ -434,7 +429,6 @@ export namespace Rebased {
 
 	export interface MoveIn extends IsPlace, HasOpId, HasLength {
 		type: "MoveIn";
-		id: MoveId;
 		range: RangeType;
 		mods?: RangeMods<Mark>;
 	}
@@ -454,13 +448,11 @@ export namespace Rebased {
 
 	export interface MoveOutSet extends HasOpId, HasLength {
 		type: "MoveOutSet";
-		id: MoveId;
 		mods?: RangeMods<MoveOut | Delete, false>;
 	}
 
 	export interface MoveOutSlice extends IsSlice, HasOpId, HasLength {
 		type: "MoveOutSlice";
-		id: MoveId;
 		mods?: RangeMods<MoveOut | Delete, false>;
 	}
 
@@ -474,7 +466,6 @@ export namespace Rebased {
 
 	export interface PriorMoveIn extends IsPlace, HasSeqNumber, HasOpId, HasLength {
 		type: "PriorMoveIn";
-		id: MoveId;
 		range: RangeType;
 		mods?: RangeMods<Mark>;
 	}
@@ -494,13 +485,11 @@ export namespace Rebased {
 
 	export interface PriorMoveOutSet extends HasOpId, HasSeqNumber, HasLength {
 		type: "PriorMoveOutSet";
-		id: MoveId;
 		mods?: RangeMods<PriorMoveOut | MoveOut | PriorDelete | Delete, false>;
 	}
 
 	export interface PriorMoveOutSlice extends HasSeqNumber, HasOpId, HasLength {
 		type: "PriorMoveOutSlice";
-		id: MoveId;
 		mods?: RangeMods<PriorMoveOut | MoveOut | PriorDelete | Delete, false>;
 	}
 
@@ -514,7 +503,6 @@ export namespace Rebased {
 
 	export interface Return extends HasSeqNumber, HasLength, HasOpId {
 		type: "Return";
-		id: MoveId;
 		range: RangeType;
 		mods?: RangeMods<Return | Revive>;
 	}
@@ -554,7 +542,7 @@ export interface TreeChildPath {
 export type TreeRootPath = number | { [label: number]: TreeChildPath; };
 
 /** A structure that represents a path from the root to a particular node. */
-export type TreePath  = TreeChildPath | TreeRootPath;
+export type TreePath = TreeChildPath | TreeRootPath;
 
 export enum RangeType {
 	Set,
@@ -574,13 +562,25 @@ export enum Sibling {
 	Next,
 }
 
+/**
+ * A monotonically increasing positive integer assigned to each segment.
+ * The first segment is assigned OpId 0. The next one is assigned OpID 1, and so on.
+ * These IDs define total a temporal ordering over all the changes within a change frame.
+ * OpIds are scoped to a single frame, so referring to OpIds across frame would require
+ * qualifying them by frame number (and potentially sequence/commit number).
+ *
+ * The temporal ordering is leveraged to resolve which node a given segment is anchored to:
+ * A segment is anchored to the first node, when scanning in the direction indicated by the `side`
+ * field, that was either inserted by an operation whose OpId is lower, or left untouched (i.e.
+ * represented by an offset), or the end of the trait, whichever is encountered first.
+ */
+export type OpId = number;
+
 export type Offset = number;
 export type Index = number;
 export type SeqNumber = number;
 export type Value = number | string | boolean;
 export type NodeId = string;
-export type OpId = number;
-export type MoveId = number;
 export type ClientId = number;
 export type TraitLabel = string;
 export enum Tiebreak { LastToFirst, FirstToLast }

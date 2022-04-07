@@ -189,7 +189,7 @@ So it looks like we could do away with bounds:
 
 Note that if all operations were given monotonically increasing op #s over time, then we wouldn't need the externally anchored range to list the op# for an insertion. We would be able to tell that the range is anchored to the node within the first insertion whose op# is lower than that of the range if such an insertion is encountered before a offset, and the first node represented by the offset otherwise.
 
-## Could we assign monotonically increasing op #s to all insert/move-in operations in a change frame?
+## Could we assign monotonically increasing op IDs to all insert/move-in operations in a change frame?
 
 Motivation: It would remove the need for race structures and would remove the need for range bounds to list which insertion they're externally anchored to (if any). See "do away with mark pairs" for more details.
 
@@ -197,17 +197,17 @@ The main challenge comes from the fact that we have no interest in representing 
 
 One solution would be to separate the domain of move #s from the domain of insertion #s. The sad thing about that, is the fact that moves will effectively end up with  two #s: one for the move, one for the insert.
 
+A better solution is to have all ops use the same ID space but make the move table sparse. This may be represented as a map in the over-the-wire format (or something that uses offsets to take advantage of the fact that the IDs are sorted) but will likely be a sorted list in main memory so we can binary search our way through it.
+
 ## Current POR
 
 Use segments for everything (no pairs of bound marks).
 
 Maintain a hierarchy by splitting segments up as needed and nesting them.
 
-Use frames
+Use frames.
 
-Assign a monotonically increating ID to each op.
-
-Assing a separate monotonically increasing ID to each move (to be used in the move table)
+Assign a monotonically increating ID to each op (to be used in the move table) in the case of move ops.
 
 Splitting an op does not mint a new ID. new IDs are never minted by rebase/postbase/invert.
 
