@@ -143,15 +143,15 @@ const e3 = [
 
 
 const e3p = [
-	{ type: "PriorSetDetachStart", seq: 1, op: -1 },
-	1, // Tombstone
-	{ type: "PriorRangeEnd", seq: 1, op: -1 },
-	1, // Normal offset forces splitting of the bounds
-	{ type: "PriorSetDetachStart", seq: 1, op: -1 },
-	1, // Tombstone
-	{ type: "Insert", content: [{ id: "Y" }] },
-	2, // Tombstones
-	{ type: "PriorRangeEnd", seq: 1, op: -1 },
+    { type: "PriorSetDetachStart", seq: 1, op: -1 },
+    1, // Tombstone
+    { type: "PriorRangeEnd", seq: 1, op: -1 },
+    1, // Normal offset forces splitting of the bounds
+    { type: "PriorSetDetachStart", seq: 1, op: -1 },
+    1, // Tombstone
+    { type: "Insert", content: [{ id: "Y" }] },
+    2, // Tombstones
+    { type: "PriorRangeEnd", seq: 1, op: -1 },
 ];
 ```
 
@@ -209,6 +209,6 @@ Assign a monotonically increating ID to each op.
 
 Assing a separate monotonically increasing ID to each move (to be used in the move table)
 
-Splitting an op does not mint a new ID.
+Splitting an op does not mint a new ID. new IDs are never minted by rebase/postbase/invert.
 
 Anchoring is expressed with a side (`prev`/`next`). Which node is targetted as the anchor point is dentermined based on op IDs.

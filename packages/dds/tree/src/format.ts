@@ -107,9 +107,6 @@ export namespace Original {
 	export type AttachMark =
 		| Insert
 		| MoveIn;
-	export type DetachMark =
-		| MoveOut
-		| Delete;
 	export type SegmentMark =
 		| AttachMark
 		| DetachMark;
@@ -119,55 +116,6 @@ export namespace Original {
 
 	export type Mark =
 		| ObjMark;
-
-	export interface IsPlace {
-		/**
-		 * Whether the attach operation was performed relative to the previous sibling or the next.
-		 * If no sibling exists on the indicated side then the insert was relative to the trait extremity.
-		 *
-		 * In a change that is being rebased, we need to know this in order to tell if this insertion should
-		 * go before or after another pre-existing insertion at the same index.
-		 * In a change that is being rebased over, we need to know this in order to tell if a new insertion
-		 * at the same index should go before or after this one.
-		 * Omit if `Sibling.Prev` for terseness.
-		 */
-		side?: Sibling;
-		/**
-		 * Omit if not in peer change.
-		 * Omit if `Tiebreak.LastToFirst` for terseness.
-		 */
-		tiebreak?: Tiebreak;
-		/**
-		 * Omit if not in peer change.
-		 * Omit if performed with a parent-based place anchor.
-		 * Omit if `Commutativity.Full`.
-		 */
-		commute?: Commutativity;
-		/**
-		 * Omit if no drill-down.
-		 */
-		drill?: DrillDepth;
-	}
-
-	export interface IsSlice {
-		/**
-		 * Omit if `Sibling.Prev` for terseness.
-		 */
-		startSide?: Sibling.Next;
-		/**
-		  * Omit if `Sibling.Next` for terseness.
-		  */
-		endsSide?: Sibling.Prev;
-		/**
-		   * Omit if not in peer change.
-		   * Omit if `Tiebreak.LastToFirst` for terseness.
-		   */
-		tiebreak?: Tiebreak;
-		/**
-		   * Omit if no drill-down.
-		   */
-		drill?: DrillDepth;
-	}
 
 	export interface Insert extends IsPlace, HasOpId {
 		type: "Insert";
@@ -181,6 +129,24 @@ export namespace Original {
 		range: RangeType;
 		mods?: RangeMods<Mark>;
 	}
+
+	/**
+	 * An operation on a (possibly empty) range of nodes.
+	 *
+	 * While multiple slices can coexist over a given region of a trait, a new slice can only relate to an old
+	 * (i.e., pre-existing one) with one of the following Allen's interval relationships:
+	 * - old > new (before)
+	 * - old < new (after)
+	 * - old m new (meets)
+	 * - old mi new (is met by)
+	 * - old s new (start of)
+	 * - old d new (during)
+	 * - old f new (finish of)
+	 * - old = new (same)
+	 * Note that `old o new` (overlap) is not included. This is because one cannot create a slice over node that
+	 * have already been detached.
+	 */
+	export type DetachMark = Delete | MoveOut;
 
 	/**
 	 * Deleting a slice or set has the following effects on existing marks:
@@ -280,6 +246,55 @@ export namespace Original {
 		type: "MoveOutSlice";
 		id: MoveId;
 		mods?: RangeMods<MoveOut | Delete, false>;
+	}
+
+	export interface IsPlace {
+		/**
+		 * Whether the attach operation was performed relative to the previous sibling or the next.
+		 * If no sibling exists on the indicated side then the insert was relative to the trait extremity.
+		 *
+		 * In a change that is being rebased, we need to know this in order to tell if this insertion should
+		 * go before or after another pre-existing insertion at the same index.
+		 * In a change that is being rebased over, we need to know this in order to tell if a new insertion
+		 * at the same index should go before or after this one.
+		 * Omit if `Sibling.Prev` for terseness.
+		 */
+		side?: Sibling;
+		/**
+		 * Omit if not in peer change.
+		 * Omit if `Tiebreak.LastToFirst` for terseness.
+		 */
+		tiebreak?: Tiebreak;
+		/**
+		 * Omit if not in peer change.
+		 * Omit if performed with a parent-based place anchor.
+		 * Omit if `Commutativity.Full`.
+		 */
+		commute?: Commutativity;
+		/**
+		 * Omit if no drill-down.
+		 */
+		drill?: DrillDepth;
+	}
+
+	export interface IsSlice {
+		/**
+		 * Omit if `Sibling.Prev` for terseness.
+		 */
+		startSide?: Sibling.Next;
+		/**
+		  * Omit if `Sibling.Next` for terseness.
+		  */
+		endsSide?: Sibling.Prev;
+		/**
+		   * Omit if not in peer change.
+		   * Omit if `Tiebreak.LastToFirst` for terseness.
+		   */
+		tiebreak?: Tiebreak;
+		/**
+		   * Omit if no drill-down.
+		   */
+		drill?: DrillDepth;
 	}
 
 	/**
