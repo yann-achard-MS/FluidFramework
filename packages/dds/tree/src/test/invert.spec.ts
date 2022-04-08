@@ -5,6 +5,7 @@
 
 import { strict as assert } from "assert";
 import {
+	RangeType,
 	Rebased as R,
 } from "../format";
 import { invert } from "../invert";
@@ -22,10 +23,12 @@ const insert: R.ChangeFrame = {
 			foo: [
 				{
 					type: "Insert",
+					id: 0,
 					content: [{ id: "A" }],
 				},
 				{
 					type: "Insert",
+					id: 1,
 					content: [{ id: "B" }, { id: "C" }, { id: "D" }],
 					mods: [
 						1,
@@ -34,6 +37,7 @@ const insert: R.ChangeFrame = {
 								bar: [
 									{
 										type: "Insert",
+										id: 2,
 										content: [{ id: "C2" }],
 									},
 								],
@@ -51,25 +55,12 @@ const deleteSet: R.ChangeFrame = {
 			foo: [
 				{
 					type: "DeleteSet",
-					id: -1,
+					id: 1,
 				},
 				{
 					type: "DeleteSet",
-					id: -2,
+					id: 2,
 					length: 3,
-					mods: [
-						1,
-						{
-							modify: {
-								bar: [
-									{
-										type: "DeleteSet",
-										id: -3,
-									},
-								],
-							},
-						},
-					],
 				},
 			],
 		},
@@ -80,38 +71,13 @@ const deleteSlice: R.ChangeFrame = {
 		modify: {
 			foo: [
 				{
-					type: "DeleteStart",
-					id: -1,
-				},
-				1,
-				{
-					type: "End",
-					id: -1,
+					type: "DeleteSlice",
+					id: 1,
 				},
 				{
-					type: "DeleteStart",
-					id: -2,
-				},
-				1,
-				{
-					modify: {
-						bar: [
-							{
-								type: "DeleteStart",
-								id: -3,
-							},
-							1,
-							{
-								type: "End",
-								id: -3,
-							},
-						],
-					},
-				},
-				1,
-				{
-					type: "End",
-					id: -2,
+					type: "DeleteSlice",
+					id: 2,
+					length: 3,
 				},
 			],
 		},
@@ -122,29 +88,17 @@ const revive: R.ChangeFrame = {
 		modify: {
 			foo: [
 				{
-					type: "ReviveSet",
+					type: "Revive",
+					range: RangeType.Set,
 					seq,
-					id: -1,
+					id: 1,
 				},
 				{
-					type: "ReviveSet",
+					type: "Revive",
+					range: RangeType.Set,
 					seq,
-					id: -2,
+					id: 2,
 					length: 3,
-					mods: [
-						1,
-						{
-							modify: {
-								bar: [
-									{
-										type: "ReviveSet",
-										seq,
-										id: -3,
-									},
-								],
-							},
-						},
-					],
 				},
 			],
 		},
@@ -155,29 +109,17 @@ const reviveSlice: R.ChangeFrame = {
 		modify: {
 			foo: [
 				{
-					type: "ReviveSlice",
+					type: "Revive",
+					range: RangeType.Slice,
 					seq,
-					id: -1,
+					id: 1,
 				},
 				{
-					type: "ReviveSlice",
+					type: "Revive",
+					range: RangeType.Slice,
 					seq,
-					id: -2,
+					id: 2,
 					length: 3,
-					mods: [
-						1,
-						{
-							modify: {
-								bar: [
-									{
-										type: "ReviveSlice",
-										seq,
-										id: -3,
-									},
-								],
-							},
-						},
-					],
 				},
 			],
 		},
@@ -211,7 +153,7 @@ const revertValue: R.ChangeFrame = {
 };
 const moveSetInTrait: R.ChangeFrame = {
 	moves: [
-		{ src: { foo: 2 }, dst: { foo: 1 } },
+		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
 	],
 	marks: [
 		{
@@ -220,6 +162,7 @@ const moveSetInTrait: R.ChangeFrame = {
 					1,
 					{
 						type: "MoveIn",
+						range: RangeType.Set,
 						id: 0,
 					},
 					1,
@@ -234,7 +177,7 @@ const moveSetInTrait: R.ChangeFrame = {
 };
 const moveSliceInTrait: R.ChangeFrame = {
 	moves: [
-		{ src: { foo: 2 }, dst: { foo: 1 } },
+		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
 	],
 	marks: [
 		{
@@ -242,17 +185,13 @@ const moveSliceInTrait: R.ChangeFrame = {
 				foo: [
 					1,
 					{
-						type: "MoveInSlice",
+						type: "MoveIn",
+						range: RangeType.Slice,
 						id: 0,
 					},
 					1,
 					{
-						type: "MoveOutStart",
-						id: 0,
-					},
-					1,
-					{
-						type: "End",
+						type: "MoveOutSlice",
 						id: 0,
 					},
 				],
@@ -262,7 +201,7 @@ const moveSliceInTrait: R.ChangeFrame = {
 };
 const moveSetAcrossTraits: R.ChangeFrame = {
 	moves: [
-		{ src: { foo: 0 }, dst: { bar: 0 } },
+		{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
 	],
 	marks: [
 		{
@@ -276,6 +215,7 @@ const moveSetAcrossTraits: R.ChangeFrame = {
 				bar: [
 					{
 						type: "MoveIn",
+						range: RangeType.Set,
 						id: 0,
 					},
 				],
@@ -285,25 +225,21 @@ const moveSetAcrossTraits: R.ChangeFrame = {
 };
 const moveSliceAcrossTraits: R.ChangeFrame = {
 	moves: [
-		{ src: { foo: 0 }, dst: { bar: 0 } },
+		{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
 	],
 	marks: [
 		{
 			modify: {
 				foo: [
 					{
-						type: "MoveOutStart",
-						id: 0,
-					},
-					1,
-					{
-						type: "End",
+						type: "MoveOutSlice",
 						id: 0,
 					},
 				],
 				bar: [
 					{
-						type: "MoveInSlice",
+						type: "MoveIn",
+						range: RangeType.Slice,
 						id: 0,
 					},
 				],
@@ -313,7 +249,7 @@ const moveSliceAcrossTraits: R.ChangeFrame = {
 };
 const returnSetInTrait: R.ChangeFrame = {
 	moves: [
-		{ src: { foo: 1 }, dst: { foo: 2 } },
+		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
 	],
 	marks: [
 		{
@@ -326,7 +262,8 @@ const returnSetInTrait: R.ChangeFrame = {
 					},
 					1,
 					{
-						type: "ReturnSet",
+						type: "Return",
+						range: RangeType.Set,
 						id: 0,
 						seq,
 					},
@@ -337,7 +274,7 @@ const returnSetInTrait: R.ChangeFrame = {
 };
 const returnSliceInTrait: R.ChangeFrame = {
 	moves: [
-		{ src: { foo: 1 }, dst: { foo: 2 } },
+		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
 	],
 	marks: [
 		{
@@ -345,17 +282,13 @@ const returnSliceInTrait: R.ChangeFrame = {
 				foo: [
 					1,
 					{
-						type: "MoveOutStart",
+						type: "MoveOutSlice",
 						id: 0,
 					},
 					1,
 					{
-						type: "End",
-						id: 0,
-					},
-					1,
-					{
-						type: "ReturnSlice",
+						type: "Return",
+						range: RangeType.Slice,
 						id: 0,
 						seq,
 					},
@@ -366,14 +299,15 @@ const returnSliceInTrait: R.ChangeFrame = {
 };
 const returnSetAcrossTraits: R.ChangeFrame = {
 	moves: [
-		{ src: { bar: 0 }, dst: { foo: 0 } },
+		{ id: 0, src: { bar: 0 }, dst: { foo: 0 } },
 	],
 	marks: [
 		{
 			modify: {
 				foo: [
 					{
-						type: "ReturnSet",
+						type: "Return",
+						range: RangeType.Set,
 						seq,
 						id: 0,
 					},
@@ -390,26 +324,22 @@ const returnSetAcrossTraits: R.ChangeFrame = {
 };
 const returnSliceAcrossTraits: R.ChangeFrame = {
 	moves: [
-		{ src: { bar: 0 }, dst: { foo: 0 } },
+		{ id: 0, src: { bar: 0 }, dst: { foo: 0 } },
 	],
 	marks: [
 		{
 			modify: {
 				foo: [
 					{
-						type: "ReturnSlice",
+						type: "Return",
+						range: RangeType.Slice,
 						seq,
 						id: 0,
 					},
 				],
 				bar: [
 					{
-						type: "MoveOutStart",
-						id: 0,
-					},
-					1,
-					{
-						type: "End",
+						type: "MoveOutSlice",
 						id: 0,
 					},
 				],
@@ -419,7 +349,7 @@ const returnSliceAcrossTraits: R.ChangeFrame = {
 };
 const returnTwiceSetInTrait: R.ChangeFrame = {
 	moves: [
-		{ src: { foo: 2 }, dst: { foo: 1 } },
+		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
 	],
 	marks: [
 		{
@@ -427,7 +357,8 @@ const returnTwiceSetInTrait: R.ChangeFrame = {
 				foo: [
 					1,
 					{
-						type: "ReturnSet",
+						type: "Return",
+						range: RangeType.Set,
 						id: 0,
 						seq,
 					},
@@ -443,7 +374,7 @@ const returnTwiceSetInTrait: R.ChangeFrame = {
 };
 const returnTwiceSliceInTrait: R.ChangeFrame = {
 	moves: [
-		{ src: { foo: 2 }, dst: { foo: 1 } },
+		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
 	],
 	marks: [
 		{
@@ -451,18 +382,14 @@ const returnTwiceSliceInTrait: R.ChangeFrame = {
 				foo: [
 					1,
 					{
-						type: "ReturnSlice",
+						type: "Return",
+						range: RangeType.Slice,
 						id: 0,
 						seq,
 					},
 					1,
 					{
-						type: "MoveOutStart",
-						id: 0,
-					},
-					1,
-					{
-						type: "End",
+						type: "MoveOutSlice",
 						id: 0,
 					},
 				],
@@ -472,7 +399,7 @@ const returnTwiceSliceInTrait: R.ChangeFrame = {
 };
 const returnTwiceSetAcrossTraits: R.ChangeFrame = {
 	moves: [
-		{ src: { foo: 0 }, dst: { bar: 0 } },
+		{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
 	],
 	marks: [
 		{
@@ -485,7 +412,8 @@ const returnTwiceSetAcrossTraits: R.ChangeFrame = {
 				],
 				bar: [
 					{
-						type: "ReturnSet",
+						type: "Return",
+						range: RangeType.Set,
 						seq,
 						id: 0,
 					},
@@ -496,25 +424,21 @@ const returnTwiceSetAcrossTraits: R.ChangeFrame = {
 };
 const returnTwiceSliceAcrossTraits: R.ChangeFrame = {
 	moves: [
-		{ src: { foo: 0 }, dst: { bar: 0 } },
+		{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
 	],
 	marks: [
 		{
 			modify: {
 				foo: [
 					{
-						type: "MoveOutStart",
-						id: 0,
-					},
-					1,
-					{
-						type: "End",
+						type: "MoveOutSlice",
 						id: 0,
 					},
 				],
 				bar: [
 					{
-						type: "ReturnSlice",
+						type: "Return",
+						range: RangeType.Slice,
 						seq,
 						id: 0,
 					},
