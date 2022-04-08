@@ -51,11 +51,11 @@ const deleteSet: R.ChangeFrame = {
 			foo: [
 				{
 					type: "DeleteSet",
-					op: -1,
+					id: -1,
 				},
 				{
 					type: "DeleteSet",
-					op: -2,
+					id: -2,
 					length: 3,
 					mods: [
 						1,
@@ -64,7 +64,7 @@ const deleteSet: R.ChangeFrame = {
 								bar: [
 									{
 										type: "DeleteSet",
-										op: -3,
+										id: -3,
 									},
 								],
 							},
@@ -81,16 +81,16 @@ const deleteSlice: R.ChangeFrame = {
 			foo: [
 				{
 					type: "DeleteStart",
-					op: -1,
+					id: -1,
 				},
 				1,
 				{
 					type: "End",
-					op: -1,
+					id: -1,
 				},
 				{
 					type: "DeleteStart",
-					op: -2,
+					id: -2,
 				},
 				1,
 				{
@@ -98,12 +98,12 @@ const deleteSlice: R.ChangeFrame = {
 						bar: [
 							{
 								type: "DeleteStart",
-								op: -3,
+								id: -3,
 							},
 							1,
 							{
 								type: "End",
-								op: -3,
+								id: -3,
 							},
 						],
 					},
@@ -111,7 +111,7 @@ const deleteSlice: R.ChangeFrame = {
 				1,
 				{
 					type: "End",
-					op: -2,
+					id: -2,
 				},
 			],
 		},
@@ -124,12 +124,12 @@ const revive: R.ChangeFrame = {
 				{
 					type: "ReviveSet",
 					seq,
-					op: -1,
+					id: -1,
 				},
 				{
 					type: "ReviveSet",
 					seq,
-					op: -2,
+					id: -2,
 					length: 3,
 					mods: [
 						1,
@@ -139,7 +139,7 @@ const revive: R.ChangeFrame = {
 									{
 										type: "ReviveSet",
 										seq,
-										op: -3,
+										id: -3,
 									},
 								],
 							},
@@ -157,12 +157,12 @@ const reviveSlice: R.ChangeFrame = {
 				{
 					type: "ReviveSlice",
 					seq,
-					op: -1,
+					id: -1,
 				},
 				{
 					type: "ReviveSlice",
 					seq,
-					op: -2,
+					id: -2,
 					length: 3,
 					mods: [
 						1,
@@ -172,7 +172,7 @@ const reviveSlice: R.ChangeFrame = {
 									{
 										type: "ReviveSlice",
 										seq,
-										op: -3,
+										id: -3,
 									},
 								],
 							},
@@ -220,12 +220,12 @@ const moveSetInTrait: R.ChangeFrame = {
 					1,
 					{
 						type: "MoveIn",
-						op: 0,
+						id: 0,
 					},
 					1,
 					{
 						type: "MoveOutSet",
-						op: 0,
+						id: 0,
 					},
 				],
 			},
@@ -243,17 +243,17 @@ const moveSliceInTrait: R.ChangeFrame = {
 					1,
 					{
 						type: "MoveInSlice",
-						op: 0,
+						id: 0,
 					},
 					1,
 					{
 						type: "MoveOutStart",
-						op: 0,
+						id: 0,
 					},
 					1,
 					{
 						type: "End",
-						op: 0,
+						id: 0,
 					},
 				],
 			},
@@ -270,13 +270,13 @@ const moveSetAcrossTraits: R.ChangeFrame = {
 				foo: [
 					{
 						type: "MoveOutSet",
-						op: 0,
+						id: 0,
 					},
 				],
 				bar: [
 					{
 						type: "MoveIn",
-						op: 0,
+						id: 0,
 					},
 				],
 			},
@@ -293,18 +293,18 @@ const moveSliceAcrossTraits: R.ChangeFrame = {
 				foo: [
 					{
 						type: "MoveOutStart",
-						op: 0,
+						id: 0,
 					},
 					1,
 					{
 						type: "End",
-						op: 0,
+						id: 0,
 					},
 				],
 				bar: [
 					{
 						type: "MoveInSlice",
-						op: 0,
+						id: 0,
 					},
 				],
 			},
@@ -322,12 +322,12 @@ const returnSetInTrait: R.ChangeFrame = {
 					1,
 					{
 						type: "MoveOutSet",
-						op: 0,
+						id: 0,
 					},
 					1,
 					{
 						type: "ReturnSet",
-						op: 0,
+						id: 0,
 						seq,
 					},
 				],
@@ -346,17 +346,17 @@ const returnSliceInTrait: R.ChangeFrame = {
 					1,
 					{
 						type: "MoveOutStart",
-						op: 0,
+						id: 0,
 					},
 					1,
 					{
 						type: "End",
-						op: 0,
+						id: 0,
 					},
 					1,
 					{
 						type: "ReturnSlice",
-						op: 0,
+						id: 0,
 						seq,
 					},
 				],
@@ -375,13 +375,13 @@ const returnSetAcrossTraits: R.ChangeFrame = {
 					{
 						type: "ReturnSet",
 						seq,
-						op: 0,
+						id: 0,
 					},
 				],
 				bar: [
 					{
 						type: "MoveOutSet",
-						op: 0,
+						id: 0,
 					},
 				],
 			},
@@ -399,18 +399,18 @@ const returnSliceAcrossTraits: R.ChangeFrame = {
 					{
 						type: "ReturnSlice",
 						seq,
-						op: 0,
+						id: 0,
 					},
 				],
 				bar: [
 					{
 						type: "MoveOutStart",
-						op: 0,
+						id: 0,
 					},
 					1,
 					{
 						type: "End",
-						op: 0,
+						id: 0,
 					},
 				],
 			},
@@ -428,13 +428,13 @@ const returnTwiceSetInTrait: R.ChangeFrame = {
 					1,
 					{
 						type: "ReturnSet",
-						op: 0,
+						id: 0,
 						seq,
 					},
 					1,
 					{
 						type: "MoveOutSet",
-						op: 0,
+						id: 0,
 					},
 				],
 			},
@@ -452,18 +452,18 @@ const returnTwiceSliceInTrait: R.ChangeFrame = {
 					1,
 					{
 						type: "ReturnSlice",
-						op: 0,
+						id: 0,
 						seq,
 					},
 					1,
 					{
 						type: "MoveOutStart",
-						op: 0,
+						id: 0,
 					},
 					1,
 					{
 						type: "End",
-						op: 0,
+						id: 0,
 					},
 				],
 			},
@@ -480,14 +480,14 @@ const returnTwiceSetAcrossTraits: R.ChangeFrame = {
 				foo: [
 					{
 						type: "MoveOutSet",
-						op: 0,
+						id: 0,
 					},
 				],
 				bar: [
 					{
 						type: "ReturnSet",
 						seq,
-						op: 0,
+						id: 0,
 					},
 				],
 			},
@@ -504,19 +504,19 @@ const returnTwiceSliceAcrossTraits: R.ChangeFrame = {
 				foo: [
 					{
 						type: "MoveOutStart",
-						op: 0,
+						id: 0,
 					},
 					1,
 					{
 						type: "End",
-						op: 0,
+						id: 0,
 					},
 				],
 				bar: [
 					{
 						type: "ReturnSlice",
 						seq,
-						op: 0,
+						id: 0,
 					},
 				],
 			},

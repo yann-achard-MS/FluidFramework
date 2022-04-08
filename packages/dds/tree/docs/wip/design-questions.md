@@ -98,7 +98,7 @@ For example, a range from `after A to after C` covers the same nodes as `before 
 
 Here again we may be able to construct 3 ranges: `after A to before B`, `before B to after C`, `after C to before D`.
 
-An alternative would be to represent ranges as segments and have those nest when appropriate.
+An alternative would be to represent ranges as segments and have those nest when appropriate. A question that comes up when we do that is: which segment should be the outer one and which segment should be the inner one?
 
 ## What leads to marks being split?
 
@@ -133,12 +133,12 @@ const e1 = [
 
 const e2 = [
     1,
-    { type: "Insert", content: [{ id: "X" }] },
+    { type: "Insert", id: 0, content: [{ id: "X" }] },
 ];
 
 const e3 = [
     2,
-    { type: "Insert", content: [{ id: "Y" }] },
+    { type: "Insert", id: 0, content: [{ id: "Y" }] },
 ];
 
 
@@ -149,7 +149,7 @@ const e3p = [
     1, // Normal offset forces splitting of the bounds
     { type: "PriorSetDetachStart", seq: 1, op: -1 },
     1, // Tombstone
-    { type: "Insert", content: [{ id: "Y" }] },
+    { type: "Insert", id: 0, content: [{ id: "Y" }] },
     2, // Tombstones
     { type: "PriorRangeEnd", seq: 1, op: -1 },
 ];
@@ -199,11 +199,15 @@ One solution would be to separate the domain of move #s from the domain of inser
 
 A better solution is to have all ops use the same ID space but make the move table sparse. This may be represented as a map in the over-the-wire format (or something that uses offsets to take advantage of the fact that the IDs are sorted) but will likely be a sorted list in main memory so we can binary search our way through it.
 
+## Should the outout of postbase include priors (posteriors?)?
+
+This comes up in scenario G.
+
 ## Current POR
 
 Use segments for everything (no pairs of bound marks).
 
-Maintain a hierarchy by splitting segments up as needed and nesting them.
+Maintain a hierarchy by splitting segments up as needed and nesting them. The nesting will be from most recent (on the outside) to most prior (on the inside). This ordering is like function application (latter calls on the outside). This ordering should reduce the amount of splitting because a new range cannot be contained by an older one, whereas the reverse is true. The exception being attach operations which are included in the inner-most range they fall within.
 
 Use frames.
 

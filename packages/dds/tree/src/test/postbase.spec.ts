@@ -38,7 +38,7 @@ describe(postbase.name, () => {
 						modify: {
 							foo: [
 								3,
-								{ type: "Insert", content: [{ id: "X" }] },
+								{ type: "Insert", id: 0, content: [{ id: "X" }] },
 							],
 						},
 					}],
@@ -52,7 +52,7 @@ describe(postbase.name, () => {
 			// 			modify: {
 			// 				foo: [
 			// 					3,
-			// 					{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
+			// 					{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.None },
 			// 				],
 			// 			},
 			// 		}],
@@ -67,7 +67,7 @@ describe(postbase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "Insert", content: [{ id: "A" }, { id: "B" }] },
+										{ type: "Insert", id: 0, content: [{ id: "A" }, { id: "B" }] },
 									],
 								},
 							}],
@@ -81,7 +81,7 @@ describe(postbase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "Insert", content: [{ id: "A" }, { id: "B" }] },
+										{ type: "Insert", id: 0, content: [{ id: "A" }, { id: "B" }] },
 									],
 								},
 							}],
@@ -99,7 +99,7 @@ describe(postbase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "Insert", content: [{ id: "A" }, { id: "B" }] },
+										{ type: "Insert", id: 0, content: [{ id: "A" }, { id: "B" }] },
 									],
 								},
 							}],
@@ -114,7 +114,7 @@ describe(postbase.name, () => {
 								modify: {
 									foo: [
 										6,
-										{ type: "Insert", content: [{ id: "A" }, { id: "B" }] },
+										{ type: "Insert", id: 0, content: [{ id: "A" }, { id: "B" }] },
 									],
 								},
 							}],

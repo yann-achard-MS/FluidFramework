@@ -38,7 +38,7 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								3,
-								{ type: "Insert", content: [{ id: "X" }] },
+								{ type: "Insert", id: 0, content: [{ id: "X" }] },
 							],
 						},
 					}],
@@ -52,7 +52,7 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								3,
-								{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
+								{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.None },
 							],
 						},
 					}],
@@ -67,7 +67,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "Insert", content: [{ id: "A" }, { id: "B" }] },
+										{ type: "Insert", id: 0, content: [{ id: "A" }, { id: "B" }] },
 									],
 								},
 							}],
@@ -82,7 +82,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
 								},
 							}],
@@ -100,7 +100,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "Insert", content: [{ id: "A" }, { id: "B" }] },
+										{ type: "Insert", id: 0, content: [{ id: "A" }, { id: "B" }] },
 									],
 								},
 							}],
@@ -121,7 +121,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "MoveInSlice", op: 0, length: 2 },
+										{ type: "MoveInSlice", id: 0, length: 2 },
 									],
 								},
 							}],
@@ -137,7 +137,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
 								},
 							}],
@@ -156,7 +156,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "MoveInSlice", op: 0, length: 2 },
+										{ type: "MoveInSlice", id: 0, length: 2 },
 									],
 								},
 							}],
@@ -172,7 +172,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										3,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
 								},
 							}],
@@ -192,7 +192,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "MoveIn", op: 0, length: 2 },
+										{ type: "MoveIn", id: 0, length: 2 },
 									],
 								},
 							}],
@@ -208,7 +208,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
 								},
 							}],
@@ -227,7 +227,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "MoveIn", op: 0, length: 2 },
+										{ type: "MoveIn", id: 0, length: 2 },
 									],
 								},
 							}],
@@ -243,7 +243,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										3,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
 								},
 							}],
@@ -262,7 +262,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "DeleteSet", op: -1, length: 2 },
+										{ type: "DeleteSet", id: -1, length: 2 },
 									],
 								},
 							}],
@@ -276,11 +276,11 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+										{ type: "PriorSetDetachStart", seq: 1, id: -1 },
 										2,
-										{ type: "PriorRangeEnd", seq: 1, op: -1 },
+										{ type: "PriorRangeEnd", seq: 1, id: -1 },
 										1,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
 								},
 							}],
@@ -298,7 +298,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "DeleteSet", op: -1, length: 2 },
+										{ type: "DeleteSet", id: -1, length: 2 },
 									],
 								},
 							}],
@@ -313,11 +313,11 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										3,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 										2,
-										{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+										{ type: "PriorSetDetachStart", seq: 1, id: -1 },
 										2,
-										{ type: "PriorRangeEnd", seq: 1, op: -1 },
+										{ type: "PriorRangeEnd", seq: 1, id: -1 },
 									],
 								},
 							}],
@@ -335,7 +335,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "DeleteSet", op: -1, length: 3 },
+										{ type: "DeleteSet", id: -1, length: 3 },
 									],
 								},
 							}],
@@ -350,11 +350,11 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "PriorSetDetachStart", op: -1, seq: 1 },
+										{ type: "PriorSetDetachStart", id: -1, seq: 1 },
 										2,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 										1,
-										{ type: "PriorRangeEnd", seq: 1, op: -1 },
+										{ type: "PriorRangeEnd", seq: 1, id: -1 },
 									],
 								},
 							}],
@@ -374,7 +374,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "MoveOutSet", op: 0, length: 2 },
+										{ type: "MoveOutSet", id: 0, length: 2 },
 									],
 								},
 							}],
@@ -389,11 +389,11 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorSetDetachStart", seq: 1, op: 0 },
+										{ type: "PriorSetDetachStart", seq: 1, id: 0 },
 										2,
-										{ type: "PriorRangeEnd", seq: 1, op: 0 },
+										{ type: "PriorRangeEnd", seq: 1, id: 0 },
 										1,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
 								},
 							}],
@@ -412,7 +412,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "MoveOutSet", op: 0, length: 2 },
+										{ type: "MoveOutSet", id: 0, length: 2 },
 									],
 								},
 							}],
@@ -428,11 +428,11 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										3,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 										2,
-										{ type: "PriorSetDetachStart", seq: 1, op: 0 },
+										{ type: "PriorSetDetachStart", seq: 1, id: 0 },
 										2,
-										{ type: "PriorRangeEnd", seq: 1, op: 0 },
+										{ type: "PriorRangeEnd", seq: 1, id: 0 },
 									],
 								},
 							}],
@@ -451,7 +451,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "MoveOutSet", op: 0, length: 3 },
+										{ type: "MoveOutSet", id: 0, length: 3 },
 									],
 								},
 							}],
@@ -467,11 +467,11 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "PriorSetDetachStart", seq: 1, op: 0 },
+										{ type: "PriorSetDetachStart", seq: 1, id: 0 },
 										2,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 										1,
-										{ type: "PriorRangeEnd", seq: 1, op: 0 },
+										{ type: "PriorRangeEnd", seq: 1, id: 0 },
 									],
 								},
 							}],
@@ -490,9 +490,9 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "DeleteStart", op: 0 },
+										{ type: "DeleteStart", id: 0 },
 										2,
-										{ type: "End", op: 0 },
+										{ type: "End", id: 0 },
 									],
 								},
 							}],
@@ -506,11 +506,11 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorDeleteStart", seq: 1, op: 0 },
+										{ type: "PriorDeleteStart", seq: 1, id: 0 },
 										2,
-										{ type: "PriorRangeEnd", seq: 1, op: 0 },
+										{ type: "PriorRangeEnd", seq: 1, id: 0 },
 										1,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
 								},
 							}],
@@ -528,9 +528,9 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "DeleteStart", op: 0 },
+										{ type: "DeleteStart", id: 0 },
 										2,
-										{ type: "End", op: 0 },
+										{ type: "End", id: 0 },
 									],
 								},
 							}],
@@ -545,11 +545,11 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										3,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 										2,
-										{ type: "PriorDeleteStart", seq: 1, op: 0 },
+										{ type: "PriorDeleteStart", seq: 1, id: 0 },
 										2,
-										{ type: "PriorRangeEnd", seq: 1, op: 0 },
+										{ type: "PriorRangeEnd", seq: 1, id: 0 },
 									],
 								},
 							}],
@@ -567,9 +567,9 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "DeleteStart", op: 0 },
+										{ type: "DeleteStart", id: 0 },
 										3,
-										{ type: "End", op: 0 },
+										{ type: "End", id: 0 },
 									],
 								},
 							}],
@@ -585,11 +585,11 @@ describe(rebase.name, () => {
 									modify: {
 										foo: [
 											1,
-											{ type: "PriorDeleteStart", seq: 1, op: 0 },
+											{ type: "PriorDeleteStart", seq: 1, id: 0 },
 											2,
-											{ type: "Insert", content: [{ id: "X" }] },
+											{ type: "Insert", id: 0, content: [{ id: "X" }] },
 											1,
-											{ type: "PriorRangeEnd", seq: 1, op: 0 },
+											{ type: "PriorRangeEnd", seq: 1, id: 0 },
 										],
 									},
 								}],
@@ -608,11 +608,11 @@ describe(rebase.name, () => {
 									modify: {
 										foo: [
 											1,
-											{ type: "PriorDeleteStart", seq: 1, op: 0 },
+											{ type: "PriorDeleteStart", seq: 1, id: 0 },
 											2,
-											{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
+											{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.None },
 											1,
-											{ type: "PriorRangeEnd", seq: 1, op: 0 },
+											{ type: "PriorRangeEnd", seq: 1, id: 0 },
 										],
 									},
 								}],
@@ -633,9 +633,9 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "MoveOutStart", op: 0 },
+										{ type: "MoveOutStart", id: 0 },
 										2,
-										{ type: "End", op: 0 },
+										{ type: "End", id: 0 },
 									],
 								},
 							}],
@@ -650,11 +650,11 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorMoveOutStart", seq: 1, op: 0 },
+										{ type: "PriorMoveOutStart", seq: 1, id: 0 },
 										2,
-										{ type: "PriorRangeEnd", seq: 1, op: 0 },
+										{ type: "PriorRangeEnd", seq: 1, id: 0 },
 										1,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
 								},
 							}],
@@ -673,9 +673,9 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "MoveOutStart", op: 0 },
+										{ type: "MoveOutStart", id: 0 },
 										2,
-										{ type: "End", op: 0 },
+										{ type: "End", id: 0 },
 									],
 								},
 							}],
@@ -691,11 +691,11 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										3,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 										2,
-										{ type: "PriorMoveOutStart", seq: 1, op: 0 },
+										{ type: "PriorMoveOutStart", seq: 1, id: 0 },
 										2,
-										{ type: "PriorRangeEnd", seq: 1, op: 0 },
+										{ type: "PriorRangeEnd", seq: 1, id: 0 },
 									],
 								},
 							}],
@@ -714,9 +714,9 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "MoveOutStart", op: 0 },
+										{ type: "MoveOutStart", id: 0 },
 										3,
-										{ type: "End", op: 0 },
+										{ type: "End", id: 0 },
 									],
 								},
 							}],
@@ -733,11 +733,11 @@ describe(rebase.name, () => {
 									modify: {
 										foo: [
 											1,
-											{ type: "PriorMoveOutStart", seq: 1, op: 0 },
+											{ type: "PriorMoveOutStart", seq: 1, id: 0 },
 											2,
-											{ type: "Insert", content: [{ id: "X" }] },
+											{ type: "Insert", id: 0, content: [{ id: "X" }] },
 											1,
-											{ type: "PriorRangeEnd", seq: 1, op: 0 },
+											{ type: "PriorRangeEnd", seq: 1, id: 0 },
 										],
 									},
 								}],
@@ -757,11 +757,11 @@ describe(rebase.name, () => {
 									modify: {
 										foo: [
 											1,
-											{ type: "PriorMoveOutStart", seq: 1, op: 0 },
+											{ type: "PriorMoveOutStart", seq: 1, id: 0 },
 											2,
-											{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
+											{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.None },
 											1,
-											{ type: "PriorRangeEnd", seq: 1, op: 0 },
+											{ type: "PriorRangeEnd", seq: 1, id: 0 },
 										],
 									},
 								}],
@@ -782,7 +782,7 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								2,
-								{ type: "DeleteSet", op: -1, length: 3 },
+								{ type: "DeleteSet", id: -1, length: 3 },
 							],
 						},
 					}],
@@ -797,7 +797,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
 								},
 							}],
@@ -812,7 +812,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										3,
-										{ type: "DeleteSet", op: -1, length: 3 },
+										{ type: "DeleteSet", id: -1, length: 3 },
 									],
 								},
 							}],
@@ -830,7 +830,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										6,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
 								},
 							}],
@@ -845,7 +845,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										2,
-										{ type: "DeleteSet", op: -1, length: 3 },
+										{ type: "DeleteSet", id: -1, length: 3 },
 									],
 								},
 							}],
@@ -863,7 +863,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										4,
-										{ type: "Insert", content: [{ id: "X" }] },
+										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
 								},
 							}],
@@ -878,9 +878,9 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										2,
-										{ type: "DeleteSet", op: -1, length: 2 },
+										{ type: "DeleteSet", id: -1, length: 2 },
 										1,
-										{ type: "DeleteSet", op: -2 },
+										{ type: "DeleteSet", id: -2 },
 									],
 								},
 							}],
@@ -899,7 +899,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "DeleteSet", op: -1 },
+										{ type: "DeleteSet", id: -1 },
 									],
 								},
 							}],
@@ -913,11 +913,11 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+										{ type: "PriorSetDetachStart", seq: 1, id: -1 },
 										1,
-										{ type: "PriorRangeEnd", seq: 1, op: -1 },
+										{ type: "PriorRangeEnd", seq: 1, id: -1 },
 										1,
-										{ type: "DeleteSet", op: -1, length: 3 },
+										{ type: "DeleteSet", id: -1, length: 3 },
 									],
 								},
 							}],
@@ -935,7 +935,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										6,
-										{ type: "DeleteSet", op: -1 },
+										{ type: "DeleteSet", id: -1 },
 									],
 								},
 							}],
@@ -950,11 +950,11 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										2,
-										{ type: "DeleteSet", op: -1, length: 3 },
+										{ type: "DeleteSet", id: -1, length: 3 },
 										1,
-										{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+										{ type: "PriorSetDetachStart", seq: 1, id: -1 },
 										1,
-										{ type: "PriorRangeEnd", seq: 1, op: -1 },
+										{ type: "PriorRangeEnd", seq: 1, id: -1 },
 									],
 								},
 							}],
@@ -972,7 +972,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										4,
-										{ type: "DeleteSet", op: -1 },
+										{ type: "DeleteSet", id: -1 },
 									],
 								},
 							}],
@@ -987,11 +987,11 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										2,
-										{ type: "DeleteSet", op: -1 },
-										{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+										{ type: "DeleteSet", id: -1 },
+										{ type: "PriorSetDetachStart", seq: 1, id: -1 },
 										1,
-										{ type: "PriorRangeEnd", seq: 1, op: -1 },
-										{ type: "DeleteSet", op: -2 },
+										{ type: "PriorRangeEnd", seq: 1, id: -1 },
+										{ type: "DeleteSet", id: -2 },
 									],
 								},
 							}],
@@ -1009,7 +1009,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "DeleteSet", op: -1, length: 5 },
+										{ type: "DeleteSet", id: -1, length: 5 },
 									],
 								},
 							}],
@@ -1024,11 +1024,11 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+										{ type: "PriorSetDetachStart", seq: 1, id: -1 },
 										1,
-										{ type: "DeleteSet", op: 0, length: 3 },
+										{ type: "DeleteSet", id: 0, length: 3 },
 										1,
-										{ type: "PriorRangeEnd", seq: 1, op: -1 },
+										{ type: "PriorRangeEnd", seq: 1, id: -1 },
 									],
 								},
 							}],
@@ -1051,7 +1051,7 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								1,
-								{ type: "ReviveSet", seq: 0, op: -1, length: 3 },
+								{ type: "ReviveSet", seq: 0, id: -1, length: 3 },
 							],
 						},
 					}],
@@ -1067,10 +1067,10 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorSetDetachStart", seq: 0, op: -1 },
+									{ type: "PriorSetDetachStart", seq: 0, id: -1 },
 									3,
-									{ type: "PriorRangeEnd", seq: 0, op: -1 },
-									{ type: "Insert", content: [] },
+									{ type: "PriorRangeEnd", seq: 0, id: -1 },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1085,7 +1085,7 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									4,
-									{ type: "Insert", content: [] },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1104,10 +1104,10 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "Insert", content: [] },
-									{ type: "PriorSetDetachStart", seq: 0, op: -1 },
+									{ type: "Insert", id: 0, content: [] },
+									{ type: "PriorSetDetachStart", seq: 0, id: -1 },
 									3,
-									{ type: "PriorRangeEnd", seq: 0, op: -1 },
+									{ type: "PriorRangeEnd", seq: 0, id: -1 },
 								],
 							},
 						}],
@@ -1122,7 +1122,7 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "Insert", content: [] },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1141,11 +1141,11 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorSetDetachStart", seq: 0, op: -1 },
+									{ type: "PriorSetDetachStart", seq: 0, id: -1 },
 									2,
-									{ type: "Insert", content: [] },
+									{ type: "Insert", id: 0, content: [] },
 									1,
-									{ type: "PriorRangeEnd", seq: 0, op: -1 },
+									{ type: "PriorRangeEnd", seq: 0, id: -1 },
 								],
 							},
 						}],
@@ -1160,7 +1160,7 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									3,
-									{ type: "Insert", content: [] },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1179,7 +1179,7 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								1,
-								{ type: "ReviveSlice", op: 0, seq: 0, length: 3 },
+								{ type: "ReviveSlice", id: 0, seq: 0, length: 3 },
 							],
 						},
 					}],
@@ -1195,10 +1195,10 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorDeleteStart", seq: 0, op: 0 },
+									{ type: "PriorDeleteStart", seq: 0, id: 0 },
 									3,
-									{ type: "PriorRangeEnd", seq: 0, op: 0 },
-									{ type: "Insert", content: [] },
+									{ type: "PriorRangeEnd", seq: 0, id: 0 },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1213,7 +1213,7 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									4,
-									{ type: "Insert", content: [] },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1232,10 +1232,10 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "Insert", content: [] },
-									{ type: "PriorDeleteStart", seq: 0, op: 0 },
+									{ type: "Insert", id: 0, content: [] },
+									{ type: "PriorDeleteStart", seq: 0, id: 0 },
 									3,
-									{ type: "PriorRangeEnd", seq: 0, op: 0 },
+									{ type: "PriorRangeEnd", seq: 0, id: 0 },
 								],
 							},
 						}],
@@ -1250,7 +1250,7 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "Insert", content: [] },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1269,11 +1269,11 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorDeleteStart", seq: 0, op: 0 },
+									{ type: "PriorDeleteStart", seq: 0, id: 0 },
 									2,
-									{ type: "Insert", content: [] },
+									{ type: "Insert", id: 0, content: [] },
 									1,
-									{ type: "PriorRangeEnd", seq: 0, op: 0 },
+									{ type: "PriorRangeEnd", seq: 0, id: 0 },
 								],
 							},
 						}],
@@ -1288,7 +1288,7 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									3,
-									{ type: "Insert", content: [] },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1307,7 +1307,7 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								1,
-								{ type: "DeleteSet", op: -1, length: 3 },
+								{ type: "DeleteSet", id: -1, length: 3 },
 							],
 						},
 					}],
@@ -1323,8 +1323,8 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									5,
-									{ type: "ReviveSet", seq: 0, op: -1, length: 3 },
-									{ type: "Insert", content: [] },
+									{ type: "ReviveSet", seq: 0, id: -1, length: 3 },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1339,12 +1339,12 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+									{ type: "PriorSetDetachStart", seq: 1, id: -1 },
 									3,
-									{ type: "PriorRangeEnd", seq: 1, op: -1 },
+									{ type: "PriorRangeEnd", seq: 1, id: -1 },
 									1,
-									{ type: "ReviveSet", seq: 0, op: -1, length: 3 },
-									{ type: "Insert", content: [] },
+									{ type: "ReviveSet", seq: 0, id: -1, length: 3 },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1362,8 +1362,8 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									{ type: "Insert", content: [] },
-									{ type: "ReviveSet", seq: 0, op: -1, length: 3 },
+									{ type: "Insert", id: 0, content: [] },
+									{ type: "ReviveSet", seq: 0, id: -1, length: 3 },
 								],
 							},
 						}],
@@ -1377,12 +1377,12 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									{ type: "Insert", content: [] },
-									{ type: "ReviveSet", seq: 0, op: -1, length: 3 },
+									{ type: "Insert", id: 0, content: [] },
+									{ type: "ReviveSet", seq: 0, id: -1, length: 3 },
 									1,
-									{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+									{ type: "PriorSetDetachStart", seq: 1, id: -1 },
 									3,
-									{ type: "PriorRangeEnd", seq: 1, op: -1 },
+									{ type: "PriorRangeEnd", seq: 1, id: -1 },
 								],
 							},
 						}],
@@ -1401,8 +1401,8 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									3,
-									{ type: "ReviveSet", seq: 0, op: -1, length: 2 },
-									{ type: "Insert", content: [] },
+									{ type: "ReviveSet", seq: 0, id: -1, length: 2 },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1417,11 +1417,11 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorSetDetachStart", seq: 1, op: -1 },
+									{ type: "PriorSetDetachStart", seq: 1, id: -1 },
 									2,
-									{ type: "ReviveSet", seq: 0, op: -1, length: 2 },
-									{ type: "Insert", content: [] },
-									{ type: "PriorRangeEnd", seq: 1, op: -1 },
+									{ type: "ReviveSet", seq: 0, id: -1, length: 2 },
+									{ type: "Insert", id: 0, content: [] },
+									{ type: "PriorRangeEnd", seq: 1, id: -1 },
 								],
 							},
 						}],
@@ -1440,9 +1440,9 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								1,
-								{ type: "DeleteStart", op: 0 },
+								{ type: "DeleteStart", id: 0 },
 								3,
-								{ type: "End", op: 0 },
+								{ type: "End", id: 0 },
 							],
 						},
 					}],
@@ -1458,8 +1458,8 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									5,
-									{ type: "ReviveSlice", seq: 0, op: 0, length: 3 },
-									{ type: "Insert", content: [] },
+									{ type: "ReviveSlice", seq: 0, id: 0, length: 3 },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1474,12 +1474,12 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorDeleteStart", seq: 1, op: 0 },
+									{ type: "PriorDeleteStart", seq: 1, id: 0 },
 									3,
-									{ type: "PriorRangeEnd", seq: 1, op: 0 },
+									{ type: "PriorRangeEnd", seq: 1, id: 0 },
 									1,
-									{ type: "ReviveSlice", seq: 0, op: 0, length: 3 },
-									{ type: "Insert", content: [] },
+									{ type: "ReviveSlice", seq: 0, id: 0, length: 3 },
+									{ type: "Insert", id: 0, content: [] },
 								],
 							},
 						}],
@@ -1497,8 +1497,8 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									{ type: "Insert", content: [] },
-									{ type: "ReviveSlice", seq: 0, op: 0, length: 3 },
+									{ type: "Insert", id: 0, content: [] },
+									{ type: "ReviveSlice", seq: 0, id: 0, length: 3 },
 								],
 							},
 						}],
@@ -1512,12 +1512,12 @@ describe(rebase.name, () => {
 						marks: [{
 							modify: {
 								foo: [
-									{ type: "Insert", content: [] },
-									{ type: "ReviveSlice", seq: 0, op: 0, length: 3 },
+									{ type: "Insert", id: 0, content: [] },
+									{ type: "ReviveSlice", seq: 0, id: 0, length: 3 },
 									1,
-									{ type: "PriorDeleteStart", seq: 1, op: 0 },
+									{ type: "PriorDeleteStart", seq: 1, id: 0 },
 									3,
-									{ type: "PriorRangeEnd", seq: 1, op: 0 },
+									{ type: "PriorRangeEnd", seq: 1, id: 0 },
 								],
 							},
 						}],
@@ -1536,9 +1536,9 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									3,
-									{ type: "ReviveSlice", seq: 0, op: 0, length: 2 },
-									{ type: "Insert", content: [] },
-									{ type: "ReviveSlice", seq: 0, op: 0 },
+									{ type: "ReviveSlice", seq: 0, id: 0, length: 2 },
+									{ type: "Insert", id: 0, content: [] },
+									{ type: "ReviveSlice", seq: 0, id: 0 },
 								],
 							},
 						}],
@@ -1553,13 +1553,13 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorDeleteStart", seq: 1, op: 0 },
+									{ type: "PriorDeleteStart", seq: 1, id: 0 },
 									2,
-									{ type: "ReviveSlice", seq: 0, op: 0, length: 2 },
-									{ type: "Insert", content: [] },
-									{ type: "ReviveSlice", seq: 0, op: 0 },
+									{ type: "ReviveSlice", seq: 0, id: 0, length: 2 },
+									{ type: "Insert", id: 0, content: [] },
+									{ type: "ReviveSlice", seq: 0, id: 0 },
 									1,
-									{ type: "PriorRangeEnd", seq: 1, op: 0 },
+									{ type: "PriorRangeEnd", seq: 1, id: 0 },
 								],
 							},
 						}],

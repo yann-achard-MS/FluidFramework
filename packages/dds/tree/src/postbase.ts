@@ -182,7 +182,7 @@ function postbaseOverMark(
 	while (ptr.mark !== undefined && (isAttachSegment(ptr.mark) || isReviveSet(ptr.mark) || isReviveSlice(ptr.mark))) {
 		const mark = ptr.mark;
 		if (isMoveIn(mark)) {
-			const moveEntry = (context.moves ?? fail("Missing move entry in frame"))[mark.op];
+			const moveEntry = (context.moves ?? fail("Missing move entry in frame"))[mark.id];
 			moveEntry.dst = ptr.asDstPath();
 		}
 		ptr = ptr.skipMarks(1);

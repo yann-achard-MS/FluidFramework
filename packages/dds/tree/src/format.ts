@@ -62,6 +62,7 @@ export namespace Original {
 	}
 
 	export interface MoveEntry {
+		id: OpId;
 		src: TreePath;
 		dst: TreePath;
 	}
@@ -70,7 +71,7 @@ export namespace Original {
 		/**
 		 * The sequential ID assigned to the change within the change frame.
 		 */
-		op: OpId;
+		id: OpId;
 	}
 
 	export interface ChangeFrame {
@@ -254,7 +255,7 @@ export namespace Original {
 		 * at the same index should go before or after this one.
 		 * Omit if `Sibling.Prev` for terseness.
 		 */
-		side?: Sibling;
+		side?: Sibling.Next;
 		/**
 		 * Omit if not in peer change.
 		 * Omit if `Tiebreak.LastToFirst` for terseness.
@@ -386,8 +387,12 @@ export namespace Rebased {
 
 	export interface ChangeFrame {
 		moves?: MoveEntry[];
-		priorMoves?: { [key: number]: MoveEntry[] };
+		priorMoves?: PriorMoveEntry[];
 		marks: TraitMarks;
+	}
+
+	export interface PriorMoveEntry extends MoveEntry {
+		seq: SeqNumber;
 	}
 
 	export type TraitMark = Offset | Mark;
@@ -406,13 +411,13 @@ export namespace Rebased {
 		| Delete;
 	export type SegmentMark =
 		| AttachMark
-		| DetachMark;
-	export type ObjMark =
-		| ModsMark
-		| SegmentMark
+		| DetachMark
+		| Prior
 		| Return
 		| Revive;
-
+	export type ObjMark =
+		| ModsMark
+		| SegmentMark;
 	export type Mark =
 		| ObjMark;
 
@@ -430,7 +435,7 @@ export namespace Rebased {
 	export interface MoveIn extends IsPlace, HasOpId, HasLength {
 		type: "MoveIn";
 		range: RangeType;
-		mods?: RangeMods<Mark>;
+		mods?: RangeMods<Original.Mark>;
 	}
 
 	export type MoveOut = MoveOutSet | MoveOutSlice;
@@ -438,25 +443,29 @@ export namespace Rebased {
 
 	export interface DeleteSet extends HasOpId, HasLength {
 		type: "DeleteSet";
-		mods?: RangeMods<MoveOut, false>;
+		mods?: RangeMods<MoveOut | Prior, false>;
 	}
 
 	export interface DeleteSlice extends IsSlice, HasOpId, HasLength {
 		type: "DeleteSlice";
-		mods?: RangeMods<MoveOut, false>;
+		mods?: RangeMods<MoveOut | Prior, false>;
 	}
 
 	export interface MoveOutSet extends HasOpId, HasLength {
 		type: "MoveOutSet";
-		mods?: RangeMods<MoveOut | Delete, false>;
+		mods?: RangeMods<MoveOut | Delete | Prior, false>;
 	}
 
 	export interface MoveOutSlice extends IsSlice, HasOpId, HasLength {
 		type: "MoveOutSlice";
-		mods?: RangeMods<MoveOut | Delete, false>;
+		mods?: RangeMods<MoveOut | Delete | Prior, false>;
 	}
 
 	// -- Prior Changes ---
+
+	export type Prior = PriorAttach | PriorDetach;
+	export type PriorAttach = PriorInsert | PriorMoveIn;
+	export type PriorDetach = PriorDelete | PriorMoveOut;
 
 	export interface PriorInsert extends IsPlace, HasLength, HasSeqNumber, HasOpId {
 		type: "PriorInsert";
@@ -470,27 +479,44 @@ export namespace Rebased {
 		mods?: RangeMods<Mark>;
 	}
 
+	export type DeleteRangeMod =
+		| MoveOut
+		| PriorInsert
+		| PriorDelete
+		| PriorMoveIn
+		| PriorMoveOut
+	;
+
+	export type MoveOutRangeMod =
+		| Delete
+		| MoveOut
+		| PriorInsert
+		| PriorDelete
+		| PriorMoveIn
+		| PriorMoveOut
+	;
+
 	export type PriorMoveOut = PriorMoveOutSet | PriorMoveOutSlice;
 	export type PriorDelete = PriorDeleteSet | PriorDeleteSlice;
 
 	export interface PriorDeleteSet extends HasSeqNumber, HasOpId, HasLength {
 		type: "PriorDeleteSet";
-		mods?: RangeMods<PriorMoveOut | MoveOut, false>;
+		mods?: RangeMods<PriorMoveOut | AttachMark, false>;
 	}
 
 	export interface PriorDeleteSlice extends HasSeqNumber, HasOpId, HasLength {
 		type: "PriorDeleteSlice";
-		mods?: RangeMods<PriorMoveOut | MoveOut, false>;
+		mods?: RangeMods<PriorMoveOut | AttachMark, false>;
 	}
 
 	export interface PriorMoveOutSet extends HasOpId, HasSeqNumber, HasLength {
 		type: "PriorMoveOutSet";
-		mods?: RangeMods<PriorMoveOut | MoveOut | PriorDelete | Delete, false>;
+		mods?: RangeMods<PriorMoveOut | PriorDelete | AttachMark, false>;
 	}
 
 	export interface PriorMoveOutSlice extends HasSeqNumber, HasOpId, HasLength {
 		type: "PriorMoveOutSlice";
-		mods?: RangeMods<PriorMoveOut | MoveOut | PriorDelete | Delete, false>;
+		mods?: RangeMods<PriorMoveOut | PriorDelete | AttachMark, false>;
 	}
 
 	// -- Inverse Changes ---
@@ -545,8 +571,8 @@ export type TreeRootPath = number | { [label: number]: TreeChildPath; };
 export type TreePath = TreeChildPath | TreeRootPath;
 
 export enum RangeType {
-	Set,
-	Slice,
+	Set = "Set",
+	Slice = "Slice",
 }
 /**
  * The relative location of the sibling based on which a segment or segment boundary is defined.
@@ -584,4 +610,9 @@ export type NodeId = string;
 export type ClientId = number;
 export type TraitLabel = string;
 export enum Tiebreak { LastToFirst, FirstToLast }
-export enum Commutativity { Full, MoveOnly, DeleteOnly, None }
+export enum Commutativity {
+	Full = "Full",
+	Move = "Move",
+	Delete = "Delete",
+	None = "None",
+}

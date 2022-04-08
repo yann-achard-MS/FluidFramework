@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { Commutativity, Original, Rebased, Sibling, Sequenced as S, Squashed as Sq, Tiebreak } from "../format";
+import { Commutativity, Original, Rebased as R, Sibling, Sequenced as S, RangeType } from "../format";
 
 export namespace ExampleWithCraig {
 	/**
@@ -20,7 +20,7 @@ export namespace ExampleWithCraig {
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "DeleteSet", op:-1 , length: 4 },
+						{ type: "DeleteSet", id: 0 , length: 4 },
 					],
 				},
 			}],
@@ -35,7 +35,7 @@ export namespace ExampleWithCraig {
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "Insert", content: [{ id: "X" }] },
+						{ type: "Insert", id: 0, content: [{ id: "X" }] },
 					],
 				},
 			}],
@@ -50,7 +50,7 @@ export namespace ExampleWithCraig {
 				modify: {
 					foo: [
 						2, // Skip A & B
-						{ type: "Insert", content: [{ id: "Y" }] },
+						{ type: "Insert", id: 0, content: [{ id: "Y" }] },
 					],
 				},
 			}],
@@ -65,28 +65,16 @@ export namespace ExampleWithCraig {
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "PriorSetDetachStart", seq: 1, op: -1 },
-						1, // Tombstone for A
-						{ type: "Insert", content: [{ id: "X" }] },
-						3, // Tombstones for B, C, D
-						{ type: "PriorRangeEnd", seq: 1, op: -1 },
-					],
-				},
-			}],
-		}],
-	};
-
-	export const e1and2p: S.Transaction = {
-		ref: 0,
-		seq: 2,
-		newRef: 1,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						{ type: "DeleteSet", op:-1 , length: 1 },
-						{ type: "Insert", content: [{ id: "X" }] },
-						{ type: "DeleteSet", op:-1 , length: 3 },
+						{
+							type: "PriorDeleteSet",
+							seq: 1,
+							id: 0,
+							length: 4,
+							mods: [
+								1, // A
+								{ type: "Insert", id: 0, content: [{ id: "X" }] },
+							],
+						},
 					],
 				},
 			}],
@@ -94,169 +82,29 @@ export namespace ExampleWithCraig {
 	};
 
 	export const e3p: S.Transaction = {
-		ref: 0,
-		seq: 2,
-		newRef: 1,
-		frames: [{
-			marks: [{
-				modify: {
-				foo: [
-					{ type: "PriorSetDetachStart", seq: 1, op: -1 },
-					1, // Tombstone for A
-					{ type: "PriorRangeEnd", seq: 1, op: -1 },
-					1, // X
-					{ type: "PriorSetDetachStart", seq: 1, op: -1 },
-					1, // Tombstone for B
-					{ type: "Insert", content: [{ id: "Y" }] },
-					2, // Tombstones for C, D
-					{ type: "PriorRangeEnd", seq: 1, op: -1 },
-				],
-				},
-			}],
-		}],
-	};
-
-	export const allp: Rebased.Mark = {
-		modify: {
-			foo: [
-				{ type: "DeleteSet", op:-1 , length: 1 },
-				{ type: "Insert", content: [{ id: "X" }] },
-				{ type: "DeleteSet", op:-1 , length: 1 },
-				{ type: "Insert", content: [{ id: "Y" }] },
-				{ type: "DeleteSet", op:-1 , length: 2 },
-			],
-		},
-	};
-}
-
-export namespace ExampleWithCraig2 {
-	/**
-	 *         /-e2--/---\
-	 * ----e1----e3-------X-------X
-	 *   \-e4---------\-------\--/
-	 * State: [A B C D]
-	 * U1: slice-delete [A B C]
-	 * U2: insert X after B
-	 * U3: slice-delete [B C D]
-	 * U4: insert Y after C
-	 * => [X Y] not [Y X]
-	 *
-	 * W e4 is rebased over e2', we need to be able to tell how e2's tombstones compare to his tombstones.
-	 * That's not possible if e4's tombstones were expressed as a mash of e1 and e3's deletion.
-	 */
-	export const e1: S.Transaction = {
-		ref: 0,
-		seq: 1,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						{ type: "DeleteSet", op:-1 , length: 4 },
-					],
-				},
-			}],
-		}],
-	};
-
-	export const e2: S.Transaction = {
-		ref: 0,
-		seq: 2,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{ type: "Insert", content: [{ id: "X" }] },
-					],
-				},
-			}],
-		}],
-	};
-
-	export const e3: S.Transaction = {
 		ref: 0,
 		seq: 3,
+		newRef: 2,
 		frames: [{
 			marks: [{
 				modify: {
 					foo: [
-						2, // Skip A & B
-						{ type: "Insert", content: [{ id: "Y" }] },
+						{
+							type: "PriorDeleteSet",
+							seq: 1,
+							id: 0,
+							length: 4,
+							mods: [
+								1, // A
+								{ type: "Insert", id: 0, content: [{ id: "X" }] },
+								1, // B
+								{ type: "Insert", id: 0, content: [{ id: "Y" }] },
+							],
+						},
 					],
 				},
 			}],
 		}],
-	};
-
-	export const e2p: S.Transaction = {
-		ref: 0,
-		seq: 2,
-		newRef: 1,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						{ type: "PriorSetDetachStart", seq: 1, op: -1 },
-						1, // Tombstone for A
-						{ type: "Insert", content: [{ id: "X" }] },
-						3, // Tombstones for B, C, D
-						{ type: "PriorRangeEnd", seq: 1, op: -1 },
-					],
-				},
-			}],
-		}],
-	};
-
-	export const e1and2p: S.Transaction = {
-		ref: 0,
-		seq: 2,
-		newRef: 1,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						{ type: "DeleteSet", op:-1 , length: 1 },
-						{ type: "Insert", content: [{ id: "X" }] },
-						{ type: "DeleteSet", op:-1 , length: 3 },
-					],
-				},
-			}],
-		}],
-	};
-
-	export const e3p: S.Transaction = {
-		ref: 0,
-		seq: 2,
-		newRef: 1,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						{ type: "PriorSetDetachStart", seq: 1, op: -1 },
-						1, // Tombstone for A
-						{ type: "PriorRangeEnd", seq: 1, op: -1 },
-						1, // X
-						{ type: "PriorSetDetachStart", seq: 1, op: -1 },
-						1, // Tombstone for B
-						{ type: "Insert", content: [{ id: "Y" }] },
-						2, // Tombstones for C, D
-						{ type: "PriorRangeEnd", seq: 1, op: -1 },
-					],
-				},
-			}],
-		}],
-	};
-
-	export const allp: Rebased.Mark = {
-		modify: {
-			foo: [
-				{ type: "DeleteSet", op:-1 , length: 1 },
-				{ type: "Insert", content: [{ id: "X" }] },
-				{ type: "DeleteSet", op:-1 , length: 1 },
-				{ type: "Insert", content: [{ id: "Y" }] },
-				{ type: "DeleteSet", op:-1 , length: 2 },
-			],
-		},
 	};
 }
 
@@ -264,18 +112,18 @@ export namespace SwapCousins {
 	// Swap the first nodes of traits foo and bar using set-like ranges
 	export const e1: Original.ChangeFrame = {
 		moves: [
-			{ src: { foo: 0 }, dst: { bar: 0 } },
-			{ src: { bar: 0 }, dst: { foo: 0 } },
+			{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
+			{ id: 1, src: { bar: 0 }, dst: { foo: 0 } },
 		],
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "MoveOutSet", op: 0 },
-					{ type: "MoveIn", op: 1 },
+					{ type: "MoveOutSet", id: 0 },
+					{ type: "MoveIn", id: 1, range: RangeType.Set },
 				],
 				bar: [
-					{ type: "MoveIn", op: 0 },
-					{ type: "MoveOutSet", op: 1 },
+					{ type: "MoveIn", id: 0, range: RangeType.Set },
+					{ type: "MoveOutSet", id: 1 },
 				],
 			},
 		}],
@@ -288,28 +136,32 @@ export namespace SwapParentChild {
 	// To:   R{ foo: C{ bar: B{ baz: D } } }
 	export const e1: Original.ChangeFrame = {
 		moves: [
-			{ src: { foo: 0 }, dst: { foo: { 0: { bar: 0 } } } }, // B
-			{ src: { foo: { 0: { bar: 0 } } }, dst: { foo: 0 }}, // C
-			{ src: { foo: { 0: { bar: { 0: { baz: 0 } } } } }, dst: { foo: { 0: { bar: { 0: { baz: 0 } } } } }}, // D
+			{ id: 0, src: { foo: 0 }, dst: { foo: { 0: { bar: 0 } } } }, // B
+			{ id: 1, src: { foo: { 0: { bar: 0 } } }, dst: { foo: 0 } }, // C
+			{ // D
+				id: 2,
+				src: { foo: { 0: { bar: { 0: { baz: 0 } } } } },
+				dst: { foo: { 0: { bar: { 0: { baz: 0 } } } } },
+			},
 		],
 		marks: [{
 			modify: {
 				foo: [
 					{
 						type: "MoveOutSet", // B,
-						op: 0,
+						id: 0,
 						mods: [{ // Modify B
 							modify: {
 								bar: [
 									{
 										type: "MoveOutSet", // C
-										op: 1,
+										id: 1,
 										mods: [{ // Modify C
 											modify: {
 												baz: [
 													{
 														type: "MoveOutSet", // D
-														op: 2,
+														id: 2,
 													},
 												],
 											},
@@ -321,19 +173,22 @@ export namespace SwapParentChild {
 					},
 					{
 						type: "MoveIn", // C
-						op: 1,
+						range: RangeType.Set,
+						id: 1,
 						mods: [{ // Modify C
 							modify: {
 								bar: [
 									{
 										type: "MoveIn", // B
-										op: 0,
+										range: RangeType.Set,
+										id: 0,
 										mods: [{ // Modify B
 											modify: {
 												baz: [
 													{
 														type: "MoveIn", // D
-														op: 2,
+														range: RangeType.Set,
+														id: 2,
 													},
 												],
 											},
@@ -363,11 +218,6 @@ export namespace ScenarioA1 {
 	also need to preserve the fact that the insertion of X was made with respect to B. This is challenging because the
 	third edit will be rebased over the deletion of B C. This last point also holds for insertions of detached content
 	(i.e., `MoveIn*`)
-
-	Takeaways:
-	We need to preserve the layering of moves over deletions.
-	We need to know which move operations apply to which nodes, even when they are deleted.
-	We need to know which node a given insertion or move-in was relative to.
 	*/
 
 	export const e1: S.Transaction = {
@@ -378,7 +228,7 @@ export namespace ScenarioA1 {
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "DeleteSet", op:0 , length: 2 },
+						{ type: "DeleteSet", id:0 , length: 2 },
 					],
 				},
 			}],
@@ -389,17 +239,19 @@ export namespace ScenarioA1 {
 		ref: 0,
 		seq: 2,
 		frames: [{
-			moves: [{src: { foo: 1 }, dst: { bar: 0 }}],
+			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: [{
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "MoveOutStart", side: Sibling.Next, op: 0 },
-						3, // Skip B C D
-						{ type: "End", op: 0 },
+						{
+							type: "MoveOutSlice",
+							id: 0,
+							length: 3,
+						},
 					],
 					bar: [
-						{ type: "MoveInSlice", op: 0, length: 3 },
+						{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 3 },
 					],
 				},
 			}],
@@ -414,7 +266,7 @@ export namespace ScenarioA1 {
 				modify: {
 					foo: [
 						2, // Skip A B
-						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.Full },
+						{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full },
 					],
 				},
 			}],
@@ -426,54 +278,92 @@ export namespace ScenarioA1 {
 		ref: 0,
 		newRef: 1,
 		frames: [{
-			moves: [{src: { foo: 1 }, dst: { bar: 0 }}],
+			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: [{
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "MoveOutStart", side: Sibling.Next, op: 0 },
-						{ type: "PriorSetDetachStart", seq: 1, op:-1},
-						2, // Delete B C
-						{ type: "PriorRangeEnd", seq: 1, op: -1 },
-						1, // Skip D
-						{ type: "End", op: 0 },
+						{
+							type: "MoveOutSlice",
+							id: 0,
+							length: 3, // B, C, D
+							mods: [
+								{
+									type: "PriorDeleteSet",
+									seq: 1,
+									id: 0,
+									length: 2,
+								},
+							],
+						},
 					],
 					bar: [
-						{ type: "MoveInSlice", op: 0, length: 3 },
+						{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 3 },
 					],
 				},
 			}],
 		}],
 	};
 
-	export const e3_r_e1: Rebased.Modify = {
-		modify: {
-			foo: [
-				1, // Skip A
-				{ type: "PriorSetDetachStart", seq: 1, op: -1 },
-				1, // B
-				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.Full },
-				1, // C
-				{ type: "PriorRangeEnd", seq: 1, op: -1 },
-			],
-		},
+	export const e3_r_e1: S.Transaction = {
+		seq: 3,
+		ref: 0,
+		newRef: 1,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{
+							type: "PriorDeleteSet",
+							seq: 1,
+							id: 0,
+							length: 2,
+							mods: [
+								1, // B
+								{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full },
+							],
+						},
+					],
+				},
+			}],
+		}],
 	};
 
-	export const e3re1_r_e2re1: Rebased.Modify = {
-		modify: {
-			foo: [
-				1, // Skip A
-				{ type: "PriorSetDetachStart", seq: 1, op: -1 },
-				2, // B C
-				{ type: "PriorRangeEnd", seq: 1, op: -1 },
-				{ type: "PriorSetDetachStart", seq: 2, op: 0 },
-				1, // D
-				{ type: "PriorRangeEnd", seq: 2, op: 0 },
-			],
-			bar: [
-				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.Full },
-			],
-		},
+	export const e3p: S.Transaction = {
+		seq: 3,
+		ref: 0,
+		newRef: 2,
+		frames: [{
+			priorMoves: [{ seq: 2, id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{
+							type: "MoveOutSlice",
+							id: 0,
+							length: 3, // B, C, D
+							mods: [
+								{
+									type: "PriorDeleteSet",
+									seq: 1,
+									id: 0,
+									length: 2,
+									mods: [
+										1, // B
+										{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full },
+									],
+								},
+							],
+						},
+					],
+					bar: [
+						{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 3 },
+					],
+				},
+			}],
+		}],
 	};
 
 	export const originals = [e1, e2, e3];
@@ -493,11 +383,6 @@ export namespace ScenarioA2 {
 	also need to preserve the fact that the insertion of X was made with respect to B. This is challenging because the
 	third edit will be rebased over the deletion of B C. This last point also holds for insertions of detached content
 	(i.e., `MoveIn*`)
-
-	Takeaways:
-	We need to preserve the layering of moves over deletions.
-	We need to know which move operations apply to which nodes, even when they are deleted.
-	We need to know which node a given insertion or move-in was relative to.
 	*/
 
 	export const e1: S.Transaction = {
@@ -508,7 +393,7 @@ export namespace ScenarioA2 {
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "DeleteSet", op: -1, length: 2 },
+						{ type: "DeleteSet", id: 0, length: 2 },
 					],
 				},
 			}],
@@ -519,103 +404,19 @@ export namespace ScenarioA2 {
 		ref: 0,
 		seq: 2,
 		frames: [{
-			moves: [{src: { foo: 2 }, dst: { bar: 0 }}],
+			moves: [{ id: 0, src: { foo: 2 }, dst: { bar: 0 } }],
 			marks: [{
 				modify: {
 					foo: [
 						2, // Skip A B
-						{ type: "MoveOutStart", side: Sibling.Next, op: 0 },
-						2, // Skip C D
-						{ type: "End", op: 0 },
+						{
+							type: "MoveOutSlice",
+							id: 0,
+							length: 2,
+						},
 					],
 					bar: [
-						{ type: "MoveInSlice", op: 0, length: 2 },
-					],
-				},
-			}],
-		}],
-	};
-
-	export const e3: Original.Modify = {
-		modify: {
-			foo: [
-				3, // Skip A B C
-				{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
-			],
-		},
-	};
-
-	export const e2p: S.Transaction = {
-		seq: 2,
-		ref: 0,
-		newRef: 1,
-		frames: [{
-			moves: [{src: { foo: 2 }, dst: { bar: 0 }}],
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{ type: "PriorSetDetachStart", seq: 1, op: -1 },
-						1, // B
-						{ type: "MoveOutStart", side: Sibling.Next, op: 0 },
-						1, // C
-						{ type: "PriorRangeEnd", seq: 1, op: -1 },
-						1, // Skip D
-						{ type: "End", op: 0 },
-					],
-					bar: [
-						{ type: "MoveInSlice", op: 0, length: 2 },
-					],
-				},
-			}],
-		}],
-	};
-}
-
-export namespace ScenarioC {
-	/*
-	Scenario C
-	  User 1: insert B after A
-	  User 1: move B to some other trait bar
-	  User 2: insert X after B (never move) <- done with knowledge of edit #1
-
-	X should be inserted to into the foo trait (as opposed to following B into the bar trait).
-
-	Takeaways:
-	We need to preserve the layering of moves over insertions.
-	It is not sufficient to represent insertions of content that is subsequently moved as insertions in their final
-	location.
-	Note: this scenario motivates this being is true across commits but not within commits.
-	*/
-
-	export const e1: S.Transaction = {
-		ref: 0,
-		seq: 1,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{ type: "Insert", content: [{ id: "B" }] },
-					],
-				},
-			}],
-		}],
-	};
-
-	export const e2: S.Transaction = {
-		ref: 0,
-		seq: 2,
-		frames: [{
-			moves: [{ src: { foo: 1 }, dst: { bar: 0 }}],
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{ type: "MoveOutSet", op: 0 },
-					],
-					bar: [
-						{ type: "MoveIn", op: 0 },
+						{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 2 },
 					],
 				},
 			}],
@@ -629,28 +430,36 @@ export namespace ScenarioC {
 			marks: [{
 				modify: {
 					foo: [
-						2, // Skip A B
-						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
+						3, // Skip A B C
+						{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Move },
 					],
 				},
 			}],
 		}],
 	};
 
-	export const e3p: S.Transaction = {
-		seq: 3,
+	export const e2p: S.Transaction = {
+		seq: 2,
 		ref: 0,
-		newRef: 2,
+		newRef: 1,
 		frames: [{
-			priorMoves: { 2: [{ src: { foo: 1 }, dst: { bar: 0 }}]},
+			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: [{
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "PriorSetDetachStart", seq: 2, op: -1 },
-						1, // B
-						{ type: "PriorRangeEnd", seq: 2, op: -1 },
-						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.None },
+						{ type: "PriorDeleteSet", seq: 1, id: 0 }, // B
+						{
+							type: "MoveOutSlice",
+							id: 0,
+							length: 2,
+							mods: [
+								{ type: "PriorDeleteSet", seq: 1, id: 0 }, // B
+							],
+						}, // D
+					],
+					bar: [
+						{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 2 },
 					],
 				},
 			}],
@@ -665,7 +474,7 @@ export namespace ScenarioD {
 	  User 1: move slice range [B_] to some other trait bar
 	  User 2:
 	    insert X after B (with commutative move semantics)
-	    move slice-like range [A B X C] to some other trait baz
+	    move set-like range [A B X C] to some other trait baz
 
 	X should be inserted to into the baz trait (as opposed to ending up in the bar trait).
 	The commutativity of the insertion of X could still be leveraged if user 1 moved content from trait baz
@@ -675,17 +484,15 @@ export namespace ScenarioD {
 		seq: 1,
 		ref: 0,
 		frames: [{
-			moves: [{ src: { foo: 1 }, dst: { bar: 0 }}],
+			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: [{
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "MoveOutStart", op: 0 },
-						1, // Skip B
-						{ type: "End", side: Sibling.Next, op: 0 },
+						{ type: "MoveOutSlice", id: 0, startSide: Sibling.Next },
 					],
 					bar: [
-						{ type: "MoveInSlice", op: 0 },
+						{ type: "MoveIn", id: 0, range: RangeType.Slice },
 					],
 				},
 			}],
@@ -696,34 +503,23 @@ export namespace ScenarioD {
 		seq: 2,
 		ref: 0,
 		frames: [{
-			moves: [
-				{ src: { foo: 0 }, dst: { baz: 0 } },
-				{ src: { foo: 2 }, dst: { baz: 3 }},
-			],
+			moves: [{ id: 0, src: { foo: 0 }, dst: { baz: 0 } }],
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "MoveOutStart", op: 0 },
-						2, // A B
-						{
-							type: "End",
-							op: 0,
-							side: Sibling.Next,
-							tiebreak: Tiebreak.FirstToLast,
-						},
-						{
-							type: "MoveOutStart",
-							op: 1,
-							side: Sibling.Prev,
-							tiebreak: Tiebreak.LastToFirst,
-						},
-						1, // C
-						{ type: "End", op: 1 },
+						{ type: "MoveOutSet", id: 0, length: 3 },
 					],
 					baz: [
-						{ type: "MoveInSlice", op: 0, length: 2 }, // A B
-						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
-						{ type: "MoveInSlice", op: 1 }, // C
+						{
+							type: "MoveIn",
+							id: 0,
+							range: RangeType.Set,
+							length: 3,
+							mods: [
+								2, // A, B
+								{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Move },
+							],
+						},
 					],
 				},
 			}],
@@ -735,38 +531,32 @@ export namespace ScenarioD {
 		ref: 0,
 		newRef: 1,
 		frames: [{
-			moves: [
-				{ src: { foo: 0 }, dst: { baz: 0 } },
-				{ src: { foo: 2 }, dst: { baz: 3 }},
-			],
-			priorMoves: { 1: [{ src: { foo: 1 }, dst: { bar: 0 }}] },
+			priorMoves: [{ seq: 1, id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
+			moves: [{ id: 0, src: { foo: 0 }, dst: { baz: 0 } }],
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "MoveOutStart", op: 0 },
-						1, // A
-						{ type: "PriorMoveOutStart", seq: 1, op: 0 },
-						1, // B
-						{ type: "PriorRangeEnd", seq: 1, op: 0 },
 						{
-							type: "End",
-							op: 0,
-							side: Sibling.Next,
-							tiebreak: Tiebreak.FirstToLast,
+							type: "MoveOutSet",
+							id: 0,
+							length: 3,
+							mods: [
+								1, // A
+								{ type: "PriorMoveOutSlice", seq: 1, id: 0 }, // B
+							],
 						},
-						{
-							type: "MoveOutStart",
-							op: 1,
-							side: Sibling.Prev,
-							tiebreak: Tiebreak.LastToFirst,
-						},
-						1, // C
-						{ type: "End", op: 1 },
 					],
 					baz: [
-						{ type: "MoveInSlice", op: 0, length: 2 }, // A
-						{ type: "Insert", content: [{ id: "X" }], commute: Commutativity.MoveOnly },
-						{ type: "MoveInSlice", op: 1 }, // C
+						{
+							type: "MoveIn",
+							id: 0,
+							range: RangeType.Set,
+							length: 3,
+							mods: [
+								2, // A B
+								{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Move },
+							],
+						},
 					],
 				},
 			}],
@@ -789,17 +579,15 @@ export namespace ScenarioE {
 		seq: 1,
 		ref: 0,
 		frames: [{
-			moves: [{ src: { foo: 1 }, dst: { bar: 0 }}],
+			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: [{
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "MoveOutStart", op: 0 },
-						1, // Skip B
-						{ type: "End", side: Sibling.Next, op: 0 },
+						{ type: "MoveOutSlice", id: 0, startSide: Sibling.Next }, // B
 					],
 					bar: [
-						{ type: "MoveInSlice", op: 0 }, // B
+						{ type: "MoveIn", id: 0, range: RangeType.Slice }, // B
 					],
 				},
 			}],
@@ -813,9 +601,7 @@ export namespace ScenarioE {
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "DeleteStart", op: 0 },
-						3, // Skip A B C
-						{ type: "End", op: 0 },
+						{ type: "DeleteSlice", id: 0, length: 3 },
 					],
 				},
 			}],
@@ -827,17 +613,19 @@ export namespace ScenarioE {
 		ref: 0,
 		newRef: 1,
 		frames: [{
-			priorMoves: { 1: [{ src: { foo: 1 }, dst: { bar: 0 }}] },
+			priorMoves: [{ seq: 1, id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "DeleteStart", op: 0 },
-						1, // Skip A
-						{ type: "PriorMoveOutStart", seq: 1, op: 0 },
-						1, // Skip B
-						{ type: "PriorRangeEnd", seq: 1, op: 0 },
-						1, // Skip C
-						{ type: "End", op: 0 },
+						{
+							type: "DeleteSlice",
+							id: 0,
+							length: 3,
+							mods: [
+								1, // A
+								{ type: "PriorMoveOutSlice", seq: 1, id: 0 }, // B
+							],
+						},
 					],
 				},
 			}],
@@ -862,7 +650,7 @@ export namespace ScenarioF {
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "Insert", content: [{ id: "r" }] },
+						{ type: "Insert", id: 0, content: [{ id: "r" }] },
 					],
 				},
 			}],
@@ -877,7 +665,7 @@ export namespace ScenarioF {
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
+						{ type: "Insert", id: 0, content: [{ id: "x" }, { id: "z" }] },
 					],
 				},
 			}],
@@ -892,91 +680,55 @@ export namespace ScenarioF {
 				modify: {
 					foo: [
 						2, // Skip A x
-						{ type: "Insert", content: [{ id: "y" }] },
+						{ type: "Insert", id: 0, content: [{ id: "y" }] },
 					],
 				},
 			}],
 		}],
 	};
 
-	export const e2neg: Sq.ChangeFrame = {
-		ref: 0,
-		minSeq: -2,
-		maxSeq: -2,
+	export const e3d: R.ChangeFrame = {
 		marks: [{
 			modify: {
 				foo: [
-					1, // Skip A
-					{ type: "DeleteSet", op: -1, length: 2 },
-				],
-			},
-		}],
-	};
-
-	export const e2pos: Sq.ChangeFrame = {
-		ref: 0,
-		minSeq: 2,
-		maxSeq: 2,
-		marks: [{
-			modify: {
-				foo: [
-					1, // Skip A
-					{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
-				],
-			},
-		}],
-	};
-
-	export const e2posp: Sq.ChangeFrame = {
-		ref: 0,
-		minSeq: 2,
-		maxSeq: 2,
-		marks: [{
-			modify: {
-				foo: [
-					2, // Skip r A
-					{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
-				],
-			},
-		}],
-	};
-
-	export const e3d: Sq.ChangeFrame = {
-		ref: 0,
-		minSeq: -2,
-		maxSeq: 2,
-		marks: [{
-			modify: {
-				foo: [
-					{ type: "Insert", content: [{ id: "r" }] },
+					{ type: "Insert", id: 0, content: [{ id: "r" }] },
 				],
 			},
 		}],
 	};
 
 	export const e2p: S.Transaction = {
+		seq: 2,
 		ref: 0,
 		newRef: 1,
-		seq: 2,
 		frames: [{
 			marks: [{
 				modify: {
 					foo: [
-						2, // Skip r A
-						{ type: "Insert", content: [{ id: "x" }, { id: "z" }] },
+						{ type: "PriorInsert", seq: 1, id: 0 },
+						1, // Skip A
+						{ type: "Insert", id: 0, content: [{ id: "x" }, { id: "z" }] },
 					],
 				},
 			}],
 		}],
 	};
 
-	export const e3p: Rebased.Modify = {
-		modify: {
-			foo: [
-				3, // Skip r, A, x
-				{ type: "Insert", content: [{ id: "y" }] },
-			],
-		},
+	export const e3p: S.Transaction = {
+		seq: 3,
+		ref: 0,
+		newRef: 2,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						{ type: "PriorInsert", seq: 1, id: 0 },
+						1, // Skip A x
+						{ type: "Insert", id: 0, content: [{ id: "y" }] },
+					],
+				},
+			}],
+		}],
 	};
 
 	export const originals = [e1, e2, e3];
@@ -999,16 +751,14 @@ export namespace ScenarioG {
 		ref: 0,
 		seq: 1,
 		frames: [{
-			moves: [{ src: { foo: 0 }, dst: { bar: 0 } }],
+			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "MoveOutStart", op: 0 },
-						2, // Skip A B
-						{ type: "End", side: Sibling.Next, op: 0 },
+						{ type: "MoveOutSlice", id: 0, length: 2 },
 					],
 					bar: [
-						{ type: "MoveInSlice", op: 0, length: 2 },
+						{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 2 },
 					],
 				},
 			}],
@@ -1023,7 +773,7 @@ export namespace ScenarioG {
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
+						{ type: "Insert", id: 0, content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
 					],
 				},
 			}],
@@ -1038,7 +788,7 @@ export namespace ScenarioG {
 				modify: {
 					foo: [
 						2, // Skip A X
-						{ type: "Insert", content: [{ id: "N" }], commute: Commutativity.None },
+						{ type: "Insert", id: 0, content: [{ id: "N" }], commute: Commutativity.None },
 					],
 				},
 			}],
@@ -1053,7 +803,13 @@ export namespace ScenarioG {
 				modify: {
 					foo: [
 						1, // Skip A
-						{ type: "Insert", content: [{ id: "M" }], side: Sibling.Next, commute: Commutativity.None },
+						{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "M" }],
+							side: Sibling.Next,
+							commute: Commutativity.None,
+						},
 					],
 				},
 			}],
@@ -1068,7 +824,7 @@ export namespace ScenarioG {
 				modify: {
 					foo: [
 						5, // Skip A X M N Y
-						{ type: "Insert", content: [{ id: "O" }], commute: Commutativity.None },
+						{ type: "Insert", id: 0, content: [{ id: "O" }], commute: Commutativity.None },
 					],
 				},
 			}],
@@ -1076,93 +832,177 @@ export namespace ScenarioG {
 	};
 
 	export const e2p: S.Transaction = {
+		seq: 2,
 		ref: 0,
 		newRef: 1,
-		seq: 2,
 		frames: [{
-			priorMoves: {
-				1: [{ src: { foo: 0 }, dst: { bar: 0 } }],
-			},
+			priorMoves: [{ seq: 1, id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "PriorMoveOutStart", seq: 1, op: 0 },
-						1, // Skip A
-						{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
-						1, // Skip B
-						{ type: "PriorRangeEnd", seq: 1, op: 0 },
+						{
+							type: "PriorMoveOutSlice",
+							seq: 1,
+							id: 0,
+							length: 2,
+							mods: [
+								1, // A
+								{
+									type: "Insert",
+									id: 0,
+									content: [{ id: "X" }, { id: "Y" }],
+									commute: Commutativity.Full,
+								},
+							],
+						},
 					],
 				},
 			}],
 		}],
 	};
 
-	export const e3d: Sq.ChangeFrame = {
-		ref: 0,
-		minSeq: -2,
-		maxSeq: 2,
-		moves: [{ src: { foo: 0 }, dst: { bar: 0 }}],
+	export const e3d: R.ChangeFrame = {
+		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "MoveOutStart", op: 0 },
-					4, // Skip A X Y B
-					{ type: "End", side: Sibling.Next, op: 0 },
+					{ type: "MoveOutSlice", id: 0, length: 4 }, // A X Y B
 				],
 				bar: [
-					{ type: "MoveInSlice", op: 0 }, // A X Y B
+					{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 4 }, // A X Y B
 				],
 			},
 		}],
 	};
 
-	export const e4d: Sq.ChangeFrame = {
+	export const e3p: S.Transaction = {
+		seq: 3,
 		ref: 0,
-		minSeq: -3,
-		maxSeq: 3,
-		moves: [{ src: { foo: 0 }, dst: { bar: 0 }}],
+		newRef: 2,
+		frames: [{
+			priorMoves: [{ seq: 1, id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
+			marks: [{
+				modify: {
+					foo: [
+						{
+							type: "PriorMoveOutSlice",
+							seq: 1,
+							id: 0,
+							length: 4,
+							mods: [
+								2, // A X
+								{
+									type: "Insert",
+									id: 0,
+									content: [{ id: "N" }],
+									commute: Commutativity.None,
+								},
+							],
+						},
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e4d: R.ChangeFrame = {
+		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "MoveOutStart", op: 0 },
-					1, // Skip A
-					{ type: "DeleteSet", op: -1 }, // X
+					{ type: "MoveOutSlice", id: 0, length }, // A X
 					1, // N
-					{ type: "DeleteSet", op: -2 }, // Y
-					1, // Skip B
-					{ type: "End", side: Sibling.Next, op: 0 },
+					{ type: "MoveOutSlice", id: 0, length: 2 }, // Y B
 				],
 				bar: [
-					{ type: "MoveInSlice", op: 0 }, // A
-					{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
-					{ type: "MoveInSlice", op: 0 }, // B
+					{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 4 }, // A X Y B
 				],
 			},
 		}],
 	};
 
-	export const e5d: Sq.ChangeFrame = {
+	export const e4p: S.Transaction = {
+		seq: 4,
 		ref: 0,
-		minSeq: -4,
-		maxSeq: 4,
-		moves: [{ src: { foo: 0 }, dst: { bar: 0 }}],
+		newRef: 3,
+		frames: [{
+			priorMoves: [{ seq: 1, id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
+			marks: [{
+				modify: {
+					foo: [
+						{
+							type: "PriorMoveOutSlice",
+							seq: 1,
+							id: 0,
+							length: 2,
+							mods: [
+								1, // A
+								{
+									type: "Insert",
+									id: 0,
+									content: [{ id: "M" }],
+									side: Sibling.Next,
+									commute: Commutativity.None,
+								},
+							],
+						},
+						1, // N
+						{ type: "PriorMoveOutSlice", seq: 1, id: 0, length: 2 }, // Y B
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e5d: R.ChangeFrame = {
+		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "MoveOutStart", op: 0 },
-					2, // Skip A M
-					{ type: "DeleteSet", op: -1 }, // X
+					{ type: "MoveOutSlice", id: 0 }, // A
+					1, // M
+					{ type: "MoveOutSlice", id: 0 }, // X
 					1, // N
-					{ type: "DeleteSet", op: -2 }, // Y
-					1, // Skip B
-					{ type: "End", side: Sibling.Next, op: 0 },
+					{ type: "MoveOutSlice", id: 0, length: 2 }, // Y B
 				],
 				bar: [
-					{ type: "MoveInSlice", op: 0 }, // A
-					{ type: "Insert", content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
-					{ type: "MoveInSlice", op: 0 }, // B
+					{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 4 }, // A X Y B
 				],
 			},
+		}],
+	};
+
+	export const e5p: S.Transaction = {
+		seq: 5,
+		ref: 0,
+		newRef: 3,
+		frames: [{
+			priorMoves: [{ seq: 1, id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
+			marks: [{
+				modify: {
+					foo: [
+						{ type: "PriorMoveOutSlice", seq: 1, id: 0 }, // A
+						1, // M
+						{ type: "PriorMoveOutSlice", seq: 1, id: 0 }, // X
+						1, // N
+						{
+							type: "PriorMoveOutSlice",
+							seq: 1,
+							id: 0,
+							length: 2,
+							mods: [
+								1, // Y
+								{
+									type: "Insert",
+									id: 0,
+									content: [{ id: "O" }],
+									commute: Commutativity.None,
+								},
+							],
+						},
+					],
+				},
+			}],
 		}],
 	};
 

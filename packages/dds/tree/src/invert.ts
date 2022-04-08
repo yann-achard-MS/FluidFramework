@@ -107,7 +107,7 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 				case "Insert": {
 					newMarks.push({
 						type: "DeleteSet",
-						op: mark.op,
+						id: mark.op,
 						...(mark.content.length !== 1 ? { length: mark.content.length } : {}),
 						...optModsFromObj(mark, invertModsMarks(mark.mods, context)),
 					});
@@ -117,7 +117,7 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 					newMarks.push({
 						type: "ReviveSet",
 						seq,
-						op: mark.op,
+						id: mark.op,
 						...optLengthFromObj(mark),
 						...optModsFromObj(mark, invertModsMarks(mark.mods, context)),
 					});
@@ -126,7 +126,7 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 				case "ReviveSet": {
 					newMarks.push({
 						type: "DeleteSet",
-						op: mark.op,
+						id: mark.op,
 						...optLengthFromObj(mark),
 						...optModsFromObj(mark, invertModsMarks(mark.mods, context)),
 					});
@@ -135,7 +135,7 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 				case "ReviveSlice": {
 					newMarks.push({
 						type: "DeleteStart",
-						op: mark.op,
+						id: mark.op,
 						// TODO: side and tiebreak
 					});
 					const mods = invertModsMarks(mark.mods, context);
@@ -150,7 +150,7 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 					}
 					newMarks.push({
 						type: "End",
-						op: mark.op,
+						id: mark.op,
 						// TODO: side and tiebreak
 					});
 					break;
@@ -159,7 +159,7 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 				case "MoveInSet": {
 					const moveOut: R.MoveOutSet = {
 						type: "MoveOutSet",
-						op: mark.op,
+						id: mark.op,
 						...optLengthFromObj(mark),
 						// TODO: side and tiebreak
 					};
@@ -171,13 +171,13 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 				case "MoveInSlice": {
 					newMarks.push({
 						type: "MoveOutStart",
-						op: mark.op,
+						id: mark.op,
 						// TODO: side and tiebreak
 					});
 					context.newSliceMoveOuts.set(mark.op, Pointer.fromMarks(newMarks).skipMarks(newMarks.length));
 					newMarks.push({
 						type: "End",
-						op: mark.op,
+						id: mark.op,
 						// TODO: side and tiebreak
 					});
 					break;
@@ -187,7 +187,7 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 					newMarks.push({
 						type: "ReturnSet",
 						seq,
-						op: mark.op,
+						id: mark.op,
 						...optLengthFromObj(mark),
 					});
 					break;
@@ -238,7 +238,7 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 					newMarks.push({
 						type: "ReturnSlice",
 						seq,
-						op: mark.op,
+						id: mark.op,
 						// TODO: side and tiebreak
 					});
 					iMark = endBound;
