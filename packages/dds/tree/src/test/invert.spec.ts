@@ -536,7 +536,7 @@ describe(invert.name, () => {
 
 	describe("[MoveOut Return] -> [Return MoveOut]", () => {
 		describe("For set ranges", () => {
-				it("Within traits", () => {
+			it("Within traits", () => {
 				const actual = testInvert(returnTwiceSetInTrait);
 				assert.deepEqual(actual, returnSetInTrait);
 			});
@@ -546,7 +546,7 @@ describe(invert.name, () => {
 			});
 		});
 		describe("For slice ranges", () => {
-				it("Within traits", () => {
+			it("Within traits", () => {
 				const actual = testInvert(returnTwiceSliceInTrait);
 				assert.deepEqual(actual, returnSliceInTrait);
 			});

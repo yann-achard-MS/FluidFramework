@@ -5,109 +5,6 @@
 
 import { Commutativity, Original, Rebased as R, Sibling, Sequenced as S, RangeType } from "../format";
 
-export namespace ExampleWithCraig {
-	/**
-	 * State: [A B C D]
-	 * U1: set-delete whole trait <-1st
-	 * U2: insert X after A <-2nd
-	 * U3: insert Y after B <-3rd
-	 * => [X Y] not [Y X]
-	 */
-	export const e1: S.Transaction = {
-		ref: 0,
-		seq: 1,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						{ type: "DeleteSet", id: 0 , length: 4 },
-					],
-				},
-			}],
-		}],
-	};
-
-	export const e2: S.Transaction = {
-		ref: 0,
-		seq: 2,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{ type: "Insert", id: 0, content: [{ id: "X" }] },
-					],
-				},
-			}],
-		}],
-	};
-
-	export const e3: S.Transaction = {
-		ref: 0,
-		seq: 3,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						2, // Skip A & B
-						{ type: "Insert", id: 0, content: [{ id: "Y" }] },
-					],
-				},
-			}],
-		}],
-	};
-
-	export const e2p: S.Transaction = {
-		ref: 0,
-		seq: 2,
-		newRef: 1,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						{
-							type: "PriorDeleteSet",
-							seq: 1,
-							id: 0,
-							length: 4,
-							mods: [
-								1, // A
-								{ type: "Insert", id: 0, content: [{ id: "X" }] },
-							],
-						},
-					],
-				},
-			}],
-		}],
-	};
-
-	export const e3p: S.Transaction = {
-		ref: 0,
-		seq: 3,
-		newRef: 2,
-		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						{
-							type: "PriorDeleteSet",
-							seq: 1,
-							id: 0,
-							length: 4,
-							mods: [
-								1, // A
-								{ type: "Insert", id: 0, content: [{ id: "X" }] },
-								1, // B
-								{ type: "Insert", id: 0, content: [{ id: "Y" }] },
-							],
-						},
-					],
-				},
-			}],
-		}],
-	};
-}
-
 export namespace SwapCousins {
 	// Swap the first nodes of traits foo and bar using set-like ranges
 	export const e1: Original.ChangeFrame = {
@@ -467,6 +364,109 @@ export namespace ScenarioA2 {
 	};
 }
 
+export namespace ScenarioB {
+	/**
+	 * State: [A B C D]
+	 * U1: set-delete whole trait <-1st
+	 * U2: insert X after A <-2nd
+	 * U3: insert Y after B <-3rd
+	 * => [X Y] not [Y X]
+	 */
+	export const e1: S.Transaction = {
+		ref: 0,
+		seq: 1,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						{ type: "DeleteSet", id: 0 , length: 4 },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e2: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						1, // Skip A
+						{ type: "Insert", id: 0, content: [{ id: "X" }] },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e3: S.Transaction = {
+		ref: 0,
+		seq: 3,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						2, // Skip A & B
+						{ type: "Insert", id: 0, content: [{ id: "Y" }] },
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e2p: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		newRef: 1,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						{
+							type: "PriorDeleteSet",
+							seq: 1,
+							id: 0,
+							length: 4,
+							mods: [
+								1, // A
+								{ type: "Insert", id: 0, content: [{ id: "X" }] },
+							],
+						},
+					],
+				},
+			}],
+		}],
+	};
+
+	export const e3p: S.Transaction = {
+		ref: 0,
+		seq: 3,
+		newRef: 2,
+		frames: [{
+			marks: [{
+				modify: {
+					foo: [
+						{
+							type: "PriorDeleteSet",
+							seq: 1,
+							id: 0,
+							length: 4,
+							mods: [
+								1, // A
+								{ type: "PriorInsert", seq: 2, id: 0 },
+								1, // B
+								{ type: "Insert", id: 0, content: [{ id: "Y" }] },
+							],
+						},
+					],
+				},
+			}],
+		}],
+	};
+}
+
 export namespace ScenarioD {
 	/*
 	Scenario D
@@ -705,7 +705,7 @@ export namespace ScenarioF {
 			marks: [{
 				modify: {
 					foo: [
-						{ type: "PriorInsert", seq: 1, id: 0 },
+						1, // { type: "PriorInsert", seq: 1, id: 0 },
 						1, // Skip A
 						{ type: "Insert", id: 0, content: [{ id: "x" }, { id: "z" }] },
 					],

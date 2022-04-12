@@ -9,11 +9,12 @@ import {
 	Sequenced as S,
 	Rebased as R,
 	Commutativity,
+	RangeType,
 } from "../format";
 import {
 	ScenarioA1,
 	ScenarioA2,
-	ScenarioC,
+	ScenarioB,
 	ScenarioD,
 	ScenarioE,
 	ScenarioF,
@@ -117,11 +118,11 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: { bar: 0 }, dst: { foo: 0 } }],
+							moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "MoveInSlice", id: 0, length: 2 },
+										{ type: "MoveIn", range: RangeType.Slice, id: 0, length: 2 },
 									],
 								},
 							}],
@@ -132,7 +133,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: { bar: 0 }, dst: { foo: 0 } }] },
+							priorMoves: [{ seq: 1, id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -151,12 +152,12 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: { bar: 0 }, dst: { foo: 5 } }],
+							moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 5 } }],
 							marks: [{
 								modify: {
 									foo: [
 										5,
-										{ type: "MoveInSlice", id: 0, length: 2 },
+										{ type: "MoveIn", range: RangeType.Slice, id: 0, length: 2 },
 									],
 								},
 							}],
@@ -167,7 +168,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: { bar: 0 }, dst: { foo: 5 } }] },
+							priorMoves: [{ seq: 1, id: 0, src: { bar: 0 }, dst: { foo: 5 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -188,11 +189,11 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: { bar: 0 }, dst: { foo: 0 } }],
+							moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "MoveIn", id: 0, length: 2 },
+										{ type: "MoveIn", range: RangeType.Set, id: 0, length: 2 },
 									],
 								},
 							}],
@@ -203,7 +204,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: { bar: 0 }, dst: { foo: 0 } }] },
+							priorMoves: [{ seq: 1, id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -222,12 +223,12 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: { bar: 0 }, dst: { foo: 5 } }],
+							moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 5 } }],
 							marks: [{
 								modify: {
 									foo: [
 										5,
-										{ type: "MoveIn", id: 0, length: 2 },
+										{ type: "MoveIn", range: RangeType.Set, id: 0, length: 2 },
 									],
 								},
 							}],
@@ -238,7 +239,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: { bar: 0 }, dst: { foo: 5 } }] },
+							priorMoves: [{ seq: 1, id: 0, src: { bar: 0 }, dst: { foo: 5 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -262,7 +263,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "DeleteSet", id: -1, length: 2 },
+										{ type: "DeleteSet", id: 0, length: 2 },
 									],
 								},
 							}],
@@ -276,9 +277,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorSetDetachStart", seq: 1, id: -1 },
-										2,
-										{ type: "PriorRangeEnd", seq: 1, id: -1 },
+										{ type: "PriorDeleteSet", seq: 1, id: 0, length: 2 },
 										1,
 										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
@@ -298,7 +297,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "DeleteSet", id: -1, length: 2 },
+										{ type: "DeleteSet", id: 0, length: 2 },
 									],
 								},
 							}],
@@ -315,9 +314,7 @@ describe(rebase.name, () => {
 										3,
 										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 										2,
-										{ type: "PriorSetDetachStart", seq: 1, id: -1 },
-										2,
-										{ type: "PriorRangeEnd", seq: 1, id: -1 },
+										{ type: "PriorDeleteSet", seq: 1, id: 0, length: 2 },
 									],
 								},
 							}],
@@ -335,7 +332,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "DeleteSet", id: -1, length: 3 },
+										{ type: "DeleteSet", id: 0, length: 3 },
 									],
 								},
 							}],
@@ -350,11 +347,16 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "PriorSetDetachStart", id: -1, seq: 1 },
-										2,
-										{ type: "Insert", id: 0, content: [{ id: "X" }] },
-										1,
-										{ type: "PriorRangeEnd", seq: 1, id: -1 },
+										{
+											type: "PriorDeleteSet",
+											seq: 1,
+											id: 0,
+											length: 3,
+											mods: [
+												2,
+												{ type: "Insert", id: 0, content: [{ id: "X" }] },
+											],
+										},
 									],
 								},
 							}],
@@ -370,7 +372,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: { foo: 0 }, dst: { bar: 0 } }],
+							moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -385,13 +387,11 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: { foo: 0 }, dst: { bar: 0 } }] },
+							priorMoves: [{ seq: 1, id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorSetDetachStart", seq: 1, id: 0 },
-										2,
-										{ type: "PriorRangeEnd", seq: 1, id: 0 },
+										{ type: "PriorMoveOutSet", seq: 1, id: 0, length: 2 },
 										1,
 										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
@@ -407,7 +407,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: { foo: 5 }, dst: { bar: 0 } }],
+							moves: [{ id: 0, src: { foo: 5 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -423,16 +423,14 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: { foo: 5 }, dst: { bar: 0 } }] },
+							priorMoves: [{ seq: 1, id: 0, src: { foo: 5 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
 										3,
 										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 										2,
-										{ type: "PriorSetDetachStart", seq: 1, id: 0 },
-										2,
-										{ type: "PriorRangeEnd", seq: 1, id: 0 },
+										{ type: "PriorMoveOutSet", seq: 1, id: 0, length: 2 },
 									],
 								},
 							}],
@@ -446,7 +444,7 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: { foo: 1 }, dst: { bar: 0 } }],
+							moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
@@ -462,16 +460,21 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: { foo: 1 }, dst: { bar: 0 } }] },
+							priorMoves: [{ seq: 1, id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
 										1,
-										{ type: "PriorSetDetachStart", seq: 1, id: 0 },
-										2,
-										{ type: "Insert", id: 0, content: [{ id: "X" }] },
-										1,
-										{ type: "PriorRangeEnd", seq: 1, id: 0 },
+										{
+											type: "PriorMoveOutSet",
+											seq: 1,
+											id: 0,
+											length: 3,
+											mods: [
+												2,
+												{ type: "Insert", id: 0, content: [{ id: "X" }] },
+											],
+										},
 									],
 								},
 							}],
@@ -490,9 +493,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "DeleteStart", id: 0 },
-										2,
-										{ type: "End", id: 0 },
+										{ type: "DeleteSlice", id: 0, length: 2 },
 									],
 								},
 							}],
@@ -506,9 +507,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorDeleteStart", seq: 1, id: 0 },
-										2,
-										{ type: "PriorRangeEnd", seq: 1, id: 0 },
+										{ type: "PriorDeleteSlice", seq: 1, id: 0, length: 2 },
 										1,
 										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
@@ -528,9 +527,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										5,
-										{ type: "DeleteStart", id: 0 },
-										2,
-										{ type: "End", id: 0 },
+										{ type: "DeleteSlice", id: 0, length: 2 },
 									],
 								},
 							}],
@@ -547,9 +544,7 @@ describe(rebase.name, () => {
 										3,
 										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 										2,
-										{ type: "PriorDeleteStart", seq: 1, id: 0 },
-										2,
-										{ type: "PriorRangeEnd", seq: 1, id: 0 },
+										{ type: "PriorDeleteSlice", seq: 1, id: 0, length: 2 },
 									],
 								},
 							}],
@@ -567,9 +562,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "DeleteStart", id: 0 },
-										3,
-										{ type: "End", id: 0 },
+										{ type: "DeleteSlice", id: 0, length: 3 },
 									],
 								},
 							}],
@@ -585,11 +578,16 @@ describe(rebase.name, () => {
 									modify: {
 										foo: [
 											1,
-											{ type: "PriorDeleteStart", seq: 1, id: 0 },
-											2,
-											{ type: "Insert", id: 0, content: [{ id: "X" }] },
-											1,
-											{ type: "PriorRangeEnd", seq: 1, id: 0 },
+											{
+												type: "PriorDeleteSlice",
+												seq: 1,
+												id: 0,
+												length: 3,
+												mods: [
+													2,
+													{ type: "Insert", id: 0, content: [{ id: "X" }] },
+												],
+											},
 										],
 									},
 								}],
@@ -608,11 +606,21 @@ describe(rebase.name, () => {
 									modify: {
 										foo: [
 											1,
-											{ type: "PriorDeleteStart", seq: 1, id: 0 },
-											2,
-											{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.None },
-											1,
-											{ type: "PriorRangeEnd", seq: 1, id: 0 },
+											{
+												type: "PriorDeleteSlice",
+												seq: 1,
+												id: 0,
+												length: 3,
+												mods: [
+													2,
+													{
+														type: "Insert",
+														id: 0,
+														content: [{ id: "X" }],
+														commute: Commutativity.None,
+													},
+												],
+											},
 										],
 									},
 								}],
@@ -629,13 +637,11 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: { foo: 0 }, dst: { bar: 0 } }],
+							moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "MoveOutStart", id: 0 },
-										2,
-										{ type: "End", id: 0 },
+										{ type: "MoveOutSlice", id: 0, length: 2 },
 									],
 								},
 							}],
@@ -646,13 +652,11 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: { foo: 0 }, dst: { bar: 0 } }] },
+							priorMoves: [{ seq: 1, id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorMoveOutStart", seq: 1, id: 0 },
-										2,
-										{ type: "PriorRangeEnd", seq: 1, id: 0 },
+										{ type: "PriorMoveOutSlice", seq: 1, id: 0, length: 2 },
 										1,
 										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 									],
@@ -668,14 +672,12 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: { foo: 5 }, dst: { bar: 0 } }],
+							moves: [{ id: 0, src: { foo: 5 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
 										5,
-										{ type: "MoveOutStart", id: 0 },
-										2,
-										{ type: "End", id: 0 },
+										{ type: "MoveOutSlice", id: 0, length: 2 },
 									],
 								},
 							}],
@@ -686,16 +688,14 @@ describe(rebase.name, () => {
 						ref: 0,
 						newRef: 1,
 						frames: [{
-							priorMoves: { 1: [{ src: { foo: 5 }, dst: { bar: 0 } }] },
+							priorMoves: [{ seq: 1, id: 0, src: { foo: 5 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
 										3,
 										{ type: "Insert", id: 0, content: [{ id: "X" }] },
 										2,
-										{ type: "PriorMoveOutStart", seq: 1, id: 0 },
-										2,
-										{ type: "PriorRangeEnd", seq: 1, id: 0 },
+										{ type: "PriorMoveOutSlice", seq: 1, id: 0, length: 2 },
 									],
 								},
 							}],
@@ -709,14 +709,12 @@ describe(rebase.name, () => {
 						ref: 0,
 						seq: 1,
 						frames: [{
-							moves: [{ src: { foo: 1 }, dst: { bar: 0 } }],
+							moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 							marks: [{
 								modify: {
 									foo: [
 										1,
-										{ type: "MoveOutStart", id: 0 },
-										3,
-										{ type: "End", id: 0 },
+										{ type: "MoveOutSlice", id: 0, length: 3 },
 									],
 								},
 							}],
@@ -728,16 +726,21 @@ describe(rebase.name, () => {
 							ref: 0,
 							newRef: 1,
 							frames: [{
-								priorMoves: { 1: [{ src: { foo: 1 }, dst: { bar: 0 } }] },
+								priorMoves: [{ seq: 1, id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 								marks: [{
 									modify: {
 										foo: [
 											1,
-											{ type: "PriorMoveOutStart", seq: 1, id: 0 },
-											2,
-											{ type: "Insert", id: 0, content: [{ id: "X" }] },
-											1,
-											{ type: "PriorRangeEnd", seq: 1, id: 0 },
+											{
+												type: "PriorMoveOutSlice",
+												seq: 1,
+												id: 0,
+												length: 3,
+												mods: [
+													2,
+													{ type: "Insert", id: 0, content: [{ id: "X" }] },
+												],
+											},
 										],
 									},
 								}],
@@ -752,16 +755,26 @@ describe(rebase.name, () => {
 							ref: 0,
 							newRef: 1,
 							frames: [{
-								priorMoves: { 1: [{ src: { foo: 1 }, dst: { bar: 0 } }] },
+								priorMoves: [{ seq: 1, id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 								marks: [{
 									modify: {
 										foo: [
 											1,
-											{ type: "PriorMoveOutStart", seq: 1, id: 0 },
-											2,
-											{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.None },
-											1,
-											{ type: "PriorRangeEnd", seq: 1, id: 0 },
+											{
+												type: "PriorMoveOutSlice",
+												seq: 1,
+												id: 0,
+												length: 3,
+												mods: [
+													2,
+													{
+														type: "Insert",
+														id: 0,
+														content: [{ id: "X" }],
+														commute: Commutativity.None,
+													},
+												],
+											},
 										],
 									},
 								}],
@@ -782,7 +795,7 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								2,
-								{ type: "DeleteSet", id: -1, length: 3 },
+								{ type: "DeleteSet", id: 0, length: 3 },
 							],
 						},
 					}],
@@ -812,7 +825,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										3,
-										{ type: "DeleteSet", id: -1, length: 3 },
+										{ type: "DeleteSet", id: 0, length: 3 },
 									],
 								},
 							}],
@@ -845,7 +858,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										2,
-										{ type: "DeleteSet", id: -1, length: 3 },
+										{ type: "DeleteSet", id: 0, length: 3 },
 									],
 								},
 							}],
@@ -878,9 +891,15 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										2,
-										{ type: "DeleteSet", id: -1, length: 2 },
-										1,
-										{ type: "DeleteSet", id: -2 },
+										{
+											type: "DeleteSet",
+											id: 0,
+											length: 3,
+											mods: [
+												2,
+												{ type: "PriorInsert", seq: 1, id: 0 },
+											],
+										},
 									],
 								},
 							}],
@@ -899,7 +918,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "DeleteSet", id: -1 },
+										{ type: "DeleteSet", id: 0 },
 									],
 								},
 							}],
@@ -913,11 +932,9 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorSetDetachStart", seq: 1, id: -1 },
+										{ type: "PriorDeleteSet", id: 0 },
 										1,
-										{ type: "PriorRangeEnd", seq: 1, id: -1 },
-										1,
-										{ type: "DeleteSet", id: -1, length: 3 },
+										{ type: "DeleteSet", id: 0, length: 3 },
 									],
 								},
 							}],
@@ -935,7 +952,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										6,
-										{ type: "DeleteSet", id: -1 },
+										{ type: "DeleteSet", id: 0 },
 									],
 								},
 							}],
@@ -950,11 +967,9 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										2,
-										{ type: "DeleteSet", id: -1, length: 3 },
+										{ type: "DeleteSet", id: 0, length: 3 },
 										1,
-										{ type: "PriorSetDetachStart", seq: 1, id: -1 },
-										1,
-										{ type: "PriorRangeEnd", seq: 1, id: -1 },
+										{ type: "PriorDeleteSet", seq: 1, id: 0 },
 									],
 								},
 							}],
@@ -972,7 +987,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										4,
-										{ type: "DeleteSet", id: -1 },
+										{ type: "DeleteSet", id: 0 },
 									],
 								},
 							}],
@@ -987,11 +1002,15 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										2,
-										{ type: "DeleteSet", id: -1 },
-										{ type: "PriorSetDetachStart", seq: 1, id: -1 },
-										1,
-										{ type: "PriorRangeEnd", seq: 1, id: -1 },
-										{ type: "DeleteSet", id: -2 },
+										{
+											type: "DeleteSet",
+											id: 0,
+											length: 3,
+											mods: [
+												2,
+												{ type: "PriorDeleteSet", seq: 1, id: 0 },
+											],
+										},
 									],
 								},
 							}],
@@ -1009,7 +1028,7 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "DeleteSet", id: -1, length: 5 },
+										{ type: "DeleteSet", id: 0, length: 6 },
 									],
 								},
 							}],
@@ -1024,11 +1043,338 @@ describe(rebase.name, () => {
 								modify: {
 									foo: [
 										1,
-										{ type: "PriorSetDetachStart", seq: 1, id: -1 },
+										{ type: "PriorDeleteSet", seq: 1, id: 0 },
+										{
+											type: "DeleteSet",
+											id: 0,
+											length: 3,
+											mods: [
+												{ type: "PriorDeleteSet", seq: 1, id: 0, length: 3 },
+											],
+										},
+										{ type: "PriorDeleteSet", seq: 1, id: 0, length: 2 },
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
+				});
+			});
+		});
+		describe("ReviveSet ↷ *", () => {
+			const e2: S.Transaction = {
+				ref: 0,
+				seq: 2,
+				frames: [{
+					marks: [{
+						modify: {
+							foo: [
+								2,
+								{
+									type: "Revive",
+									range: RangeType.Set,
+									id: 0,
+									priorSeq: 0,
+									priorId: 0,
+									length: 3,
+								},
+							],
+						},
+					}],
+				}],
+			};
+			/**
+			 * The ReviveSet segment must be about a different set of nodes than those targeted by
+			 * the DeleteSet because the DeleteSet applies before the ReviveSet at which point no
+			 * nodes have been revived. Both the revive and the delete must therefore endure.
+			 */
+			describe("ReviveSet ↷ DeleteSet = ReviveSet & PriorDeleteSet", () => {
+				it("base before new", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										{ type: "DeleteSet", id: 0 },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										{ type: "PriorDeleteSet", seq: 1, id: 0 },
 										1,
-										{ type: "DeleteSet", id: 0, length: 3 },
+										{
+											type: "Revive",
+											range: RangeType.Set,
+											id: 0,
+											priorSeq: 0,
+											priorId: 0,
+											length: 3,
+										},
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
+				});
+				it("new before base", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										6,
+										{ type: "DeleteSet", id: 0 },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										2,
+										{
+											type: "Revive",
+											range: RangeType.Set,
+											id: 0,
+											priorSeq: 0,
+											priorId: 0,
+											length: 3,
+										},
+										4,
+										{ type: "PriorDeleteSet", seq: 1, id: 0 },
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
+				});
+				it("new within base", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
 										1,
-										{ type: "PriorRangeEnd", seq: 1, id: -1 },
+										{ type: "DeleteSet", id: 0, length: 6 },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										1,
+										{
+											type: "PriorDeleteSet",
+											seq: 1,
+											id: 0,
+											length: 6,
+											mods: [
+												1,
+												{
+													type: "Revive",
+													range: RangeType.Set,
+													id: 0,
+													priorSeq: 0,
+													priorId: 0,
+													length: 3,
+												},
+											],
+										},
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
+				});
+			});
+		});
+		describe("ReviveSlice ↷ *", () => {
+			const e2: S.Transaction = {
+				ref: 0,
+				seq: 2,
+				frames: [{
+					marks: [{
+						modify: {
+							foo: [
+								2,
+								{
+									type: "Revive",
+									range: RangeType.Slice,
+									id: 0,
+									priorSeq: 0,
+									priorId: 0,
+									length: 3,
+								},
+							],
+						},
+					}],
+				}],
+			};
+			/**
+			 * The ReviveSlice segment must be about a different range of nodes than those targeted by
+			 * the DeleteSlice because the DeleteSlice applies before the ReviveSlice at which point no nodes
+			 * have been revived. Both the revive and the delete must therefore endure.
+			 */
+			describe("ReviveSlice ↷ DeleteSlice = ReviveSlice & PriorDeleteSlice", () => {
+				it("base before new", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										{ type: "DeleteSlice", id: 0 },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										{ type: "PriorDeleteSlice", seq: 1, id: 0 },
+										1,
+										{
+											type: "Revive",
+											range: RangeType.Slice,
+											id: 0,
+											priorSeq: 0,
+											priorId: 0,
+											length: 3,
+										},
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
+				});
+				it("new before base", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										6,
+										{ type: "DeleteSlice", id: 0 },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										2,
+										{
+											type: "Revive",
+											range: RangeType.Slice,
+											id: 0,
+											priorSeq: 0,
+											priorId: 0,
+											length: 3,
+										},
+										4,
+										{ type: "PriorDeleteSlice", seq: 1, id: 0 },
+									],
+								},
+							}],
+						}],
+					};
+					const actual = rebase(e2, e1);
+					assert.deepEqual(actual.frames, e2p.frames);
+				});
+				it("new within base", () => {
+					const e1: S.Transaction = {
+						ref: 0,
+						seq: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										1,
+										{ type: "DeleteSlice", id: 0, length: 6 },
+									],
+								},
+							}],
+						}],
+					};
+					const e2p: S.Transaction = {
+						seq: 2,
+						ref: 0,
+						newRef: 1,
+						frames: [{
+							marks: [{
+								modify: {
+									foo: [
+										1,
+										{
+											type: "PriorDeleteSlice",
+											seq: 1,
+											id: 0,
+											length: 6,
+											mods: [
+												1,
+												{
+													type: "Revive",
+													range: RangeType.Slice,
+													id: 0,
+													priorSeq: 0,
+													priorId: 0,
+													length: 3,
+												},
+											],
+										},
 									],
 								},
 							}],
@@ -1041,8 +1387,8 @@ describe(rebase.name, () => {
 		});
 	});
 
-	describe("Inverse-only Segments", () => {
-		describe("PriorDetachSet ↷ ReviveSet = Offset", () => {
+	describe("Inverse Segments Cancellation", () => {
+		describe("PriorDeleteSet ↷ ReviveSet = Offset", () => {
 			const e1: S.Transaction = {
 				ref: 0,
 				seq: 1,
@@ -1051,13 +1397,20 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								1,
-								{ type: "ReviveSet", seq: 0, id: -1, length: 3 },
+								{
+									type: "Revive",
+									range: RangeType.Set,
+									id: 0,
+									priorSeq: 0,
+									priorId: 0,
+									length: 3,
+								},
 							],
 						},
 					}],
 				}],
 			};
-			it("base before new", () => {
+			it("match before change", () => {
 				const e2: S.Transaction = {
 					seq: 2,
 					ref: 0,
@@ -1067,9 +1420,7 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorSetDetachStart", seq: 0, id: -1 },
-									3,
-									{ type: "PriorRangeEnd", seq: 0, id: -1 },
+									{ type: "PriorDeleteSet", seq: 0, id: 0, length: 3 },
 									{ type: "Insert", id: 0, content: [] },
 								],
 							},
@@ -1094,7 +1445,7 @@ describe(rebase.name, () => {
 				const actual = rebase(e2, e1);
 				assert.deepEqual(actual.frames, e2p.frames);
 			});
-			it("new before base", () => {
+			it("change before match", () => {
 				const e2: S.Transaction = {
 					seq: 2,
 					ref: 0,
@@ -1105,9 +1456,7 @@ describe(rebase.name, () => {
 								foo: [
 									1,
 									{ type: "Insert", id: 0, content: [] },
-									{ type: "PriorSetDetachStart", seq: 0, id: -1 },
-									3,
-									{ type: "PriorRangeEnd", seq: 0, id: -1 },
+									{ type: "PriorDeleteSet", seq: 0, id: 0, length: 3 },
 								],
 							},
 						}],
@@ -1131,7 +1480,7 @@ describe(rebase.name, () => {
 				const actual = rebase(e2, e1);
 				assert.deepEqual(actual.frames, e2p.frames);
 			});
-			it("new within base", () => {
+			it("change within match", () => {
 				const e2: S.Transaction = {
 					seq: 2,
 					ref: 0,
@@ -1141,11 +1490,16 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorSetDetachStart", seq: 0, id: -1 },
-									2,
-									{ type: "Insert", id: 0, content: [] },
-									1,
-									{ type: "PriorRangeEnd", seq: 0, id: -1 },
+									{
+										type: "PriorDeleteSet",
+										seq: 0,
+										id: 0,
+										length: 3,
+										mods: [
+											2,
+											{ type: "Insert", id: 0, content: [] },
+										],
+									},
 								],
 							},
 						}],
@@ -1170,7 +1524,7 @@ describe(rebase.name, () => {
 				assert.deepEqual(actual.frames, e2p.frames);
 			});
 		});
-		describe("PriorDetachSlice ↷ ReviveSlice = Offset", () => {
+		describe("PriorDeleteSlice ↷ ReviveSlice = Offset", () => {
 			const e1: S.Transaction = {
 				ref: 0,
 				seq: 1,
@@ -1179,13 +1533,20 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								1,
-								{ type: "ReviveSlice", id: 0, seq: 0, length: 3 },
+								{
+									type: "Revive",
+									range: RangeType.Slice,
+									id: 0,
+									priorSeq: 0,
+									priorOp: 0,
+									length: 3,
+								},
 							],
 						},
 					}],
 				}],
 			};
-			it("base before new", () => {
+			it("match before change", () => {
 				const e2: S.Transaction = {
 					seq: 2,
 					ref: 0,
@@ -1195,9 +1556,7 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorDeleteStart", seq: 0, id: 0 },
-									3,
-									{ type: "PriorRangeEnd", seq: 0, id: 0 },
+									{ type: "PriorDeleteSlice", seq: 0, id: 0, length: 3 },
 									{ type: "Insert", id: 0, content: [] },
 								],
 							},
@@ -1222,7 +1581,7 @@ describe(rebase.name, () => {
 				const actual = rebase(e2, e1);
 				assert.deepEqual(actual.frames, e2p.frames);
 			});
-			it("new before base", () => {
+			it("change before match", () => {
 				const e2: S.Transaction = {
 					seq: 2,
 					ref: 0,
@@ -1233,9 +1592,7 @@ describe(rebase.name, () => {
 								foo: [
 									1,
 									{ type: "Insert", id: 0, content: [] },
-									{ type: "PriorDeleteStart", seq: 0, id: 0 },
-									3,
-									{ type: "PriorRangeEnd", seq: 0, id: 0 },
+									{ type: "PriorDeleteSlice", seq: 0, id: 0, length: 3 },
 								],
 							},
 						}],
@@ -1259,7 +1616,7 @@ describe(rebase.name, () => {
 				const actual = rebase(e2, e1);
 				assert.deepEqual(actual.frames, e2p.frames);
 			});
-			it("new within base", () => {
+			it("change within match", () => {
 				const e2: S.Transaction = {
 					seq: 2,
 					ref: 0,
@@ -1269,11 +1626,16 @@ describe(rebase.name, () => {
 							modify: {
 								foo: [
 									1,
-									{ type: "PriorDeleteStart", seq: 0, id: 0 },
-									2,
-									{ type: "Insert", id: 0, content: [] },
-									1,
-									{ type: "PriorRangeEnd", seq: 0, id: 0 },
+									{
+										type: "PriorDeleteSlice",
+										seq: 0,
+										id: 0,
+										length: 3,
+										mods: [
+											2,
+											{ type: "Insert", id: 0, content: [] },
+										],
+									},
 								],
 							},
 						}],
@@ -1289,277 +1651,6 @@ describe(rebase.name, () => {
 								foo: [
 									3,
 									{ type: "Insert", id: 0, content: [] },
-								],
-							},
-						}],
-					}],
-				};
-				const actual = rebase(e2, e1);
-				assert.deepEqual(actual.frames, e2p.frames);
-			});
-		});
-		describe("ReviveSet ↷ DeleteSet = ReviveSet & PriorSetDetach", () => {
-			const e1: S.Transaction = {
-				ref: 0,
-				seq: 1,
-				frames: [{
-					marks: [{
-						modify: {
-							foo: [
-								1,
-								{ type: "DeleteSet", id: -1, length: 3 },
-							],
-						},
-					}],
-				}],
-			};
-			it("base before new", () => {
-				const e2: S.Transaction = {
-					seq: 2,
-					ref: 0,
-					newRef: 1,
-					frames: [{
-						marks: [{
-							modify: {
-								foo: [
-									5,
-									{ type: "ReviveSet", seq: 0, id: -1, length: 3 },
-									{ type: "Insert", id: 0, content: [] },
-								],
-							},
-						}],
-					}],
-				};
-				const e2p: S.Transaction = {
-					seq: 2,
-					ref: 0,
-					newRef: 1,
-					frames: [{
-						marks: [{
-							modify: {
-								foo: [
-									1,
-									{ type: "PriorSetDetachStart", seq: 1, id: -1 },
-									3,
-									{ type: "PriorRangeEnd", seq: 1, id: -1 },
-									1,
-									{ type: "ReviveSet", seq: 0, id: -1, length: 3 },
-									{ type: "Insert", id: 0, content: [] },
-								],
-							},
-						}],
-					}],
-				};
-				const actual = rebase(e2, e1);
-				assert.deepEqual(actual.frames, e2p.frames);
-			});
-			it("new before base", () => {
-				const e2: S.Transaction = {
-					seq: 2,
-					ref: 0,
-					newRef: 1,
-					frames: [{
-						marks: [{
-							modify: {
-								foo: [
-									{ type: "Insert", id: 0, content: [] },
-									{ type: "ReviveSet", seq: 0, id: -1, length: 3 },
-								],
-							},
-						}],
-					}],
-				};
-				const e2p: S.Transaction = {
-					seq: 2,
-					ref: 0,
-					newRef: 1,
-					frames: [{
-						marks: [{
-							modify: {
-								foo: [
-									{ type: "Insert", id: 0, content: [] },
-									{ type: "ReviveSet", seq: 0, id: -1, length: 3 },
-									1,
-									{ type: "PriorSetDetachStart", seq: 1, id: -1 },
-									3,
-									{ type: "PriorRangeEnd", seq: 1, id: -1 },
-								],
-							},
-						}],
-					}],
-				};
-				const actual = rebase(e2, e1);
-				assert.deepEqual(actual.frames, e2p.frames);
-			});
-			it("new within base", () => {
-				const e2: S.Transaction = {
-					seq: 2,
-					ref: 0,
-					newRef: 1,
-					frames: [{
-						marks: [{
-							modify: {
-								foo: [
-									3,
-									{ type: "ReviveSet", seq: 0, id: -1, length: 2 },
-									{ type: "Insert", id: 0, content: [] },
-								],
-							},
-						}],
-					}],
-				};
-				const e2p: S.Transaction = {
-					seq: 2,
-					ref: 0,
-					newRef: 1,
-					frames: [{
-						marks: [{
-							modify: {
-								foo: [
-									1,
-									{ type: "PriorSetDetachStart", seq: 1, id: -1 },
-									2,
-									{ type: "ReviveSet", seq: 0, id: -1, length: 2 },
-									{ type: "Insert", id: 0, content: [] },
-									{ type: "PriorRangeEnd", seq: 1, id: -1 },
-								],
-							},
-						}],
-					}],
-				};
-				const actual = rebase(e2, e1);
-				assert.deepEqual(actual.frames, e2p.frames);
-			});
-		});
-		describe("ReviveSlice ↷ DeleteSlice = ReviveSlice & PriorDeleteSlice", () => {
-			const e1: S.Transaction = {
-				ref: 0,
-				seq: 1,
-				frames: [{
-					marks: [{
-						modify: {
-							foo: [
-								1,
-								{ type: "DeleteStart", id: 0 },
-								3,
-								{ type: "End", id: 0 },
-							],
-						},
-					}],
-				}],
-			};
-			it("base before new", () => {
-				const e2: S.Transaction = {
-					seq: 2,
-					ref: 0,
-					newRef: 1,
-					frames: [{
-						marks: [{
-							modify: {
-								foo: [
-									5,
-									{ type: "ReviveSlice", seq: 0, id: 0, length: 3 },
-									{ type: "Insert", id: 0, content: [] },
-								],
-							},
-						}],
-					}],
-				};
-				const e2p: S.Transaction = {
-					seq: 2,
-					ref: 0,
-					newRef: 1,
-					frames: [{
-						marks: [{
-							modify: {
-								foo: [
-									1,
-									{ type: "PriorDeleteStart", seq: 1, id: 0 },
-									3,
-									{ type: "PriorRangeEnd", seq: 1, id: 0 },
-									1,
-									{ type: "ReviveSlice", seq: 0, id: 0, length: 3 },
-									{ type: "Insert", id: 0, content: [] },
-								],
-							},
-						}],
-					}],
-				};
-				const actual = rebase(e2, e1);
-				assert.deepEqual(actual.frames, e2p.frames);
-			});
-			it("new before base", () => {
-				const e2: S.Transaction = {
-					seq: 2,
-					ref: 0,
-					newRef: 1,
-					frames: [{
-						marks: [{
-							modify: {
-								foo: [
-									{ type: "Insert", id: 0, content: [] },
-									{ type: "ReviveSlice", seq: 0, id: 0, length: 3 },
-								],
-							},
-						}],
-					}],
-				};
-				const e2p: S.Transaction = {
-					seq: 2,
-					ref: 0,
-					newRef: 1,
-					frames: [{
-						marks: [{
-							modify: {
-								foo: [
-									{ type: "Insert", id: 0, content: [] },
-									{ type: "ReviveSlice", seq: 0, id: 0, length: 3 },
-									1,
-									{ type: "PriorDeleteStart", seq: 1, id: 0 },
-									3,
-									{ type: "PriorRangeEnd", seq: 1, id: 0 },
-								],
-							},
-						}],
-					}],
-				};
-				const actual = rebase(e2, e1);
-				assert.deepEqual(actual.frames, e2p.frames);
-			});
-			it("new within base", () => {
-				const e2: S.Transaction = {
-					seq: 2,
-					ref: 0,
-					newRef: 1,
-					frames: [{
-						marks: [{
-							modify: {
-								foo: [
-									3,
-									{ type: "ReviveSlice", seq: 0, id: 0, length: 2 },
-									{ type: "Insert", id: 0, content: [] },
-									{ type: "ReviveSlice", seq: 0, id: 0 },
-								],
-							},
-						}],
-					}],
-				};
-				const e2p: S.Transaction = {
-					seq: 2,
-					ref: 0,
-					newRef: 1,
-					frames: [{
-						marks: [{
-							modify: {
-								foo: [
-									1,
-									{ type: "PriorDeleteStart", seq: 1, id: 0 },
-									2,
-									{ type: "ReviveSlice", seq: 0, id: 0, length: 2 },
-									{ type: "Insert", id: 0, content: [] },
-									{ type: "ReviveSlice", seq: 0, id: 0 },
-									1,
-									{ type: "PriorRangeEnd", seq: 1, id: 0 },
 								],
 							},
 						}],
@@ -1586,10 +1677,10 @@ describe(rebase.name, () => {
 			});
 		});
 
-		describe("ScenarioC", () => {
+		describe("ScenarioB", () => {
 			it("e2", () => {
-				const actual = rebase(ScenarioC.e3, ScenarioC.e2);
-				assert.deepEqual(actual.frames, ScenarioC.e3p.frames);
+				const actual = rebase(ScenarioB.e3, ScenarioB.e2);
+				assert.deepEqual(actual.frames, ScenarioB.e3p.frames);
 			});
 		});
 

@@ -45,6 +45,17 @@ interface SliceLikeRangeAnchor {
 	trait: TraitLabel;
 	start: RangeBoundary;
 	end: RangeBoundary;
+	/**
+	 * When `true`, if a concurrent insertion that is sequenced before the range operation falls within the bounds of the range,
+	 * then the inserted content will be included in the range and therefore affected by the operation performed on the range.
+	 */
+	includePriorInsertions: boolean;
+	/**
+	 * When `true`, if a concurrent insertion that are sequenced after the range operation falls within the bounds of the range,
+	 * then the inserted content will be included in the range and therefore affected by the operation performed on the range,
+	 * unless that insertion stipulates that it is not commutative with respect to the range operation.
+	 */
+	includePosteriorInsertions: boolean;
 }
 
 type RangeBoundary = {

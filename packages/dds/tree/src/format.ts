@@ -3,8 +3,6 @@
  * Licensed under the MIT License.
  */
 
-/* eslint-disable @typescript-eslint/no-empty-interface */
-
 // TODOs:
 // Clipboard
 // Rework constraint scheme
@@ -244,6 +242,28 @@ export namespace Original {
 		mods?: RangeMods<MoveOut | Delete, false>;
 	}
 
+	// -- Inverse Changes ---
+
+	export interface Revive extends HasLength, HasOpId {
+		type: "Revive";
+		range: RangeType;
+		priorSeq: SeqNumber;
+		priorId: OpId;
+		mods?: RangeMods<Return>;
+	}
+
+	export interface Return extends HasSeqNumber, HasLength, HasOpId {
+		type: "Return";
+		range: RangeType;
+		priorSeq: SeqNumber;
+		priorId: OpId;
+		mods?: RangeMods<Return | Revive>;
+	}
+
+	export interface RevertValue extends HasSeqNumber {
+		type: "RevertValue";
+	}
+
 	export interface IsPlace {
 		/**
 		 * Whether the attach operation was performed relative to the previous sibling or the next.
@@ -279,17 +299,37 @@ export namespace Original {
 		 */
 		startSide?: Sibling.Next;
 		/**
-		  * Omit if `Sibling.Next` for terseness.
-		  */
+		 * Omit if `Sibling.Next` for terseness.
+		 */
 		endsSide?: Sibling.Prev;
 		/**
-		   * Omit if not in peer change.
-		   * Omit if `Tiebreak.LastToFirst` for terseness.
-		   */
-		tiebreak?: Tiebreak;
+		 * When `true`, if a concurrent insertion that is sequenced before the range operation falls
+		 * within the bounds of the range, then the inserted content will *not* be included in the
+		 * range and therefore will *not* be affected by the operation performed on the range.
+		 *
+		 * Defaults to false.
+		 */
+		excludePriorInsertions?: true;
 		/**
-		   * Omit if no drill-down.
-		   */
+		 * When `true`, if a concurrent insertion that are sequenced after the range operation falls
+		 * within the bounds of the range, then the inserted content will be included in the range and
+		 * therefore will be affected by the operation performed on the range, unless that insertion
+		 * stipulates that it is not commutative with respect to the range operation.
+		 *
+		 * Defaults to false.
+		 */
+		includePosteriorInsertions?: true;
+		/**
+		 * Omit if `Tiebreak.LastToFirst` for terseness.
+		 */
+		startTiebreak?: Tiebreak;
+		/**
+		 * Omit if `Tiebreak.LastToFirst` for terseness.
+		 */
+		endTiebreak?: Tiebreak;
+		/**
+		 * Omit if no drill-down.
+		 */
 		drill?: DrillDepth;
 	}
 
@@ -319,7 +359,8 @@ export namespace Original {
  */
 export namespace Rebased {
 	// Use "interface" instead "type" to avoid TSC error
-	export interface Modify<TInner = Mark, AllowSetValue extends boolean = true> extends
+	// eslint-disable-next-line @typescript-eslint/no-empty-interface
+	export interface Modify<TInner = Exclude<Mark, PriorInsert>, AllowSetValue extends boolean = true> extends
 		Original.Modify<TInner, AllowSetValue> { }
 	export type SetValue = Original.SetValue;
 	export type MoveEntry = Original.MoveEntry;
@@ -327,6 +368,9 @@ export namespace Rebased {
 	export type HasOpId = Original.HasOpId;
 	export type IsPlace = Original.IsPlace;
 	export type IsSlice = Original.IsSlice;
+	export type RevertValue = Original.RevertValue;
+	export type Revive = Original.Revive;
+	export type Return = Original.Return;
 
 	export interface Transaction {
 		/**
@@ -341,14 +385,6 @@ export namespace Rebased {
 		 */
 		newRef?: SeqNumber;
 		frames: TransactionFrame[];
-	}
-
-	export interface HasSeqNumber {
-		/**
-		 * Included in a mark to indicate the transaction it was part of.
-		 * This number is assigned by the Fluid service.
-		 */
-		seq: SeqNumber;
 	}
 
 	export type TransactionFrame = ConstraintFrame | ChangeFrame;
@@ -395,7 +431,7 @@ export namespace Rebased {
 		seq: SeqNumber;
 	}
 
-	export type TraitMark = Offset | Mark;
+	export type TraitMark = Offset | Exclude<Mark, PriorInsert>;
 	export type TraitMarks = TraitMark[];
 	export type ModsTrail = (Offset | ModsMark)[];
 
@@ -501,40 +537,22 @@ export namespace Rebased {
 
 	export interface PriorDeleteSet extends HasSeqNumber, HasOpId, HasLength {
 		type: "PriorDeleteSet";
-		mods?: RangeMods<PriorMoveOut | AttachMark, false>;
+		mods?: RangeMods<PriorMoveOut | PriorAttach | AttachMark, false>;
 	}
 
 	export interface PriorDeleteSlice extends HasSeqNumber, HasOpId, HasLength {
 		type: "PriorDeleteSlice";
-		mods?: RangeMods<PriorMoveOut | AttachMark, false>;
+		mods?: RangeMods<PriorMoveOut | PriorAttach | AttachMark, false>;
 	}
 
 	export interface PriorMoveOutSet extends HasOpId, HasSeqNumber, HasLength {
 		type: "PriorMoveOutSet";
-		mods?: RangeMods<PriorMoveOut | PriorDelete | AttachMark, false>;
+		mods?: RangeMods<PriorMoveOut | PriorDelete | PriorAttach | AttachMark, false>;
 	}
 
 	export interface PriorMoveOutSlice extends HasSeqNumber, HasOpId, HasLength {
 		type: "PriorMoveOutSlice";
-		mods?: RangeMods<PriorMoveOut | PriorDelete | AttachMark, false>;
-	}
-
-	// -- Inverse Changes ---
-
-	export interface Revive extends HasSeqNumber, HasLength, HasOpId {
-		type: "Revive";
-		range: RangeType;
-		mods?: RangeMods<Return>;
-	}
-
-	export interface Return extends HasSeqNumber, HasLength, HasOpId {
-		type: "Return";
-		range: RangeType;
-		mods?: RangeMods<Return | Revive>;
-	}
-
-	export interface RevertValue extends HasSeqNumber {
-		type: "RevertValue";
+		mods?: RangeMods<PriorMoveOut | PriorDelete | PriorAttach | AttachMark, false>;
 	}
 }
 
@@ -601,6 +619,14 @@ export enum Sibling {
  * represented by an offset), or the end of the trait, whichever is encountered first.
  */
 export type OpId = number;
+
+export interface HasSeqNumber {
+	/**
+	 * Included in a mark to indicate the transaction it was part of.
+	 * This number is assigned by the Fluid service.
+	 */
+	seq: SeqNumber;
+}
 
 export type Offset = number;
 export type Index = number;
