@@ -8,12 +8,11 @@ import { postbase as postbaseImpl } from "../postbase";
 import {
 	Sequenced as S,
 	Rebased as R,
-	Commutativity,
 } from "../format";
 import {
 	ScenarioA1,
 	ScenarioA2,
-	ScenarioC,
+	ScenarioB,
 	ScenarioD,
 	ScenarioE,
 	ScenarioF,
@@ -29,102 +28,6 @@ function postbase(original: R.Transaction, base: S.Transaction): R.Transaction {
 
 describe(postbase.name, () => {
 	describe("Basic Segments Matrix", () => {
-		describe("* ↷ Insert", () => {
-			const e2: S.Transaction = {
-				ref: 0,
-				seq: 2,
-				frames: [{
-					marks: [{
-						modify: {
-							foo: [
-								3,
-								{ type: "Insert", id: 0, content: [{ id: "X" }] },
-							],
-						},
-					}],
-				}],
-			};
-			// const e2nc: S.Transaction = {
-			// 	ref: 0,
-			// 	seq: 2,
-			// 	frames: [{
-			// 		marks: [{
-			// 			modify: {
-			// 				foo: [
-			// 					3,
-			// 					{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.None },
-			// 				],
-			// 			},
-			// 		}],
-			// 	}],
-			// };
-			describe("Insert ↷ Insert", () => {
-				it("new before base", () => {
-					const e1: S.Transaction = {
-						ref: 0,
-						seq: 1,
-						frames: [{
-							marks: [{
-								modify: {
-									foo: [
-										{ type: "Insert", id: 0, content: [{ id: "A" }, { id: "B" }] },
-									],
-								},
-							}],
-						}],
-					};
-					const e1p: S.Transaction = {
-						ref: 0,
-						seq: 1,
-						newRef: 2,
-						frames: [{
-							marks: [{
-								modify: {
-									foo: [
-										{ type: "Insert", id: 0, content: [{ id: "A" }, { id: "B" }] },
-									],
-								},
-							}],
-						}],
-					};
-					const actual = postbase(e1, e2);
-					assert.deepEqual(actual.frames, e1p.frames);
-				});
-				it("base before new", () => {
-					const e1: S.Transaction = {
-						ref: 0,
-						seq: 1,
-						frames: [{
-							marks: [{
-								modify: {
-									foo: [
-										5,
-										{ type: "Insert", id: 0, content: [{ id: "A" }, { id: "B" }] },
-									],
-								},
-							}],
-						}],
-					};
-					const e1p: S.Transaction = {
-						ref: 0,
-						seq: 1,
-						newRef: 2,
-						frames: [{
-							marks: [{
-								modify: {
-									foo: [
-										6,
-										{ type: "Insert", id: 0, content: [{ id: "A" }, { id: "B" }] },
-									],
-								},
-							}],
-						}],
-					};
-					const actual = postbase(e1, e2);
-					assert.deepEqual(actual.frames, e1p.frames);
-				});
-			});
-		});
 	});
 
 	describe.skip("Scenarios", () => {
@@ -142,10 +45,10 @@ describe(postbase.name, () => {
 			});
 		});
 
-		describe("ScenarioC", () => {
+		describe("ScenarioB", () => {
 			it("e2", () => {
-				const actual = postbase(ScenarioC.e3, ScenarioC.e2);
-				assert.deepEqual(actual.frames, ScenarioC.e3p.frames);
+				const actual = postbase(ScenarioB.e3, ScenarioB.e2);
+				assert.deepEqual(actual.frames, ScenarioB.e3p.frames);
 			});
 		});
 
