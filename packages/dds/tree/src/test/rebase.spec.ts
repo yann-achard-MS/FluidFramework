@@ -932,7 +932,7 @@ describe(rebase.name, () => {
 							marks: [{
 								modify: {
 									foo: [
-										{ type: "PriorDeleteSet", id: 0 },
+										{ type: "PriorDeleteSet", seq: 1, id: 0 },
 										1,
 										{ type: "DeleteSet", id: 0, length: 3 },
 									],
@@ -1538,7 +1538,7 @@ describe(rebase.name, () => {
 									range: RangeType.Slice,
 									id: 0,
 									priorSeq: 0,
-									priorOp: 0,
+									priorId: 0,
 									length: 3,
 								},
 							],

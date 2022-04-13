@@ -910,7 +910,7 @@ export namespace ScenarioG {
 		marks: [{
 			modify: {
 				foo: [
-					{ type: "MoveOutSlice", id: 0, length }, // A X
+					{ type: "MoveOutSlice", id: 0, length: 2 }, // A X
 					1, // N
 					{ type: "MoveOutSlice", id: 0, length: 2 }, // Y B
 				],

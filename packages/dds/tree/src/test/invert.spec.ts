@@ -17,6 +17,8 @@ function testInvert(frame: R.ChangeFrame): R.ChangeFrame {
 }
 
 const seq = 42;
+const priorSeq = seq;
+
 const insert: R.ChangeFrame = {
 	marks: [{
 		modify: {
@@ -29,7 +31,7 @@ const insert: R.ChangeFrame = {
 				{
 					type: "Insert",
 					id: 1,
-					content: [{ id: "B" }, { id: "C" }, { id: "D" }],
+					content: [{ id: "B" }, { id: "C" }, { id: "E" }],
 					mods: [
 						1,
 						{
@@ -38,10 +40,15 @@ const insert: R.ChangeFrame = {
 									{
 										type: "Insert",
 										id: 2,
-										content: [{ id: "C2" }],
+										content: [{ id: "CA" }],
 									},
 								],
 							},
+						},
+						{
+							type: "Insert",
+							id: 3,
+							content: [{ id: "D" }],
 						},
 					],
 				},
@@ -55,12 +62,12 @@ const deleteSet: R.ChangeFrame = {
 			foo: [
 				{
 					type: "DeleteSet",
-					id: 1,
+					id: -0,
 				},
 				{
 					type: "DeleteSet",
-					id: 2,
-					length: 3,
+					id: -1,
+					length: 4,
 				},
 			],
 		},
@@ -72,33 +79,35 @@ const deleteSlice: R.ChangeFrame = {
 			foo: [
 				{
 					type: "DeleteSlice",
-					id: 1,
+					id: 0,
 				},
 				{
 					type: "DeleteSlice",
-					id: 2,
+					id: 1,
 					length: 3,
 				},
 			],
 		},
 	}],
 };
-const revive: R.ChangeFrame = {
+const reviveSet: R.ChangeFrame = {
 	marks: [{
 		modify: {
 			foo: [
 				{
 					type: "Revive",
 					range: RangeType.Set,
-					seq,
-					id: 1,
+					priorSeq,
+					priorId: -0,
+					id: 0,
 				},
 				{
 					type: "Revive",
 					range: RangeType.Set,
-					seq,
-					id: 2,
-					length: 3,
+					priorSeq,
+					priorId: -1,
+					id: 1,
+					length: 4,
 				},
 			],
 		},
@@ -111,14 +120,16 @@ const reviveSlice: R.ChangeFrame = {
 				{
 					type: "Revive",
 					range: RangeType.Slice,
-					seq,
-					id: 1,
+					priorSeq,
+					priorId: 0,
+					id: -0,
 				},
 				{
 					type: "Revive",
 					range: RangeType.Slice,
-					seq,
-					id: 2,
+					priorSeq,
+					priorId: 1,
+					id: -1,
 					length: 3,
 				},
 			],
@@ -258,14 +269,15 @@ const returnSetInTrait: R.ChangeFrame = {
 					1,
 					{
 						type: "MoveOutSet",
-						id: 0,
+						id: -0,
 					},
 					1,
 					{
 						type: "Return",
 						range: RangeType.Set,
-						id: 0,
-						seq,
+						id: -0,
+						priorSeq,
+						priorId: 0,
 					},
 				],
 			},
@@ -283,14 +295,15 @@ const returnSliceInTrait: R.ChangeFrame = {
 					1,
 					{
 						type: "MoveOutSlice",
-						id: 0,
+						id: -0,
 					},
 					1,
 					{
 						type: "Return",
 						range: RangeType.Slice,
-						id: 0,
-						seq,
+						id: -0,
+						priorSeq,
+						priorId: 0,
 					},
 				],
 			},
@@ -308,14 +321,15 @@ const returnSetAcrossTraits: R.ChangeFrame = {
 					{
 						type: "Return",
 						range: RangeType.Set,
-						seq,
-						id: 0,
+						priorSeq,
+						priorId: 0,
+						id: -0,
 					},
 				],
 				bar: [
 					{
 						type: "MoveOutSet",
-						id: 0,
+						id: -0,
 					},
 				],
 			},
@@ -333,14 +347,15 @@ const returnSliceAcrossTraits: R.ChangeFrame = {
 					{
 						type: "Return",
 						range: RangeType.Slice,
-						seq,
-						id: 0,
+						priorSeq,
+						priorId: 0,
+						id: -0,
 					},
 				],
 				bar: [
 					{
 						type: "MoveOutSlice",
-						id: 0,
+						id: -0,
 					},
 				],
 			},
@@ -360,7 +375,8 @@ const returnTwiceSetInTrait: R.ChangeFrame = {
 						type: "Return",
 						range: RangeType.Set,
 						id: 0,
-						seq,
+						priorSeq,
+						priorId: -0,
 					},
 					1,
 					{
@@ -385,7 +401,8 @@ const returnTwiceSliceInTrait: R.ChangeFrame = {
 						type: "Return",
 						range: RangeType.Slice,
 						id: 0,
-						seq,
+						priorSeq,
+						priorId: -0,
 					},
 					1,
 					{
@@ -414,7 +431,8 @@ const returnTwiceSetAcrossTraits: R.ChangeFrame = {
 					{
 						type: "Return",
 						range: RangeType.Set,
-						seq,
+						priorSeq,
+						priorId: -0,
 						id: 0,
 					},
 				],
@@ -439,7 +457,8 @@ const returnTwiceSliceAcrossTraits: R.ChangeFrame = {
 					{
 						type: "Return",
 						range: RangeType.Slice,
-						seq,
+						priorSeq,
+						priorId: -0,
 						id: 0,
 					},
 				],
@@ -467,7 +486,7 @@ describe(invert.name, () => {
 	describe("Delete -> Revive", () => {
 		it("For set ranges", () => {
 			const actual = testInvert(deleteSet);
-			assert.deepEqual(actual, revive);
+			assert.deepEqual(actual, reviveSet);
 		});
 		it("For slice ranges", () => {
 			const actual = testInvert(deleteSlice);
@@ -477,7 +496,7 @@ describe(invert.name, () => {
 
 	describe("Revive -> Delete", () => {
 		it("For set ranges", () => {
-			const actual = testInvert(revive);
+			const actual = testInvert(reviveSet);
 			assert.deepEqual(actual, deleteSet);
 		});
 		it("For slice ranges", () => {

@@ -30,290 +30,69 @@ export function mapObject<T,U>(obj: T, f: (v: T[keyof T], k: keyof T) => U): ({ 
 	return out as { [K in keyof T]: U };
 }
 
-// type Wrap<T> = { o: T } extends any ? { o: T } : never;
-// type Unwrap<T> = T extends { o: infer U } ? U : never;
-
-// type A = { a: number } & { ab: number };
-// type B = { ab: string } & { b: string };
-// type AB = A | B;
-// // type CD = A & B;
-
-// type CD = {
-// 	[P in keyof (A & B)]?: A extends { P: infer AP }
-// 		? (B extends { P: infer BP } ? AP | BP : AP)
-// 		: (B extends { P: infer BP } ? BP : never)
-// };
-// // type CD = {
-// // 	[P in keyof (A & B)]?: A extends { P: infer AP }
-// // 		? (B extends { P: infer BP } ? AP | BP : AP)
-// // 		: (B extends { P: infer BP } ? BP : never)
-// // };
-
-// const ab: AB = { a: 1, ab: 1, b: "" };
-// const cd: CD = ab;
-// const n: number = cd.a;
-
-// /**
-//  * Source: https://fettblog.eu/typescript-union-to-intersection/
-//  */
-// export type UnionToIntersection<T> =
-// 	(T extends any ? (x: T) => any : never) extends
-// 	(x: infer R) => any ? R : never;
-
-// export type PartialUnion<T> = UnionToIntersection<Partial<T>>;
-
 export type OneOrMany<T> = T | T[];
-
-// export type VisitOutput = boolean | undefined | void;
-
-// export interface RebasedFrameVisitor {
-// 	readonly onChange?: (frame: R.ChangeFrame) => VisitOutput;
-// 	readonly onConstraint?: (frame: R.ConstraintFrame) => VisitOutput;
-
-// 	readonly onMark?: (mark: R.Mark) => VisitOutput;
-// 	readonly onObjMark?: (mark: R.ObjMark) => VisitOutput;
-// 	readonly onNode?: (node: R.ProtoNode) => VisitOutput;
-
-// 	readonly onSegment?: (mark: R.SegmentMark) => VisitOutput;
-// 	readonly onMod?: (mark: R.ModsMark) => VisitOutput;
-// 	readonly onAttach?: (mark: R.AttachMark) => VisitOutput;
-// 	readonly onDetach?: (mark: R.DetachMark) => VisitOutput;
-// 	readonly onBound?: (mark: R.SliceBound) => VisitOutput;
-// 	readonly onStartBound?: (mark: R.SliceStart) => VisitOutput;
-
-// 	readonly onModify?: (mark: R.Modify) => VisitOutput;
-// 	readonly onSetValue?: (mark: R.SetValue) => void;
-// 	readonly onInsert?: (mark: R.Insert) => VisitOutput;
-// 	readonly onDelete?: (mark: R.Delete) => VisitOutput;
-// 	readonly onMoveIn?: (mark: R.MoveIn) => VisitOutput;
-// 	readonly onMoveOut?: (mark: R.MoveOut) => VisitOutput;
-// 	readonly onMoveOutStart?: (mark: R.MoveOutStart) => void;
-// 	readonly onDeleteStart?: (mark: R.DeleteStart) => void;
-// 	readonly onSliceEnd?: (mark: R.SliceEnd) => void;
-// 	readonly onOffset?: (mark: Offset) => void;
-// }
-
-// export function visitFrame(
-// 	frame: R.ChangeFrame | R.ConstraintFrame,
-// 	visitor: RebasedFrameVisitor,
-// ): void {
-// 	if (isChangeFrame(frame)) {
-// 		const skip = visitor.onChange?.(frame);
-// 		if (skip !== false) {
-// 			visitChangeFrame(frame, visitor);
-// 		}
-// 	} else if (isConstraintFrame(frame)) {
-// 		visitor.onConstraint?.(frame);
-// 	} else {
-// 		throw(new Error("Transaction frame is neither a constraint nor a change"));
-// 	}
-// }
-
-// export function visitChangeFrame(changeFrame: R.ChangeFrame, visitor: RebasedFrameVisitor): void {
-// 	visitMarks(changeFrame.marks, visitor);
-// }
-
-// export function visitMarks(marks: (Offset | R.ObjMark)[], visitor: RebasedFrameVisitor): void {
-// 	for (const mark of marks) {
-// 		visitMark(mark, visitor);
-// 	}
-// }
-
-// export function visitMods(
-// 	marks: (Offset | R.ModsMark)[],
-// 	visitor: RebasedFrameVisitor,
-// ): void {
-// 	for (const mark of marks) {
-// 		visitMark(mark, visitor);
-// 	}
-// }
-
-// export function visitMark(
-// 	mark: Offset | R.Mark,
-// 	visitor: RebasedFrameVisitor,
-// ): void {
-// 	if (typeof mark === "number") {
-// 		visitor.onOffset?.(mark);
-// 	} else if (typeof mark === "object") {
-// 		const skipMark = visitor.onMark?.(mark);
-// 		if (skipMark !== false) {
-// 			if (Array.isArray(mark)) {
-// 				// TODO: racing
-// 			} else {
-// 				const skipObjMark = visitor.onObjMark?.(mark);
-// 				if (skipObjMark !== false) {
-// 					if (isModify(mark)) {
-// 						const skipMod = visitor.onMod?.(mark);
-// 						if (skipMod !== false) {
-// 							const skipModify = visitor.onModify?.(mark);
-// 							if (skipModify !== false) {
-// 								if (mark.modify !== undefined) {
-// 									for (const modifyOrMarks of Object.values(mark.modify)) {
-// 										visitMarks(modifyOrMarks, visitor);
-// 									}
-// 								}
-// 							}
-// 						}
-// 					} else if (isSetValue(mark)) {
-// 						const skipMod = visitor.onMod?.(mark);
-// 						if (skipMod !== false) {
-// 							visitor.onSetValue?.(mark);
-// 						}
-// 					} else if (isBound(mark)) {
-// 						const skipBound = visitor.onBound?.(mark);
-// 						if (skipBound !== false) {
-// 							if (isEnd(mark)) {
-// 								visitor.onSliceEnd?.(mark);
-// 							} else {
-// 								const skipStart = visitor.onStartBound?.(mark);
-// 								if (skipStart !== false) {
-// 									if (isMoveOutStart(mark)) {
-// 										visitor.onMoveOutStart?.(mark);
-// 									} else {
-// 										visitor.onDeleteStart?.(mark);
-// 									}
-// 								}
-// 							}
-// 						}
-// 					} else if (isSegment(mark)) {
-// 						const skipSegment = visitor.onSegment?.(mark);
-// 						if (skipSegment !== false) {
-// 							if (isDetachSegment(mark)) {
-// 								const skipDetach = visitor.onDetach?.(mark);
-// 								if (skipDetach !== false) {
-// 									if (mark.type === "Delete") {
-// 										const skipDelete = visitor.onDelete?.(mark);
-// 										if (skipDelete !== false && mark.mods !== undefined) {
-// 											visitMods(mark.mods, visitor);
-// 										}
-// 									} else {
-// 										const skipMoveOut = visitor.onMoveOut?.(mark);
-// 										if (skipMoveOut !== false && mark.mods !== undefined) {
-// 											visitMods(mark.mods, visitor);
-// 										}
-// 									}
-// 								}
-// 							} else {
-// 								const skipAttach = visitor.onAttach?.(mark);
-// 								if (skipAttach !== false) {
-// 									if (mark.type === "Insert") {
-// 										const skipInsert = visitor.onInsert?.(mark);
-// 										if (skipInsert !== false && mark.mods !== undefined) {
-// 											visitMods(mark.mods, visitor);
-// 										}
-// 									} else {
-// 										const skipMoveIn = visitor.onMoveIn?.(mark);
-// 										if (skipMoveIn !== false) {
-// 											visitMarks(mark.content, visitor);
-// 										}
-// 									}
-// 								}
-// 							}
-// 						}
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}
-// }
 
 export function isSetValue(mark: Offset | R.ObjMark): mark is R.SetValue {
 	return typeof mark === "object" && mark.type === "SetValue";
 }
 
-export function isModify(mark: Offset | R.Mark): mark is R.Modify {
+export function isModify(mark: Readonly<Offset | R.Mark>): mark is R.Modify {
 	const partial = mark as Partial<R.Modify>;
 	return isOffset(mark) === false
 		&& (partial.type === "Modify" || partial.type === undefined)
 		&& (partial.modify !== undefined || partial.value !== undefined);
 }
 
-export function isInsert(mark: Offset | R.Mark): mark is R.Insert {
+export function isInsert(mark: Readonly<Offset | R.Mark>): mark is R.Insert {
 	return typeof mark === "object" && mark.type === "Insert";
 }
 
-export function isPrior(mark: Offset | R.Mark): mark is R.PriorBound {
+export function isNodeMark(mark: Readonly<Offset | R.Mark>): mark is R.NodeMark {
+	return isOffset(mark) || isSetValue(mark) || isRevert(mark);
+}
+
+export function isPrior(mark: Readonly<Offset | R.Mark>): mark is R.Prior {
 	return typeof mark === "object" && mark.type?.startsWith("Prior") === true;
 }
 
-export function isPriorSetDetach(mark: Offset | R.Mark): mark is R.PriorSetDetachStart {
-	return typeof mark === "object" && mark.type === "PriorSetDetach";
+export function isPriorDetach(mark: Readonly<Offset | R.Mark>): mark is R.PriorDetach {
+	return isPriorDelete(mark) || isPriorMoveOut(mark);
 }
 
-export function isPriorSliceDetach(mark: Offset | R.Mark): mark is R.PriorSetDetachStart {
-	return typeof mark === "object" && mark.type === "PriorSliceDetach";
+export function isPriorDelete(mark: Readonly<Offset | R.Mark>): mark is R.PriorDelete {
+	return typeof mark === "object" && (mark.type === "PriorDeleteSet" || mark.type === "PriorDeleteSlice");
 }
 
-export function isDelete(mark: Offset | R.Mark): mark is R.DeleteSet {
-	return typeof mark === "object" && mark.type === "Delete";
+export function isPriorMoveOut(mark: Readonly<Offset | R.Mark>): mark is R.PriorMoveOut {
+	return typeof mark === "object" && (mark.type === "PriorMoveOutSet" || mark.type === "PriorMoveOutSlice");
 }
 
-export function isMoveIn(mark: Offset | R.Mark): mark is R.MoveIn {
-	return typeof mark === "object" && (mark.type === "MoveInSlice" || mark.type === "MoveInSet");
+export function isPriorDeleteSet(mark: Readonly<Offset | R.Mark>): mark is R.PriorDeleteSet {
+	return typeof mark === "object" && mark.type === "PriorDeleteSet";
 }
 
-export function isMoveOut(mark: Offset | R.Mark): mark is R.MoveOutSet {
-	return typeof mark === "object" && mark.type === "MoveOut";
+export function isPriorDeleteSlice(mark: Readonly<Offset | R.Mark>): mark is R.PriorDeleteSlice {
+	return typeof mark === "object" && mark.type === "PriorDeleteSlice";
 }
 
-export function isMoveOutStart(mark: R.Mark): mark is R.MoveOutStart {
-	return (mark as Partial<R.MoveOutStart>).type === "MoveOutStart";
-}
-export function isDeleteStart(mark: R.Mark): mark is R.DeleteStart {
-	return (mark as Partial<R.DeleteStart>).type === "DeleteStart";
-}
-export function isEnd(mark: Offset | R.Mark): mark is R.SliceEnd {
-	return typeof mark === "object" && mark.type === "End";
+export function isDeleteSet(mark: Readonly<Offset | R.Mark>): mark is R.DeleteSet {
+	return typeof mark === "object" && mark.type === "DeleteSet";
 }
 
-export function isPriorSliceEnd(mark: Offset | R.Mark): mark is R.PriorRangeEnd {
-	return typeof mark === "object" && mark.type === "PriorSliceEnd";
+export function isDeleteSlice(mark: Readonly<Offset | R.Mark>): mark is R.DeleteSlice {
+	return typeof mark === "object" && mark.type === "DeleteSlice";
 }
 
-export function isStartBound(mark: R.TraitMark): mark is R.MoveOutStart | R.DeleteStart {
-	if (typeof mark === "number") {
-		return false;
-	}
-	const markType = mark.type;
-	return markType === "MoveOutStart"
-		|| markType === "DeleteStart"
-	;
+export function isMoveIn(mark: Readonly<Offset | R.Mark>): mark is R.MoveIn {
+	return typeof mark === "object" && mark.type === "MoveIn";
 }
 
-export function isBound(mark: R.TraitMark): mark is R.SliceBound {
-	if (typeof mark === "number") {
-		return false;
-	}
-	const markType = mark.type;
-	return markType === "MoveOutStart"
-		|| markType === "DeleteStart"
-		|| markType === "End"
-	;
+export function isMoveOutSet(mark: Readonly<Offset | R.Mark>): mark is R.MoveOutSet {
+	return typeof mark === "object" && mark.type === "MoveOutSet";
 }
 
-export function isPriorStartBound(
-	mark: R.TraitMark,
-): mark is R.PriorDeleteStart | R.PriorMoveOutStart | R.PriorSetDetachStart {
-	if (typeof mark === "number") {
-		return false;
-	}
-	const markType = mark.type;
-	return markType === "PriorDeleteStart"
-		|| markType === "PriorMoveOutStart"
-		|| markType === "PriorSetDetachStart"
-	;
-}
-
-export function isPriorBound(mark: R.TraitMark): mark is R.PriorBound {
-	if (typeof mark === "number") {
-		return false;
-	}
-	const markType = mark.type;
-	return markType === "PriorDeleteStart"
-		|| markType === "PriorMoveOutStart"
-		|| markType === "PriorSetDetachStart"
-		|| markType === "PriorRangeEnd"
-	;
+export function isMoveOutSlice(mark: Readonly<Offset | R.Mark>): mark is R.MoveOutSlice {
+	return typeof mark === "object" && mark.type === "MoveOutSlice";
 }
 
 export function isOffset(mark: unknown): mark is Offset {
@@ -326,10 +105,13 @@ export function isSegment(mark: R.ObjMark | Offset): mark is R.SegmentMark {
 	}
 	const markType = mark.type;
 	return markType === "Insert"
-		|| markType === "Delete"
-		|| markType === "MoveInSet"
-		|| markType === "MoveInSlice"
-		|| markType === "MoveOut"
+		|| markType === "DeleteSet"
+		|| markType === "DeleteSlice"
+		|| markType === "MoveIn"
+		|| markType === "MoveOutSet"
+		|| markType === "MoveOutSlice"
+		|| markType === "Revive"
+		|| markType === "Return"
 	;
 }
 
@@ -339,8 +121,9 @@ export function isAttachSegment(mark: R.ObjMark | Offset): mark is R.AttachMark 
 	}
 	const markType = mark.type;
 	return markType === "Insert"
-		|| markType === "MoveInSet"
-		|| markType === "MoveInSlice"
+		|| markType === "MoveIn"
+		|| markType === "Revive"
+		|| markType === "Return"
 	;
 }
 
@@ -350,25 +133,19 @@ export function isDetachSegment(mark: R.ObjMark | Offset):
 		return false;
 	}
 	const markType = mark.type;
-	return markType === "Delete"
-		|| markType === "MoveOut"
+	return markType === "DeleteSet"
+		|| markType === "DeleteSlice"
+		|| markType === "MoveOutSet"
+		|| markType === "MoveOutSlice"
 	;
 }
 
-export function isReturn(mark: R.ObjMark | Offset): mark is R.ReturnSet | R.ReturnSlice {
-	return typeof mark === "object" && (mark.type === "ReturnSet" || mark.type === "ReturnSlice");
+export function isReturn(mark: R.ObjMark | Offset): mark is R.Return {
+	return typeof mark === "object" && mark.type === "Return";
 }
 
-export function isRevive(mark: R.ObjMark | Offset): mark is R.ReviveSet | R.ReviveSlice {
-	return typeof mark === "object" && (mark.type === "ReviveSet" || mark.type === "ReviveSlice");
-}
-
-export function isReviveSet(mark: R.ObjMark | Offset): mark is R.ReviveSet {
-	return typeof mark === "object" && mark.type === "ReviveSet";
-}
-
-export function isReviveSlice(mark: R.ObjMark | Offset): mark is R.ReviveSlice {
-	return typeof mark === "object" && mark.type === "ReviveSlice";
+export function isRevive(mark: R.ObjMark | Offset): mark is R.Revive {
+	return typeof mark === "object" && mark.type === "Revive";
 }
 
 export function isRevert(mark: R.ObjMark | Offset): mark is R.RevertValue {
@@ -383,8 +160,8 @@ export function isChangeFrame(frame: O.TransactionFrame | R.TransactionFrame): f
 	return !isConstraintFrame(frame);
 }
 
-export function lengthFromMark(mark: Offset | R.Mark | undefined): number {
-	if (mark === undefined || isBound(mark) || isPriorBound(mark)) {
+export function lengthFromMark(mark: Readonly<Offset | R.Mark> | undefined): number {
+	if (mark === undefined) {
 		return 0;
 	}
 	if (isOffset(mark)) {
@@ -397,6 +174,18 @@ export function lengthFromMark(mark: Offset | R.Mark | undefined): number {
 		return mark.content.length;
 	}
 	return mark.length ?? 1;
+}
+
+export function lengthFromOffsets(marks: Readonly<Offset | R.Mark>[] | undefined): number {
+	let length = 0;
+	if (marks !== undefined) {
+		for (const mark of marks) {
+			if (isOffset(mark)) {
+				length += mark;
+			}
+		}
+	}
+	return length;
 }
 
 export class Pointer {
@@ -415,7 +204,7 @@ export class Pointer {
 	/**
 	 * The slices that the pointer is currently iterating over (if any).
 	 */
-	public readonly sliceStack: readonly R.SliceStart[];
+	public readonly rangeStack: readonly (R.DetachMark | R.PriorDetach)[];
 
 	public readonly parent?: { label: TraitLabel; ptr: Pointer };
 
@@ -424,14 +213,14 @@ export class Pointer {
 		iMark: number,
 		iSrcNode: number,
 		iDstNode: number,
-		sliceStack: readonly R.SliceStart[],
+		sliceStack: readonly (R.DetachMark | R.PriorDetach)[],
 		parent: { label: TraitLabel; ptr: Pointer } | undefined,
 	) {
 		this.marks = marks;
 		this.iMark = iMark;
 		this.iSrcNode = iSrcNode;
 		this.iDstNode = iDstNode;
-		this.sliceStack = sliceStack;
+		this.rangeStack = sliceStack;
 		this.parent = parent;
 	}
 
@@ -468,30 +257,6 @@ export class Pointer {
 		return this.skipMarks(1);
 	}
 
-	public findSliceEnd(): Pointer {
-		const startMark = this.mark;
-		assert(
-			startMark !== undefined && (isStartBound(startMark) || isPriorStartBound(startMark)),
-			"Must be starting from a slice mark",
-		);
-		let index;
-		if (isPrior(startMark)) {
-			index = findIndexFrom(
-				this.marks,
-				this.iMark + 1,
-				(m) => isPriorSliceEnd(m) && m.op === startMark.op && m.seq === startMark.seq,
-			);
-		} else {
-			index = findIndexFrom(
-				this.marks,
-				this.iMark + 1,
-				(m) => isEnd(m) && m.op === startMark.op,
-			);
-		}
-		assert(index !== undefined, "No matching end mark");
-		return this.skipMarks(index - this.iMark);
-	}
-
 	/**
 	 * @returns A Pointer to the location of the first node in the latter part of the mark being split.
 	 */
@@ -505,6 +270,9 @@ export class Pointer {
 			}
 			const mLength = lengthFromMark(mark);
 			if (remaining < mLength) {
+				if (isNodeMark(mark)) {
+					fail("Only length>1 marks should be split");
+				}
 				const markParts = splitMark(mark, remaining);
 				this.marks.splice(ptr.iMark, 1, ...markParts);
 				return this.skipMarks(1);
@@ -532,7 +300,7 @@ export class Pointer {
 	}
 
 	public skipMarks(markCount: number, isNew = false): Pointer {
-		const { marks, iMark, iSrcNode, iDstNode, sliceStack, parent } = this;
+		const { marks, iMark, iSrcNode, iDstNode, rangeStack: sliceStack, parent } = this;
 		const stack = [...sliceStack];
 		let srcOffset = 0;
 		let dstOffset = 0;
@@ -540,39 +308,20 @@ export class Pointer {
 		assert(iTarget <= marks.length, "Cannot skip non-existent marks");
 		for (let idx = iMark; idx < iTarget; idx += 1) {
 			const mark = marks[idx];
-			if (isStartBound(mark) || isPriorStartBound(mark)) {
-				stack.push(mark);
-			} else if (isEnd(mark)) {
-				const startMark = stack.pop();
-				assert(
-					startMark !== undefined && isStartBound(startMark) && startMark.op === mark.op,
-					"Unbalanced slice bounds: no matching start mark",
-				);
-			} else if (isPriorSliceEnd(mark)) {
-				const startMark = stack.pop();
-				assert(
-					startMark !== undefined
-					&& isPriorStartBound(startMark)
-					&& startMark.op === mark.op
-					&& startMark.seq === mark.seq,
-					"Unbalanced slice bounds: no matching start mark",
-				);
-			} else {
-				const length = lengthFromMark(mark);
-				if (isAttachSegment(mark)) {
+			const length = lengthFromMark(mark);
+			if (isAttachSegment(mark)) {
+				dstOffset += length;
+			} else if (isDetachSegment(mark)) {
+				srcOffset += length;
+			} else if (isOffset(mark)) {
+				const slice = stack[stack.length - 1];
+				if (slice === undefined) {
 					dstOffset += length;
-				} else if (isDetachSegment(mark)) {
 					srcOffset += length;
-				} else if (isOffset(mark)) {
-					const slice = stack[stack.length - 1];
-					if (slice === undefined) {
-						dstOffset += length;
-						srcOffset += length;
-					} else if (isPrior(slice)) {
-						// Nothing?
-					} else {
-						srcOffset += length;
-					}
+				} else if (isPrior(slice)) {
+					// Nothing?
+				} else {
+					srcOffset += length;
 				}
 			}
 		}
@@ -580,35 +329,36 @@ export class Pointer {
 	}
 }
 
-export function splitMark(mark: Readonly<Offset | R.Mark>, offset: number): [Offset | R.Mark, Offset | R.Mark] {
+export function splitMark(
+	mark: Offset | Readonly<R.SegmentMark>,
+	offset: number,
+): [Offset | R.SegmentMark, Offset | R.SegmentMark] {
 	if (offset === 0) {
 		fail("Cannot split a mark with an offset of 0");
 	}
 	if (isOffset(mark)) {
 		return [offset, mark - offset];
 	}
-	if (isMoveIn(mark)) {
-		fail("Cannot split a MoveIn mark");
+	if (isAttachSegment(mark)) {
+		fail("Cannot split an attach mark");
 	}
 	const mLength = lengthFromMark(mark);
 	if (mLength === offset) {
 		return [{ ...mark }, 0];
 	}
-	if (isSegment(mark) || isPriorDetach(mark) || isRevive(mark)) {
-		if (isInsert(mark)) {
-			return [
-				{ ...mark, content: mark.content.slice(0, offset) },
-				{ ...mark, content: mark.content.slice(offset) },
-			];
-		}
-		const mods = mark.mods !== undefined ? [mark.mods.slice(0, offset), mark.mods.slice(offset)] : [];
-		return [
-			{ ...mark, length: offset, mods: mods[0] },
-			{ ...mark, length: mLength - offset, mods: mods[1] },
-		];
+	if (isSegment(mark)) {
+		// TODO: This is no longer valid since not all mods are of length 1 anymore
+		const mark1 = { ...mark, length: offset, mods: [...(mark.mods?.slice(0, offset) ?? []) ] };
+		const mark2 = { ...mark, length: mLength - offset, mods: [...(mark.mods?.slice(offset) ?? []) ] };
+		// TODO: figure out why the cast is needed
+		return [mark1, mark2] as [Offset | R.SegmentMark, Offset | R.SegmentMark];
 	} else {
 		fail("TODO: support other mark types");
 	}
+}
+
+export function neverCase(never: never): never {
+	fail("neverCase was called");
 }
 
 export function findIndexFrom<T>(

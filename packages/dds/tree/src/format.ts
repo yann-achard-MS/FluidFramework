@@ -117,13 +117,15 @@ export namespace Original {
 	export interface Insert extends IsPlace, HasOpId {
 		type: "Insert";
 		content: ProtoNode[];
-		mods?: RangeMods<Mark>;
+		// mods?: RangeMods<Mark>;
+		mods?: RangeMods<Rebased.Mark>;
 	}
 
 	export interface MoveIn extends IsPlace, HasOpId, HasLength {
 		type: "MoveIn";
 		range: RangeType;
-		mods?: RangeMods<Mark>;
+		// mods?: RangeMods<Mark>;
+		mods?: RangeMods<Rebased.Mark>;
 	}
 
 	/**
@@ -224,22 +226,26 @@ export namespace Original {
 
 	export interface DeleteSet extends HasOpId, HasLength {
 		type: "DeleteSet";
-		mods?: RangeMods<MoveOut, false>;
+		mods?: RangeMods<Rebased.Mark>;
+		// mods?: RangeMods<MoveOut, false>;
 	}
 
 	export interface DeleteSlice extends IsSlice, HasOpId, HasLength {
 		type: "DeleteSlice";
-		mods?: RangeMods<MoveOut, false>;
+		mods?: RangeMods<Rebased.Mark>;
+		// mods?: RangeMods<MoveOut, false>;
 	}
 
 	export interface MoveOutSet extends HasOpId, HasLength {
 		type: "MoveOutSet";
-		mods?: RangeMods<MoveOut | Delete, false>;
+		mods?: RangeMods<Rebased.Mark>;
+		// mods?: RangeMods<MoveOut | Delete, false>;
 	}
 
 	export interface MoveOutSlice extends IsSlice, HasOpId, HasLength {
 		type: "MoveOutSlice";
-		mods?: RangeMods<MoveOut | Delete, false>;
+		mods?: RangeMods<Rebased.Mark>;
+		// mods?: RangeMods<MoveOut | Delete, false>;
 	}
 
 	// -- Inverse Changes ---
@@ -249,15 +255,17 @@ export namespace Original {
 		range: RangeType;
 		priorSeq: SeqNumber;
 		priorId: OpId;
-		mods?: RangeMods<Return>;
+		mods?: RangeMods<Rebased.Mark>;
+		// mods?: RangeMods<Return>;
 	}
 
-	export interface Return extends HasSeqNumber, HasLength, HasOpId {
+	export interface Return extends HasLength, HasOpId {
 		type: "Return";
 		range: RangeType;
 		priorSeq: SeqNumber;
 		priorId: OpId;
-		mods?: RangeMods<Return | Revive>;
+		mods?: RangeMods<Rebased.Mark>;
+		// mods?: RangeMods<Return | Revive>;
 	}
 
 	export interface RevertValue extends HasSeqNumber {
@@ -360,7 +368,7 @@ export namespace Original {
 export namespace Rebased {
 	// Use "interface" instead "type" to avoid TSC error
 	// eslint-disable-next-line @typescript-eslint/no-empty-interface
-	export interface Modify<TInner = Exclude<Mark, PriorInsert>, AllowSetValue extends boolean = true> extends
+	export interface Modify<TInner = Mark, AllowSetValue extends boolean = true> extends
 		Original.Modify<TInner, AllowSetValue> { }
 	export type SetValue = Original.SetValue;
 	export type MoveEntry = Original.MoveEntry;
@@ -431,11 +439,11 @@ export namespace Rebased {
 		seq: SeqNumber;
 	}
 
-	export type TraitMark = Offset | Exclude<Mark, PriorInsert>;
+	export type TraitMark = Offset | Mark;
 	export type TraitMarks = TraitMark[];
-	export type ModsTrail = (Offset | ModsMark)[];
+	export type ModsTrail = (Offset | NodeMark)[];
 
-	export type ModsMark =
+	export type NodeMark =
 		| RevertValue
 		| SetValue
 		| Modify;
@@ -452,7 +460,7 @@ export namespace Rebased {
 		| Return
 		| Revive;
 	export type ObjMark =
-		| ModsMark
+		| NodeMark
 		| SegmentMark;
 	export type Mark =
 		| ObjMark;
@@ -465,13 +473,15 @@ export namespace Rebased {
 	export interface Insert extends IsPlace, HasOpId {
 		type: "Insert";
 		content: ProtoNode[];
-		mods?: RangeMods<Original.Mark>;
+		// mods?: RangeMods<Original.Mark>;
+		mods?: RangeMods<Mark>;
 	}
 
 	export interface MoveIn extends IsPlace, HasOpId, HasLength {
 		type: "MoveIn";
 		range: RangeType;
-		mods?: RangeMods<Original.Mark>;
+		// mods?: RangeMods<Original.Mark>;
+		mods?: RangeMods<Mark>;
 	}
 
 	export type MoveOut = MoveOutSet | MoveOutSlice;
@@ -479,22 +489,26 @@ export namespace Rebased {
 
 	export interface DeleteSet extends HasOpId, HasLength {
 		type: "DeleteSet";
-		mods?: RangeMods<MoveOut | Prior, false>;
+		// mods?: RangeMods<MoveOut | Prior, false>;
+		mods?: RangeMods<Mark>;
 	}
 
 	export interface DeleteSlice extends IsSlice, HasOpId, HasLength {
 		type: "DeleteSlice";
-		mods?: RangeMods<MoveOut | Prior, false>;
+		// mods?: RangeMods<MoveOut | Prior, false>;
+		mods?: RangeMods<Mark>;
 	}
 
 	export interface MoveOutSet extends HasOpId, HasLength {
 		type: "MoveOutSet";
-		mods?: RangeMods<MoveOut | Delete | Prior, false>;
+		// mods?: RangeMods<MoveOut | Delete | Prior, false>;
+		mods?: RangeMods<Mark>;
 	}
 
 	export interface MoveOutSlice extends IsSlice, HasOpId, HasLength {
 		type: "MoveOutSlice";
-		mods?: RangeMods<MoveOut | Delete | Prior, false>;
+		// mods?: RangeMods<MoveOut | Delete | Prior, false>;
+		mods?: RangeMods<Mark>;
 	}
 
 	// -- Prior Changes ---
@@ -506,7 +520,7 @@ export namespace Rebased {
 	export interface PriorInsert extends IsPlace, HasLength, HasSeqNumber, HasOpId {
 		type: "PriorInsert";
 		// The mods may be needed for drilldown-based operations
-		mods?: RangeMods<Mark, false>;
+		mods?: RangeMods<Mark>;
 	}
 
 	export interface PriorMoveIn extends IsPlace, HasSeqNumber, HasOpId, HasLength {
@@ -537,22 +551,26 @@ export namespace Rebased {
 
 	export interface PriorDeleteSet extends HasSeqNumber, HasOpId, HasLength {
 		type: "PriorDeleteSet";
-		mods?: RangeMods<PriorMoveOut | PriorAttach | AttachMark, false>;
+		// mods?: RangeMods<PriorMoveOut | PriorAttach | AttachMark, false>;
+		mods?: RangeMods<Mark>;
 	}
 
 	export interface PriorDeleteSlice extends HasSeqNumber, HasOpId, HasLength {
 		type: "PriorDeleteSlice";
-		mods?: RangeMods<PriorMoveOut | PriorAttach | AttachMark, false>;
+		// mods?: RangeMods<PriorMoveOut | PriorAttach | AttachMark, false>;
+		mods?: RangeMods<Mark>;
 	}
 
 	export interface PriorMoveOutSet extends HasOpId, HasSeqNumber, HasLength {
 		type: "PriorMoveOutSet";
-		mods?: RangeMods<PriorMoveOut | PriorDelete | PriorAttach | AttachMark, false>;
+		// mods?: RangeMods<PriorMoveOut | PriorDelete | PriorAttach | AttachMark, false>;
+		mods?: RangeMods<Mark>;
 	}
 
 	export interface PriorMoveOutSlice extends HasSeqNumber, HasOpId, HasLength {
 		type: "PriorMoveOutSlice";
-		mods?: RangeMods<PriorMoveOut | PriorDelete | PriorAttach | AttachMark, false>;
+		// mods?: RangeMods<PriorMoveOut | PriorDelete | PriorAttach | AttachMark, false>;
+		mods?: RangeMods<Mark>;
 	}
 }
 

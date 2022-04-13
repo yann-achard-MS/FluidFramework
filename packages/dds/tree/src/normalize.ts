@@ -7,13 +7,12 @@ import {
 	Rebased as R, TreePath,
 } from "./format";
 import {
-	isDelete,
+	isDeleteSet,
 	isInsert,
 	isModify,
 	isMoveIn,
-	isMoveOut,
+	isMoveOutSet,
 	isOffset,
-	isPrior,
 	isPriorDetach,
 	isRevive,
 } from "./utils";
@@ -23,13 +22,13 @@ export function normalizeFrame(frame: R.ChangeFrame): void {
 		if (frame.moves.length === 0) {
 			delete frame.moves;
 		} else {
-			frame.moves = frame.moves.map((m) => ({ src: normalizePath(m.src), dst: normalizePath(m.dst) }));
+			frame.moves = frame.moves.map((m) => ({ id: m.id, src: normalizePath(m.src), dst: normalizePath(m.dst) }));
 		}
 	}
 	normalizeMarks(frame.marks);
 }
 
-function normalizeMarks(marks: R.TraitMarks): void {
+export function normalizeMarks(marks: R.TraitMarks): void {
 	let iMark = marks.length - 1;
 	while (iMark >= 0) {
 		const prevMark = marks[iMark - 1] as R.TraitMark | undefined;
@@ -43,8 +42,8 @@ function normalizeMarks(marks: R.TraitMarks): void {
 				}
 			}
 		} else if (
-			isDelete(mark)
-			|| isMoveOut(mark)
+			isDeleteSet(mark)
+			|| isMoveOutSet(mark)
 			|| isMoveIn(mark)
 			|| isPriorDetach(mark)
 			|| isInsert(mark)
@@ -61,33 +60,22 @@ function normalizeMarks(marks: R.TraitMarks): void {
 			if ("length" in mark && (mark.length === 1 || mark.length === undefined)) {
 				delete mark.length;
 			}
-			if (prevMark !== undefined && (isInsert(prevMark) || isDelete(prevMark) || isPrior(prevMark))) {
-				if (isInsert(mark)) {
-					if (isInsert(prevMark)) {
-						prevMark.content.push(...mark.content);
-						marks.splice(iMark, 1);
-					}
-				} else if (
-					(isPriorDetach(mark) === false && mark.type === prevMark.type)
-					|| (isPriorDetach(mark) && isPriorDetach(prevMark) && mark.seq === prevMark.seq)
-				) {
-					const prevLen = prevMark.length ?? 1;
-					const mods = prevMark.mods ?? [];
-					if (mark.mods) {
-						if (mods.length < prevLen) {
-							mods.push(prevLen - mods.length);
-						}
-						mods.push(...mark.mods);
-					}
-					prevMark.mods = mods;
-					prevMark.length = prevLen + (mark.length ?? 1);
-					marks.splice(iMark, 1);
-				}
-			}
 		} else if (isModify(mark)) {
+			let isEmpty = true;
 			if (mark.modify !== undefined) {
-				for (const v of Object.values(mark.modify)) {
+				for (const [k, v] of Object.entries(mark.modify)) {
 					normalizeMarks(v);
+					if (v.length === 0) {
+						// eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+						delete mark.modify[k];
+					} else {
+						isEmpty = false;
+					}
+				}
+				if (isEmpty) {
+					marks.splice(iMark, 1, 1);
+					// Go backward so we can normalize this mark again (which is now an offset).
+					iMark += 1;
 				}
 			}
 		}

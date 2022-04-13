@@ -243,6 +243,64 @@ We could treat set and slice ranges differently by splitting set ranges but not 
 
 2. It makes the format terser
 
+## How should the IDs of inverted changes be ordered?
+
+**=> In reverse from the original**
+
+Let's consider some scenarios where changes have causal relationships:
+
+* Flat sequence cases
+  
+  * Insert within insert: the inverse can just delete the outer insert
+  
+  * Move-in within insert: the move-out would have to happen before the delete
+  
+  * Insert within move-in: the inner move-out has to happen first
+  
+  * move-in within move-in: the inner move-out has to happen first
+  
+  * delete within delete: we can probably make it work in either order
+  
+  * delete within move-out: we can probably make it work in either order but reverse is bound to be simpler
+
+* Hierarchical cases
+  
+  * swap child and parent: we're already constrained to do detached bottom-up and attaches top-down
+  
+  * Insert under insert: the top-level delete will take care of it all
+  
+  * Move-in under insert: the move-out would have to happen before the delete
+  
+  * there's more but the pattern seems clear
+
+While in some cases we don't care or could deal with changes happening in the same order, there are cases where they must happen in reverse order.
+
+It seems more straightforward to adopt reverse order for all cases.
+
+## How do we determine reverse IDs for inverse changes?
+
+**=> Use negative numbers for now. Keep track of the max ID later.**
+
+Options:
+
+1. Use negative numbers: just multiply the original IDs by -1
+
+2. Walk the whole frame to find the highest ID and subtract original IDs from it
+
+3. Force frames to list their highest ID and subtract original IDs from it
+
+4. Subtract original IDs from the highest possible ID
+
+#1 is not great because by using negative numbers we split the ID pool in 2. It's also not going to work well when we want to squash frames because we won't be able to just add the highest ID of the previous frame.
+
+#2 is not great because it requires walking the frame twice
+
+#3 is tolerable but it's yet more cruft in the format (and a lot of samples to update)
+
+#4 is not great because storing the higher numbers will take extra space. It will also prevent the squashing of frames unless we keep track of the min or crawl the changeset for it.
+
+Overall #3 seems like the best solution.
+
 ## Should the output of postbase include priors (posteriors?)?
 
 This comes up in scenario G.
