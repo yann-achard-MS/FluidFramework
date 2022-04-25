@@ -163,6 +163,8 @@ Another situation that leads to bounds being split is the need to maintain hiera
 
 ## Can we do away with mark pairs to represent range bounds?
 
+**=> Yes**
+
 The main challenge is to be able to represent the anchor information accurately. Several marks may be competing for anchorage at the same node or trait extremity. Those competing anchors' order needs to be represented somehow. Bounds are used so that each anchor point is able to enter in a race of its own.
 
 It's easy to see how several inserts might compete for anchorage at the same node. A range operation may be thrown in the mix, so it would have to complete with the inserts as well. It's less easy to see how multiple range operations might come to complete. The way for that to happen seems to be when a range overlaps with a prior range.
@@ -191,6 +193,8 @@ Note that if all operations were given monotonically increasing op #s over time,
 
 ## Could we assign monotonically increasing op IDs to all insert/move-in operations in a change frame?
 
+**=> Yes**
+
 Motivation: It would remove the need for race structures and would remove the need for range bounds to list which insertion they're externally anchored to (if any). See "do away with mark pairs" for more details.
 
 The main challenge comes from the fact that we have no interest in representing inserts and deletes in the move table. We could put the inserted content in the move table but there doesn't seem to be a motivation to do that.
@@ -211,7 +215,7 @@ Note: the same consideration applies to Revive vs. Insert.
 
 ## Should we use PriorInsert segments or offsets?
 
-**=> Only when needed**
+**=> PriorInsert all the time**
 
 This comes up in e3p of scenario B: we need to represent the fact that e2 inserted content within the range covered by e1. If we didn't use a prior inserted (and just used an offset instead) then we'd be depicting a situation where the inserted content is also being deleted, which is not the case.
 
@@ -230,6 +234,8 @@ PriorInsert segments seem to be needed when a prior insert both...
    4. The insertion is not commutative with respect to the slice range.
 
 It's not clear whether there are other situations were they are needed.
+
+Actually, it seems we need them more than that: if an anchor is next to a place where a prior change concurrently introduced content, then merely adding an offset will make it look as though the anchor was moored to the content added by the prior concurrent change. We could still get away with adding an offset when no anchor would be affected, but it seems simpler to just add an explicit segment all the time.
 
 ## Where should attach segments be included in the presence of ranges?
 
@@ -305,6 +311,142 @@ Overall #3 seems like the best solution.
 
 This comes up in scenario G.
 
+## In which cases do we need to update the length of a range segment?
+
+**=> None but we should do it anyway**
+
+In order for an insert followed by a delete to cancel out, we'll need to know that the number of nodes being inserted and deleted is the same. In order for a empty slice delete to be dropped we'll need to know that it is empty (and doesn't affect future inserts).
+
+In either case we could either update the length of the segment or let the consumer delve into the mods to figure it out.
+
+Updating the length so that it reflects prior inserts and prior deletes might help code that's trying find an anchor location in the array of marks. For example, the code that does change filtering would not have to delve into mods of the segments that lie before the ancestor nodes of the subtree being filtered to.
+
+## Is it best to split segments or nest them?
+
+**=> ?**
+
+When it comes to slice-range segments, we don't have much of a choice: we need to nest because content being inserted within the range, even if it is not affected by the range, is still within an region of the trait that is affected by the range. Some other insert that is made into that insert might still need to be affected by the slice.
+
+In all other cases, we could split. The advantages of not splitting are:
+
+- We get to preserve the 1 segment <=> 1 ID relationship
+
+- The format is terser because we don't have to repeat as much stuff
+
+- No splitting makes for a more uniform system (as opposed to splitting sometimes)
+
+The only segments that get split are priors who fall on range boundary lines.
+
+This all makes the notion of "length" of ranges somewhat weird: does the length of a slice delete reflect how many nodes it deletes from the base or how many nodes of the base it covers? The latter seems more valuable because it lets us skip over segments quickly. 
+
+How would we work out the number of nodes being deleted from a deletion segment whose length conveyed the number of nodes covered in the base? Number deleted = number of nodes covered in base - length of non-commutative insertions?
+
+Maybe we need to dissociate the description of base/landscape changes from the description of the region being impacted. When a slice range is riddled with prior insertions that don't commute with it, and prior deletions, how do you represent it nicely as a prior? You need to represent how the prior action impacted the cells of the base, thereby defining what the new base is like. And you need to heed the intentions of the base change to reflect its impact on the current intentions. There is a part about settled facts ("these nodes were inserted/deleted") and a part about ongoing wishes ("commutative inserts in this region should be dropped"). The facts are about cells/nodes. The intentions are about regions delimited by anchors points.
+
+Do you need to represent the priors of the priors so that when rebasing over their inverse you can interpret the consequences correctly? When we say "priors of the priors" we mean representing how prior edits affected prior edits. Perhaps not: if a prior slice delete is peppered with prior deletes, and we encounter (i.e. get rebased over) a revive for the most prior one, then that revive should bear priors such that it's clear it has no actual impact. Similarly, if we encounter a revive for the later prior, then that revive should bear priors such that it's clear where it does and doesn't have impact.
+
+It's interesting to consider what kind of prior segments a revive might need to contain if it is reviving content that was deleted further back than the collab window: the position it needs to refer to is beyond what can be referred to. Does this mean it needs to become an insert? Or can peers simply understand that it is equivalent to an insert? Does this means that a user undeleting multiple elements from beyond the collab window means the content may re-appear in a different order? No, because the user would know how to position the latter revives relative to the revived content. What about when multiple users are each undeleting content from beyond the collab window? If revives are issued in reverse order of deletion then it should be fine because the revive for an older delete will have to be aware of the later deletes and therefore will be able to correctly interpret the revives that undo them. If the revives are issued in the opposite order (oldest deletion being revived first) then the revives could end up out of order unless the revive for the older deletions carry with them tombstones for the later deletes, which they should.
+
+The case of the prior non-commutative insertion within a slice delete is still thorny because we can't split the slice. It seems like in that case there is both a fact (new cells) and a region (these cells are shielded from the deletion) but it's weird that other inserts within that region (effectively under the shield) should not be shielded in this way unless they are also non-commutative. Maybe we need to differentiate between a region for a range action, and a region for content attachment. Regions for content attachment only speak for that attachment, not nested attachments, while regions for range actions affect all cells unless their attachment says otherwise. One could say range regions have an ambient effect while attachment regions have a local effect. Perhaps this would instantly seems less weird if we didn't include same-trait segments in the mods: the subtree for the non-commutative insert would stand on its own as a whole, while other insertions would be next to it, independent. Does this mean we should split (at least) insertions?
+
+If the guiding principle is to split when stuff is independent then we would split (when in the same trait):
+
+* Insert/move-in within insert/move-in
+
+* Insert/move-in within set-range
+
+The only thing we wouldn't split would be slice ranges.
+
+Technically we could split the slice range but that would just give us three slice range fragments. The only advantage is that it would let us assume that 1 segment = either new cells or cleared cells as opposed to a mixture of both. One danger is that is the possibility of then having anchors that manage to wedge themselves between those segments. Perhaps we can avoid that by having the segments overlap over the gap in some kind of knitting pattern. That seems to violate some basic assumptions thought. Doing this "there's more to it" flag effectively brings back range bounds.
+
+One idea to make the splitting of segments simpler: have a bit on segments that is set when there's more to the segment. The problem with that is you'd have to detect when the remainder goes away, at which point you'd need to update the prior section of segment to become the last one. Maybe needing to know whether there's more segments for a given operation (i.e., a given ID) is not so important: we only need it for undos and maybe for move-ins, and maybe we can just rely on scanning forward to figure out if there is more.
+
+Slice ranges feel like a genuinely different beast in two ways:
+
+- multiple slices can cover the same region: there is some layering going on
+
+- slices are delimited between nodes as opposed to over nodes
+
+Maybe we can make these things less special. With set deletions, there can also be some degree of layering because of priors. Can we express slices as covering nodes, or covering cells so that we don't need to think of them as starting and ending between nodes? It seems difficult because an empty slice range between two nodes needs to be represented, and needs to admit new cells if later concurrent insertions are just right. If two users concurrently try to construct the same slice range then there are 4 ways the slice could end up: [{}], {[]}, [{]}, {[}]. Are those meaningfully different? Perhaps not: someone making an insert would only be able to target one of 4 location:
+
+* xoo- -cc-
+
+* -oox -cc-
+
+* -oo- xcc-
+
+* -oo- -ccx
+
+The middle two are different in that they affect how other insertions would be ordered relative to that one.
+
+The fact that the four options are not meaningfully different may be a clue that we can use a simpler representation which doesn't differentiate between them.
+
+Note that if we consider [after A, after A]/[before A, before A] ranges then there are more options. Those ranges are not necessarily useless if the tiebreaking on them is such that they would include prior insertions/anchors. Either way, it seems like we end up with three stacks of slices: one stack that contains insertions after the left node, one stack that contains the insertions before the right node, and one stack that contains both. The intricacies of brackets within those ranges are meaningless, which should let us simplify things.
+
+The above is a bit of a design smell: are the degrees of freedom offered by the anchor API partly meaningless? If so perhaps they should be different. Maybe it would be better to factor the API in terms of prefixes and suffixes: a range would include some nodes and some of their concurrent (prior) prefixes and suffixes. That insight could lead to a simpler format where prefixes and suffixes are given a representational length of some sort. This would help make the format more binary (where those affixes are included/covered or not) as opposed to having some ordered list of bounds. This doesn't prevent the possibility of one range partially or completely overlapping with another, but it puts all the semantics in a discrete system as opposed to a mix where slices are in a continuous system and everything else is in a discreet one.
+
+What does this mean for the format(s)? It could mean that the side flags get refactored into a different representation. It could mean that offsets need to capture more information. It means that inserts and move-ins are now targeting those prefix and suffix locations. Note that concurrent inserts are still ordered within a given suffix or prefix based on tiebreaking flags. This could be modeled by having each affix be a pair of locations: one for content that wants to be FTL and one for content that wants to be LTF:
+
+* Insertions targeting the LTF of an affix gets prepended to the affix
+
+* Insertions targeting the FTL of an affix gets appended to the affix
+
+This in turn could mean the tiebreaking flags get refactored into a different representation as well. Everything would now be speaking a language based on cells where cells, aside from defining a position for its content, also defines four discrete position: LTF prefix, FTL prefix, LTF suffix, and FTL suffix. Another key implication of this is that it's possible to split slice ranges if we need to without the risk of new anchors wedging themselves between the splits (and without having to rely on overlaps to prevent such wedging).
+
+How do we represent marks given the above?
+One option would be to make offsets count all five discreet areas per node (plus the two associated with each trait extremity). This would mean an offset for a trait containing N nodes would be equal to 5N+4. This is a little odd as figuring out the number of affected nodes by a range would be complex: you couldn't figure out if a slice of length 4 covered a node or not. That would depend on its position. Another option would be to make offsets more composite like a triplet of integers representing the number of prefixes before the first node (if any), number of nodes, and number of suffixes after the last node (if any). The disadvantage of such a representation, aside from bloat, is that a lot of triplets are invalid no matter where they occur, but also that even the valid ones can be invalid depending on where they occur.
+The annoying thing about representing affixes as marks is that it makes set-like ranges a little weird: they should only cover nodes but they would extend over the intermediary affixes as well. Perhaps there's a way to represent that as "cover the next N nodes" (implicitly excluding any affixes) but mixing that with slice ranges doesn't seem so great... unless it is: if we separate coverage of nodes/filled cells from coverages of affixes then it gives us a way to cleanly express the fact that some nodes are not affected by a slice range while the affixes around them are. This gives a unifying view of set and slice ranges: slice is the same as set except that it impacts affixes and doesn't follow the nodes around as they move.
+
+## Should a segment be annotated only with the prior that mutes it, or all priors that could mute it?
+
+**=> All priors that could mutate it**
+
+There may be two options when it comes to representing muted segments. Either have the segment include a prior for the one change that is muting the segment, or include information about all the priors that would mute the segment (including the one that does). Is there a benefit to the latter? If 5 deletes are targeting the same node, and each of the later four only have priors that represent the first one, then they might each think they're now first in line for deleting the node if they get rebased over the undo of the first deleted. That's a problem.
+
+## How do we support progressive rebasing?
+
+Progressive rebasing is the ability to use the result of rebasing a change over some concurrent changes as an input into the rebasing of that change over more concurrent changes. Progressive rebasing means the following relationship holds:
+
+`rebase(U, squash(A, B)) == rebase(rebase(U, A), B)` (associativity)
+
+Note that the above formula is meaningfully different from this one:
+`rebase(U, [A, B]) == rebase(rebase(U, A), B)`
+
+Both capture the idea that whether you find out about the existence of B (and the need to rebase over it) at the same time as you're rebasing over A, or whether you find out about it later, should not lead to different outcomes. The second formula however, doesn't guarantee the outcome we want: in the case of some node X being deleted by two concurrent changes A and U, where B is the undo of the deletion of X by A, it would be <u>sufficient</u> for the purposes of abiding by the original formula to ensure that U's intent of deleting X were always dropped, which is not the outcome we want.
+
+The inclusion of squash in the newer formula allows us to prevent this "cop-out", by assigning to squash some specific behavior about how it treats such [A, undo of A] cases.
+
+Reasons in favor of supporting progressive rebasing:
+
+- It makes for a cleaner formalism
+
+- Makes squash and rebase fuzz-testable with respect to one another
+
+- It allows us to delay support for squashing
+
+- It makes it possible for clients not to rebase their local edits from scratch as more concurrent edits become known (i.e., a more efficient way to maintain local edits in a state that is coherent with incoming edits).
+
+Challenges associated with supporting it:
+
+* It forces rebased edits to include some way to recover all the intentions of the original edit (e.g., deleting already deleted content).
+
+The first thing to point out when trying to meet this challenge is that we can support two formats for rebased edits: one that is further rebasable and one that is not.
+The non-rebasable form can be used for catching up clients (even when they wish to rebase changes over the history) and for UI updates. This could either be modeled as having two squash algorithms (one that preserves the original intention information, and one that doesn't), or having a single squash algorithm (that preserves the original intention information) and a new "seal" operation that takes a changeset and strips that information.
+
+When it comes to representing the original intentions there's a spectrum of options, but they tend to be variations on the following two approaches:
+
+1. Preserve the original segment information within the rebased changesets. This would prevent a lot of the squashing we rely on in order to keep changeset sizes bounded.
+
+2. Include a reference to the original edit, so that we can rebase it instead. This is essentially an on-demand version of "rebase the original edit over the squash of all prior concurrent edits" (i.e., not a progressive rebase) so it doesn't boast the advantage of letting clients rebase their local edits faster.
+
+In live-collab scenarios, progressive rebasing only happens with local edits that the client want to keep the UI up to date for. Since the collab window is short, it seems unlikely that the additional data from muted segments (segments which, due to prior concurrent changes, don't have an effect) would be problematic. So preserving original segment information (option #1) would make sense.
+
+In out of line rebase scenarios, branches can accumulate many changes and we may not want to pay the price of storing the extra information from #1, especially since merges should be less frequent. So only preserving a reference to the original version may make more sense.
+
+There's another workflow that's interesting: live collab where we allow clients to have local edits that they don't immediately submit (but they still see other edits coming down). The local changes need to be rebased as they falls out of the collab window and there is no original edit for peers to refer to, so either the rebased change includes muted segments (which refer to changes outside the collab window) or we drop them and we're okay with the intent degradation. Note that which we choose could be governed by another (outer) collab window that is >= the usual one.
+
+Based on the above, neither option seems categorically required, or categorically useless. It seems reasonable to start with option #1 as it allows us to more forward without squashing, and it's easier to add a "seal" operation to remove the muted segments than it is to re-implement rebasing.
+
 ## Current POR
 
 Use segments for everything (no pairs of bound marks).
@@ -315,8 +457,50 @@ Use frames.
 
 Assign a monotonically increasing ID to each op (to be used in the move table in the case of move ops).
 
-The move table is more like a map or a sorted list one could binary search within.
+The move table is more like a sorted list one could binary search within.
 
 Splitting an op does not mint a new ID. new IDs are never minted by rebase/postbase/invert.
 
 Anchoring is expressed with a side (`prev`/`next`). Which node is targeted as the anchor point is determined based on op IDs.
+
+## Other Notes
+
+Interesting concept: we can count the number of times something is deleted, which would allow us to know that an item is still deleted even after one of the deletes has been undone. Doing this would mean that if N participants try to delete the same node then all N need to undo for the node to be brought back to life.
+
+Avoid data races against the computer because it leads to user confusion. In other words: we don't want merge outcomes to be different if the Fluid service is a little faster or a little slower.
+
+We may want different behavior for out of line merges and real-time merges. This can be modeled as having one merge algorithm with an injected policy. The injected policy can be different for out of line merges and real-time merges.
+
+## Explaining the Format
+
+```typescript
+[
+    { insert idx: 1 length: 3 },
+    { insert idx: 3 length: 2 },
+]
+
+[
+    [ 1, { insert length: 3 }],
+    [ 3, { insert length: 2 }],
+]
+
+[
+    [ 1, { insert length: 3 }                        ],
+    [ 1,                      2, { insert length: 2 }],
+]
+
+[
+    1, // A
+    { insert: [X, Y, Z], length 3 }
+    2, // B C
+    { insert: [U, V], length 2 }
+    // etc.
+]
+
+[
+    10,
+    { insert length 3 }
+    2,
+    { insert length 2 }
+]
+```
