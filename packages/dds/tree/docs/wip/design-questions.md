@@ -395,13 +395,39 @@ This in turn could mean the tiebreaking flags get refactored into a different re
 
 How do we represent marks given the above?
 One option would be to make offsets count all five discreet areas per node (plus the two associated with each trait extremity). This would mean an offset for a trait containing N nodes would be equal to 5N+4. This is a little odd as figuring out the number of affected nodes by a range would be complex: you couldn't figure out if a slice of length 4 covered a node or not. That would depend on its position. Another option would be to make offsets more composite like a triplet of integers representing the number of prefixes before the first node (if any), number of nodes, and number of suffixes after the last node (if any). The disadvantage of such a representation, aside from bloat, is that a lot of triplets are invalid no matter where they occur, but also that even the valid ones can be invalid depending on where they occur.
-The annoying thing about representing affixes as marks is that it makes set-like ranges a little weird: they should only cover nodes but they would extend over the intermediary affixes as well. Perhaps there's a way to represent that as "cover the next N nodes" (implicitly excluding any affixes) but mixing that with slice ranges doesn't seem so great... unless it is: if we separate coverage of nodes/filled cells from coverages of affixes then it gives us a way to cleanly express the fact that some nodes are not affected by a slice range while the affixes around them are. This gives a unifying view of set and slice ranges: slice is the same as set except that it impacts affixes and doesn't follow the nodes around as they move.
+The annoying thing about representing affixes as marks is that it makes set-like ranges a little weird: they should only cover nodes but they would extend over the intermediary affixes as well. Perhaps there's a way to represent that as "cover the next N nodes" (implicitly excluding any affixes) but mixing that with slice ranges doesn't seem so great... unless it is: if we separate coverage of nodes/filled cells from coverages of affixes then it gives us a way to cleanly express the fact that some nodes are not affected by a slice range while the affixes around them are. This gives a unifying view of set and slice ranges: slice is the same as set except that it impacts affixes and doesn't follow the nodes around as they move. This potentially points at a somewhat different use of offsets: a mark would be placed at the point where its effect starts and state how far its effect applies. It would then be followed by offsets and other marks, which may fall within the window of application of one or many prior marks. Attachment marks would not need to list a length because they're punctual. Set ranges would list a length in nodes. Slice ranges would list a length in both nodes and affixes. It's not clear if it would be best for the slice ranges to be split or not. If split, we could always ensure that they either affect both the nodes and affixes of a region or only the affixes, but we wouldn't have a weird mix of all affixes being affected and only some of the nodes being affected. This splitting would make the format more similar to what we would get if we had to purge very old priors: the slice would end up having to be split up because the prior would be outside of the collab window. Note that it's not clear at this point whether such purging will ever be necessary: having a prior insert referring to a sequence number that's now outside the collab window doesn't seem to be problematic. Note that this splitting of slice segments would only occur for non commutative prior insertions: in the case of prior deletes the (non-prior) delete segment would still technically include the already nodes as being targeted. This splitting would essentially make the slice window representable as the number of affixes covered plus a boolean indicating whether or not nodes between those should be covered. Such a format may not be ideal when several marks end up starting at the same point.
+
+Let's recap a little:
+
+* Attach segments target a single affix
+
+* Set ranges target a range of nodes
+
+* Slice ranges target a range of affixes and possibly disjoint ranges of nodes
+
+* Only one effect can apply to a node
+
+* Several effects can apply to an affix (even excluding priors)
+
+* Several attach segments can target the same affix (both by current and prior segments)
+
+* We need to represent the precedence between overlapping moves and deletes. Is it always temporal?
+
+Maybe the format shouldn't try to avoid overlapping segments because overlaps are rare, and when they do happen, they're likely to be over single slots, which doesn't lead to splitting. This could let us avoid repeating offsets.
+
+Also note that keeping around tombstones my not be so bad under the new cell model because the cases where there's a lot of data turnaround (e.g., a value field or the values of a map) would be using fixed-sized fields. The worst case of dynamically-sized fields would be something like a long lived "agenda" list that keeps getting updated over time.
 
 ## Should a segment be annotated only with the prior that mutes it, or all priors that could mute it?
 
 **=> All priors that could mutate it**
 
 There may be two options when it comes to representing muted segments. Either have the segment include a prior for the one change that is muting the segment, or include information about all the priors that would mute the segment (including the one that does). Is there a benefit to the latter? If 5 deletes are targeting the same node, and each of the later four only have priors that represent the first one, then they might each think they're now first in line for deleting the node if they get rebased over the undo of the first deleted. That's a problem.
+
+## When annotating a segment with a prior, should we just include the node effects, or also the affix effects?
+
+**=> Just node effects**
+
+All the affix effects of a prior change should be applied during rebase.
 
 ## How do we support progressive rebasing?
 

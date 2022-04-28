@@ -583,10 +583,6 @@ describe(rebase.name, () => {
 												seq: 1,
 												id: 0,
 												length: 3,
-												mods: [
-													2,
-													{ type: "Insert", id: 0, content: [{ id: "X" }] },
-												],
 											},
 										],
 									},

@@ -470,7 +470,7 @@ export namespace Rebased {
 		AllowSetValue extends boolean = true
 		> = (Offset | TMods | Modify<TMods, AllowSetValue>)[];
 
-	export interface Insert extends IsPlace, HasOpId {
+	export interface Insert extends IsPlace, HasOpId, HasLength {
 		type: "Insert";
 		content: ProtoNode[];
 		// mods?: RangeMods<Original.Mark>;
@@ -517,13 +517,16 @@ export namespace Rebased {
 	export type PriorAttach = PriorInsert | PriorMoveIn;
 	export type PriorDetach = PriorDelete | PriorMoveOut;
 
-	export interface PriorInsert extends IsPlace, HasLength, HasSeqNumber, HasOpId {
+	export interface PriorInsert extends HasLength, HasSeqNumber, HasOpId {
 		type: "PriorInsert";
-		// The mods may be needed for drilldown-based operations
+		// The mods are needed for:
+		// - other prior insertions within the same trait
+		// - drilldown-based operations
 		mods?: RangeMods<Mark>;
+		commute?: Commutativity;
 	}
 
-	export interface PriorMoveIn extends IsPlace, HasSeqNumber, HasOpId, HasLength {
+	export interface PriorMoveIn extends HasSeqNumber, HasOpId, HasLength {
 		type: "PriorMoveIn";
 		range: RangeType;
 		mods?: RangeMods<Mark>;
@@ -659,4 +662,215 @@ export enum Commutativity {
 	Move = "Move",
 	Delete = "Delete",
 	None = "None",
+}
+
+export namespace EffectsInRegions {
+	type Trait = [AffixPair, NodeList, AffixPair];
+	type AffixPair = [Affix, Affix];
+	type Affix = AffixEffect[];// Order implies precedence of slices and order of attaches
+	type AffixEffect = "Insert" | "MoveIn" | "SliceDelete" | "SliceMoveOut";
+	type NodeList = NodeTriplet[];
+	type NodeTriplet = [AffixPair, Node, AffixPair];
+	type Node = NodeEffect[]; // Order implies precedence
+	type NodeEffect = "SetDelete" | "SetMoveOut" | "SliceDelete" | "SliceMoveOut";
+
+	export const t1: Trait = [
+		[[], []],
+		[ // NodeList
+			[ // NodeTriplet
+				[[], []],
+				[],
+				[[], []],
+			],
+			[ // NodeTriplet
+				[[], []],
+				[],
+				[[], []],
+			],
+			[ // NodeTriplet
+				[["Insert"], ["SliceDelete"]],
+				["SliceDelete"],
+				[["SliceDelete"], ["SliceDelete"]],
+			],
+			[ // NodeTriplet
+				[["SliceMoveOut", "SliceDelete"], ["SliceMoveOut", "SliceDelete"]],
+				["SliceMoveOut", "SliceDelete"],
+				[["SliceMoveOut", "SliceDelete"], []],
+			],
+		], // NodeList
+		[[], []],
+	];
+
+	// In this representation there's no way to ensure that a slice starts and ends at an affix
+}
+
+export namespace EffectsInRegionsWithSkips {
+	type Trait = [AffixPair | 1, NodeList | 1, AffixPair | 1];
+	type AffixPair = [Affix | 1, Affix | 1];
+	type Affix = AffixEffect[];// Order implies precedence of slices and order of attaches
+	type AffixEffect = "Insert" | "MoveIn" | "SliceDelete" | "SliceMoveOut";
+	type NodeList = (NodeTriplet | number)[];
+	type NodeTriplet = [AffixPair | 1, Node | 1, AffixPair | 1];
+	type Node = NodeEffect[]; // Order implies precedence
+	type NodeEffect = "SetDelete" | "SetMoveOut" | "SliceDelete" | "SliceMoveOut";
+
+	export const t1: Trait = [
+		1,
+		[ // NodeList
+			2,
+			[ // NodeTriplet
+				[["Insert"], ["SliceDelete"]],
+				["SliceDelete"],
+				[["SliceDelete"], ["SliceDelete"]],
+			],
+			[ // NodeTriplet
+				[["SliceMoveOut", "SliceDelete"], ["SliceMoveOut", "SliceDelete"]],
+				["SliceMoveOut", "SliceDelete"],
+				[["SliceMoveOut", "SliceDelete"], 1],
+			],
+		], // NodeList
+		1,
+	];
+
+	// In this representation there's no way to ensure that a slice starts and ends at an affix
+}
+
+export namespace RegionsInEffectsWithSkips {
+	type Trait = (Effect | Skip)[];
+	type Skip = number; // Mix of affixes and nodes
+	interface Effect {
+		kind: EffectKind;
+		nested?: Trait; // The length of the affected region determined by looking at nested skips
+	}
+	type EffectKind = "Insert" | "MoveIn" | "SetDelete" | "SetMoveOut" | "SliceDelete" | "SliceMoveOut";
+
+	export const t1: Trait = [
+		12, // 2 affixes + 2 node triplets (ugh!)
+		{ kind: "Insert" },
+		{
+			kind: "SliceDelete",
+			nested: [
+				4,
+				{
+					kind: "SliceMoveOut",
+					nested: [
+						4,
+					],
+				},
+			],
+		},
+		3, // last affix of 4th node + 2 final affixes
+	];
+}
+
+export namespace EffectMajor {
+	interface Trait {
+		inserts?: AffixRegions<Content>;
+		setDel?: NodeRegions<number>;
+		sliceDelNodes?: NodeRegions<number>;
+		// Issue: we can have overlapping (non-idempotent) slice deletes within a single change
+		sliceDelAffixes?: AffixRegions<number>;
+		sliceMovNodes?: NodeRegions<number>;
+		// Issue: we can have overlapping (non-idempotent) slice moves within a single change
+		sliceMovAffixes?: AffixRegions<number>;
+		priorSetDeletes?: [SeqNumber, NodeRegions<number>][];
+	}
+	type AffixRegions<TContent = any> = [number, TContent][];
+	type NodeRegions<TContent = any> = [number, TContent][];
+	type Content = any;
+
+	export const t1: Trait = {
+		inserts: [[10, []]],
+		sliceDelNodes: [[2, 1]],
+		sliceDelAffixes: [[11, 6]],
+		sliceMovNodes: [[3, 1]],
+		sliceMovAffixes: [[14, 3]],
+	};
+}
+
+export namespace EffectMajor2 {
+	interface Trait {
+		// Attaches (whether new or prior) cannot overlap
+		// Answers: affix -> ordered attaches
+		attaches?: List<Attach[]>;
+
+		// Embrace the overlap by splitting
+		// Answers: node -> detach
+		nodeRanges?: List<NewDetach | PriorDetach | MutedDetach>;
+
+		// Embrace the overlap by splitting
+		// Answers: affix -> stack of effects
+		affixRanges?: List<AffixEffects>;
+	}
+	type List<TContent> = (Offset | TContent)[];
+
+	interface Insert {
+		type: "Insert";
+		id: OpId;
+		content: any[];
+		commute: Commutativity;
+	}
+
+	interface MoveIn {
+		type: "MoveIn";
+		id: OpId;
+		commute: Commutativity;
+	}
+
+	type NewAttach = Insert | MoveIn;
+	type Attach = NewAttach | PriorAttach;
+
+	interface AffixEffects {
+		// Number of affixes impacted
+		count: number;
+		stack: (SliceDelete | SliceMove)[];
+	}
+
+	interface SliceDelete {
+		type: "Del";
+		id: OpId;
+	}
+
+	interface SliceMove {
+		type: "Mov";
+		id: OpId;
+	}
+
+	interface PriorAttach {
+		id: OpId;
+		count: number;
+		seq: SeqNumber;
+		commute: Commutativity;
+	}
+
+	interface NewDetach {
+		type: "Del" | "Mov";
+		id: OpId;
+		count: number;
+	}
+
+	interface MutedDetach extends NewDetach {
+		priors: [SeqNumber, OpId][];
+	}
+
+	interface PriorDetach {
+		priors: [SeqNumber, OpId][];
+		count: number;
+	}
+
+	export const t1: Trait = {
+		attaches: [
+			10,
+			[{ type: "Insert", id: 0, commute: Commutativity.Full, content: [] }],
+		],
+		nodeRanges: [
+			{ type: "Del", id: 1, count: 1 },
+			{ type: "Mov", id: 2, count: 1 },
+		],
+		affixRanges: [
+			3,
+			{ count: 3, stack: [{ type: "Del", id: 1 }] },
+			{ count: 3, stack: [{ type: "Mov", id: 2 }, { type: "Del", id: 1 }] },
+		],
+	};
 }

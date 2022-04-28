@@ -6,9 +6,11 @@
 import structuredClone from "@ungap/structured-clone";
 import { assert } from "@fluidframework/common-utils";
 import {
+	Commutativity,
 	Offset,
 	Original as O,
 	Rebased as R,
+	Sibling,
 	TraitLabel,
 	TreeChildPath,
 	TreePath,
@@ -199,6 +201,7 @@ export class Pointer {
 	 */
 	public readonly iMark: number;
 
+	public readonly srcSide: Sibling;
 	public readonly iSrcNode: number;
 	public readonly iDstNode: number;
 	/**
@@ -211,16 +214,18 @@ export class Pointer {
 	private constructor(
 		marks: R.TraitMarks,
 		iMark: number,
+		srcSide: Sibling,
 		iSrcNode: number,
 		iDstNode: number,
-		sliceStack: readonly (R.DetachMark | R.PriorDetach)[],
+		rangeStack: readonly (R.DetachMark | R.PriorDetach)[],
 		parent: { label: TraitLabel; ptr: Pointer } | undefined,
 	) {
 		this.marks = marks;
 		this.iMark = iMark;
+		this.srcSide = srcSide;
 		this.iSrcNode = iSrcNode;
 		this.iDstNode = iDstNode;
-		this.rangeStack = sliceStack;
+		this.rangeStack = rangeStack;
 		this.parent = parent;
 	}
 
@@ -231,6 +236,7 @@ export class Pointer {
 		return new Pointer(
 			marks,
 			0,
+			Sibling.Prev,
 			0,
 			0,
 			[],
@@ -299,9 +305,9 @@ export class Pointer {
 		return this.parent.ptr.asDstPath({ [this.parent.label]: selfAndTail });
 	}
 
-	public skipMarks(markCount: number, isNew = false): Pointer {
-		const { marks, iMark, iSrcNode, iDstNode, rangeStack: sliceStack, parent } = this;
-		const stack = [...sliceStack];
+	public skipMarks(markCount: number): Pointer {
+		const { marks, iMark, srcSide, iSrcNode, iDstNode, rangeStack, parent } = this;
+		const stack = [...rangeStack];
 		let srcOffset = 0;
 		let dstOffset = 0;
 		const iTarget = iMark + markCount;
@@ -311,6 +317,9 @@ export class Pointer {
 			const length = lengthFromMark(mark);
 			if (isAttachSegment(mark)) {
 				dstOffset += length;
+				if (isRevive(mark)) {
+					srcOffset += length;
+				}
 			} else if (isDetachSegment(mark)) {
 				srcOffset += length;
 			} else if (isOffset(mark)) {
@@ -325,7 +334,7 @@ export class Pointer {
 				}
 			}
 		}
-		return new Pointer(marks, iTarget, iSrcNode + srcOffset, iDstNode + dstOffset, stack, parent);
+		return new Pointer(marks, iTarget, srcSide, iSrcNode + srcOffset, iDstNode + dstOffset, stack, parent);
 	}
 }
 
@@ -374,4 +383,15 @@ export function findIndexFrom<T>(
 		index += 1;
 	}
 	return undefined;
+}
+
+export function commutesWithDelete(mark: { commute?: Commutativity }): boolean {
+	return mark.commute === undefined
+	|| mark.commute === Commutativity.Full
+	|| mark.commute === Commutativity.Delete
+	;
+}
+
+export function identity<T>(t: T): T {
+	return t;
 }
