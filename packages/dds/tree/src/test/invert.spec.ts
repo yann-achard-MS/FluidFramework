@@ -5,6 +5,8 @@
 
 import { strict as assert } from "assert";
 import {
+	AffixCount,
+	NodeCount,
 	RangeType,
 	Rebased as R,
 } from "../format";
@@ -20,463 +22,501 @@ const seq = 42;
 const priorSeq = seq;
 
 const insert: R.ChangeFrame = {
-	marks: [{
-		modify: {
-			foo: [
+	marks: {
+		attaches: [
+			[
 				{
 					type: "Insert",
 					id: 0,
-					content: [{ id: "A" }],
+					content: [{ id: "A1" }],
 				},
 				{
 					type: "Insert",
 					id: 1,
-					content: [{ id: "B" }, { id: "C" }, { id: "E" }],
+					content: [{ id: "A2" }],
+				},
+			],
+			3,
+			[
+				{
+					type: "Insert",
+					id: 1,
+					content: [{ id: "B" }, { id: "C" }, { id: "D" }],
 					mods: [
 						1,
 						{
 							modify: {
-								bar: [
-									{
-										type: "Insert",
-										id: 2,
-										content: [{ id: "CA" }],
-									},
-								],
+								bar: {
+									attaches: [
+										[{
+											type: "Insert",
+											id: 2,
+											content: [{ id: "CA" }],
+										}],
+									],
+								},
 							},
-						},
-						{
-							type: "Insert",
-							id: 3,
-							content: [{ id: "D" }],
 						},
 					],
 				},
 			],
-		},
-	}],
+		],
+	},
 };
 const deleteSet: R.ChangeFrame = {
-	marks: [{
-		modify: {
-			foo: [
-				{
-					type: "DeleteSet",
-					id: -0,
-				},
-				{
-					type: "DeleteSet",
-					id: -1,
-					length: 4,
-				},
-			],
-		},
-	}],
+	marks: {
+		nodes: [
+			{
+				id: 0,
+				type: "Delete",
+				count: 2,
+			},
+			1,
+			{
+				type: "Delete",
+				id: 1,
+				count: 3,
+			},
+		],
+	},
 };
 const deleteSlice: R.ChangeFrame = {
-	marks: [{
-		modify: {
-			foo: [
-				{
-					type: "DeleteSlice",
-					id: 0,
-				},
-				{
-					type: "DeleteSlice",
-					id: 1,
-					length: 3,
-				},
-			],
-		},
-	}],
+	marks: {
+		nodes: [
+			{
+				id: 0,
+				type: "Delete",
+				count: 2,
+			},
+			1,
+			{
+				type: "Delete",
+				id: 1,
+				count: 3,
+			},
+		],
+		affixes: [
+			2,
+			{
+				count: 8,
+				stack: [ { type: "Scorch", id: 0 } ],
+			},
+			6,
+			{
+				count: 8,
+				stack: [ { type: "Scorch", id: 0 } ],
+			},
+		],
+	},
 };
 const reviveSet: R.ChangeFrame = {
-	marks: [{
-		modify: {
-			foo: [
-				{
-					type: "Revive",
-					range: RangeType.Set,
-					priorSeq,
-					priorId: -0,
-					id: 0,
-				},
-				{
-					type: "Revive",
-					range: RangeType.Set,
-					priorSeq,
-					priorId: -1,
-					id: 1,
-					length: 4,
-				},
-			],
-		},
-	}],
+	marks: {
+		nodes: [
+			{
+				type: "Revive",
+				id: 0,
+				priorSeq,
+				priorId: 0,
+				count: 2,
+			},
+			1,
+			{
+				type: "Revive",
+				id: 1,
+				priorSeq,
+				priorId: 1,
+				count: 3,
+			},
+		],
+	},
 };
 const reviveSlice: R.ChangeFrame = {
-	marks: [{
-		modify: {
-			foo: [
-				{
-					type: "Revive",
-					range: RangeType.Slice,
-					priorSeq,
-					priorId: 0,
-					id: -0,
-				},
-				{
-					type: "Revive",
-					range: RangeType.Slice,
-					priorSeq,
-					priorId: 1,
-					id: -1,
-					length: 3,
-				},
-			],
-		},
-	}],
+	marks: {
+		nodes: [
+			{
+				type: "Revive",
+				id: 0,
+				priorSeq,
+				priorId: 0,
+				count: 2,
+			},
+			1,
+			{
+				type: "Revive",
+				id: 1,
+				priorSeq,
+				priorId: 1,
+				count: 3,
+			},
+		],
+		affixes: [
+			2,
+			{
+				priorSeq,
+				count: 8,
+				stack: [ { type: "Heal", priorId: 0, id: 0 } ],
+			},
+			6,
+			{
+				priorSeq,
+				count: 8,
+				stack: [ { type: "Heal", priorId: 1, id: 1 } ],
+			},
+		],
+	},
 };
-const setValue: R.ChangeFrame = {
-	marks: [{
-		value: 1,
-		modify: {
-			foo: [
-				{
-					type: "SetValue",
-					value: 1,
-				},
-			],
-		},
-	}],
-};
-const revertValue: R.ChangeFrame = {
-	marks: [{
-		value: { seq },
-		modify: {
-			foo: [
-				{
-					type: "RevertValue",
-					seq,
-				},
-			],
-		},
-	}],
-};
+// const setValue: R.ChangeFrame = {
+// 	marks: [{
+// 		value: 1,
+// 		modify: {
+// 			foo: [
+// 				{
+// 					type: "SetValue",
+// 					value: 1,
+// 				},
+// 			],
+// 		},
+// 	}],
+// };
+// const revertValue: R.ChangeFrame = {
+// 	marks: [{
+// 		value: { seq },
+// 		modify: {
+// 			foo: [
+// 				{
+// 					type: "RevertValue",
+// 					seq,
+// 				},
+// 			],
+// 		},
+// 	}],
+// };
 const moveSetInTrait: R.ChangeFrame = {
 	moves: [
 		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
 	],
-	marks: [
-		{
-			modify: {
-				foo: [
-					1,
-					{
-						type: "MoveIn",
-						range: RangeType.Set,
-						id: 0,
+	marks: {
+		nodes: [
+			{
+				modify: {
+					foo: {
+						attaches: [
+							4,
+							[{ type: "MoveIn", id: 0, count: 1 }],
+						],
+						nodes: [
+							2,
+							{ type: "Move", id: 0, count: 1 },
+						],
 					},
-					1,
-					{
-						type: "MoveOutSet",
-						id: 0,
-					},
-				],
+				},
 			},
-		},
-	],
+		],
+	},
 };
 const moveSliceInTrait: R.ChangeFrame = {
 	moves: [
 		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
 	],
-	marks: [
-		{
-			modify: {
-				foo: [
-					1,
-					{
-						type: "MoveIn",
-						range: RangeType.Slice,
-						id: 0,
+	marks: {
+		nodes: [
+			{
+				modify: {
+					foo: {
+						attaches: [
+							4,
+							[{ type: "MoveIn", id: 0, count: 1 }],
+						],
+						nodes: [
+							2,
+							{ type: "Move", id: 0, count: 1 },
+						],
+						affixes: [
+							10,
+							{
+								count: 4,
+								stack: [ { type: "Forward", id: 0 } ],
+							},
+						],
 					},
-					1,
-					{
-						type: "MoveOutSlice",
-						id: 0,
-					},
-				],
+				},
 			},
-		},
-	],
+		],
+	},
 };
 const moveSetAcrossTraits: R.ChangeFrame = {
 	moves: [
 		{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
 	],
-	marks: [
-		{
-			modify: {
-				foo: [
-					{
-						type: "MoveOutSet",
-						id: 0,
+	marks: {
+		nodes: [
+			{
+				modify: {
+					foo: {
+						nodes: [
+							{ type: "Move", id: 0, count: 1 },
+						],
 					},
-				],
-				bar: [
-					{
-						type: "MoveIn",
-						range: RangeType.Set,
-						id: 0,
+					bar: {
+						attaches: [
+							[{ type: "MoveIn", id: 0, count: 1 }],
+						],
 					},
-				],
+				},
 			},
-		},
-	],
+		],
+	},
 };
 const moveSliceAcrossTraits: R.ChangeFrame = {
 	moves: [
 		{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
 	],
-	marks: [
-		{
-			modify: {
-				foo: [
-					{
-						type: "MoveOutSlice",
-						id: 0,
+	marks: {
+		nodes: [
+			{
+				modify: {
+					foo: {
+						nodes: [
+							2,
+							{ type: "Move", id: 0, count: 1 },
+						],
+						affixes: [
+							10,
+							{
+								count: 4,
+								stack: [ { type: "Forward", id: 0 } ],
+							},
+						],
 					},
-				],
-				bar: [
-					{
-						type: "MoveIn",
-						range: RangeType.Slice,
-						id: 0,
+					bar: {
+						attaches: [
+							2,
+							[{ type: "MoveIn", id: 0, count: 1 }],
+						],
 					},
-				],
+				},
 			},
-		},
-	],
+		],
+	},
 };
 const returnSetInTrait: R.ChangeFrame = {
 	moves: [
 		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
 	],
-	marks: [
-		{
-			modify: {
-				foo: [
-					1,
-					{
-						type: "MoveOutSet",
-						id: -0,
+	marks: {
+		nodes: [
+			{
+				modify: {
+					foo: {
+						nodes: [
+							1,
+							{ type: "Move", id: 0, count: 1 },
+							1,
+							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+						],
 					},
-					1,
-					{
-						type: "Return",
-						range: RangeType.Set,
-						id: -0,
-						priorSeq,
-						priorId: 0,
-					},
-				],
+				},
 			},
-		},
-	],
+		],
+	},
 };
 const returnSliceInTrait: R.ChangeFrame = {
 	moves: [
 		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
 	],
-	marks: [
-		{
-			modify: {
-				foo: [
-					1,
-					{
-						type: "MoveOutSlice",
-						id: -0,
+	marks: {
+		nodes: [
+			{
+				modify: {
+					foo: {
+						nodes: [
+							1,
+							{ type: "Move", id: 0, count: 1 },
+							1,
+							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+						],
+						affixes: [
+							10,
+							{
+								priorSeq,
+								count: 4,
+								stack: [ { type: "Unforward", priorId: 0, id: 0 } ],
+							},
+						],
 					},
-					1,
-					{
-						type: "Return",
-						range: RangeType.Slice,
-						id: -0,
-						priorSeq,
-						priorId: 0,
-					},
-				],
+				},
 			},
-		},
-	],
+		],
+	},
 };
 const returnSetAcrossTraits: R.ChangeFrame = {
 	moves: [
 		{ id: 0, src: { bar: 0 }, dst: { foo: 0 } },
 	],
-	marks: [
-		{
-			modify: {
-				foo: [
-					{
-						type: "Return",
-						range: RangeType.Set,
-						priorSeq,
-						priorId: 0,
-						id: -0,
+	marks: {
+		nodes: [
+			{
+				modify: {
+					foo: {
+						nodes: [
+							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+						],
 					},
-				],
-				bar: [
-					{
-						type: "MoveOutSet",
-						id: -0,
+					bar: {
+						nodes: [
+							{ type: "Move", id: 0, count: 1 },
+						],
 					},
-				],
+				},
 			},
-		},
-	],
+		],
+	},
 };
 const returnSliceAcrossTraits: R.ChangeFrame = {
 	moves: [
 		{ id: 0, src: { bar: 0 }, dst: { foo: 0 } },
 	],
-	marks: [
-		{
-			modify: {
-				foo: [
-					{
-						type: "Return",
-						range: RangeType.Slice,
-						priorSeq,
-						priorId: 0,
-						id: -0,
+	marks: {
+		nodes: [
+			{
+				modify: {
+					foo: {
+						nodes: [
+							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+						],
+						affixes: [
+							10,
+							{
+								priorSeq,
+								count: 4,
+								stack: [ { type: "Unforward", priorId: 0, id: 0 } ],
+							},
+						],
 					},
-				],
-				bar: [
-					{
-						type: "MoveOutSlice",
-						id: -0,
+					bar: {
+						nodes: [
+							{ type: "Move", id: 0, count: 1 },
+						],
 					},
-				],
+				},
 			},
-		},
-	],
+		],
+	},
 };
 const returnTwiceSetInTrait: R.ChangeFrame = {
 	moves: [
 		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
 	],
-	marks: [
-		{
-			modify: {
-				foo: [
-					1,
-					{
-						type: "Return",
-						range: RangeType.Set,
-						id: 0,
-						priorSeq,
-						priorId: -0,
+	marks: {
+		nodes: [
+			{
+				modify: {
+					foo: {
+						nodes: [
+							1,
+							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+							1,
+							{ type: "Move", id: 0, count: 1 },
+						],
 					},
-					1,
-					{
-						type: "MoveOutSet",
-						id: 0,
-					},
-				],
+				},
 			},
-		},
-	],
+		],
+	},
 };
 const returnTwiceSliceInTrait: R.ChangeFrame = {
 	moves: [
 		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
 	],
-	marks: [
-		{
-			modify: {
-				foo: [
-					1,
-					{
-						type: "Return",
-						range: RangeType.Slice,
-						id: 0,
-						priorSeq,
-						priorId: -0,
+	marks: {
+		nodes: [
+			{
+				modify: {
+					foo: {
+						nodes: [
+							1,
+							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+							1,
+							{ type: "Move", id: 0, count: 1 },
+						],
+						affixes: [
+							10,
+							{
+								priorSeq,
+								count: 4,
+								stack: [ { type: "Forward", id: 0 } ],
+							},
+						],
 					},
-					1,
-					{
-						type: "MoveOutSlice",
-						id: 0,
-					},
-				],
+				},
 			},
-		},
-	],
+		],
+	},
 };
 const returnTwiceSetAcrossTraits: R.ChangeFrame = {
 	moves: [
 		{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
 	],
-	marks: [
-		{
-			modify: {
-				foo: [
-					{
-						type: "MoveOutSet",
-						id: 0,
+	marks: {
+		nodes: [
+			{
+				modify: {
+					foo: {
+						nodes: [
+							{ type: "Move", id: 0, count: 1 },
+						],
 					},
-				],
-				bar: [
-					{
-						type: "Return",
-						range: RangeType.Set,
-						priorSeq,
-						priorId: -0,
-						id: 0,
+					bar: {
+						nodes: [
+							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+						],
 					},
-				],
+				},
 			},
-		},
-	],
+		],
+	},
 };
 const returnTwiceSliceAcrossTraits: R.ChangeFrame = {
 	moves: [
 		{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
 	],
-	marks: [
-		{
-			modify: {
-				foo: [
-					{
-						type: "MoveOutSlice",
-						id: 0,
+	marks: {
+		nodes: [
+			{
+				modify: {
+					foo: {
+						nodes: [
+							{ type: "Move", id: 0, count: 1 },
+						],
+						affixes: [
+							10,
+							{
+								count: 4,
+								stack: [ { type: "Forward", id: 0 } ],
+							},
+						],
 					},
-				],
-				bar: [
-					{
-						type: "Return",
-						range: RangeType.Slice,
-						priorSeq,
-						priorId: -0,
-						id: 0,
+					bar: {
+						nodes: [
+							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+						],
 					},
-				],
+				},
 			},
-		},
-	],
+		],
+	},
 };
 
 describe(invert.name, () => {
-	it("SetValue -> RevertValue", () => {
-		const actual = testInvert(setValue);
-		assert.deepEqual(actual, revertValue);
-	});
+	// it("SetValue -> RevertValue", () => {
+	// 	const actual = testInvert(setValue);
+	// 	assert.deepEqual(actual, revertValue);
+	// });
 
-	it("RevertValue -> RevertValue", () => {
-		const actual = testInvert(revertValue);
-		assert.deepEqual(actual, revertValue);
-	});
+	// it("RevertValue -> RevertValue", () => {
+	// 	const actual = testInvert(revertValue);
+	// 	assert.deepEqual(actual, revertValue);
+	// });
 
 	it("Insert -> Delete", () => {
 		const actual = testInvert(insert);
