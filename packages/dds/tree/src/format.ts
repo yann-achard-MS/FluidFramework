@@ -366,19 +366,9 @@ export namespace Original {
  * for the edits over which it was rebased.
  */
 export namespace Rebased {
-	// Use "interface" instead "type" to avoid TSC error
-	// eslint-disable-next-line @typescript-eslint/no-empty-interface
-	export interface Modify<TInner = Mark, AllowSetValue extends boolean = true> extends
-		Original.Modify<TInner, AllowSetValue> { }
-	export type SetValue = Original.SetValue;
 	export type MoveEntry = Original.MoveEntry;
 	export type ProtoNode = Original.ProtoNode;
 	export type HasOpId = Original.HasOpId;
-	export type IsPlace = Original.IsPlace;
-	export type IsSlice = Original.IsSlice;
-	export type RevertValue = Original.RevertValue;
-	export type Revive = Original.Revive;
-	export type Return = Original.Return;
 
 	export interface Transaction {
 		/**
@@ -439,141 +429,131 @@ export namespace Rebased {
 		seq: SeqNumber;
 	}
 
-	export type TraitMark = Offset | Mark;
-	export type TraitMarks = TraitMark[];
-	export type ModsTrail = (Offset | NodeMark)[];
+	export interface TraitMarks {
+		// Attaches (whether new or prior) cannot overlap
+		// Answers: affix -> ordered attaches
+		attaches?: OffsetList<Attach[], AffixCount>;
 
-	export type NodeMark =
-		| RevertValue
-		| SetValue
-		| Modify;
-	export type AttachMark =
-		| Insert
-		| MoveIn;
-	export type DetachMark =
-		| MoveOut
-		| Delete;
-	export type SegmentMark =
-		| AttachMark
-		| DetachMark
-		| Prior
-		| Return
-		| Revive;
-	export type ObjMark =
-		| NodeMark
-		| SegmentMark;
-	export type Mark =
-		| ObjMark;
+		// Embrace the overlap by splitting
+		// Answers: node -> detach
+		nodes?: OffsetList<Modify | NewDetach | PriorDetach | MutedDetach | Reattach, NodeCount>;
 
-	export type RangeMods<
-		TMods,
-		AllowSetValue extends boolean = true
-		> = (Offset | TMods | Modify<TMods, AllowSetValue>)[];
-
-	export interface Insert extends IsPlace, HasOpId, HasLength {
-		type: "Insert";
-		content: ProtoNode[];
-		// mods?: RangeMods<Original.Mark>;
-		mods?: RangeMods<Mark>;
+		// Embrace the overlap by splitting
+		// Answers: affix -> stack of effects
+		affixes?: OffsetList<OpenAffixEffects | ClosedAffixEffects, AffixCount>;
 	}
 
-	export interface MoveIn extends IsPlace, HasOpId, HasLength {
-		type: "MoveIn";
-		range: RangeType;
-		// mods?: RangeMods<Original.Mark>;
-		mods?: RangeMods<Mark>;
+	export type OffsetList<TContent, TOffset> = (TOffset | TContent)[];
+
+	export interface Modify {
+		/**
+		 * We need this setValue (in addition to the SetValue mark because non-leaf nodes can have values)
+		 */
+		value?: Value;
+		modify?: { [key: string]: TraitMarks };
 	}
 
-	export type MoveOut = MoveOutSet | MoveOutSlice;
-	export type Delete = DeleteSet | DeleteSlice;
-
-	export interface DeleteSet extends HasOpId, HasLength {
-		type: "DeleteSet";
-		// mods?: RangeMods<MoveOut | Prior, false>;
-		mods?: RangeMods<Mark>;
-	}
-
-	export interface DeleteSlice extends IsSlice, HasOpId, HasLength {
-		type: "DeleteSlice";
-		// mods?: RangeMods<MoveOut | Prior, false>;
-		mods?: RangeMods<Mark>;
-	}
-
-	export interface MoveOutSet extends HasOpId, HasLength {
-		type: "MoveOutSet";
-		// mods?: RangeMods<MoveOut | Delete | Prior, false>;
-		mods?: RangeMods<Mark>;
-	}
-
-	export interface MoveOutSlice extends IsSlice, HasOpId, HasLength {
-		type: "MoveOutSlice";
-		// mods?: RangeMods<MoveOut | Delete | Prior, false>;
-		mods?: RangeMods<Mark>;
-	}
-
-	// -- Prior Changes ---
-
-	export type Prior = PriorAttach | PriorDetach;
-	export type PriorAttach = PriorInsert | PriorMoveIn;
-	export type PriorDetach = PriorDelete | PriorMoveOut;
-
-	export interface PriorInsert extends HasLength, HasSeqNumber, HasOpId {
-		type: "PriorInsert";
-		// The mods are needed for:
-		// - other prior insertions within the same trait
-		// - drilldown-based operations
-		mods?: RangeMods<Mark>;
+	export interface IsPlace {
+		/**
+		 * Omit if not in peer change.
+		 * Omit if performed with a parent-based place anchor.
+		 * Omit if `Commutativity.Full`.
+		 */
 		commute?: Commutativity;
 	}
 
-	export interface PriorMoveIn extends HasSeqNumber, HasOpId, HasLength {
-		type: "PriorMoveIn";
-		range: RangeType;
-		mods?: RangeMods<Mark>;
+	export interface IsAffixEffect {
+		/**
+		 * When `true`, if a concurrent insertion that is sequenced before the range operation falls
+		 * within the bounds of the range, then the inserted content will *not* be included in the
+		 * range and therefore will *not* be affected by the operation performed on the range.
+		 *
+		 * Defaults to false.
+		 */
+		excludePriorInsertions?: true;
+		/**
+		 * When `true`, if a concurrent insertion that is sequenced after the range operation falls
+		 * within the bounds of the range, then the inserted content will be included in the range and
+		 * therefore will be affected by the operation performed on the range, unless that insertion
+		 * stipulates that it is not commutative with respect to the range operation.
+		 *
+		 * Defaults to false.
+		 */
+		includePosteriorInsertions?: true;
 	}
 
-	export type DeleteRangeMod =
-		| MoveOut
-		| PriorInsert
-		| PriorDelete
-		| PriorMoveIn
-		| PriorMoveOut
-	;
-
-	export type MoveOutRangeMod =
-		| Delete
-		| MoveOut
-		| PriorInsert
-		| PriorDelete
-		| PriorMoveIn
-		| PriorMoveOut
-	;
-
-	export type PriorMoveOut = PriorMoveOutSet | PriorMoveOutSlice;
-	export type PriorDelete = PriorDeleteSet | PriorDeleteSlice;
-
-	export interface PriorDeleteSet extends HasSeqNumber, HasOpId, HasLength {
-		type: "PriorDeleteSet";
-		// mods?: RangeMods<PriorMoveOut | PriorAttach | AttachMark, false>;
-		mods?: RangeMods<Mark>;
+	export interface Insert extends HasOpId, IsPlace {
+		type: "Insert";
+		content: ProtoNode[];
+		mods?: OffsetList<Modify, NodeCount>;
 	}
 
-	export interface PriorDeleteSlice extends HasSeqNumber, HasOpId, HasLength {
-		type: "PriorDeleteSlice";
-		// mods?: RangeMods<PriorMoveOut | PriorAttach | AttachMark, false>;
-		mods?: RangeMods<Mark>;
+	export interface MoveIn extends HasOpId, IsPlace {
+		type: "MoveIn";
+		count: NodeCount;
+		mods?: OffsetList<Modify, NodeCount>;
 	}
 
-	export interface PriorMoveOutSet extends HasOpId, HasSeqNumber, HasLength {
-		type: "PriorMoveOutSet";
-		// mods?: RangeMods<PriorMoveOut | PriorDelete | PriorAttach | AttachMark, false>;
-		mods?: RangeMods<Mark>;
+	export type NewAttach = Insert | MoveIn;
+	export type Attach = NewAttach | PriorAttach;
+
+	export interface OpenAffixEffects {
+		count: AffixCount;
+		stack: (Scorch | Forward)[];
 	}
 
-	export interface PriorMoveOutSlice extends HasSeqNumber, HasOpId, HasLength {
-		type: "PriorMoveOutSlice";
-		// mods?: RangeMods<PriorMoveOut | PriorDelete | PriorAttach | AttachMark, false>;
-		mods?: RangeMods<Mark>;
+	export interface ClosedAffixEffects {
+		priorSeq: SeqNumber;
+		count: AffixCount;
+		stack: (Heal | Unforward)[];
+	}
+
+	export interface Scorch extends HasOpId, IsAffixEffect {
+		type: "Scorch";
+	}
+
+	export interface Heal extends HasOpId, IsAffixEffect {
+		priorId: OpId;
+		type: "Heal";
+	}
+
+	export interface Forward extends HasOpId, IsAffixEffect {
+		type: "Forward";
+	}
+
+	export interface Unforward extends HasOpId, IsAffixEffect {
+		priorId: OpId;
+		type: "Unforward";
+	}
+
+	export interface PriorAttach extends IsPlace {
+		priorSeq: SeqNumber;
+		priorId: OpId;
+		count: NodeCount;
+		commute: Commutativity;
+	}
+
+	export interface NewDetach extends HasOpId {
+		type: "Delete" | "Move";
+		count: NodeCount;
+		mods?: OffsetList<Modify, NodeCount>;
+	}
+
+	export interface Reattach extends HasOpId {
+		priorSeq: SeqNumber;
+		priorId: OpId;
+		type: "Revive" | "Return";
+		count: NodeCount;
+		mods?: OffsetList<Modify, NodeCount>;
+	}
+
+	export interface MutedDetach extends NewDetach {
+		priors: [SeqNumber, OpId][];
+	}
+
+	export interface PriorDetach {
+		priors: [SeqNumber, OpId][];
+		count: NodeCount;
 	}
 }
 
@@ -649,8 +629,9 @@ export interface HasSeqNumber {
 	seq: SeqNumber;
 }
 
+export type NodeCount = number;
+export type AffixCount = number;
 export type Offset = number;
-export type Index = number;
 export type SeqNumber = number;
 export type Value = number | string | boolean;
 export type NodeId = string;

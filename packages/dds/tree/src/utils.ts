@@ -146,7 +146,7 @@ export function isReturn(mark: R.ObjMark | Offset): mark is R.Return {
 	return typeof mark === "object" && mark.type === "Return";
 }
 
-export function isRevive(mark: R.ObjMark | Offset): mark is R.Revive {
+export function isRevive(mark: R.ObjMark | Offset): mark is R.Reattach {
 	return typeof mark === "object" && mark.type === "Revive";
 }
 
