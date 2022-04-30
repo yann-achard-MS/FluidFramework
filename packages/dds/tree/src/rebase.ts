@@ -18,7 +18,7 @@ import {
 	isChangeFrame,
 	isConstraintFrame,
 	Pointer,
-	isOffset,
+	isNumber,
 	isInsert,
 	isDeleteSet,
 	isDeleteSlice,
@@ -89,7 +89,7 @@ function rebaseMarks(
 	basePtr = basePtr.nextMark();
 	while (basePtr.mark !== undefined) {
 		const baseMark = basePtr.mark;
-		if (isOffset(baseMark)) {
+		if (isNumber(baseMark)) {
 			fail("seekToBaseAnchor should skip offsets");
 		}
 		if (isModify(baseMark)) {
@@ -220,7 +220,7 @@ function priorFromTraitMark(
 			length: base.length,
 		};
 	}
-	if (isOffset(base) || isAttachSegment(base) || isRevert(base)) {
+	if (isNumber(base) || isAttachSegment(base) || isRevert(base)) {
 		return lengthFromMark(base);
 	}
 	if (isPrior(base) || isSetValue(base)) {

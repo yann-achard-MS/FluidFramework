@@ -436,7 +436,7 @@ export namespace Rebased {
 
 		// Embrace the overlap by splitting
 		// Answers: node -> detach
-		nodes?: OffsetList<Modify | NewDetach | PriorDetach | MutedDetach | Reattach, NodeCount>;
+		nodes?: OffsetList<NodeMark, NodeCount>;
 
 		// Embrace the overlap by splitting
 		// Answers: affix -> stack of effects
@@ -444,6 +444,8 @@ export namespace Rebased {
 	}
 
 	export type OffsetList<TContent, TOffset> = (TOffset | TContent)[];
+
+	export type NodeMark = Modify | NewDetach | PriorDetach | Reattach;
 
 	export interface Modify {
 		/**
@@ -536,6 +538,7 @@ export namespace Rebased {
 	export interface NewDetach extends HasOpId {
 		type: "Delete" | "Move";
 		count: NodeCount;
+		priors?: [SeqNumber, OpId][];
 		mods?: OffsetList<Modify, NodeCount>;
 	}
 
@@ -545,10 +548,6 @@ export namespace Rebased {
 		type: "Revive" | "Return";
 		count: NodeCount;
 		mods?: OffsetList<Modify, NodeCount>;
-	}
-
-	export interface MutedDetach extends NewDetach {
-		priors: [SeqNumber, OpId][];
 	}
 
 	export interface PriorDetach {

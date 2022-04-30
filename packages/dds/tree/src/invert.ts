@@ -14,7 +14,7 @@ import {
 	clone,
 	fail,
 	isModify,
-	isOffset,
+	isNumber,
 	isPrior,
 	lengthFromOffsets,
 	mapObject,
@@ -75,7 +75,7 @@ function invertMarks(marks: R.TraitMarks, context: Context): R.TraitMarks {
 	let iMark = 0;
 	while (iMark < marks.length) {
 		const mark = marks[iMark];
-		if (isOffset(mark) || isPrior(mark)) {
+		if (isNumber(mark) || isPrior(mark)) {
 			newMarks.push(mark);
 		} else if (isModify(mark)) {
 			newMarks.push(invertModify(mark, context));

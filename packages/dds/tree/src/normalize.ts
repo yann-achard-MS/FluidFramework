@@ -12,7 +12,7 @@ import {
 	isModify,
 	isMoveIn,
 	isMoveOutSet,
-	isOffset,
+	isNumber,
 	isPriorDetach,
 	isRevive,
 } from "./utils";
@@ -33,11 +33,11 @@ export function normalizeMarks(marks: R.TraitMarks): void {
 	while (iMark >= 0) {
 		const prevMark = marks[iMark - 1] as R.TraitMark | undefined;
 		const mark = marks[iMark];
-		if (isOffset(mark)) {
+		if (isNumber(mark)) {
 			if (iMark === marks.length - 1) {
 				marks.pop();
 			} else if (iMark > 0) {
-				if (isOffset(prevMark)) {
+				if (isNumber(prevMark)) {
 					marks.splice(iMark - 1, 2, mark + prevMark);
 				}
 			}
@@ -51,7 +51,7 @@ export function normalizeMarks(marks: R.TraitMarks): void {
 		) {
 			if (mark.mods !== undefined) {
 				normalizeMarks(mark.mods);
-				if (mark.mods.length === 0 || (mark.mods.length === 1 && isOffset(mark.mods[0]))) {
+				if (mark.mods.length === 0 || (mark.mods.length === 1 && isNumber(mark.mods[0]))) {
 					delete mark.mods;
 				}
 			} else if ("mods" in mark) {
