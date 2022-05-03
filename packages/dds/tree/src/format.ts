@@ -122,7 +122,7 @@ export namespace Original {
 	}
 
 	export interface MoveIn extends IsPlace, HasOpId, HasLength {
-		type: "MoveIn";
+		type: "Move";
 		range: RangeType;
 		// mods?: RangeMods<Mark>;
 		mods?: RangeMods<Rebased.Mark>;
@@ -491,7 +491,7 @@ export namespace Rebased {
 	}
 
 	export interface MoveIn extends HasOpId, IsPlace {
-		type: "MoveIn";
+		type: "Move";
 		count: NodeCount;
 		mods?: OffsetList<Modify, NodeCount>;
 	}
@@ -538,7 +538,7 @@ export namespace Rebased {
 	export interface NewDetach extends HasOpId {
 		type: "Delete" | "Move";
 		count: NodeCount;
-		priors?: [SeqNumber, OpId][];
+		priors?: { seq: SeqNumber; id: OpId; }[];
 		mods?: OffsetList<Modify, NodeCount>;
 	}
 
@@ -792,7 +792,7 @@ export namespace EffectMajor2 {
 	}
 
 	interface MoveIn {
-		type: "MoveIn";
+		type: "Move";
 		id: OpId;
 		commute: Commutativity;
 	}

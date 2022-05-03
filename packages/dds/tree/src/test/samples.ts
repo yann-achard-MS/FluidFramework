@@ -3,27 +3,29 @@
  * Licensed under the MIT License.
  */
 
-import { Commutativity, Original, Rebased as R, Sibling, Sequenced as S, RangeType } from "../format";
+import { Commutativity, Rebased as R, Sibling, Sequenced as S, RangeType } from "../format";
 
 export namespace SwapCousins {
 	// Swap the first nodes of traits foo and bar using set-like ranges
-	export const e1: Original.ChangeFrame = {
+	export const e1: R.ChangeFrame = {
 		moves: [
 			{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
 			{ id: 1, src: { bar: 0 }, dst: { foo: 0 } },
 		],
-		marks: [{
-			modify: {
-				foo: [
-					{ type: "MoveOutSet", id: 0 },
-					{ type: "MoveIn", id: 1, range: RangeType.Set },
-				],
-				bar: [
-					{ type: "MoveIn", id: 0, range: RangeType.Set },
-					{ type: "MoveOutSet", id: 1 },
-				],
-			},
-		}],
+		marks: {
+			nodes: [{
+				modify: {
+					foo: {
+						nodes: [ { type: "Move", id: 0, count: 1 } ],
+						attaches: [[ { type: "Move", id: 1, count: 1 } ]],
+					},
+					bar: {
+						nodes: [ { type: "Move", id: 1, count: 1 } ],
+						attaches: [[ { type: "Move", id: 0, count: 1 } ]],
+					},
+				},
+			}],
+		},
 	};
 }
 
@@ -31,7 +33,7 @@ export namespace SwapParentChild {
 	// Swap parent/child:
 	// From: R{ foo: B{ bar: C{ baz: D } } }
 	// To:   R{ foo: C{ bar: B{ baz: D } } }
-	export const e1: Original.ChangeFrame = {
+	export const e1: R.ChangeFrame = {
 		moves: [
 			{ id: 0, src: { foo: 0 }, dst: { foo: { 0: { bar: 0 } } } }, // B
 			{ id: 1, src: { foo: { 0: { bar: 0 } } }, dst: { foo: 0 } }, // C
@@ -41,63 +43,80 @@ export namespace SwapParentChild {
 				dst: { foo: { 0: { bar: { 0: { baz: 0 } } } } },
 			},
 		],
-		marks: [{
-			modify: {
-				foo: [
-					{
-						type: "MoveOutSet", // B,
-						id: 0,
-						mods: [{ // Modify B
-							modify: {
-								bar: [
-									{
-										type: "MoveOutSet", // C
-										id: 1,
-										mods: [{ // Modify C
-											modify: {
-												baz: [
+		marks: {
+			nodes: [
+				{
+					modify: {
+						foo: {
+							nodes: [
+								{
+									type: "Move",
+									id: 0,
+									count: 1,
+									mods: [{
+										modify: {
+											bar: {
+												nodes: [
 													{
-														type: "MoveOutSet", // D
-														id: 2,
+														type: "Move",
+														id: 1,
+														count: 1,
+														mods: [{
+															modify: {
+																baz: {
+																	nodes: [{
+																		type: "Move",
+																		id: 2,
+																		count: 1,
+																	}],
+																},
+															},
+														}],
 													},
 												],
 											},
-										}],
-									},
-								],
-							},
-						}],
-					},
-					{
-						type: "MoveIn", // C
-						range: RangeType.Set,
-						id: 1,
-						mods: [{ // Modify C
-							modify: {
-								bar: [
-									{
-										type: "MoveIn", // B
-										range: RangeType.Set,
-										id: 0,
-										mods: [{ // Modify B
-											modify: {
-												baz: [
-													{
-														type: "MoveIn", // D
-														range: RangeType.Set,
-														id: 2,
-													},
+										},
+									}],
+								},
+							],
+							attaches: [
+								[{
+									type: "Move",
+									id: 1,
+									count: 1,
+									mods: [{
+										modify: {
+											bar: {
+												attaches: [
+													[{
+														type: "Move",
+														id: 0,
+														count: 1,
+														mods: [{
+															modify: {
+																bar: {
+																	attaches: [
+																		[{
+																			type: "Move",
+																			id: 2,
+																			count: 1,
+																		}],
+																	],
+																},
+															},
+														}],
+													}],
 												],
 											},
-										}],
-									},
-								],
-							},
-						}],
+										},
+									}],
+								}],
+							],
+						},
 					},
-				],
-			},
-		}],
+				},
+			],
+		},
 	};
 }
 
@@ -106,7 +125,7 @@ export namespace ScenarioA1 {
 	Scenario A
 	In a trait foo that contains the nodes [A B C D], three users concurrently attempt the following operations (ordered
 	here from first sequenced to last sequenced):
-	  User 1: delete B C
+	  User 1: set-delete B C
 	  User 2: move slice-like range B C D to some other trait bar
 	  User 3: insert X after B (commutative)
 
@@ -121,14 +140,18 @@ export namespace ScenarioA1 {
 		ref: 0,
 		seq: 1,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{ type: "DeleteSet", id:0 , length: 2 },
-					],
-				},
-			}],
+			marks: {
+				nodes: [{
+					modify: {
+						foo: {
+							nodes: [
+								1, // Skip A
+								{ type: "Delete", id:0 , count: 2 },
+							],
+						},
+					},
+				}],
+			},
 		}],
 	};
 
@@ -137,21 +160,28 @@ export namespace ScenarioA1 {
 		seq: 2,
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{
-							type: "MoveOutSlice",
-							id: 0,
-							length: 3,
+			marks: {
+				nodes: [{
+					modify: {
+						foo: {
+							nodes: [
+								1, // Skip A
+								{
+									type: "Move",
+									id: 0,
+									count: 3,
+								},
+							],
 						},
-					],
-					bar: [
-						{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 3 },
-					],
-				},
-			}],
+						bar: {
+							attaches: [
+								8, // After B
+								[{ type: "Move", id: 0, count: 3 }],
+							],
+						},
+					},
+				}],
+			},
 		}],
 	};
 
@@ -159,14 +189,18 @@ export namespace ScenarioA1 {
 		ref: 0,
 		seq: 3,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						2, // Skip A B
-						{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full },
-					],
-				},
-			}],
+			marks: {
+				nodes: [{
+					modify: {
+						foo: {
+							attaches: [
+								8, // After B // TODO: how to represent affixes for nodes that were deleted by prior changes?
+								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+							],
+						},
+					},
+				}],
+			},
 		}],
 	};
 
@@ -176,29 +210,33 @@ export namespace ScenarioA1 {
 		newRef: 1,
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{
-							type: "MoveOutSlice",
-							id: 0,
-							length: 3, // B, C, D
-							mods: [
+			marks: {
+				nodes: [{
+					modify: {
+						foo: {
+							nodes: [
+								1, // Skip A
 								{
-									type: "PriorDeleteSet",
-									seq: 1,
+									type: "Move",
 									id: 0,
-									length: 2,
+									count: 2,
+									priors: [{ seq: 1, id: 0 }],
+								},
+								{
+									type: "Move",
+									id: 0,
+									count: 1,
 								},
 							],
 						},
-					],
-					bar: [
-						{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 3 },
-					],
-				},
-			}],
+						bar: {
+							attaches: [
+								[{ type: "Move", id: 0, count: 1 }], // Count gets updated
+							],
+						},
+					},
+				}],
+			},
 		}],
 	};
 
@@ -207,23 +245,30 @@ export namespace ScenarioA1 {
 		ref: 0,
 		newRef: 1,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{
-							type: "PriorDeleteSet",
-							seq: 1,
-							id: 0,
-							length: 2,
-							mods: [
-								1, // B
-								{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full },
+			marks: {
+				nodes: [{
+					modify: {
+						foo: {
+							attaches: [
+								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
 							],
 						},
-					],
-				},
-			}],
+						// foo: [
+						// 	1, // Skip A
+						// 	{
+						// 		type: "PriorDeleteSet",
+						// 		seq: 1,
+						// 		id: 0,
+						// 		length: 2,
+						// 		mods: [
+						// 			1, // B
+						// 			{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full },
+						// 		],
+						// 	},
+						// ],
+					},
+				}],
+			},
 		}],
 	};
 

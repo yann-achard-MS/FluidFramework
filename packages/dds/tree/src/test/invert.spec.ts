@@ -202,7 +202,7 @@ const moveSetInTrait: R.ChangeFrame = {
 					foo: {
 						attaches: [
 							4,
-							[{ type: "MoveIn", id: 0, count: 1 }],
+							[{ type: "Move", id: 0, count: 1 }],
 						],
 						nodes: [
 							2,
@@ -225,7 +225,7 @@ const moveSliceInTrait: R.ChangeFrame = {
 					foo: {
 						attaches: [
 							4,
-							[{ type: "MoveIn", id: 0, count: 1 }],
+							[{ type: "Move", id: 0, count: 1 }],
 						],
 						nodes: [
 							2,
@@ -259,7 +259,7 @@ const moveSetAcrossTraits: R.ChangeFrame = {
 					},
 					bar: {
 						attaches: [
-							[{ type: "MoveIn", id: 0, count: 1 }],
+							[{ type: "Move", id: 0, count: 1 }],
 						],
 					},
 				},
@@ -291,7 +291,7 @@ const moveSliceAcrossTraits: R.ChangeFrame = {
 					bar: {
 						attaches: [
 							2,
-							[{ type: "MoveIn", id: 0, count: 1 }],
+							[{ type: "Move", id: 0, count: 1 }],
 						],
 					},
 				},
