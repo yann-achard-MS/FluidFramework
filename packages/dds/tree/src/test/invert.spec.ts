@@ -19,11 +19,10 @@ function testInvert(frame: R.ChangeFrame): R.ChangeFrame {
 }
 
 const seq = 42;
-const priorSeq = seq;
 
 const insert: R.ChangeFrame = {
 	marks: {
-		attaches: [
+		attach: [
 			[
 				{
 					type: "Insert",
@@ -47,7 +46,7 @@ const insert: R.ChangeFrame = {
 						{
 							modify: {
 								bar: {
-									attaches: [
+									attach: [
 										[{
 											type: "Insert",
 											id: 2,
@@ -111,20 +110,21 @@ const deleteSlice: R.ChangeFrame = {
 };
 const reviveSet: R.ChangeFrame = {
 	marks: {
+		tombs: [
+			{ count: 2, seq, id: 0 },
+			1,
+			{ count: 3, seq, id: 1 },
+		],
 		nodes: [
 			{
 				type: "Revive",
 				id: 0,
-				priorSeq,
-				priorId: 0,
 				count: 2,
 			},
 			1,
 			{
 				type: "Revive",
 				id: 1,
-				priorSeq,
-				priorId: 1,
 				count: 3,
 			},
 		],
@@ -132,35 +132,34 @@ const reviveSet: R.ChangeFrame = {
 };
 const reviveSlice: R.ChangeFrame = {
 	marks: {
+		tombs: [
+			{ count: 2, seq, id: 0 },
+			1,
+			{ count: 3, seq, id: 1 },
+		],
 		nodes: [
 			{
 				type: "Revive",
 				id: 0,
-				priorSeq,
-				priorId: 0,
 				count: 2,
 			},
 			1,
 			{
 				type: "Revive",
 				id: 1,
-				priorSeq,
-				priorId: 1,
 				count: 3,
 			},
 		],
 		affixes: [
 			2,
 			{
-				priorSeq,
 				count: 8,
-				stack: [ { type: "Heal", priorId: 0, id: 0 } ],
+				stack: [ { type: "Heal", id: 0 } ],
 			},
 			6,
 			{
-				priorSeq,
 				count: 8,
-				stack: [ { type: "Heal", priorId: 1, id: 1 } ],
+				stack: [ { type: "Heal", id: 1 } ],
 			},
 		],
 	},
@@ -200,7 +199,7 @@ const moveSetInTrait: R.ChangeFrame = {
 			{
 				modify: {
 					foo: {
-						attaches: [
+						attach: [
 							4,
 							[{ type: "Move", id: 0, count: 1 }],
 						],
@@ -223,7 +222,7 @@ const moveSliceInTrait: R.ChangeFrame = {
 			{
 				modify: {
 					foo: {
-						attaches: [
+						attach: [
 							4,
 							[{ type: "Move", id: 0, count: 1 }],
 						],
@@ -258,7 +257,7 @@ const moveSetAcrossTraits: R.ChangeFrame = {
 						],
 					},
 					bar: {
-						attaches: [
+						attach: [
 							[{ type: "Move", id: 0, count: 1 }],
 						],
 					},
@@ -289,7 +288,7 @@ const moveSliceAcrossTraits: R.ChangeFrame = {
 						],
 					},
 					bar: {
-						attaches: [
+						attach: [
 							2,
 							[{ type: "Move", id: 0, count: 1 }],
 						],
@@ -308,11 +307,15 @@ const returnSetInTrait: R.ChangeFrame = {
 			{
 				modify: {
 					foo: {
+						tombs: [
+							3,
+							{ count: 1, seq, id: 0 },
+						],
 						nodes: [
 							1,
 							{ type: "Move", id: 0, count: 1 },
 							1,
-							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+							{ type: "Return", id: 0, count: 1 },
 						],
 					},
 				},
@@ -329,18 +332,21 @@ const returnSliceInTrait: R.ChangeFrame = {
 			{
 				modify: {
 					foo: {
+						tombs: [
+							3,
+							{ count: 1, seq, id: 0 },
+						],
 						nodes: [
 							1,
 							{ type: "Move", id: 0, count: 1 },
 							1,
-							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+							{ type: "Return", id: 0, count: 1 },
 						],
 						affixes: [
 							10,
 							{
-								priorSeq,
 								count: 4,
-								stack: [ { type: "Unforward", priorId: 0, id: 0 } ],
+								stack: [ { type: "Unforward", id: 0 } ],
 							},
 						],
 					},
@@ -358,8 +364,11 @@ const returnSetAcrossTraits: R.ChangeFrame = {
 			{
 				modify: {
 					foo: {
+						tombs: [
+							{ count: 1, seq, id: 0 },
+						],
 						nodes: [
-							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+							{ type: "Return", id: 0, count: 1 },
 						],
 					},
 					bar: {
@@ -381,15 +390,17 @@ const returnSliceAcrossTraits: R.ChangeFrame = {
 			{
 				modify: {
 					foo: {
+						tombs: [
+							{ count: 1, seq, id: 0 },
+						],
 						nodes: [
-							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+							{ type: "Return", id: 0, count: 1 },
 						],
 						affixes: [
 							10,
 							{
-								priorSeq,
 								count: 4,
-								stack: [ { type: "Unforward", priorId: 0, id: 0 } ],
+								stack: [ { type: "Unforward", id: 0 } ],
 							},
 						],
 					},
@@ -412,9 +423,13 @@ const returnTwiceSetInTrait: R.ChangeFrame = {
 			{
 				modify: {
 					foo: {
+						tombs: [
+							1,
+							{ count: 1, seq, id: 0 },
+						],
 						nodes: [
 							1,
-							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+							{ type: "Return", id: 0, count: 1 },
 							1,
 							{ type: "Move", id: 0, count: 1 },
 						],
@@ -433,16 +448,19 @@ const returnTwiceSliceInTrait: R.ChangeFrame = {
 			{
 				modify: {
 					foo: {
+						tombs: [
+							1,
+							{ count: 1, seq, id: 0 },
+						],
 						nodes: [
 							1,
-							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+							{ type: "Return", id: 0, count: 1 },
 							1,
 							{ type: "Move", id: 0, count: 1 },
 						],
 						affixes: [
 							10,
 							{
-								priorSeq,
 								count: 4,
 								stack: [ { type: "Forward", id: 0 } ],
 							},
@@ -467,8 +485,11 @@ const returnTwiceSetAcrossTraits: R.ChangeFrame = {
 						],
 					},
 					bar: {
+						tombs: [
+							{ count: 1, seq, id: 0 },
+						],
 						nodes: [
-							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+							{ type: "Return", id: 0, count: 1 },
 						],
 					},
 				},
@@ -497,8 +518,11 @@ const returnTwiceSliceAcrossTraits: R.ChangeFrame = {
 						],
 					},
 					bar: {
+						tombs: [
+							{ count: 1, seq, id: 0 },
+						],
 						nodes: [
-							{ type: "Return", id: 0, priorSeq, priorId: 0, count: 1 },
+							{ type: "Return", id: 0, count: 1 },
 						],
 					},
 				},

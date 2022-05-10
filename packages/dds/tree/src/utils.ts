@@ -41,7 +41,7 @@ export function isInsert(mark: Readonly<AffixCount | R.Attach>): mark is R.Inser
 }
 
 export function isMoveIn(mark: Readonly<AffixCount | R.Attach>): mark is R.MoveIn {
-	return typeof mark === "object" && "type" in mark && mark.type === "MoveIn";
+	return typeof mark === "object" && "type" in mark && mark.type === "Move";
 }
 
 export function isModify(mark: Readonly<NodeCount | R.NodeMark>): mark is R.Modify {
@@ -50,7 +50,7 @@ export function isModify(mark: Readonly<NodeCount | R.NodeMark>): mark is R.Modi
 		&& "priors" in mark === false;
 }
 
-export function isNewDetach(mark: Readonly<NodeCount | R.NodeMark>): mark is R.NewDetach {
+export function isNewDetach(mark: Readonly<NodeCount | R.NodeMark>): mark is R.Detach {
 	return typeof mark === "object"
 	&& "type" in mark
 	&& (mark.type === "Delete" || mark.type === "Move");
@@ -60,12 +60,6 @@ export function isReattach(mark: Readonly<NodeCount | R.NodeMark>): mark is R.Re
 	return typeof mark === "object"
 	&& "type" in mark
 	&& (mark.type === "Revive" || mark.type === "Return");
-}
-
-export function isPriorDetach(mark: Readonly<NodeCount | R.NodeMark>): mark is R.PriorDetach {
-	return typeof mark === "object"
-	&& "type" in mark === false
-	&& "priors" in mark === true;
 }
 
 export function isConstraintFrame(frame: O.TransactionFrame | R.TransactionFrame): frame is R.ConstraintFrame {

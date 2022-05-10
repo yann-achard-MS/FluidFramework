@@ -8,15 +8,15 @@ This document may eventually become stable documentation.
 
 Another way to phrase this question is: should we allow for some changes of a changeset to apply despite some of them being dropped?
 
-Note that in such a changset constraints (implicit like explicit ones) have no effects. This also means we'd never leverage hierarchical edits.
+Note that in such a changeset constraints (implicit like explicit ones) have no effects. This also means we'd never leverage hierarchical edits.
 
 The feature seems desirable in the sense that there may be value in some of the changes applying as opposed to none.
 
-Note that simply using one change per transaction is not the same as non-atomic tranctions: transactions define revision points. Splitting a transaction into many one-change transactions (so that each may fail independently) would introduce more revisions. This is undesirable for mainly for performance reasons: we wouldn't want applications that perform O(revisions) work to be affected by this practice. Note howerver that if an application uses non-atomic transactions then it is in principle acceptant of the fact that the document could end up in any of the states along this trail of one-change transactions.
+Note that simply using one change per transaction is not the same as non-atomic transactions: transactions define revision points. Splitting a transaction into many one-change transactions (so that each may fail independently) would introduce more revisions. This is undesirable for mainly for performance reasons: we wouldn't want applications that perform O(revisions) work to be affected by this practice. Note however that if an application uses non-atomic transactions then it is in principle acceptant of the fact that the document could end up in any of the states along this trail of one-change transactions.
 
 This does bring challenges when it comes to schema compliance though: if some but not all edits are dropped then we cannot guarantee that the resulting state will be schema compliant. This is problematic for schema on write systems.
 
-An alternative may be to adopt a set of change primitives that guanrantee the continuity of schema compliance. For example, we would need a replace operation to change the contents of a non-optional unary field. This can get a little cumbersome when trying to cover all cases. For example rotating several nodes. That said, such complex needs should be rare and would have the option of falling back to transactions to ensure schema compliance.
+An alternative may be to adopt a set of change primitives that guarantee the continuity of schema compliance. For example, we would need a replace operation to change the contents of a non-optional unary field. This can get a little cumbersome when trying to cover all cases. For example rotating several nodes. That said, such complex needs should be rare and would have the option of falling back to transactions to ensure schema compliance.
 
 ## When can we squash overlapping (set/slice) range deletions into a single range deletion?
 
@@ -417,11 +417,15 @@ Maybe the format shouldn't try to avoid overlapping segments because overlaps ar
 
 Also note that keeping around tombstones my not be so bad under the new cell model because the cases where there's a lot of data turnaround (e.g., a value field or the values of a map) would be using fixed-sized fields. The worst case of dynamically-sized fields would be something like a long lived "agenda" list that keeps getting updated over time.
 
-## Should a segment be annotated only with the prior that mutes it, or all priors that could mute it?
+## Should a trait be annotated only with the priors that mute its marks, or all priors over the same area?
 
-**=> All priors that could mutate it**
+**=> Only the prior that mutes it**
 
-There may be two options when it comes to representing muted segments. Either have the segment include a prior for the one change that is muting the segment, or include information about all the priors that would mute the segment (including the one that does). Is there a benefit to the latter? If 5 deletes are targeting the same node, and each of the later four only have priors that represent the first one, then they might each think they're now first in line for deleting the node if they get rebased over the undo of the first deleted. That's a problem.
+There are two options when it comes to representing muted marks. Either include tombstone information for the one prior change that is muting the marks, or include information about all the priors that would mute the marks (including the prior that does).
+
+The fear with only including the prior that mutes the marks, is that if 3 deletes are targeting the same node, and the last one only has priors that represent the first one, then that last one would think it is now first in line for deleting the node if it were rebased over the undo of the first deletion, leading us to a situation where both the second third deletes are now claiming to delete the same node. This outcome is actually the correct one. The third edits will initially think it is first in line to perform the deletion (after being rebased over the undo of the first deletion) but will then be rebased over the second deletion, thereby introducing a new prior segment for it (which mutes the deletion).
+
+This scenario in captured in sample scenario C.
 
 ## When annotating a segment with a prior, should we just include the node effects, or also the affix effects?
 
@@ -473,21 +477,137 @@ There's another workflow that's interesting: live collab where we allow clients 
 
 Based on the above, neither option seems categorically required, or categorically useless. It seems reasonable to start with option #1 as it allows us to more forward without squashing, and it's easier to add a "seal" operation to remove the muted segments than it is to re-implement rebasing.
 
-## Current POR
+## Should edits be able to describe how they want later concurrent edits to be affected by them?
 
-Use segments for everything (no pairs of bound marks).
+The commutativity of place anchors allows the destination of an insert (or move) to specify how to react to concurrent edits that are sequenced before it. For example, an insert can be marked as commutative to signify that slice ranges should apply to it even if the slice operation was sequenced prior.
 
-Maintain a hierarchy by splitting segments up as needed and nesting them. The nesting will be from most recent (on the outside) to most prior (on the inside). This ordering is like function application (latter calls on the outside). This ordering should reduce the amount of splitting because a new range cannot be contained by an older one, whereas the reverse can be true. Attach operations are included in the inner-most range they fall within.
+This is useful in text editing scenarios where one wants to insert text in a region of text and wants to ensure that the inserted text should be moved with the surrounding text if someone were to concurrently move the surrounding text.
 
-Use frames.
+In the case where the insert is sequenced before the move, we have a design choice: should the inserted content not be moved if it is marked as non-commutative?
 
-Assign a monotonically increasing ID to each op (to be used in the move table in the case of move ops).
+If we choose to say that the content should not be moved, then the commutativity flag is having an effect on the slice range that is sequenced after it.
 
-The move table is more like a sorted list one could binary search within.
+Let's look at the two options in more detail:
 
-Splitting an op does not mint a new ID. new IDs are never minted by rebase/postbase/invert.
+1. The commutativity flag on the insert is only relevant in interpreting the insert in the context of prior concurrent changes. This means that if a slice range is sequenced after an insert then the insert has no way of escaping the slice range's effect.
 
-Anchoring is expressed with a side (`prev`/`next`). Which node is targeted as the anchor point is determined based on op IDs.
+2. The commutativity flag on the insert is relevant for all concurrent changes. Since we can't change the past, this means the flag affects both how the insert edit is interpreted in the context of prior concurrent changes, and how later edits are interpreted. This means that an insert will either be affected by a concurrent slice range (no matter the ordering) or not affected by it (no matter the ordering).
+
+In addition to the above we could also consider additional changes:
+
+1. We introduce a second commutativity flag on the insert such that whether the insert is affected by a concurrent slice range can be controlled independently for slice ranges that were sequenced prior and slice ranges that were sequenced later.
+
+2. We introduce a commutativity flag on the slice range so that it can optionally opt into affecting concurrent inserts that are sequenced after it.
+
+3. We do both of the above. This would require a tie-breaking policy when the slice says it wants to affect concurrent inserts that are sequenced after it and the insert says it does not want to be affected by concurrent slice range sequenced before it.
+
+It's helpful to be guided by scenarios, so here's one that advocates for the need for slice ranges to be able affect prior concurrent insertions but not latter concurrent ones: if a trait is being used as a list that users clear and re-populate, several users may wish to clear and repopulate the list. If the data model prescribes that the list contents should only come from a single user, then the application needs to have a FWW or LLW winner-takes-all behavior with respect to concurrent edits. Assuming a LWW policy is adopted, the application will need to perform a slice delete of the contents of the trait and insert the new content in a manner that embraces (i.e., commutes with) concurrent slice deletions that are sequenced after. The trouble is, if slice range operations always affected concurrent insertions that are sequenced later, then the content being inserted by the transaction that is sequenced last (the one that is supposed to "win") would end up being deleted by the slices ranges of the transactions that were sequenced before it. Note that this scenario doesn't prescribe a specific way to avoid having that happen, but it does highlight why it's not good to both have a single commutativity flag that is interpreted as meaningful for later concurrent ranges AND to not give slice ranges the option of opting out of affecting concurrent inserts that are sequenced after.
+
+It's hard to consider all possibilities, and it would be hard for a user to think through what they should choose if given all these choices. We need to coalesce the options into overarching models or philosophies.
+
+One philosophy is "sequencing should not matter": we expect edit authors to want the same outcome no matter the sequencing order. This would mean having a single commutativity flag on inserts (you either want to move with the region or not, no matter the sequencing) and no flags on slice ranges: you want to include all concurrently inserted nodes (node matter whether they were inserted by an edit that was sequenced before or after). This is has an appealing simplicity but it fails to provide the desired merge semantics in the scenario given above: all data would be deleted or none (except the data initially present in the trait if any) would be deleted. The "sequencing should not matter" attitude may also be more questionable in an git-like collab scenario: whether you rebase branch foo on branch bar or the reverse should not necessarily come out the same.
+
+Another philosophy is "each edit only gets to specify how it adjusts to concurrent edits that were sequenced prior (not the ones that were sequenced later)". This would mean that a slice range, doesn't automatically include later concurrent inserts, but it does mean that a later concurrent insert could opt into embracing that prior slice move. The LWW scenario above would then be implemented with non-commutative inserts. This would also mean however, that a non-commutative insertion of text in a greater body of text could still end up being moved with that greater body of text if the move were sequenced after. This is bound to be surprising for the user performing the insert (and all the more vexing when the slice is applying a deletion instead of a move).
+
+Maybe it's okay that it fails here because the slice-range author should have used a set-like range instead.
+
+Perhaps another philosophy is "insert decides". This would mean that whether a slice range affects a prior insert and whether it affect a later insert, is up to each insert. This way, a non-commutative insertion of text in a greater body of text would not be moved with the greater body of text no matter the sequencing. An intuition for why this philosophy may be advisable, is that the edit/user performing an insert is has more knowledge about that content than the slice range would. A case could also be made that putting the policy on the insert allows more specific choices (since the choice is per-insert) that putting the policy on the range. It's tempting to argue that this means we're unable to choose what the policy should be per-range, but the author of a range does have say over whether they create a slice-like or a set-like range. The LWW trait scenario, under this philosophy, would be implemented by having two flags on the insert: one set to "don't commute" for prior slices and one set to "commute" for later slices.
+
+Maybe a 2x2 table would be good to make sure all options are useful.
+
+CP:CL: used for text insertion that should move with its surrounding region no matter the sequencing
+
+NP:NL: used for text insertion that should not move with its surrounding region no matter the sequencing
+
+NP:CL: used for the LLW trait scenario
+
+CP:NL: ?
+
+Maybe the scenario where you don't want to commute with a slice-range that occurs after you is questionable? This is based on the intuition that slice-ranges are dubious.
+
+## What should be the outcome of the insert-in-moved-move scenario?
+
+The scenario:
+In a trait foo that contains the nodes [A B], three users concurrently attempt the following operations (ordered here from first sequenced to last sequenced):
+
+* User 1: slice-move all of trait foo into trait bar with a non-commutative attach
+
+* User 2: slice-move all of trait bar into trait baz
+
+* User 3: insert X after A in foo (commutative)
+
+There are two, seemingly reasonable outcomes:
+
+1. X ends up in baz
+
+2. X ends up in bar (with A and B)
+
+An alternative scenario that is also relevant to this question is the same as the above but with user 2's edit being sequenced before user 1's edit.
+
+In all cases, A and B end up in bar because the move by user 2 is using a non-commutative attach.
+
+What's at stake between options 1 and 2, is the precise semantics of commuting with a slice-move:
+
+* Under option 1 (X is affected by both moves) when the insertion of X is forwarded to bar, it is treated as *brand new* insertion within that affix. Since the affix is affected by the bar=>baz rule and the insert is commutative, it makes sense for that insert so be forwarded again to baz.
+
+* Under option 2 (X is only affected by the first move) when the insertion of X is forwarded to bar, it is treated as *nested* insertion within the content being moved (i.e., nodes A and B). As such, it obeys the same rules as that content, which is to say it obeys the foo=>bar move's choice of not commuting.
+
+We find option 2 preferable for the following reasons:
+
+* It matches the natural expectation that making the insert of X commutative means X will follow its surrounding nodes if a slice range were to move those nodes.
+
+* The alternative (i.e., option 1) would...
+  
+  * cause ordering challenges in scenarios where multiple concurrent inserts (such as that of X) from were to target target the region of foo affected by the foo=>bar move: those inserts should be ordered in a manner that is consistent with their target affixes (and tie-breaking flags, and sequence ordering) but that is impossible to do if all that is know about each of them is that it targets a specific affix in bar.
+  
+  * force us to either:
+    
+    * Accept that the outcome would be different had the sequencing order of the first two edits be flipped
+    
+    * Or somehow store enough information in the rebase of the insertion or the rebase of the foo=>bar move to be able to figure out that X must land in baz. This is not impossible but adds complexity.
+
+## How to represent inserts that commute with a concurrent slice move?
+
+Move the insert mark to the destination of the move. This allows us to avoid having to represent affix effects from prior changes over which the current change was rebased. We do however have to represent the precise affix that the forwarded insert targets because we need to be able to understand how other such forwarded inserts should be ordered relative to it.
+
+This leads to the question of how one would recover the original intention (i.e., the original insert location). This is needed when postbasing the inverse of the move over the (rebased) insert. This can be worked out based on the affix of the rebased insertion: we can tell that the affix it targets only came about as a result of the move and we can tell the insert was concurrent with the move because of the original ref seq number.
+
+What about when the source content has been (concurrently) deleted?
+
+We still need to describe the number of affixes being introduced by the move because we need to be able to correctly order many such commutative insertions in the deleted region of the move source.
+
+Proposal: do not update the number of moved-in nodes. This allows the moved insert(s) to target the affixes of the moved deleted nodes. Note that this then requires readers of the move changeset to keep track of the fact that a prior delete has impacted the source region. It also requires the rebased insert to include tombstone information stating that the area they're inserting into has been deleted by the delete. This is a little strange because the deletion did not explicitly target those nodes.
+
+Scenarios A1 and A2 are examples of this complex case.
+
+Wait: how does this work for slice moves that don't contain nodes?
+
+The assumption that affixes and nodes follow a standardized _ _ N _ _ pattern may be wrong: you could make K slices over single or pairs of affixes (without nodes) and move all of those to a single location, thereby creating an arbitrarily long sequence of affixes. 
+
+Perhaps that pattern is not wrong because the slices all fall into a single affix. What we need is a way for either:
+
+* the move-in to carry information about all of the nodes and affixes that it imports/maps/injects/portals into the trait. In the case of a set-move it's pure nodes. In the case of slice moves, it's both (or either).
+
+* the inserts that end up (due to rebasing) at the destination of the move to include more information about their affix of origin
+
+Insert only introduces nodes, which lead to more affixes in the output context. Is it fair to that that move can introduce a mixture of both nodes and affixes? Maybe not because those affixes can't be inserted at either during the change or after it. What can happen though is that two later concurrent inserts (that commute with the move) have to be able to target the adequate affix, and they have to be relatively ordered based on their ordering in time, but also based on which affix they would have targeted in the original location.
+
+When moving a slice with nodes, is the fact that the affixes covered by the slice match the affixes introduced by the nodes in the output context a coincidence? You can for example make your slice such that it does not include the affixes before the first node and the affixes after the last node, but those affixes will still exist in the output context.
+
+How was this problem addressed in previous iterations of the format?
+Most recently at least, the inserted content was left in its original target trait within a prior slice move segment.
+
+Slightly related problem: if a slice move has its destination in a slice move, but the move-in is not commutative, then should an insert's a commutative with the first end up at the final destination? Or should it stay at the first destination? See `ScenarioH`.
+
+What about a scenario where one slice move of foo into bar ends up being concurrent with a slice move from bar into foo, where both attach points are commutative? This feels like it should have the same kind of resolution as when a node is reparented under its children: the edit that introduces the cycle is dropped. 
+
+## How to represent the starting location of a slice move that does not contain any nodes?
+
+We could have separate information for affix movement and node movement.
+
+We could omit where in the trait the source and destination are (let the reader consume the trait marks to find out)
+
+We could list the index of the first node that would be in the range if the range did contain nodes.
 
 ## Other Notes
 
@@ -496,6 +616,8 @@ Interesting concept: we can count the number of times something is deleted, whic
 Avoid data races against the computer because it leads to user confusion. In other words: we don't want merge outcomes to be different if the Fluid service is a little faster or a little slower.
 
 We may want different behavior for out of line merges and real-time merges. This can be modeled as having one merge algorithm with an injected policy. The injected policy can be different for out of line merges and real-time merges.
+
+It would be nice if the affix effects of prior changes were applied during rebase and were thereafter irrelevant. The case that makes this impossible is slice move: we want to preserve information about the original location of the insertion so that we can return the insertion in its original place had the prior move been undone. One way out of this is to say that slices never affect posterior changes: this way prior slices do not affect the current insert. But is this really what we want? We want to be able to make edits commute (so that the outcome is the same no matter which was applied first). So this means we have to give insert the ability to adopt the move destination. Perhaps we want the commutation here, but we don't want the insertion to revert to its original location when rebased over the undo. What should happen instead is that the inserted content should be moved back (to what would have been its original location) as part of the postbased undo over the rebased insert. Maybe there's a way to apply the effect and recover the original intent from the fact that the target affix for the moved insertion only came into being because of the prior move. We should be able to tell that based on the original ref number of the insert: if it is before then move then the target must have been part of the slice.
 
 ## Explaining the Format
 

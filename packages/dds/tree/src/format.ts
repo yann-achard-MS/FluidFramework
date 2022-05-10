@@ -430,22 +430,41 @@ export namespace Rebased {
 	}
 
 	export interface TraitMarks {
-		// Attaches (whether new or prior) cannot overlap
-		// Answers: affix -> ordered attaches
-		attaches?: OffsetList<Attach[], AffixCount>;
+		/**
+		 * Lists the tombstones that must be taken into account in order to represent the changes
+		 * made to this trait. Without it, describing the changes would be like drawing on an
+		 * incomplete canvas.
+		 *
+		 * The node counts and affix counts of the other members are expressed relative to the list
+		 * of nodes comprised of both these tombstones and the existing nodes at the revision this
+		 * change is meant to be applied (such existing node are represented in by `NodeCount`
+		 * offsets). Note that nodes concurrently inserted by prior changes are also included in
+		 * the `NodeCount` offsets. It's an open question whether they need to be called out as
+		 * different from standard offsets and if so what metadata they need to carry.
+		 */
+		tombs?: OffsetList<Tombstones, NodeCount>;
 
-		// Embrace the overlap by splitting
-		// Answers: node -> detach
-		nodes?: OffsetList<NodeMark, NodeCount>;
+		/**
+		 * Operations that attach content in a new location.
+		 */
+		attach?: OffsetList<Attach[], AffixCount>;
 
-		// Embrace the overlap by splitting
-		// Answers: affix -> stack of effects
+		/**
+		 * Operations that affect previously known node locations.
+		 */
+		nodes?: OffsetList<Modify | Detach | Reattach, NodeCount>;
+
+		/**
+		 * Operations that affect concurrently attached content.
+		 * These operation effectively target location that do not exist but may come to exist as a
+		 * result of concurrent changes that occur prior to this one.
+		 */
 		affixes?: OffsetList<OpenAffixEffects | ClosedAffixEffects, AffixCount>;
 	}
 
 	export type OffsetList<TContent, TOffset> = (TOffset | TContent)[];
 
-	export type NodeMark = Modify | NewDetach | PriorDetach | Reattach;
+	export type NodeMark = Modify | Detach | Reattach;
 
 	export interface Modify {
 		/**
@@ -496,8 +515,7 @@ export namespace Rebased {
 		mods?: OffsetList<Modify, NodeCount>;
 	}
 
-	export type NewAttach = Insert | MoveIn;
-	export type Attach = NewAttach | PriorAttach;
+	export type Attach = Insert | MoveIn;
 
 	export interface OpenAffixEffects {
 		count: AffixCount;
@@ -505,7 +523,6 @@ export namespace Rebased {
 	}
 
 	export interface ClosedAffixEffects {
-		priorSeq: SeqNumber;
 		count: AffixCount;
 		stack: (Heal | Unforward)[];
 	}
@@ -515,7 +532,6 @@ export namespace Rebased {
 	}
 
 	export interface Heal extends HasOpId, IsAffixEffect {
-		priorId: OpId;
 		type: "Heal";
 	}
 
@@ -524,35 +540,25 @@ export namespace Rebased {
 	}
 
 	export interface Unforward extends HasOpId, IsAffixEffect {
-		priorId: OpId;
 		type: "Unforward";
 	}
 
-	export interface PriorAttach extends IsPlace {
-		priorSeq: SeqNumber;
-		priorId: OpId;
-		count: NodeCount;
-		commute: Commutativity;
-	}
-
-	export interface NewDetach extends HasOpId {
+	export interface Detach extends HasOpId {
 		type: "Delete" | "Move";
 		count: NodeCount;
-		priors?: { seq: SeqNumber; id: OpId; }[];
 		mods?: OffsetList<Modify, NodeCount>;
 	}
 
 	export interface Reattach extends HasOpId {
-		priorSeq: SeqNumber;
-		priorId: OpId;
 		type: "Revive" | "Return";
 		count: NodeCount;
 		mods?: OffsetList<Modify, NodeCount>;
 	}
 
-	export interface PriorDetach {
-		priors: [SeqNumber, OpId][];
+	export interface Tombstones {
 		count: NodeCount;
+		seq: SeqNumber;
+		id: OpId;
 	}
 }
 
