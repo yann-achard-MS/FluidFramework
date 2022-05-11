@@ -173,13 +173,13 @@ export namespace ScenarioA1 {
 								},
 							],
 							affixes: [
-								7, // Before B
+								3, // Before B
 								{ count: 8, stack: [{ type: "Forward", id: 0 }] },
 							],
 						},
 						bar: {
 							attach: [
-								8, // After B
+								4, // After B
 								[{ type: "Move", id: 0, count: 3 }],
 							],
 						},
@@ -198,7 +198,7 @@ export namespace ScenarioA1 {
 					modify: {
 						foo: {
 							attach: [
-								8, // After B
+								4, // After B
 								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
 							],
 						},
@@ -228,7 +228,7 @@ export namespace ScenarioA1 {
 								},
 							],
 							affixes: [
-								7, // Before B
+								3, // Before B
 								{ count: 8, stack: [{ type: "Forward", id: 0 }] },
 							],
 						},
@@ -254,7 +254,7 @@ export namespace ScenarioA1 {
 						foo: {
 							tombs: [1, { count: 2, seq: 1, id: 1 } ],
 							attach: [
-								8, // After B
+								4, // After B
 								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
 							],
 						},
@@ -277,7 +277,7 @@ export namespace ScenarioA1 {
 							// destination of e2's move.
 							tombs: [{ count: 2, seq: 1, id: 1 } ],
 							attach: [
-								4, // After B
+								2, // After B
 								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
 							],
 						},
@@ -339,7 +339,7 @@ export namespace ScenarioA2 {
 								{ type: "Move", id: 0, count: 2 },
 							],
 							affixes: [
-								11, // Before C
+								5, // Before C
 								{ count: 4, stack: [{ type: "Forward", id: 0 }] },
 							],
 						},
@@ -363,7 +363,7 @@ export namespace ScenarioA2 {
 					modify: {
 						foo: {
 							attach: [
-								12, // After C
+								6, // After C
 								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
 							],
 						},
@@ -389,7 +389,7 @@ export namespace ScenarioA2 {
 								{ type: "Move", id: 0, count: 2 },
 							],
 							affixes: [
-								11, // Before C
+								5, // Before C
 								{ count: 4, stack: [{ type: "Forward", id: 0 }] },
 							],
 						},
@@ -415,7 +415,7 @@ export namespace ScenarioA2 {
 						foo: {
 							tombs: [1, { count: 2, seq: 1, id: 1 } ],
 							attach: [
-								12, // After C
+								6, // After C
 								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
 							],
 						},
@@ -438,7 +438,7 @@ export namespace ScenarioA2 {
 							// destination of e2's move.
 							tombs: [{ count: 2, seq: 1, id: 1 } ],
 							attach: [
-								4, // After C
+								2, // After C
 								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
 							],
 						},
@@ -484,7 +484,7 @@ export namespace ScenarioB {
 					modify: {
 						foo: {
 							attach: [
-								4, // After A
+								2, // After A
 								[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
 							],
 						},
@@ -503,7 +503,7 @@ export namespace ScenarioB {
 					modify: {
 						foo: {
 							attach: [
-								8, // After B
+								4, // After B
 								[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 							],
 						},
@@ -524,7 +524,7 @@ export namespace ScenarioB {
 						foo: {
 							tombs: [{ count: 4, seq: 1, id: 1 }],
 							attach: [
-								4, // After A
+								2, // After A
 								[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
 							],
 						},
@@ -545,7 +545,7 @@ export namespace ScenarioB {
 						foo: {
 							tombs: [{ count: 4, seq: 1, id: 1 }],
 							attach: [
-								8, // After B
+								4, // After B
 								[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 							],
 						},
@@ -570,7 +570,7 @@ export namespace ScenarioB {
 								{ count: 3, seq: 1, id: 1 },
 							],
 							attach: [
-								8, // After B
+								4, // After B
 								[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 							],
 						},

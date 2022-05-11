@@ -117,15 +117,13 @@ export namespace Original {
 	export interface Insert extends IsPlace, HasOpId {
 		type: "Insert";
 		content: ProtoNode[];
-		// mods?: RangeMods<Mark>;
-		mods?: RangeMods<Rebased.Mark>;
+		mods?: RangeMods<Mark>;
 	}
 
 	export interface MoveIn extends IsPlace, HasOpId, HasLength {
 		type: "Move";
 		range: RangeType;
-		// mods?: RangeMods<Mark>;
-		mods?: RangeMods<Rebased.Mark>;
+		mods?: RangeMods<Mark>;
 	}
 
 	/**
@@ -226,25 +224,25 @@ export namespace Original {
 
 	export interface DeleteSet extends HasOpId, HasLength {
 		type: "DeleteSet";
-		mods?: RangeMods<Rebased.Mark>;
+		mods?: RangeMods<Mark>;
 		// mods?: RangeMods<MoveOut, false>;
 	}
 
 	export interface DeleteSlice extends IsSlice, HasOpId, HasLength {
 		type: "DeleteSlice";
-		mods?: RangeMods<Rebased.Mark>;
+		mods?: RangeMods<Mark>;
 		// mods?: RangeMods<MoveOut, false>;
 	}
 
 	export interface MoveOutSet extends HasOpId, HasLength {
 		type: "MoveOutSet";
-		mods?: RangeMods<Rebased.Mark>;
+		mods?: RangeMods<Mark>;
 		// mods?: RangeMods<MoveOut | Delete, false>;
 	}
 
 	export interface MoveOutSlice extends IsSlice, HasOpId, HasLength {
 		type: "MoveOutSlice";
-		mods?: RangeMods<Rebased.Mark>;
+		mods?: RangeMods<Mark>;
 		// mods?: RangeMods<MoveOut | Delete, false>;
 	}
 
@@ -255,7 +253,7 @@ export namespace Original {
 		range: RangeType;
 		priorSeq: SeqNumber;
 		priorId: OpId;
-		mods?: RangeMods<Rebased.Mark>;
+		mods?: RangeMods<Mark>;
 		// mods?: RangeMods<Return>;
 	}
 
@@ -264,7 +262,7 @@ export namespace Original {
 		range: RangeType;
 		priorSeq: SeqNumber;
 		priorId: OpId;
-		mods?: RangeMods<Rebased.Mark>;
+		mods?: RangeMods<Mark>;
 		// mods?: RangeMods<Return | Revive>;
 	}
 
@@ -285,8 +283,7 @@ export namespace Original {
 		 */
 		side?: Sibling.Next;
 		/**
-		 * Omit if not in peer change.
-		 * Omit if `Tiebreak.LastToFirst` for terseness.
+		 * Omit if `Tiebreak.LWW` for terseness.
 		 */
 		tiebreak?: Tiebreak;
 		/**
@@ -385,39 +382,7 @@ export namespace Rebased {
 		frames: TransactionFrame[];
 	}
 
-	export type TransactionFrame = ConstraintFrame | ChangeFrame;
-
-	export type ConstraintFrame = ConstraintSequence;
-
-	export interface ConstrainedTraitSet {
-		type: "ConstrainedTraitSet";
-		traits: { [key: string]: ConstraintSequence };
-	}
-
-	export type ConstraintSequence = (Offset | ConstrainedRange | ConstrainedTraitSet)[];
-
-	export interface ConstrainedRange {
-		type: "ConstrainedRange";
-		length?: number;
-		/**
-		 * Could this just be `true` since we know the starting parent?
-		 * Only if we know the constraint was satisfied originally.
-		 */
-		targetParent?: NodeId;
-		targetLabel?: TraitLabel; // Same
-		targetLength?: number; // Same
-		/**
-		 * Number of tree layers for which no structural changes can be made.
-		 * Defaults to 0: no locking.
-		 */
-		structureLock?: number;
-		/**
-		 * Number of tree layers for which no value changes can be made.
-		 * Defaults to 0: no locking.
-		 */
-		valueLock?: number;
-		nested?: (Offset | ConstrainedTraitSet)[];
-	}
+	export type TransactionFrame = ChangeFrame;
 
 	export interface ChangeFrame {
 		moves?: MoveEntry[];
@@ -481,6 +446,11 @@ export namespace Rebased {
 		 * Omit if `Commutativity.Full`.
 		 */
 		commute?: Commutativity;
+
+		/**
+		 * Omit if `Tiebreak.LWW` for terseness.
+		 */
+		tiebreak?: Tiebreak;
 	}
 
 	export interface IsAffixEffect {
@@ -642,7 +612,7 @@ export type Value = number | string | boolean;
 export type NodeId = string;
 export type ClientId = number;
 export type TraitLabel = string;
-export enum Tiebreak { LastToFirst, FirstToLast }
+export enum Tiebreak { LWW, FWW }
 export enum Commutativity {
 	Full = "Full",
 	Move = "Move",

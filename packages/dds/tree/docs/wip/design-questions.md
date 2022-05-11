@@ -509,9 +509,11 @@ One philosophy is "sequencing should not matter": we expect edit authors to want
 
 Another philosophy is "each edit only gets to specify how it adjusts to concurrent edits that were sequenced prior (not the ones that were sequenced later)". This would mean that a slice range, doesn't automatically include later concurrent inserts, but it does mean that a later concurrent insert could opt into embracing that prior slice move. The LWW scenario above would then be implemented with non-commutative inserts. This would also mean however, that a non-commutative insertion of text in a greater body of text could still end up being moved with that greater body of text if the move were sequenced after. This is bound to be surprising for the user performing the insert (and all the more vexing when the slice is applying a deletion instead of a move).
 
-Maybe it's okay that it fails here because the slice-range author should have used a set-like range instead.
+Can we make an argument that the blame for this scenario not working out should fall on the slice-range author because they could have used a set-like range instead?
+This would be a valid line of reasoning if there are no cases where, for the same slice range, some insertion authors would want their content to be affected by it while some insertion authors would not. This is question can be rephrased as: are authors of ranges always able to tell, based on the location of the range, whether inserts that are concurrent to it should be affected by it?
+The answer seems to be "no": if a range of text is deleted, then concurrent inserts that just fix typos would want to be affected by the range, while concurrent inserts that introduce new (possibly large amounts of) content would want not to be affected by it.
 
-Perhaps another philosophy is "insert decides". This would mean that whether a slice range affects a prior insert and whether it affect a later insert, is up to each insert. This way, a non-commutative insertion of text in a greater body of text would not be moved with the greater body of text no matter the sequencing. An intuition for why this philosophy may be advisable, is that the edit/user performing an insert is has more knowledge about that content than the slice range would. A case could also be made that putting the policy on the insert allows more specific choices (since the choice is per-insert) that putting the policy on the range. It's tempting to argue that this means we're unable to choose what the policy should be per-range, but the author of a range does have say over whether they create a slice-like or a set-like range. The LWW trait scenario, under this philosophy, would be implemented by having two flags on the insert: one set to "don't commute" for prior slices and one set to "commute" for later slices.
+Perhaps another philosophy is "insert decides". This would mean that whether a slice range affects a prior insert and whether it affects a later insert, is up to each insert. This way, a non-commutative insertion of text in a greater body of text would not be moved with the greater body of text no matter the sequencing. An intuition for why this philosophy may be advisable, is that the edit/user performing an insert is has more knowledge about that content than the slice range would. A case could also be made that putting the policy on the insert allows more specific choices (since the choice is per-insert) that putting the policy on the range. It's tempting to argue that this means we're unable to choose what the policy should be per-range, but the author of a range does have say over whether they create a slice-like or a set-like range. The LWW trait scenario, under this philosophy, would be implemented by having two flags on the insert: one set to "don't commute" for prior slices and one set to "commute" for later slices.
 
 Maybe a 2x2 table would be good to make sure all options are useful.
 
@@ -523,7 +525,19 @@ NP:CL: used for the LLW trait scenario
 
 CP:NL: ?
 
-Maybe the scenario where you don't want to commute with a slice-range that occurs after you is questionable? This is based on the intuition that slice-ranges are dubious.
+Maybe the scenario where you don't want to commute with a slice-range that occurs after you is questionable? This is based on the intuition that slice-ranges are dubious: if the domain model would ideally have had a hierarchy and the slice-range would be replaced with a set range over the parent(s), then any concurrent insertions under that/those parent(s) would be affected by the range operation.
+There seems to be a flaw in this reasoning: if the domain model had had a hierarchy, the insert author would have been able to insert at either level of the hierarchy. For example, adding a letter to fix a typo in a word would be an insert at the bottom level of the hierarchy (in which case it would indeed be affected by the range), but inserting a whole new paragraph would have been made at the same level of the hierarchy (or above) as that of the range, in which case it would not be affected by the range. In the absence of hierarchy, the insert locations for letters and paragraphs end up at the same level. In essence, what the commutativity flag lets you do, is describe which layer of the ideal hierarchy your insert is targeting.
+
+An interesting implication of the above, is that this commutativity flag is too limited to allow edit authors to replicate the merge semantics of tree hierarchies:
+
+- The flag should be an integer describing which layer of the tree is would be targeting in the hierarchy. Essentially a depth indicator.
+
+- Ranges should also have such a property to describe which layer they're targeting.
+
+- To determine whether an insert is affected by a slice range we would check whether its depth is greater than that of the range.
+
+Do we still need slice-like inclusion of concurrent content when the depth is the same? If so, do we still need a way for inserts to commute with slice ranges?
+We would in fixed-sized traits at least: fixed sized traits allow the imagined hierarchy to be different in each edit: one edit may imply a hierarchy where cells 1-10 form a unit, while some other edit may imply a hierarchy where cells 5-15 form a unit.
 
 ## What should be the outcome of the insert-in-moved-move scenario?
 
