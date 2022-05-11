@@ -415,6 +415,20 @@ export namespace Rebased {
 		attach?: OffsetList<Attach[], AffixCount>;
 
 		/**
+		 * Represents the changes made to the subtree of each node present in the input context.
+		 *
+		 * Offsets represent both nodes that are deleted and nodes that are preserved.
+		 */
+		modifyI?: OffsetList<Modify, NodeCount>;
+
+		/**
+		 * Represents the changes made to the subtree of each node present in the output context.
+		 *
+		 * Offsets represent both nodes that are inserted and nodes that are preserved.
+		 */
+		modifyO?: OffsetList<Modify, NodeCount>;
+
+		/**
 		 * Operations that affect previously known node locations.
 		 */
 		nodes?: OffsetList<Modify | Detach | Reattach, NodeCount>;
@@ -432,11 +446,7 @@ export namespace Rebased {
 	export type NodeMark = Modify | Detach | Reattach;
 
 	export interface Modify {
-		/**
-		 * We need this setValue (in addition to the SetValue mark because non-leaf nodes can have values)
-		 */
-		value?: Value;
-		modify?: { [key: string]: TraitMarks };
+		[key: string]: TraitMarks;
 	}
 
 	export interface IsPlace {
@@ -476,13 +486,11 @@ export namespace Rebased {
 	export interface Insert extends HasOpId, IsPlace {
 		type: "Insert";
 		content: ProtoNode[];
-		mods?: OffsetList<Modify, NodeCount>;
 	}
 
 	export interface MoveIn extends HasOpId, IsPlace {
 		type: "Move";
 		count: NodeCount;
-		mods?: OffsetList<Modify, NodeCount>;
 	}
 
 	export type Attach = Insert | MoveIn;
@@ -516,13 +524,11 @@ export namespace Rebased {
 	export interface Detach extends HasOpId {
 		type: "Delete" | "Move";
 		count: NodeCount;
-		mods?: OffsetList<Modify, NodeCount>;
 	}
 
 	export interface Reattach extends HasOpId {
 		type: "Revive" | "Return";
 		count: NodeCount;
-		mods?: OffsetList<Modify, NodeCount>;
 	}
 
 	export interface Tombstones {

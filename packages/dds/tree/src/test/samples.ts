@@ -13,16 +13,14 @@ export namespace SwapCousins {
 			{ id: 1, src: { bar: 0 }, dst: { foo: 0 } },
 		],
 		marks: {
-			nodes: [{
-				modify: {
-					foo: {
-						nodes: [ { type: "Move", id: 0, count: 1 } ],
-						attach: [[ { type: "Move", id: 1, count: 1 } ]],
-					},
-					bar: {
-						nodes: [ { type: "Move", id: 1, count: 1 } ],
-						attach: [[ { type: "Move", id: 0, count: 1 } ]],
-					},
+			modifyI: [{
+				foo: {
+					nodes: [{ type: "Move", id: 0, count: 1 }],
+					attach: [[ { type: "Move", id: 1, count: 1 } ]],
+				},
+				bar: {
+					nodes: [{ type: "Move", id: 1, count: 1 }],
+					attach: [[ { type: "Move", id: 0, count: 1 } ]],
 				},
 			}],
 		},
@@ -44,78 +42,38 @@ export namespace SwapParentChild {
 			},
 		],
 		marks: {
-			nodes: [
-				{
-					modify: {
-						foo: {
-							nodes: [
-								{
-									type: "Move",
-									id: 0,
-									count: 1,
-									mods: [{
-										modify: {
-											bar: {
-												nodes: [
-													{
-														type: "Move",
-														id: 1,
-														count: 1,
-														mods: [{
-															modify: {
-																baz: {
-																	nodes: [{
-																		type: "Move",
-																		id: 2,
-																		count: 1,
-																	}],
-																},
-															},
-														}],
-													},
-												],
-											},
-										},
-									}],
+			modifyI: [{
+				foo: {
+					nodes: [{ type: "Move", id: 0, count: 1 }],
+					modifyI: [{
+						bar: {
+							nodes: [{ type: "Move", id: 1, count: 1 }],
+							modifyI: [{
+								baz: {
+									nodes: [{ type: "Move", id: 2, count: 1 }],
 								},
-							],
-							attach: [
-								[{
-									type: "Move",
-									id: 1,
-									count: 1,
-									mods: [{
-										modify: {
-											bar: {
-												attach: [
-													[{
-														type: "Move",
-														id: 0,
-														count: 1,
-														mods: [{
-															modify: {
-																bar: {
-																	attach: [
-																		[{
-																			type: "Move",
-																			id: 2,
-																			count: 1,
-																		}],
-																	],
-																},
-															},
-														}],
-													}],
-												],
-											},
-										},
-									}],
-								}],
-							],
+							}],
 						},
-					},
+					}],
+					attach: [
+						[{ type: "Move", id: 1, count: 1 }],
+					],
+					modifyO: [{
+						bar: {
+							attach: [
+								[{ type: "Move", id: 0, count: 1 }],
+							],
+							modifyO: [{
+								baz: {
+									attach: [
+										[{ type: "Move", id: 2, count: 1 }],
+									],
+								},
+							}],
+						},
+					}],
 				},
-			],
+			}],
 		},
 	};
 }
@@ -141,14 +99,12 @@ export namespace ScenarioA1 {
 		seq: 1,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							nodes: [
-								1, // Skip A
-								{ type: "Delete", id:0 , count: 2 },
-							],
-						},
+				modifyI: [{
+					foo: {
+						nodes: [
+							1, // Skip A
+							{ type: "Delete", id:0 , count: 2 },
+						],
 					},
 				}],
 			},
@@ -161,28 +117,22 @@ export namespace ScenarioA1 {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							nodes: [
-								1, // Skip A
-								{
-									type: "Move",
-									id: 0,
-									count: 3,
-								},
-							],
-							affixes: [
-								3, // Before B
-								{ count: 8, stack: [{ type: "Forward", id: 0 }] },
-							],
-						},
-						bar: {
-							attach: [
-								4, // After B
-								[{ type: "Move", id: 0, count: 3 }],
-							],
-						},
+				modifyI: [{
+					foo: {
+						nodes: [
+							1, // Skip A
+							{ type: "Move", id: 0, count: 3 },
+						],
+						affixes: [
+							3, // Before B
+							{ count: 8, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					bar: {
+						attach: [
+							4, // After B
+							[{ type: "Move", id: 0, count: 3 }],
+						],
 					},
 				}],
 			},
@@ -194,14 +144,12 @@ export namespace ScenarioA1 {
 		seq: 3,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							attach: [
-								4, // After B
-								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
-							],
-						},
+				modifyI: [{
+					foo: {
+						attach: [
+							4, // After B
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+						],
 					},
 				}],
 			},
@@ -215,28 +163,26 @@ export namespace ScenarioA1 {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							tombs: [1, { count: 2, seq: 1, id: 1 } ],
-							nodes: [
-								1, // Skip A
-								{
-									type: "Move",
-									id: 0,
-									count: 3,
-								},
-							],
-							affixes: [
-								3, // Before B
-								{ count: 8, stack: [{ type: "Forward", id: 0 }] },
-							],
-						},
-						bar: {
-							attach: [
-								[{ type: "Move", id: 0, count: 3 }], // Count does not get updated
-							],
-						},
+				modifyI: [{
+					foo: {
+						tombs: [1, { count: 2, seq: 1, id: 1 } ],
+						nodes: [
+							1, // Skip A
+							{
+								type: "Move",
+								id: 0,
+								count: 3,
+							},
+						],
+						affixes: [
+							3, // Before B
+							{ count: 8, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					bar: {
+						attach: [
+							[{ type: "Move", id: 0, count: 3 }], // Count does not get updated
+						],
 					},
 				}],
 			},
@@ -249,15 +195,13 @@ export namespace ScenarioA1 {
 		newRef: 1,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							tombs: [1, { count: 2, seq: 1, id: 1 } ],
-							attach: [
-								4, // After B
-								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
-							],
-						},
+				modifyI: [{
+					foo: {
+						tombs: [1, { count: 2, seq: 1, id: 1 } ],
+						attach: [
+							4, // After B
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+						],
 					},
 				}],
 			},
@@ -270,17 +214,15 @@ export namespace ScenarioA1 {
 		newRef: 2,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						bar: {
-							// These tombstones represent the effect of e1 at the
-							// destination of e2's move.
-							tombs: [{ count: 2, seq: 1, id: 1 } ],
-							attach: [
-								2, // After B
-								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
-							],
-						},
+				modifyI: [{
+					bar: {
+						// These tombstones represent the effect of e1 at the
+						// destination of e2's move.
+						tombs: [{ count: 2, seq: 1, id: 1 } ],
+						attach: [
+							2, // After B
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+						],
 					},
 				}],
 			},
@@ -311,14 +253,12 @@ export namespace ScenarioA2 {
 		seq: 1,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							nodes: [
-								1, // Skip A
-								{ type: "Delete", id: 0, count: 2 },
-							],
-						},
+				modifyI: [{
+					foo: {
+						nodes: [
+							1, // Skip A
+							{ type: "Delete", id: 0, count: 2 },
+						],
 					},
 				}],
 			},
@@ -331,23 +271,21 @@ export namespace ScenarioA2 {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 2 }, dst: { bar: 0 } }],
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							nodes: [
-								2, // Skip A B
-								{ type: "Move", id: 0, count: 2 },
-							],
-							affixes: [
-								5, // Before C
-								{ count: 4, stack: [{ type: "Forward", id: 0 }] },
-							],
-						},
-						bar: {
-							attach: [
-								[{ type: "Move", id: 0, count: 2 }],
-							],
-						},
+				modifyI: [{
+					foo: {
+						nodes: [
+							2, // Skip A B
+							{ type: "Move", id: 0, count: 2 },
+						],
+						affixes: [
+							5, // Before C
+							{ count: 4, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					bar: {
+						attach: [
+							[{ type: "Move", id: 0, count: 2 }],
+						],
 					},
 				}],
 			},
@@ -359,14 +297,12 @@ export namespace ScenarioA2 {
 		seq: 3,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							attach: [
-								6, // After C
-								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
-							],
-						},
+				modifyI: [{
+					foo: {
+						attach: [
+							6, // After C
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+						],
 					},
 				}],
 			},
@@ -380,24 +316,22 @@ export namespace ScenarioA2 {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							tombs: [1, { count: 2, seq: 1, id: 1 } ],
-							nodes: [
-								2, // Skip A B
-								{ type: "Move", id: 0, count: 2 },
-							],
-							affixes: [
-								5, // Before C
-								{ count: 4, stack: [{ type: "Forward", id: 0 }] },
-							],
-						},
-						bar: {
-							attach: [
-								[{ type: "Move", id: 0, count: 1 }],
-							],
-						},
+				modifyI: [{
+					foo: {
+						tombs: [1, { count: 2, seq: 1, id: 1 } ],
+						nodes: [
+							2, // Skip A B
+							{ type: "Move", id: 0, count: 2 },
+						],
+						affixes: [
+							5, // Before C
+							{ count: 4, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					bar: {
+						attach: [
+							[{ type: "Move", id: 0, count: 1 }],
+						],
 					},
 				}],
 			},
@@ -410,15 +344,13 @@ export namespace ScenarioA2 {
 		newRef: 1,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							tombs: [1, { count: 2, seq: 1, id: 1 } ],
-							attach: [
-								6, // After C
-								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
-							],
-						},
+				modifyI: [{
+					foo: {
+						tombs: [1, { count: 2, seq: 1, id: 1 } ],
+						attach: [
+							6, // After C
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+						],
 					},
 				}],
 			},
@@ -431,17 +363,15 @@ export namespace ScenarioA2 {
 		newRef: 2,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						bar: {
-							// These tombstones represent the effect of e1 at the
-							// destination of e2's move.
-							tombs: [{ count: 2, seq: 1, id: 1 } ],
-							attach: [
-								2, // After C
-								[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
-							],
-						},
+				modifyI: [{
+					bar: {
+						// These tombstones represent the effect of e1 at the
+						// destination of e2's move.
+						tombs: [{ count: 2, seq: 1, id: 1 } ],
+						attach: [
+							2, // After C
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+						],
 					},
 				}],
 			},
@@ -462,13 +392,11 @@ export namespace ScenarioB {
 		seq: 1,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							nodes: [
-								{ type: "Delete", id: 0 , count: 4 },
-							],
-						},
+				modifyI: [{
+					foo: {
+						nodes: [
+							{ type: "Delete", id: 0 , count: 4 },
+						],
 					},
 				}],
 			},
@@ -480,14 +408,12 @@ export namespace ScenarioB {
 		seq: 2,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							attach: [
-								2, // After A
-								[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
-							],
-						},
+				modifyI: [{
+					foo: {
+						attach: [
+							2, // After A
+							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+						],
 					},
 				}],
 			},
@@ -499,14 +425,12 @@ export namespace ScenarioB {
 		seq: 3,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							attach: [
-								4, // After B
-								[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
-							],
-						},
+				modifyI: [{
+					foo: {
+						attach: [
+							4, // After B
+							[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+						],
 					},
 				}],
 			},
@@ -519,15 +443,13 @@ export namespace ScenarioB {
 		newRef: 1,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							tombs: [{ count: 4, seq: 1, id: 1 }],
-							attach: [
-								2, // After A
-								[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
-							],
-						},
+				modifyI: [{
+					foo: {
+						tombs: [{ count: 4, seq: 1, id: 1 }],
+						attach: [
+							2, // After A
+							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+						],
 					},
 				}],
 			},
@@ -540,15 +462,13 @@ export namespace ScenarioB {
 		newRef: 2,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							tombs: [{ count: 4, seq: 1, id: 1 }],
-							attach: [
-								4, // After B
-								[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
-							],
-						},
+				modifyI: [{
+					foo: {
+						tombs: [{ count: 4, seq: 1, id: 1 }],
+						attach: [
+							4, // After B
+							[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+						],
 					},
 				}],
 			},
@@ -561,19 +481,17 @@ export namespace ScenarioB {
 		newRef: 2,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							tombs: [
-								{ count: 1, seq: 1, id: 1 },
-								1, // X
-								{ count: 3, seq: 1, id: 1 },
-							],
-							attach: [
-								4, // After B
-								[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
-							],
-						},
+				modifyI: [{
+					foo: {
+						tombs: [
+							{ count: 1, seq: 1, id: 1 },
+							1, // X
+							{ count: 3, seq: 1, id: 1 },
+						],
+						attach: [
+							4, // After B
+							[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+						],
 					},
 				}],
 			},
@@ -598,13 +516,11 @@ export namespace ScenarioC {
 		seq: 1,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							nodes: [
-								{ type: "Delete", id: 0 , count: 1 },
-							],
-						},
+				modifyI: [{
+					foo: {
+						nodes: [
+							{ type: "Delete", id: 0 , count: 1 },
+						],
 					},
 				}],
 			},
@@ -616,14 +532,12 @@ export namespace ScenarioC {
 		seq: 1,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							tombs: [{ count: 1, seq: 1, id: 0 }],
-							nodes: [
-								{ type: "Revive", id: 0 , count: 1 },
-							],
-						},
+				modifyI: [{
+					foo: {
+						tombs: [{ count: 1, seq: 1, id: 0 }],
+						nodes: [
+							{ type: "Revive", id: 0 , count: 1 },
+						],
 					},
 				}],
 			},
@@ -635,13 +549,11 @@ export namespace ScenarioC {
 		seq: 3,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							nodes: [
-								{ type: "Delete", id: 0 , count: 1 },
-							],
-						},
+				modifyI: [{
+					foo: {
+						nodes: [
+							{ type: "Delete", id: 0 , count: 1 },
+						],
 					},
 				}],
 			},
@@ -654,14 +566,12 @@ export namespace ScenarioC {
 		newRef: 1,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							tombs: [{ count: 1, seq: 1, id: 0 }],
-							nodes: [
-								{ type: "Delete", id: 0 , count: 1 },
-							],
-						},
+				modifyI: [{
+					foo: {
+						tombs: [{ count: 1, seq: 1, id: 0 }],
+						nodes: [
+							{ type: "Delete", id: 0 , count: 1 },
+						],
 					},
 				}],
 			},
@@ -674,13 +584,11 @@ export namespace ScenarioC {
 		newRef: 2,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							nodes: [
-								{ type: "Delete", id: 0 , count: 1 },
-							],
-						},
+				modifyI: [{
+					foo: {
+						nodes: [
+							{ type: "Delete", id: 0 , count: 1 },
+						],
 					},
 				}],
 			},
@@ -692,13 +600,11 @@ export namespace ScenarioC {
 		seq: 4,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							nodes: [
-								{ type: "Delete", id: 0 , count: 1 },
-							],
-						},
+				modifyI: [{
+					foo: {
+						nodes: [
+							{ type: "Delete", id: 0 , count: 1 },
+						],
 					},
 				}],
 			},
@@ -711,14 +617,12 @@ export namespace ScenarioC {
 		newRef: 1,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							tombs: [{ count: 1, seq: 1, id: 0 }],
-							nodes: [
-								{ type: "Delete", id: 0 , count: 1 },
-							],
-						},
+				modifyI: [{
+					foo: {
+						tombs: [{ count: 1, seq: 1, id: 0 }],
+						nodes: [
+							{ type: "Delete", id: 0 , count: 1 },
+						],
 					},
 				}],
 			},
@@ -731,13 +635,11 @@ export namespace ScenarioC {
 		newRef: 2,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							nodes: [
-								{ type: "Delete", id: 0 , count: 1 },
-							],
-						},
+				modifyI: [{
+					foo: {
+						nodes: [
+							{ type: "Delete", id: 0 , count: 1 },
+						],
 					},
 				}],
 			},
@@ -750,14 +652,12 @@ export namespace ScenarioC {
 		newRef: 3,
 		frames: [{
 			marks: {
-				nodes: [{
-					modify: {
-						foo: {
-							tombs: [{ count: 1, seq: 1, id: 0 }],
-							nodes: [
-								{ type: "Delete", id: 0 , count: 1 },
-							],
-						},
+				modifyI: [{
+					foo: {
+						tombs: [{ count: 1, seq: 1, id: 0 }],
+						nodes: [
+							{ type: "Delete", id: 0 , count: 1 },
+						],
 					},
 				}],
 			},
