@@ -541,7 +541,7 @@ We would in fixed-sized traits at least: fixed sized traits allow the imagined h
 
 ## What should be the outcome of the insert-in-moved-move scenario?
 
-The scenario:
+The scenario (See `ScenarioH`):
 In a trait foo that contains the nodes [A B], three users concurrently attempt the following operations (ordered here from first sequenced to last sequenced):
 
 * User 1: slice-move all of trait foo into trait bar with a non-commutative attach
@@ -590,11 +590,11 @@ What about when the source content has been (concurrently) deleted?
 
 We still need to describe the number of affixes being introduced by the move because we need to be able to correctly order many such commutative insertions in the deleted region of the move source.
 
-Proposal: do not update the number of moved-in nodes. This allows the moved insert(s) to target the affixes of the moved deleted nodes. Note that this then requires readers of the move changeset to keep track of the fact that a prior delete has impacted the source region. It also requires the rebased insert to include tombstone information stating that the area they're inserting into has been deleted by the delete. This is a little strange because the deletion did not explicitly target those nodes.
+Proposal: do not update the number of moved-in nodes. This allows the moved insert(s) to target the affixes of the moved deleted nodes. Note that this then requires readers of the move changeset to keep track of the fact that a prior delete has impacted the source region. It also requires the rebased insert to include tombstone information stating that the area they're inserting into has been deleted by the delete. This is a little strange because this leads to the inclusion (duplication) of tombstones in traits that the deletion did not target.
 
 Scenarios A1 and A2 are examples of this complex case.
 
-Wait: how does this work for slice moves that don't contain nodes?
+Wait: how does this work for slice moves that don't contain nodes? (See scenario J)
 
 The assumption that affixes and nodes follow a standardized _ _ N _ _ pattern may be wrong: you could make K slices over single or pairs of affixes (without nodes) and move all of those to a single location, thereby creating an arbitrarily long sequence of affixes. 
 
@@ -604,16 +604,12 @@ Perhaps that pattern is not wrong because the slices all fall into a single affi
 
 * the inserts that end up (due to rebasing) at the destination of the move to include more information about their affix of origin
 
-Insert only introduces nodes, which lead to more affixes in the output context. Is it fair to that that move can introduce a mixture of both nodes and affixes? Maybe not because those affixes can't be inserted at either during the change or after it. What can happen though is that two later concurrent inserts (that commute with the move) have to be able to target the adequate affix, and they have to be relatively ordered based on their ordering in time, but also based on which affix they would have targeted in the original location.
+Insert only introduces nodes, which lead to more affixes in the output context. Is it fair to say that that move can introduce a mixture of both nodes and affixes? Maybe not because those affixes can't be inserted at either during the change or after it. What can happen though is that two later concurrent inserts (that commute with the move) have to be able to target the adequate affix, and they have to be relatively ordered based on their ordering in time, but also based on which affix they would have targeted in the original location.
 
 When moving a slice with nodes, is the fact that the affixes covered by the slice match the affixes introduced by the nodes in the output context a coincidence? You can for example make your slice such that it does not include the affixes before the first node and the affixes after the last node, but those affixes will still exist in the output context.
 
 How was this problem addressed in previous iterations of the format?
-Most recently at least, the inserted content was left in its original target trait within a prior slice move segment.
-
-Slightly related problem: if a slice move has its destination in a slice move, but the move-in is not commutative, then should an insert's a commutative with the first end up at the final destination? Or should it stay at the first destination? See `ScenarioH`.
-
-What about a scenario where one slice move of foo into bar ends up being concurrent with a slice move from bar into foo, where both attach points are commutative? This feels like it should have the same kind of resolution as when a node is reparented under its children: the edit that introduces the cycle is dropped. 
+Most recently at least, the inserted content was left in its original target trait within a prior slice move segment. How would that have been able to pick up on other moves that it should chain with?
 
 ## How to represent the starting location of a slice move that does not contain any nodes?
 

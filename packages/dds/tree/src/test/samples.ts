@@ -216,12 +216,22 @@ export namespace ScenarioA1 {
 			marks: {
 				modifyI: [{
 					bar: {
-						// These tombstones represent the effect of e1 at the
-						// destination of e2's move.
-						tombs: [{ count: 2, seq: 1, id: 1 } ],
 						attach: [
-							2, // After B
-							[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+							[{
+								type: "Portal",
+								seq: 2,
+								id: 1,
+								tombs: [{ count: 2, seq: 1, id: 1 } ],
+								attach: [
+									4, // After B
+									[{
+										type: "Insert",
+										id: 0,
+										content: [{ id: "X" }],
+										commute: Commutativity.Full,
+									}],
+								],
+							}],
 						],
 					},
 				}],
@@ -365,12 +375,22 @@ export namespace ScenarioA2 {
 			marks: {
 				modifyI: [{
 					bar: {
-						// These tombstones represent the effect of e1 at the
-						// destination of e2's move.
-						tombs: [{ count: 2, seq: 1, id: 1 } ],
 						attach: [
-							2, // After C
-							[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+							[{
+								type: "Portal",
+								seq: 2,
+								id: 1,
+								tombs: [{ count: 2, seq: 1, id: 1 } ],
+								attach: [
+									2, // After C
+									[{
+										type: "Insert",
+										id: 0,
+										content: [{ id: "X" }],
+										commute: Commutativity.Full,
+									}],
+								],
+							}],
 						],
 					},
 				}],
@@ -1211,11 +1231,11 @@ export namespace ScenarioH {
 	/**
 	In a trait foo that contains the nodes [A B], three users concurrently attempt the following operations (ordered
 	here from first sequenced to last sequenced):
-	  User 1: slice-move all of trait bar into trait baz
-	  User 2: slice-move all of trait foo into trait bar with a non-commutative attach
+	  User 1: slice-move all of trait foo into trait bar with a non-commutative attach
+	  User 2: slice-move all of trait bar into trait baz
 	  User 3: insert X after A in foo (commutative)
 
-	X should end up in bar.
+	X should end up in bar (with A and B).
 	*/
 
 	// TODO: the actual code for the above
@@ -1229,13 +1249,27 @@ export namespace ScenarioI {
 	  User 1: slice-move all of trait foo at the start of bar with a commutative attach
 	  User 2: slice-move all of trait bar at the start of foo with a commutative attach
 
-	Option 1: The content first edit should apply but not the second, leading to
+	Option 1: The first edit should apply but not the second.
 		foo: []
 		bar: [A B C D]
 
 	Option 2: They both apply but the commutativity of the second move is ignored.
 		foo: [A B C D]
 		bar: []
+	*/
+
+	// TODO: the actual code for the above
+}
+
+export namespace ScenarioJ {
+	/**
+	Starting with a trait foo that contains the nodes [A B C]:
+	  User 1: set-delete node B
+	  User 2: slice-move all of trait foo to trait bar
+	  User 3: insert Y after B (LLW commutative)
+	  User 4: insert X after A (LLW commutative)
+
+	Expected outcome: foo=[] bar=[A, X, Y, C]
 	*/
 
 	// TODO: the actual code for the above

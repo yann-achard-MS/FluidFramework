@@ -400,10 +400,7 @@ export namespace Rebased {
 		 * made to this trait. Without it, describing the changes would be like drawing on an
 		 * incomplete canvas.
 		 *
-		 * The node counts and affix counts of the other members are expressed relative to the list
-		 * of nodes comprised of both these tombstones and the existing nodes at the revision this
-		 * change is meant to be applied (such existing node are represented in by `NodeCount`
-		 * offsets). Note that nodes concurrently inserted by prior changes are also included in
+		 * Note that nodes concurrently inserted by prior changes are also included in
 		 * the `NodeCount` offsets. It's an open question whether they need to be called out as
 		 * different from standard offsets and if so what metadata they need to carry.
 		 */
@@ -411,6 +408,7 @@ export namespace Rebased {
 
 		/**
 		 * Operations that attach content in a new location.
+		 * The order of attach segments reflects the intended order of the content in the trait.
 		 */
 		attach?: OffsetList<Attach[], AffixCount>;
 
@@ -435,8 +433,8 @@ export namespace Rebased {
 
 		/**
 		 * Operations that affect concurrently attached content.
-		 * These operation effectively target location that do not exist but may come to exist as a
-		 * result of concurrent changes that occur prior to this one.
+		 * These operation effectively target content that does not exist but may come to exist as
+		 * a result of concurrent changes.
 		 */
 		affixes?: OffsetList<OpenAffixEffects | ClosedAffixEffects, AffixCount>;
 	}
@@ -493,7 +491,19 @@ export namespace Rebased {
 		count: NodeCount;
 	}
 
-	export type Attach = Insert | MoveIn;
+	/**
+	 * Used to represent attach operations whose target affix exits only as a result of a slice
+	 * move-in.
+	 */
+	export interface Portal {
+		type: "Portal";
+		seq: SeqNumber;
+		id: OpId;
+		tombs?: OffsetList<Tombstones, NodeCount>;
+		attach: OffsetList<Attach[], AffixCount>;
+	}
+
+	export type Attach = Insert | MoveIn | Portal;
 
 	export interface OpenAffixEffects {
 		count: AffixCount;
