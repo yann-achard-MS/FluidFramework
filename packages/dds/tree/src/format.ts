@@ -342,7 +342,7 @@ export namespace Original {
 	 * The contents of a node to be created
 	 */
 	export interface ProtoNode {
-		id: string;
+		id?: string;
 		type?: string;
 		value?: Value;
 		traits?: ProtoTraits;
@@ -386,7 +386,7 @@ export namespace Rebased {
 
 	export interface ChangeFrame {
 		moves?: MoveEntry[];
-		priorMoves?: PriorMoveEntry[];
+		priorMoves?: PriorMoveEntry[]; // Do we still need this?
 		marks: TraitMarks;
 	}
 
