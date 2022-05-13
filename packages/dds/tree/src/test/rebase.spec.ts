@@ -8,7 +8,7 @@ import { rebase as rebaseImpl } from "../rebase";
 import {
 	Sequenced as S,
 	Rebased as R,
-	Commutativity,
+	Effects,
 	RangeType,
 } from "../format";
 import {
@@ -53,7 +53,7 @@ describe(rebase.name, () => {
 						modify: {
 							foo: [
 								3,
-								{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.None },
+								{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Effects.None },
 							],
 						},
 					}],
@@ -613,7 +613,7 @@ describe(rebase.name, () => {
 														type: "Insert",
 														id: 0,
 														content: [{ id: "X" }],
-														commute: Commutativity.None,
+														commute: Effects.None,
 													},
 												],
 											},
@@ -767,7 +767,7 @@ describe(rebase.name, () => {
 														type: "Insert",
 														id: 0,
 														content: [{ id: "X" }],
-														commute: Commutativity.None,
+														commute: Effects.None,
 													},
 												],
 											},

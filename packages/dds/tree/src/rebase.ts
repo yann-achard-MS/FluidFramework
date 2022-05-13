@@ -7,7 +7,7 @@ import {
 	Sequenced as S,
 	Rebased as R,
 	SeqNumber,
-	Commutativity,
+	Effects,
 	Sibling,
 } from "./format";
 import { normalizeFrame } from "./normalize";
@@ -107,7 +107,7 @@ function rebaseMarks(
 				seq: context.baseSeq,
 				id: baseMark.id,
 				length: baseMark.content.length,
-				commute: baseMark.commute,
+				commute: baseMark.heed,
 			});
 		} else if (isDeleteSet(baseMark)) {
 			currPtr = currPtr.colonize(baseMark.length ?? 1, Sibling.Prev);

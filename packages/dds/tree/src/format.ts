@@ -289,9 +289,9 @@ export namespace Original {
 		/**
 		 * Omit if not in peer change.
 		 * Omit if performed with a parent-based place anchor.
-		 * Omit if `Commutativity.Full`.
+		 * Omit if `Effects.All`.
 		 */
-		commute?: Commutativity;
+		commute?: Effects;
 		/**
 		 * Omit if no drill-down.
 		 */
@@ -386,7 +386,6 @@ export namespace Rebased {
 
 	export interface ChangeFrame {
 		moves?: MoveEntry[];
-		priorMoves?: PriorMoveEntry[]; // Do we still need this?
 		marks: TraitMarks;
 	}
 
@@ -449,11 +448,19 @@ export namespace Rebased {
 
 	export interface IsPlace {
 		/**
-		 * Omit if not in peer change.
-		 * Omit if performed with a parent-based place anchor.
-		 * Omit if `Commutativity.Full`.
+		 * Describes which kinds of concurrent slice operations should affect the target place.
+		 *
+		 * The tuple allows this choice to be different for concurrent slices that are sequenced
+		 * either before (`heed[0]`) or after (`heed[1]`). For example, multiple concurrent updates
+		 * of a sequence with last-write-wins semantics would use a slice-delete over the whole
+		 * sequence, and an insert with the `heed` value `[Effects.None, Effects.All]`.
+		 *
+		 * When the value for prior and ulterior concurrent slices is the same, that value can be
+		 * used directly instead of the corresponding tuple.
+		 *
+		 * Omit if `Effects.All` for terseness.
 		 */
-		commute?: Commutativity;
+		heed?: Effects | [Effects, Effects];
 
 		/**
 		 * Omit if `Tiebreak.LWW` for terseness.
@@ -543,7 +550,16 @@ export namespace Rebased {
 
 	export interface Tombstones {
 		count: NodeCount;
-		seq: SeqNumber;
+		/**
+		 * The sequence number of the edit that caused the nodes to be detached.
+		 *
+		 * When the nodes were detached as the result of learning of a prior concurrent change
+		 * that preceded a prior change that the current change depends on, a pair of sequence
+		 * numbers is used instead were `seq[0]` is the earlier change whose effect on `seq[1]`
+		 * these tombstones represent. This can be read as "tombstones from the effect of `seq[0]`
+		 * on `seq[1]`".
+		 */
+		seq: SeqNumber | [SeqNumber, SeqNumber];
 		id: OpId;
 	}
 }
@@ -629,8 +645,8 @@ export type NodeId = string;
 export type ClientId = number;
 export type TraitLabel = string;
 export enum Tiebreak { LWW, FWW }
-export enum Commutativity {
-	Full = "Full",
+export enum Effects {
+	All = "All",
 	Move = "Move",
 	Delete = "Delete",
 	None = "None",
@@ -780,13 +796,13 @@ export namespace EffectMajor2 {
 		type: "Insert";
 		id: OpId;
 		content: any[];
-		commute: Commutativity;
+		commute: Effects;
 	}
 
 	interface MoveIn {
 		type: "Move";
 		id: OpId;
-		commute: Commutativity;
+		commute: Effects;
 	}
 
 	type NewAttach = Insert | MoveIn;
@@ -812,7 +828,7 @@ export namespace EffectMajor2 {
 		id: OpId;
 		count: number;
 		seq: SeqNumber;
-		commute: Commutativity;
+		commute: Effects;
 	}
 
 	interface NewDetach {
@@ -833,7 +849,7 @@ export namespace EffectMajor2 {
 	export const t1: Trait = {
 		attaches: [
 			10,
-			[{ type: "Insert", id: 0, commute: Commutativity.Full, content: [] }],
+			[{ type: "Insert", id: 0, commute: Effects.All, content: [] }],
 		],
 		nodeRanges: [
 			{ type: "Del", id: 1, count: 1 },

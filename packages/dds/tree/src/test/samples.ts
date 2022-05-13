@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { Commutativity, Rebased as R, Sibling, Sequenced as S, RangeType } from "../format";
+import { Effects, Rebased as R, Sibling, Sequenced as S, RangeType } from "../format";
 
 export namespace InsertRoot {
 	export const e1: R.ChangeFrame = {
@@ -189,7 +189,7 @@ export namespace ScenarioA1 {
 					foo: {
 						attach: [
 							4, // After B
-							[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 						],
 					},
 				}],
@@ -241,7 +241,7 @@ export namespace ScenarioA1 {
 						tombs: [1, { count: 2, seq: 1, id: 1 } ],
 						attach: [
 							4, // After B
-							[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 						],
 					},
 				}],
@@ -269,7 +269,7 @@ export namespace ScenarioA1 {
 										type: "Insert",
 										id: 0,
 										content: [{ id: "X" }],
-										commute: Commutativity.Full,
+										heed: Effects.All,
 									}],
 								],
 							}],
@@ -352,7 +352,7 @@ export namespace ScenarioA2 {
 					foo: {
 						attach: [
 							6, // After C
-							[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 						],
 					},
 				}],
@@ -400,7 +400,7 @@ export namespace ScenarioA2 {
 						tombs: [1, { count: 2, seq: 1, id: 1 } ],
 						attach: [
 							6, // After C
-							[{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Full }],
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 						],
 					},
 				}],
@@ -428,7 +428,7 @@ export namespace ScenarioA2 {
 										type: "Insert",
 										id: 0,
 										content: [{ id: "X" }],
-										commute: Commutativity.Full,
+										heed: Effects.All,
 									}],
 								],
 							}],
@@ -744,17 +744,25 @@ export namespace ScenarioD {
 		ref: 0,
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{ type: "MoveOutSlice", id: 0, startSide: Sibling.Next },
-					],
-					bar: [
-						{ type: "MoveIn", id: 0, range: RangeType.Slice },
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						nodes: [
+							1, // Skip A
+							{ type: "Move", id: 0, count: 1 },
+						],
+						affixes: [
+							3,
+							{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					bar: {
+						attach: [
+							[{ type: "Move", id: 0, count: 1 }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -763,25 +771,24 @@ export namespace ScenarioD {
 		ref: 0,
 		frames: [{
 			moves: [{ id: 0, src: { foo: 0 }, dst: { baz: 0 } }],
-			marks: [{
-				modify: {
-					foo: [
-						{ type: "MoveOutSet", id: 0, length: 3 },
-					],
-					baz: [
-						{
-							type: "MoveIn",
-							id: 0,
-							range: RangeType.Set,
-							length: 3,
-							mods: [
-								2, // A, B
-								{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Move },
+			marks: {
+				modifyI: [{
+					foo: {
+						nodes: [
+							{ type: "Move", id: 0, count: 3 },
+						],
+					},
+					baz: {
+						attach: [
+							[
+								{ type: "Move", id: 0, count: 2 },
+								{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.Move },
+								{ type: "Move", id: 0, count: 1 },
 							],
-						},
-					],
-				},
-			}],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -792,33 +799,28 @@ export namespace ScenarioD {
 		frames: [{
 			priorMoves: [{ seq: 1, id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			moves: [{ id: 0, src: { foo: 0 }, dst: { baz: 0 } }],
-			marks: [{
-				modify: {
-					foo: [
-						{
-							type: "MoveOutSet",
-							id: 0,
-							length: 3,
-							mods: [
-								1, // A
-								{ type: "PriorMoveOutSlice", seq: 1, id: 0 }, // B
+			marks: {
+				modifyI: [{
+					foo: {
+						tombs: [
+							1,
+							{ seq: 1, id: 0, count: 1 }, // B
+						],
+						nodes: [
+							{ type: "Move", id: 0, count: 3 },
+						],
+					},
+					baz: {
+						attach: [
+							[
+								{ type: "Move", id: 0, count: 2 },
+								{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.Move },
+								{ type: "Move", id: 0, count: 1 },
 							],
-						},
-					],
-					baz: [
-						{
-							type: "MoveIn",
-							id: 0,
-							range: RangeType.Set,
-							length: 3,
-							mods: [
-								2, // A B
-								{ type: "Insert", id: 0, content: [{ id: "X" }], commute: Commutativity.Move },
-							],
-						},
-					],
-				},
-			}],
+						],
+					},
+				}],
+			},
 		}],
 	};
 }
@@ -839,17 +841,25 @@ export namespace ScenarioE {
 		ref: 0,
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{ type: "MoveOutSlice", id: 0, startSide: Sibling.Next }, // B
-					],
-					bar: [
-						{ type: "MoveIn", id: 0, range: RangeType.Slice }, // B
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						nodes: [
+							1, // Skip A
+							{ type: "Move", id: 0, count: 1 },
+						],
+						affixes: [
+							3,
+							{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					bar: {
+						attach: [
+							[{ type: "Move", id: 0, count: 1 }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -857,13 +867,18 @@ export namespace ScenarioE {
 		seq: 2,
 		ref: 0,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						{ type: "DeleteSlice", id: 0, length: 3 },
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						nodes: [
+							{ type: "Delete", id: 0, count: 3 },
+						],
+						affixes: [
+							{ count: 8, stack: [{ type: "Scorch", id: 0 }] },
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -872,22 +887,22 @@ export namespace ScenarioE {
 		ref: 0,
 		newRef: 1,
 		frames: [{
-			priorMoves: [{ seq: 1, id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
-			marks: [{
-				modify: {
-					foo: [
-						{
-							type: "DeleteSlice",
-							id: 0,
-							length: 3,
-							mods: [
-								1, // A
-								{ type: "PriorMoveOutSlice", seq: 1, id: 0 }, // B
-							],
-						},
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						tombs: [
+							1,
+							{ seq: 1, id: 0, count: 1 }, // B
+						],
+						nodes: [
+							{ type: "Delete", id: 0, count: 3 },
+						],
+						affixes: [
+							{ count: 8, stack: [{ type: "Scorch", id: 0 }] },
+						],
+					},
+				}],
+			},
 		}],
 	};
 }
@@ -906,13 +921,15 @@ export namespace ScenarioF {
 		ref: 0,
 		seq: 1,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						{ type: "Insert", id: 0, content: [{ id: "r" }] },
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							[{ type: "Insert", id: 0, content: [{ id: "r" }] }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -920,14 +937,16 @@ export namespace ScenarioF {
 		ref: 0,
 		seq: 2,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{ type: "Insert", id: 0, content: [{ id: "x" }, { id: "z" }] },
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							2, // After A
+							[{ type: "Insert", id: 0, content: [{ id: "x" }, { id: "z" }] }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -935,25 +954,29 @@ export namespace ScenarioF {
 		ref: 0,
 		seq: 3,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						2, // Skip A x
-						{ type: "Insert", id: 0, content: [{ id: "y" }] },
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							4, // After x
+							[{ type: "Insert", id: 0, content: [{ id: "y" }] }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
 	export const e3d: R.ChangeFrame = {
-		marks: [{
-			modify: {
-				foo: [
-					{ type: "Insert", id: 0, content: [{ id: "r" }] },
-				],
-			},
-		}],
+		marks: {
+			modifyI: [{
+				foo: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "r" }] }],
+					],
+				},
+			}],
+		},
 	};
 
 	export const e2p: S.Transaction = {
@@ -961,15 +984,16 @@ export namespace ScenarioF {
 		ref: 0,
 		newRef: 1,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						1, // { type: "PriorInsert", seq: 1, id: 0 },
-						1, // Skip A
-						{ type: "Insert", id: 0, content: [{ id: "x" }, { id: "z" }] },
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							4, // After A
+							[{ type: "Insert", id: 0, content: [{ id: "x" }, { id: "z" }] }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -978,15 +1002,16 @@ export namespace ScenarioF {
 		ref: 0,
 		newRef: 2,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						{ type: "PriorInsert", seq: 1, id: 0 },
-						1, // Skip A x
-						{ type: "Insert", id: 0, content: [{ id: "y" }] },
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							6, // After x
+							[{ type: "Insert", id: 0, content: [{ id: "y" }] }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -997,10 +1022,10 @@ export namespace ScenarioG {
 	/*
 	In trait foo [A B]:
 	  User 1: move slice [A B] to some other trait bar
-	  User 2: insert [X Y] after A (with commutative-move semantics)
-	  User 2: insert N after X (with never-move semantics)
-	  User 2: insert M before X (with never-move semantics)
-	  User 2: insert O after Y (with never-move semantics)
+	  User 2: insert [X Y] after A (with commutative-move semantics) (local: [A X Y B])
+	  User 2: insert N after X (with never-move semantics) (local: [A X N Y B])
+	  User 2: insert M before X (with never-move semantics) (local: [A M X N Y B])
+	  User 2: insert O after Y (with never-move semantics) (local: [A M X N Y O B])
 
 	X Y should be inserted to into the bar trait.
 	M N O  should be inserted to into the foo trait (in that order).
@@ -1011,16 +1036,23 @@ export namespace ScenarioG {
 		seq: 1,
 		frames: [{
 			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
-			marks: [{
-				modify: {
-					foo: [
-						{ type: "MoveOutSlice", id: 0, length: 2 },
-					],
-					bar: [
-						{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 2 },
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						nodes: [
+							{ type: "Move", id: 0, count: 2 },
+						],
+						affixes: [
+							{ count: 6, stack: [{ type: "Forward", id: 0 }] }
+						],
+					},
+					bar: {
+						attach: [
+							[{ type: "Move", id: 0, count: 2 }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -1028,14 +1060,21 @@ export namespace ScenarioG {
 		ref: 0,
 		seq: 2,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{ type: "Insert", id: 0, content: [{ id: "X" }, { id: "Y" }], commute: Commutativity.Full },
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							2, // After A
+							[{
+								type: "Insert",
+								id: 0,
+								content: [{ id: "X" }, { id: "Y" }],
+								heed: Effects.Move,
+							}],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -1043,14 +1082,16 @@ export namespace ScenarioG {
 		ref: 0,
 		seq: 3,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						2, // Skip A X
-						{ type: "Insert", id: 0, content: [{ id: "N" }], commute: Commutativity.None },
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							4, // After X
+							[{ type: "Insert", id: 0, content: [{ id: "N" }], heed: Effects.None }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -1058,20 +1099,16 @@ export namespace ScenarioG {
 		ref: 0,
 		seq: 4,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						1, // Skip A
-						{
-							type: "Insert",
-							id: 0,
-							content: [{ id: "M" }],
-							side: Sibling.Next,
-							commute: Commutativity.None,
-						},
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							3, // Before X
+							[{ type: "Insert", id: 0, content: [{ id: "M" }], heed: Effects.None }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -1079,14 +1116,16 @@ export namespace ScenarioG {
 		ref: 0,
 		seq: 5,
 		frames: [{
-			marks: [{
-				modify: {
-					foo: [
-						5, // Skip A X M N Y
-						{ type: "Insert", id: 0, content: [{ id: "O" }], commute: Commutativity.None },
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							10, // After Y
+							[{ type: "Insert", id: 0, content: [{ id: "O" }], heed: Effects.None }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
@@ -1095,43 +1134,43 @@ export namespace ScenarioG {
 		ref: 0,
 		newRef: 1,
 		frames: [{
-			priorMoves: [{ seq: 1, id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
-			marks: [{
-				modify: {
-					foo: [
-						{
-							type: "PriorMoveOutSlice",
-							seq: 1,
-							id: 0,
-							length: 2,
-							mods: [
-								1, // A
-								{
-									type: "Insert",
-									id: 0,
-									content: [{ id: "X" }, { id: "Y" }],
-									commute: Commutativity.Full,
-								},
-							],
-						},
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					bar: {
+						attach: [
+							2, // After A
+							[{
+								type: "Insert",
+								id: 0,
+								content: [{ id: "X" }, { id: "Y" }],
+								heed: Effects.Move,
+							}],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
 	export const e3d: R.ChangeFrame = {
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
-		marks: [{
-			modify: {
-				foo: [
-					{ type: "MoveOutSlice", id: 0, length: 4 }, // A X Y B
-				],
-				bar: [
-					{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 4 }, // A X Y B
-				],
-			},
-		}],
+		marks: {
+			modifyI: [{
+				foo: {
+					nodes: [
+						{ type: "Move", id: 0, count: 4 }, // A X Y B
+					],
+					affixes: [
+						{ count: 10, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Move", id: 0, count: 4 }],
+					],
+				},
+			}],
+		},
 	};
 
 	export const e3p: S.Transaction = {
@@ -1139,45 +1178,47 @@ export namespace ScenarioG {
 		ref: 0,
 		newRef: 2,
 		frames: [{
-			priorMoves: [{ seq: 1, id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
-			marks: [{
-				modify: {
-					foo: [
-						{
-							type: "PriorMoveOutSlice",
-							seq: 1,
-							id: 0,
-							length: 4,
-							mods: [
-								2, // A X
-								{
-									type: "Insert",
-									id: 0,
-									content: [{ id: "N" }],
-									commute: Commutativity.None,
-								},
-							],
-						},
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						tombs: [
+							{ count: 1, seq: 1, id: 0 }, // A
+							{ count: 2, seq: [1, 2], id: 0 }, // X Y
+							{ count: 1, seq: 1, id: 0 }, // B
+						],
+						attach: [
+							4, // After X
+							[{ type: "Insert", id: 0, content: [{ id: "N" }], heed: Effects.None }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
 	export const e4d: R.ChangeFrame = {
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
-		marks: [{
-			modify: {
-				foo: [
-					{ type: "MoveOutSlice", id: 0, length: 2 }, // A X
-					1, // N
-					{ type: "MoveOutSlice", id: 0, length: 2 }, // Y B
-				],
-				bar: [
-					{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 4 }, // A X Y B
-				],
-			},
-		}],
+		marks: {
+			modifyI: [{
+				foo: {
+					nodes: [
+						{ type: "Move", id: 0, count: 2 }, // A X
+						1, // N
+						{ type: "Move", id: 0, count: 2 }, // Y B
+					],
+					affixes: [
+						{ count: 5, stack: [{ type: "Forward", id: 0 }] },
+						2, // Before and After N
+						{ count: 5, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Move", id: 0, count: 4 }],
+					],
+				},
+			}],
+		},
 	};
 
 	export const e4p: S.Transaction = {
@@ -1185,50 +1226,51 @@ export namespace ScenarioG {
 		ref: 0,
 		newRef: 3,
 		frames: [{
-			priorMoves: [{ seq: 1, id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
-			marks: [{
-				modify: {
-					foo: [
-						{
-							type: "PriorMoveOutSlice",
-							seq: 1,
-							id: 0,
-							length: 2,
-							mods: [
-								1, // A
-								{
-									type: "Insert",
-									id: 0,
-									content: [{ id: "M" }],
-									side: Sibling.Next,
-									commute: Commutativity.None,
-								},
-							],
-						},
-						1, // N
-						{ type: "PriorMoveOutSlice", seq: 1, id: 0, length: 2 }, // Y B
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						tombs: [
+							{ count: 1, seq: [1, 2], id: 0 }, // X
+							1, // N
+							{ count: 1, seq: [1, 2], id: 0 }, // Y
+						],
+						attach: [
+							1, // Before X
+							[{ type: "Insert", id: 0, content: [{ id: "M" }], heed: Effects.None }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 
 	export const e5d: R.ChangeFrame = {
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
-		marks: [{
-			modify: {
-				foo: [
-					{ type: "MoveOutSlice", id: 0 }, // A
-					1, // M
-					{ type: "MoveOutSlice", id: 0 }, // X
-					1, // N
-					{ type: "MoveOutSlice", id: 0, length: 2 }, // Y B
-				],
-				bar: [
-					{ type: "MoveIn", id: 0, range: RangeType.Slice, length: 4 }, // A X Y B
-				],
-			},
-		}],
+		marks: {
+			modifyI: [{
+				foo: {
+					nodes: [
+						{ type: "Move", id: 0, count: 1 }, // A
+						1, // M
+						{ type: "Move", id: 0, count: 1 }, // X
+						1, // N
+						{ type: "Move", id: 0, count: 2 }, // Y B
+					],
+					affixes: [
+						{ count: 3, stack: [{ type: "Forward", id: 0 }] },
+						2, // Before and After M
+						{ count: 2, stack: [{ type: "Forward", id: 0 }] },
+						2, // Before and After N
+						{ count: 5, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Move", id: 0, count: 4 }],
+					],
+				},
+			}],
+		},
 	};
 
 	export const e5p: S.Transaction = {
@@ -1236,32 +1278,22 @@ export namespace ScenarioG {
 		ref: 0,
 		newRef: 3,
 		frames: [{
-			priorMoves: [{ seq: 1, id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
-			marks: [{
-				modify: {
-					foo: [
-						{ type: "PriorMoveOutSlice", seq: 1, id: 0 }, // A
-						1, // M
-						{ type: "PriorMoveOutSlice", seq: 1, id: 0 }, // X
-						1, // N
-						{
-							type: "PriorMoveOutSlice",
-							seq: 1,
-							id: 0,
-							length: 2,
-							mods: [
-								1, // Y
-								{
-									type: "Insert",
-									id: 0,
-									content: [{ id: "O" }],
-									commute: Commutativity.None,
-								},
-							],
-						},
-					],
-				},
-			}],
+			marks: {
+				modifyI: [{
+					foo: {
+						tombs: [
+							1, // M
+							{ count: 1, seq: [1, 2], id: 0 }, // X
+							1, // N
+							{ count: 1, seq: [1, 2], id: 0 }, // Y (maybe omit this)
+						],
+						attach: [
+							8, // After Y
+							[{ type: "Insert", id: 0, content: [{ id: "O" }], heed: Effects.None }],
+						],
+					},
+				}],
+			},
 		}],
 	};
 

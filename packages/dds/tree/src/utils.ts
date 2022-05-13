@@ -7,7 +7,7 @@ import structuredClone from "@ungap/structured-clone";
 import { assert } from "@fluidframework/common-utils";
 import {
 	AffixCount,
-	Commutativity,
+	Effects,
 	NodeCount,
 	Offset,
 	Original as O,
@@ -290,10 +290,10 @@ export function findIndexFrom<T>(
 	return undefined;
 }
 
-export function commutesWithDelete(mark: { commute?: Commutativity }): boolean {
+export function commutesWithDelete(mark: { commute?: Effects }): boolean {
 	return mark.commute === undefined
-	|| mark.commute === Commutativity.Full
-	|| mark.commute === Commutativity.Delete
+	|| mark.commute === Effects.All
+	|| mark.commute === Effects.Delete
 	;
 }
 
