@@ -1301,36 +1301,245 @@ export namespace ScenarioG {
 
 export namespace ScenarioH {
 	/**
-	In a trait foo that contains the nodes [A B], three users concurrently attempt the following operations (ordered
-	here from first sequenced to last sequenced):
-	  User 1: slice-move all of trait foo into trait bar with a non-commutative attach
+	Starting state: foo=[A B] bar=[U V] baz=[]
+	  User 1: slice-move all of trait foo after U with a (non-commutative)
 	  User 2: slice-move all of trait bar into trait baz
 	  User 3: insert X after A in foo (commutative)
 
 	X should end up in bar (with A and B).
 	*/
 
-	// TODO: the actual code for the above
+	export const e1: S.Transaction = {
+		ref: 0,
+		seq: 1,
+		frames: [{
+			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
+			marks: {
+				modifyI: [{
+					foo: {
+						nodes: [
+							{ type: "Move", id: 0, count: 2 },
+						],
+						affixes: [
+							{ count: 6, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					bar: {
+						attach: [
+							2, // After U
+							[{ type: "Move", id: 0, count: 2 }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e2: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		frames: [{
+			moves: [{ id: 0, src: { bar: 0 }, dst: { baz: 0 } }],
+			marks: {
+				modifyI: [{
+					bar: {
+						nodes: [
+							{ type: "Move", id: 0, count: 2 },
+						],
+						affixes: [
+							{ count: 6, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					baz: {
+						attach: [
+							[{ type: "Move", id: 0, count: 2 }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e3: S.Transaction = {
+		ref: 0,
+		seq: 3,
+		frames: [{
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							2, // After A
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e2p: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		newRef: 1,
+		frames: [{
+			moves: [{ id: 0, src: { bar: 0 }, dst: { baz: 0 } }],
+			marks: {
+				modifyI: [{
+					bar: {
+						nodes: [
+							{ type: "Move", id: 0, count: 1 },
+							2, // A B
+							{ type: "Move", id: 0, count: 1 },
+						],
+						affixes: [
+							{ count: 3, stack: [{ type: "Forward", id: 0 }] },
+							4,
+							{ count: 3, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					baz: {
+						attach: [
+							[{ type: "Move", id: 0, count: 2 }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e3_r_e1: S.Transaction = {
+		ref: 0,
+		seq: 3,
+		newRef: 1,
+		frames: [{
+			marks: {
+				modifyI: [{
+					bar: {
+						attach: [
+							4, // After A
+							[{
+								type: "Portal",
+								seq: 1,
+								id: 0,
+								heed: Effects.None,
+								attach: [
+									[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
+								],
+							}],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e3p: S.Transaction = {
+		ref: 0,
+		seq: 3,
+		newRef: 2,
+		frames: [{
+			marks: {
+				modifyI: [{
+					bar: {
+						attach: [
+							2, // After A
+							[{
+								type: "Portal",
+								seq: 1,
+								id: 0,
+								heed: Effects.None,
+								attach: [
+									[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
+								],
+							}],
+						],
+					},
+				}],
+			},
+		}],
+	};
 }
 
 export namespace ScenarioI {
 	/**
-	Starting with:
-		A trait foo that contains the nodes [A B]
-		A trait bar that contains the nodes [C D]
-	  User 1: slice-move all of trait foo at the start of bar with a commutative attach
-	  User 2: slice-move all of trait bar at the start of foo with a commutative attach
+	Starting state: foo=[A B] bar=[X Y]
+	  User 1: slice-move all of trait foo after X with a commutative attach
+	  User 2: slice-move all of trait bar after A with a commutative attach
 
 	Option 1: The first edit should apply but not the second.
 		foo: []
-		bar: [A B C D]
+		bar: [X A B Y]
 
-	Option 2: They both apply but the commutativity of the second move is ignored.
-		foo: [A B C D]
+	Option 2: They both apply but a "don't chase your own tail" rule us applied.
+	This rule would also make sense if we allowed slice ranges to move inside themselves.
+		foo: []
+		bar: [X A B Y]
+
+	Option 3: They both apply but the second move's commutativity is ignored.
+		foo: [X A B Y]
 		bar: []
+
+	Option 4: The slice-ness of edit 2 is applied to determine that A and B should be moved as
+	well. Then the commutativity of edits 2 is taken into account, at which point the destination
+	of the first move is still considered to be in bar.
+		foo: []
+		bar: [X A B Y]
+
+	Even though some of the outcomes are the same, there seems to be semantic differences between
+	options 1, 3, 4. A longer cycles (involving a baz trait might make that clearer).
+	The semantic difference may be about whether the destination of the move is changed, or whether
+	it is preserved, but the content that it brought is affected.
 	*/
 
-	// TODO: the actual code for the above
+	export const e1: S.Transaction = {
+		ref: 0,
+		seq: 1,
+		frames: [{
+			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
+			marks: {
+				modifyI: [{
+					foo: {
+						nodes: [
+							{ type: "Move", id: 0, count: 2 },
+						],
+						affixes: [
+							{ count: 6, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					bar: {
+						attach: [
+							[{ type: "Move", id: 0, count: 2 }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e2: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		frames: [{
+			moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
+			marks: {
+				modifyI: [{
+					bar: {
+						nodes: [
+							{ type: "Move", id: 0, count: 2 },
+						],
+						affixes: [
+							{ count: 6, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					foo: {
+						attach: [
+							[{ type: "Move", id: 0, count: 2 }],
+						],
+					},
+				}],
+			},
+		}],
+	};
 }
 
 export namespace ScenarioJ {
@@ -1344,7 +1553,81 @@ export namespace ScenarioJ {
 	Expected outcome: foo=[] bar=[A, X, Y, C]
 	*/
 
-	// TODO: the actual code for the above
+	export const e1: S.Transaction = {
+		ref: 0,
+		seq: 1,
+		frames: [{
+			marks: {
+				modifyI: [{
+					foo: {
+						nodes: [
+							1, // A
+							{ type: "Delete", id: 0, count: 1 },
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e2: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		frames: [{
+			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
+			marks: {
+				modifyI: [{
+					foo: {
+						nodes: [
+							{ type: "Move", id: 0, count: 3 },
+						],
+						affixes: [
+							{ count: 8, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					bar: {
+						attach: [
+							[{ type: "Move", id: 0, count: 3 }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e3: S.Transaction = {
+		ref: 0,
+		seq: 3,
+		frames: [{
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							4, // After B
+							[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e4: S.Transaction = {
+		ref: 0,
+		seq: 4,
+		frames: [{
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							2, // After A
+							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+						],
+					},
+				}],
+			},
+		}],
+	};
 }
 
 export const allOriginals = [

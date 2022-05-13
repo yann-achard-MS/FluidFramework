@@ -502,10 +502,9 @@ export namespace Rebased {
 	 * Used to represent attach operations whose target affix exits only as a result of a slice
 	 * move-in.
 	 */
-	export interface Portal {
+	export interface Portal extends HasOpId, IsPlace{
 		type: "Portal";
 		seq: SeqNumber;
-		id: OpId;
 		tombs?: OffsetList<Tombstones, NodeCount>;
 		attach: OffsetList<Attach[], AffixCount>;
 	}
