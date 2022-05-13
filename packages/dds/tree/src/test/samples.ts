@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { Effects, Rebased as R, Sibling, Sequenced as S, RangeType } from "../format";
+import { Effects, Rebased as R, Sequenced as S } from "../format";
 
 export namespace InsertRoot {
 	export const e1: R.ChangeFrame = {
@@ -43,7 +43,7 @@ export namespace InsertRoot {
 				],
 			],
 		},
-	}
+	};
 }
 
 export namespace SwapCousins {
@@ -797,7 +797,6 @@ export namespace ScenarioD {
 		ref: 0,
 		newRef: 1,
 		frames: [{
-			priorMoves: [{ seq: 1, id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			moves: [{ id: 0, src: { foo: 0 }, dst: { baz: 0 } }],
 			marks: {
 				modifyI: [{
@@ -1043,7 +1042,7 @@ export namespace ScenarioG {
 							{ type: "Move", id: 0, count: 2 },
 						],
 						affixes: [
-							{ count: 6, stack: [{ type: "Forward", id: 0 }] }
+							{ count: 6, stack: [{ type: "Forward", id: 0 }] },
 						],
 					},
 					bar: {
