@@ -521,23 +521,33 @@ CP:CL: used for text insertion that should move with its surrounding region no m
 
 NP:NL: used for text insertion that should not move with its surrounding region no matter the sequencing
 
-NP:CL: used for the LLW trait scenario
+NP:CL: used for the LWW trait scenario
 
-CP:NL: ?
+CP:NL: used for the LWW trait scenario if you want FWW instead (without using constraints)
 
 Maybe the scenario where you don't want to commute with a slice-range that occurs after you is questionable? This is based on the intuition that slice-ranges are dubious: if the domain model would ideally have had a hierarchy and the slice-range would be replaced with a set range over the parent(s), then any concurrent insertions under that/those parent(s) would be affected by the range operation.
 There seems to be a flaw in this reasoning: if the domain model had had a hierarchy, the insert author would have been able to insert at either level of the hierarchy. For example, adding a letter to fix a typo in a word would be an insert at the bottom level of the hierarchy (in which case it would indeed be affected by the range), but inserting a whole new paragraph would have been made at the same level of the hierarchy (or above) as that of the range, in which case it would not be affected by the range. In the absence of hierarchy, the insert locations for letters and paragraphs end up at the same level. In essence, what the commutativity flag lets you do, is describe which layer of the ideal hierarchy your insert is targeting.
 
-An interesting implication of the above, is that this commutativity flag is too limited to allow edit authors to replicate the merge semantics of tree hierarchies:
+An interesting implication of the above, is that commutativity flags alone are too limited to allow edit authors to replicate the merge semantics of tree hierarchies. In addition the pair of flags, we need to:
 
-- The flag should be an integer describing which layer of the tree is would be targeting in the hierarchy. Essentially a depth indicator.
+- Add to inserts a number (typically integer) describing which layer of the imaginary tree would be targeting in the hierarchy. Essentially a depth indicator.
 
-- Ranges should also have such a property to describe which layer they're targeting.
+- Add such a number to ranges as well.
 
-- To determine whether an insert is affected by a slice range we would check whether its depth is greater than that of the range.
+To determine whether an insert is affected by a slice range we would check whether its depth is greater than that of the range. A greater depth on this insert means that it is affected, a more shallow depth means that it is not affected, and the same depth means we're left to check the commutativity flags.
 
-Do we still need slice-like inclusion of concurrent content when the depth is the same? If so, do we still need a way for inserts to commute with slice ranges?
-We would in fixed-sized traits at least: fixed sized traits allow the imagined hierarchy to be different in each edit: one edit may imply a hierarchy where cells 1-10 form a unit, while some other edit may imply a hierarchy where cells 5-15 form a unit.
+Do we really still need slice-like inclusion of concurrent content when the depth is the same, or are we only left with scenarios that set-like ranges can solve? 
+We still need slice-like ranges: you may have list of tasks ordered by priority (and no implicit hierarchy) and you may want to slice-delete/move all tasks after task 5. Note that this refutes the claim that slice ranges are dubious/a kludge that is only motivated by the absence of a proper hierarchy.
+
+Assuming inserts and slices have an integer describing their depth, which of the four cells of the 2x2 matrix are still useful?
+
+CP:CL: used for the typo scenario
+
+NP:NL: used for a paragraph inserted in a range of paragraphs being deleted. This seems to flatly contradict the author of the slice range. This is fine: inserts have more context, what the slice range author is doing is allowing inserts to opt into being affected by their range.
+
+NP:CL: used for the LWW trait scenario
+
+CP:NL: used for the LWW trait scenario if you want FWW instead (without using constraints)
 
 ## What should be the outcome of the insert-in-moved-move scenario?
 
