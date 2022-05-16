@@ -262,7 +262,7 @@ export namespace ScenarioA1 {
 								type: "Portal",
 								seq: 2,
 								id: 1,
-								tombs: [{ count: 2, seq: 1, id: 1 } ],
+								tombs: [{ count: 2, seq: 1, id: 0 }],
 								attach: [
 									4, // After B
 									[{
