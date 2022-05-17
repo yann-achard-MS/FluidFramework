@@ -395,15 +395,19 @@ export namespace Rebased {
 
 	export interface TraitMarks {
 		/**
-		 * Lists the tombstones that must be taken into account in order to represent the changes
-		 * made to this trait. Without it, describing the changes would be like drawing on an
-		 * incomplete canvas.
+		 * Lists the tombstones and birthstones that must be taken into account in order to
+		 * represent the changes made to this trait. Without it, describing the changes would be
+		 * like drawing on an incomplete canvas.
 		 *
-		 * Note that nodes concurrently inserted by prior changes are also included in
-		 * the `NodeCount` offsets. It's an open question whether they need to be called out as
-		 * different from standard offsets and if so what metadata they need to carry.
+		 * Note that only stones that are necessary for the description of the changes to this
+		 * trait are represented here. This means we do not include stones for prior detaches and
+		 * attaches when the affixes of the detached/attached nodes are not being targeted by this
+		 * change. The only caveat is that whenever we include stones for a prior operation, we
+		 * include all of them (i.e., all of the stones for that unique pair of seq# and id#). The
+		 * reason for this is that otherwise, there is no way to tell which of the stones for that
+		 * prior edit are being represented.
 		 */
-		tombs?: OffsetList<Tombstones, NodeCount>;
+		stones?: OffsetList<Stones, NodeCount>;
 
 		/**
 		 * Operations that attach content in a new location.
@@ -498,18 +502,7 @@ export namespace Rebased {
 		count: NodeCount;
 	}
 
-	/**
-	 * Used to represent attach operations whose target affix exits only as a result of a slice
-	 * move-in.
-	 */
-	export interface Portal extends HasOpId, IsPlace{
-		type: "Portal";
-		seq: SeqNumber;
-		tombs?: OffsetList<Tombstones, NodeCount>;
-		attach: OffsetList<Attach[], AffixCount>;
-	}
-
-	export type Attach = Insert | MoveIn | Portal;
+	export type Attach = Insert | MoveIn;
 
 	export interface OpenAffixEffects {
 		count: AffixCount;
@@ -547,8 +540,27 @@ export namespace Rebased {
 		count: NodeCount;
 	}
 
-	export interface Tombstones {
+	export type Stones = Tombstones | Birthstones;
+
+	export interface Tombstones extends IsStone {
+		type?: "Tomb";
 		count: NodeCount;
+	}
+
+	/**
+	 * Used to represent prior attach operation whose details are relevant to the full characterization
+	 * of current changes.
+	 *
+	 * The only known case for it is a prior slice-move whose affixes are being targeted by a concurrent
+	 * insert that embraced the slice-move.
+	 */
+	export interface Birthstones extends IsStone {
+		type: "Birth";
+		count: NodeCount;
+		stones?: OffsetList<Stones, NodeCount>;
+	}
+
+	export interface IsStone {
 		/**
 		 * The sequence number of the edit that caused the nodes to be detached.
 		 *

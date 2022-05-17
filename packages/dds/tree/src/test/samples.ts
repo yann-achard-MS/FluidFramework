@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { Effects, Rebased as R, Sequenced as S } from "../format";
+import { Effects, Rebased as R, Sequenced as S, Tiebreak } from "../format";
 
 export namespace InsertRoot {
 	export const e1: R.ChangeFrame = {
@@ -206,7 +206,7 @@ export namespace ScenarioA1 {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [1, { count: 2, seq: 1, id: 1 } ],
+						stones: [1, { count: 2, seq: 1, id: 1 } ],
 						nodes: [
 							1, // Skip A
 							{
@@ -238,7 +238,7 @@ export namespace ScenarioA1 {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [1, { count: 2, seq: 1, id: 1 } ],
+						stones: [1, { count: 2, seq: 1, id: 1 } ],
 						attach: [
 							4, // After B
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
@@ -257,21 +257,20 @@ export namespace ScenarioA1 {
 			marks: {
 				modifyI: [{
 					bar: {
+						stones: [{
+							type: "Birth",
+							count: 3,
+							seq: 2,
+							id: 1,
+							stones: [{ count: 2, seq: 1, id: 0 }],
+						}],
 						attach: [
+							2, // After B
 							[{
-								type: "Portal",
-								seq: 2,
-								id: 1,
-								tombs: [{ count: 2, seq: 1, id: 0 }],
-								attach: [
-									4, // After B
-									[{
-										type: "Insert",
-										id: 0,
-										content: [{ id: "X" }],
-										heed: Effects.All,
-									}],
-								],
+								type: "Insert",
+								id: 0,
+								content: [{ id: "X" }],
+								heed: Effects.All,
 							}],
 						],
 					},
@@ -369,7 +368,7 @@ export namespace ScenarioA2 {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [1, { count: 2, seq: 1, id: 1 } ],
+						stones: [1, { count: 2, seq: 1, id: 1 } ],
 						nodes: [
 							2, // Skip A B
 							{ type: "Move", id: 0, count: 2 },
@@ -397,7 +396,7 @@ export namespace ScenarioA2 {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [1, { count: 2, seq: 1, id: 1 } ],
+						stones: [1, { count: 2, seq: 1, id: 1 } ],
 						attach: [
 							6, // After C
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
@@ -416,21 +415,20 @@ export namespace ScenarioA2 {
 			marks: {
 				modifyI: [{
 					bar: {
+						stones: [{
+							type: "Birth",
+							count: 2,
+							seq: 2,
+							id: 1,
+							stones: [{ count: 1, seq: 1, id: 0 }],
+						}],
 						attach: [
+							2, // After C
 							[{
-								type: "Portal",
-								seq: 2,
-								id: 1,
-								tombs: [{ count: 2, seq: 1, id: 1 } ],
-								attach: [
-									2, // After C
-									[{
-										type: "Insert",
-										id: 0,
-										content: [{ id: "X" }],
-										heed: Effects.All,
-									}],
-								],
+								type: "Insert",
+								id: 0,
+								content: [{ id: "X" }],
+								heed: Effects.All,
 							}],
 						],
 					},
@@ -506,7 +504,7 @@ export namespace ScenarioB {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [{ count: 4, seq: 1, id: 1 }],
+						stones: [{ count: 4, seq: 1, id: 1 }],
 						attach: [
 							2, // After A
 							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
@@ -525,7 +523,7 @@ export namespace ScenarioB {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [{ count: 4, seq: 1, id: 1 }],
+						stones: [{ count: 4, seq: 1, id: 1 }],
 						attach: [
 							4, // After B
 							[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
@@ -544,7 +542,7 @@ export namespace ScenarioB {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [
+						stones: [
 							{ count: 1, seq: 1, id: 1 },
 							1, // X
 							{ count: 3, seq: 1, id: 1 },
@@ -595,7 +593,7 @@ export namespace ScenarioC {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [{ count: 1, seq: 1, id: 0 }],
+						stones: [{ count: 1, seq: 1, id: 0 }],
 						nodes: [
 							{ type: "Revive", id: 0 , count: 1 },
 						],
@@ -629,7 +627,7 @@ export namespace ScenarioC {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [{ count: 1, seq: 1, id: 0 }],
+						stones: [{ count: 1, seq: 1, id: 0 }],
 						nodes: [
 							{ type: "Delete", id: 0 , count: 1 },
 						],
@@ -680,7 +678,7 @@ export namespace ScenarioC {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [{ count: 1, seq: 1, id: 0 }],
+						stones: [{ count: 1, seq: 1, id: 0 }],
 						nodes: [
 							{ type: "Delete", id: 0 , count: 1 },
 						],
@@ -715,7 +713,7 @@ export namespace ScenarioC {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [{ count: 1, seq: 1, id: 0 }],
+						stones: [{ count: 1, seq: 1, id: 0 }],
 						nodes: [
 							{ type: "Delete", id: 0 , count: 1 },
 						],
@@ -801,7 +799,7 @@ export namespace ScenarioD {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [
+						stones: [
 							1,
 							{ seq: 1, id: 0, count: 1 }, // B
 						],
@@ -889,7 +887,7 @@ export namespace ScenarioE {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [
+						stones: [
 							1,
 							{ seq: 1, id: 0, count: 1 }, // B
 						],
@@ -1180,7 +1178,7 @@ export namespace ScenarioG {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [
+						stones: [
 							{ count: 1, seq: 1, id: 0 }, // A
 							{ count: 2, seq: [1, 2], id: 0 }, // X Y
 							{ count: 1, seq: 1, id: 0 }, // B
@@ -1228,7 +1226,7 @@ export namespace ScenarioG {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [
+						stones: [
 							{ count: 1, seq: [1, 2], id: 0 }, // X
 							1, // N
 							{ count: 1, seq: [1, 2], id: 0 }, // Y
@@ -1280,7 +1278,7 @@ export namespace ScenarioG {
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [
+						stones: [
 							1, // M
 							{ count: 1, seq: [1, 2], id: 0 }, // X
 							1, // N
@@ -1415,17 +1413,10 @@ export namespace ScenarioH {
 			marks: {
 				modifyI: [{
 					bar: {
+						stones: [{ type: "Birth", count: 2, seq: 1, id: 0 }],
 						attach: [
 							4, // After A
-							[{
-								type: "Portal",
-								seq: 1,
-								id: 0,
-								heed: Effects.None,
-								attach: [
-									[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
-								],
-							}],
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 						],
 					},
 				}],
@@ -1441,17 +1432,10 @@ export namespace ScenarioH {
 			marks: {
 				modifyI: [{
 					bar: {
+						stones: [{ type: "Birth", count: 2, seq: 1, id: 0 }],
 						attach: [
 							2, // After A
-							[{
-								type: "Portal",
-								seq: 1,
-								id: 0,
-								heed: Effects.None,
-								attach: [
-									[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
-								],
-							}],
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 						],
 					},
 				}],
@@ -1495,7 +1479,7 @@ export namespace ScenarioI {
 		ref: 0,
 		seq: 1,
 		frames: [{
-			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
+			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 1 } }],
 			marks: {
 				modifyI: [{
 					foo: {
@@ -1508,6 +1492,7 @@ export namespace ScenarioI {
 					},
 					bar: {
 						attach: [
+							2, // After X
 							[{ type: "Move", id: 0, count: 2 }],
 						],
 					},
@@ -1520,7 +1505,7 @@ export namespace ScenarioI {
 		ref: 0,
 		seq: 2,
 		frames: [{
-			moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
+			moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 1 } }],
 			marks: {
 				modifyI: [{
 					bar: {
@@ -1533,6 +1518,7 @@ export namespace ScenarioI {
 					},
 					foo: {
 						attach: [
+							2, // After A
 							[{ type: "Move", id: 0, count: 2 }],
 						],
 					},
@@ -1545,12 +1531,13 @@ export namespace ScenarioI {
 export namespace ScenarioJ {
 	/**
 	Starting with a trait foo that contains the nodes [A B C]:
-	  User 1: set-delete node B
-	  User 2: slice-move all of trait foo to trait bar
-	  User 3: insert Y after B (LLW commutative)
-	  User 4: insert X after A (LLW commutative)
+	  1. User 1: set-delete node B
+	  2. User 2: slice-move all of trait foo to trait bar
+	  3. User 3: insert Y after B (LLW commutative)
+	  4. User 4: insert X before B (LLW commutative)
+	  5. User 5: insert W after A (FFW) and insert Z before C (FFW) (with knowledge with e1 and e2)
 
-	Expected outcome: foo=[] bar=[A, X, Y, C]
+	Expected outcome: foo=[] bar=[X, Y]
 	*/
 
 	export const e1: S.Transaction = {
@@ -1561,7 +1548,7 @@ export namespace ScenarioJ {
 				modifyI: [{
 					foo: {
 						nodes: [
-							1, // A
+							1, // Skip A
 							{ type: "Delete", id: 0, count: 1 },
 						],
 					},
@@ -1620,8 +1607,219 @@ export namespace ScenarioJ {
 				modifyI: [{
 					foo: {
 						attach: [
-							2, // After A
+							3, // Before B
 							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e5: S.Transaction = {
+		ref: 2, // With knowledge with e1 and e2
+		seq: 5,
+		frames: [{
+			marks: {
+				modifyI: [{
+					bar: {
+						attach: [
+							2, // After A
+							[{ type: "Insert", id: 0, content: [{ id: "W" }], tiebreak: Tiebreak.FWW }],
+							// Note how this second insert is in a separate array from the insert above.
+							// This means it targets the next affix (i.e., Before C)
+							[{ type: "Insert", id: 0, content: [{ id: "Z" }], tiebreak: Tiebreak.FWW }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e2p: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		newRef: 1,
+		frames: [{
+			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
+			marks: {
+				modifyI: [{
+					foo: {
+						stones: [1, { count: 1, seq: 1, id: 0 }],
+						nodes: [
+							{ type: "Move", id: 0, count: 3 },
+						],
+						affixes: [
+							{ count: 8, stack: [{ type: "Forward", id: 0 }] },
+						],
+					},
+					bar: {
+						attach: [
+							[{ type: "Move", id: 0, count: 3 }], // Count is not updated
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e3_r_e1: S.Transaction = {
+		ref: 0,
+		seq: 3,
+		newRef: 1,
+		frames: [{
+			marks: {
+				modifyI: [{
+					foo: {
+						stones: [1, { count: 1, seq: 1, id: 0 }],
+						attach: [
+							4, // After B
+							[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e3p: S.Transaction = {
+		ref: 0,
+		seq: 3,
+		newRef: 2,
+		frames: [{
+			marks: {
+				modifyI: [{
+					bar: {
+						stones: [{
+							type: "Birth",
+							count: 3,
+							seq: 2,
+							id: 0,
+							stones: [1, { count: 1, seq: 1, id: 0 }],
+						}],
+						attach: [
+							4, // After B
+							[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e4_r_e1: S.Transaction = {
+		ref: 0,
+		seq: 4,
+		newRef: 1,
+		frames: [{
+			marks: {
+				modifyI: [{
+					foo: {
+						stones: [1, { count: 1, seq: 1, id: 0 }],
+						attach: [
+							3, // Before B
+							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e4_r_e2: S.Transaction = {
+		ref: 0,
+		seq: 4,
+		newRef: 2,
+		frames: [{
+			marks: {
+				modifyI: [{
+					bar: {
+						stones: [
+							{
+								type: "Birth",
+								count: 3,
+								seq: 2,
+								id: 0,
+								stones: [1, { count: 1, seq: 1, id: 0 }],
+							},
+						],
+						attach: [
+							3, // Before B
+							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e4p: S.Transaction = {
+		ref: 0,
+		seq: 4,
+		newRef: 3,
+		frames: [{
+			marks: {
+				modifyI: [{
+					bar: {
+						stones: [
+							{
+								type: "Birth",
+								count: 2,
+								seq: 2,
+								id: 0,
+								stones: [1, { count: 1, seq: 1, id: 0 }],
+							},
+							1, // Y
+							{
+								type: "Birth",
+								count: 1,
+								seq: 2,
+								id: 0,
+							},
+						],
+						attach: [
+							3, // Before B
+							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e5_r_e3: S.Transaction = {
+		ref: 2,
+		seq: 5,
+		newRef: 3,
+		frames: [{
+			marks: {
+				modifyI: [{
+					bar: {
+						attach: [
+							2, // After A
+							[{ type: "Insert", id: 0, content: [{ id: "W" }], tiebreak: Tiebreak.FWW }],
+							2, // Affixes for Y
+							[{ type: "Insert", id: 0, content: [{ id: "Z" }], tiebreak: Tiebreak.FWW }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e5p: S.Transaction = {
+		ref: 2,
+		seq: 5,
+		newRef: 4,
+		frames: [{
+			marks: {
+				modifyI: [{
+					bar: {
+						attach: [
+							2, // After A
+							[{ type: "Insert", id: 0, content: [{ id: "W" }], tiebreak: Tiebreak.FWW }],
+							4, // Affixes for X and Y
+							[{ type: "Insert", id: 0, content: [{ id: "Z" }], tiebreak: Tiebreak.FWW }],
 						],
 					},
 				}],
