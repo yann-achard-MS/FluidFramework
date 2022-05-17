@@ -574,11 +574,13 @@ What's at stake between options 1 and 2, is the precise semantics of commuting w
 
 * Under option 1 (X is affected by both moves) when the insertion of X is forwarded to bar, it is treated as *brand new* insertion within that affix. Since the affix is affected by the bar=>baz rule and the insert is commutative, it makes sense for that insert so be forwarded again to baz.
 
-* Under option 2 (X is only affected by the first move) when the insertion of X is forwarded to bar, it is treated as *nested* insertion within the content being moved (i.e., nodes A and B). As such, it obeys the same rules as that content, which is to say it obeys the foo=>bar move's choice of not commuting.
+* Under option 2 (X is only affected by the first move) when the insertion of X is forwarded to bar, it is treated as a *nested* insertion within the content being moved (i.e., nodes A and B). As such, it obeys the same rules as that content, which is to say it obeys the foo=>bar move's choice of not commuting.
 
 We find option 2 preferable for the following reasons:
 
 * It matches the natural expectation that making the insert of X commutative means X will follow its surrounding nodes if a slice range were to move those nodes.
+
+* It matches the semantics pretending the insertion happened first.
 
 * The alternative (i.e., option 1) would...
   
@@ -592,42 +594,23 @@ We find option 2 preferable for the following reasons:
 
 ## How to represent inserts that commute with a concurrent slice move?
 
-Move the insert mark to the destination of the move. This allows us to avoid having to represent affix effects from prior changes over which the current change was rebased. We do however have to represent the precise affix that the forwarded insert targets because we need to be able to understand how other such forwarded inserts should be ordered relative to it.
+Move the insert mark to the destination of the move. This allows us to avoid having to represent affix effects from prior changes over which the current change was rebased. We do however have to represent the precise affix that the forwarded insert targets because we need to be able to understand how other such forwarded inserts should be ordered relative to it. This includes cases where nodes in the slice that was moved were concurrently deleted (See scenarios A1, A2,  J).
 
-This leads to the question of how one would recover the original intention (i.e., the original insert location). This is needed when postbasing the inverse of the move over the (rebased) insert. This can be worked out based on the affix of the rebased insertion: we can tell that the affix it targets only came about as a result of the move and we can tell the insert was concurrent with the move because of the original ref seq number.
+We also need to be able to recover the original intention (i.e., the original insert location). This is needed when postbasing the inverse of the move over the (rebased) insert. This can be worked out based on the affix of the rebased insertion: we can tell that the affix it targets only came about as a result of the move and we can tell the insert was concurrent with the move because of the original ref seq number.
 
-What about when the source content has been (concurrently) deleted?
+As per the previous section about the semantics of sliced inserts, we need a way to describe the affix that the insert would have targeted in the original insert location. So what we need is a way for the inserts that ends up (due to rebasing) at the destination of the move to include more information about their affix of origin.
 
-We still need to describe the number of affixes being introduced by the move because we need to be able to correctly order many such commutative insertions in the deleted region of the move source.
+In the end, the rebased sliced insert will need to target an affix in the input context that applies to. For the sake of relative ordering with concurrent inserts that directly target those affixes (e.g., inserts that were authored after the slice-move), we need to ensure that the sliced insert targets the most appropriate affix in the input context. For a slice-move over [A B C], where B was concurrently deleted, a sliced insert "after B" could be represented as "after A" or "before C". If we pick "after A" because we want to preserve the "after"-ness of the insert, then we run into the issue that another insert that was supposed to be "before B" would now become "before B", which yields the wrong ordering. This is the problem that tombstones are meant to fix.
 
-Proposal: do not update the number of moved-in nodes. This allows the moved insert(s) to target the affixes of the moved deleted nodes. Note that this then requires readers of the move changeset to keep track of the fact that a prior delete has impacted the source region. It also requires the rebased insert to include tombstone information stating that the area they're inserting into has been deleted by the delete. This is a little strange because this leads to the inclusion (duplication) of tombstones in traits that the deletion did not target.
+Aside from this problem of targeting a potentially non-existent affix, there is the problem of preserving information about the commutativity properties of the move-in and the commutativity properties of the insert: as per the previous section, we cannot treat the sliced-insert as a brand new insert: if a slice-move has a non commutative insert then we don't want its (necessarily commutative) slice-inserts to become commutative with slice operations that would have tried (and failed) to affect the slice-move's move-in. One bad thing we could do is to alter the sliced insert's commutativity to reflect the strictures of the move-in's commutativity. Doing this however would prevent us from recovering the insert's original commutativity information which we may need in the advent of the slice-move being undone. So we need to preserve the commutativity information of both the sliced-insert and the slice-move's move-in. This issue generalizes to the need to recall all the commutativity information for all the chaining moves the insert might have gone through.
 
-Scenarios A1 and A2 are examples of this complex case.
+Finally, we need to ensure that it's clear the sliced insert is targeting a portion of the trait as the result of commuting over a slice. This is to differentiate it from "normal" inserts that may target the same affix but were authored after the move.
 
-Wait: how does this work for slice moves that don't contain nodes? (See scenario J)
+These three requirements maybe prove to be motivation enough for representing prior attaches explicitly instead of just having offsets in the "tomb" field. Note that such a prior insert would need to also carry tombstone information in the case of a move. How would such a prior insert deal with the need to represent chains of slice-moves? The prior insert would need to contain prior inserts within it as well.
 
-The assumption that affixes and nodes follow a standardized _ _ N _ _ pattern may be wrong: you could make K slices over single or pairs of affixes (without nodes) and move all of those to a single location, thereby creating an arbitrarily long sequence of affixes. 
+An alternative idea is to have a special attach segment that includes information about being present as the result of commuting with a slice-move. Each such insert would have to reiterate this provenance information at least in the case where the insert affix at the original location would have been different. This however forces us to emulate several imported affixes within a single affix because insert that targeted the affixes of moved nodes that were concurrently deleted would end up in the affixes of the closest (non concurrently deleted) node. This would mean interpreting further inserts in those affixes wouldn't simply be a matter of appending or prepending: we would have to look at the concurrently inserted content and whether it came from an insert that commuted with a slice-move.
 
-Perhaps that pattern is not wrong because the slices all fall into a single affix. What we need is a way for either:
-
-* the move-in to carry information about all of the nodes and affixes that it imports/maps/injects/portals into the trait. In the case of a set-move it's pure nodes. In the case of slice moves, it's both (or either).
-
-* the inserts that end up (due to rebasing) at the destination of the move to include more information about their affix of origin
-
-Insert only introduces nodes, which lead to more affixes in the output context. Is it fair to say that that move can introduce a mixture of both nodes and affixes? Maybe not because those affixes can't be inserted at either during the change or after it. What can happen though is that two later concurrent inserts (that commute with the move) have to be able to target the adequate affix, and they have to be relatively ordered based on their ordering in time, but also based on which affix they would have targeted in the original location.
-
-When moving a slice with nodes, is the fact that the affixes covered by the slice match the affixes introduced by the nodes in the output context a coincidence? You can for example make your slice such that it does not include the affixes before the first node and the affixes after the last node, but those affixes will still exist in the output context.
-
-How was this problem addressed in previous iterations of the format?
-Most recently at least, the inserted content was left in its original target trait within a prior slice move segment. How would that have been able to pick up on other moves that it should chain with?
-
-## How to represent the starting location of a slice move that does not contain any nodes?
-
-We could have separate information for affix movement and node movement.
-
-We could omit where in the trait the source and destination are (let the reader consume the trait marks to find out)
-
-We could list the index of the first node that would be in the range if the range did contain nodes.
+The idea of representing prior attaches explicitly seems simpler.
 
 ## Other Notes
 
