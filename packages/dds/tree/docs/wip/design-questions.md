@@ -604,7 +604,7 @@ As per the previous section about the semantics of sliced inserts, we need a way
 
 2. That sliced inserts and "normal" inserts (inserts that were authored after the slice-move) are ordered correctly.
 
-3. That the commutativity properties of the move-in and the commutativity properties of the sliced inserts are all preserved. The former is needed when rebasing over further slices-ranges in order to determine whether slice-move that brought the sliced insert in this location would have been affected by the new slice-range. The latter is needed for undo purposes (i.e., to restore the insert to its original location when either rebasing the sliced insert over the inverse of the slice-move or when postbasing the inverse of the slice-move over the rebased sliced insert). This generalizes to the need to recall all the commutativity information for all the chaining moves the insert might have gone through.
+3. That the commutativity properties of the sliced inserts are preserved. This is needed for undo purposes (i.e., to restore the insert to its original location when either rebasing the sliced insert over the inverse of the slice-move or when postbasing the inverse of the slice-move over the rebased sliced insert).
 
 4. That it's clear the sliced insert is targeting a portion of the trait as the result of commuting over that specific slice-move. This is to differentiate it from "normal" inserts that may target the same affix but were authored after the move. This is needed for undo purposes.
 
@@ -618,9 +618,35 @@ Proposed solution: represent the prior attaches of slice ranges explicitly using
 
 Another open question is when to represent prior inserts explicitly. We could represent all prior inserts as such, or only those from slice-moves, or only those from slice-moves whose imported affixes are being targeted by sliced inserts. This design question is similar to the one about tombstones, so it seems best to apply the same principle: only represent them when needed.
 
-## Other Notes
+New issue: slice moves can include start and/or end of trait affixes from its source. When that's the case, the design above doesn't give us a way to represent those affixes. More generally, we don't have a way of representing the target affix for an insert if that affix doesn't correspond to a node that was included in the slice. This is the case for the affixes that represent the trait extremities but also affixes that represent "after A" and "before B" in a slice `[A (_ _) B]`, or the slice before B in a slice `[(A _ _) B]`, or the slice "after A"in a slice `[A (_ _ B)]`. The practical consequence of not having affixes for those is that proper ordering information can be lost.
 
-Interesting concept: we can count the number of times something is deleted, which would allow us to know that an item is still deleted even after one of the deletes has been undone. Doing this would mean that if N participants try to delete the same node then all N need to undo for the node to be brought back to life.
+This seems to indicate that the relevant aspect of birthstones is not what nodes they imported, but what affixes they imported. This in turn prompts the question: are tombstones also about affixes? Upon examination, it seems they are indeed: they allow  inserts to target those affixes that correspond to concurrently detached content. But tombstones are also about nodes: they allow the change to describe effects they want(ed) to apply to such nodes.
+
+We could separate the tombstone information about nodes from the tombstone information about affixes and merge the latter with birthstone information about affixes. The tombstone information about nodes could be represented inline in node operations, which is where it is relevant anyway (that's an improvement). The difficulty with such a format is that the ordering of nodes in the input context and prior affixes is potentially complex. For example, we could have a pair of nodes in the input context with any number of affixes between them. How do we communicate where the prior affixes are among the nodes in the input context? Another aspect to take into account is the space complexity of the representation: if a slice move introduces 100 nodes, we don't want a 99 little affix segments in between them. Do we even want to represent those affixes as prior affixes? The answer has to be "no" because we need concurrent inserts that target the trait directly (i.e., inserts that are not redirected by the slice) to target the same affix as the sliced inserts. Since we don't want to represent those affixes as separate, then we don't have the problem of finding an efficient representation for them.
+
+Note that we still need to represent prior affixes for prior deletions of slice-moved content as pertaining to that slice move. This is in opposition to just representing those prior affixes the same way we represent prior affixes from "local" deletions. The problem with representing those the same way is that because the same prior deletion can end up being represented multiple times within the same trait, we wouldn't know, when encountering one of them, which of the possibly many it is we're looking at (see scenario K).
+
+Do we solely need to indicate which slice-move (if any) affixes come from or we do also need to indicate which slice-move (if any) the slice move that the affixes come from itself comes from? In other words, is the need to indicate the slice-move origin recursive (in which case we need to list the whole ancestry?) or can we get away with only listing the closest parent move? Consider the following scenario:
+
+* Starting with a trait foo that contains the nodes [A B C]:
+
+* User 1: set-delete node B (1st occurrence of affixes for B)
+
+* User 2: slice-move [A B C] to the end of trait foo (LLW commutative) (2nd occurrence of affixes for B)
+
+* User 3: slice-move [A B C] to the end of trait foo (LLW commutative) (3rd occurrence of affixes for B) 
+
+* User 4: slice-move all of foo to the end of trait foo (4th, 5th, 6th occurrences of affixes for B)
+
+In order for an insert to target any of the three affixes introduced by user 4, it would have to be commutative with prior slice moves. If it were so, then it would have to have ended up in the 2nd occurrence of the affixes (introduced by user 2). In other words, no insert can target the affixes introduced by user 3 (the 3rd occurrence) therefore, no insert can target the affixes in the 5th occurrence. Similarly, such an insert would not have continue to target the first occurrence of such affixes, which means no insert can target the affixes in the 4th occurrence. These two facts together combine to make it so that across all replicas for affixes introduced by a prior change, only the original and the and the "heir" replica (i.e., first-born replica of the longest chain of slice-moved) can be targeted. This then means a single bit/boolean is sufficient to tell them apart (see scenarios K and L).
+
+## Would it be best to represent priorA and priorN together?
+
+## Should move-in counts be updated to represent the actual number of attached nodes?
+
+## Should move-ins indicate the number of affixes being imported?
+
+## Other Notes
 
 Avoid data races against the computer because it leads to user confusion. In other words: we don't want merge outcomes to be different if the Fluid service is a little faster or a little slower.
 

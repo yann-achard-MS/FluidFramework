@@ -110,7 +110,7 @@ const deleteSlice: R.ChangeFrame = {
 };
 const reviveSet: R.ChangeFrame = {
 	marks: {
-		stones: [
+		priors: [
 			{ count: 2, seq, id: 0 },
 			1,
 			{ count: 3, seq, id: 1 },
@@ -132,7 +132,7 @@ const reviveSet: R.ChangeFrame = {
 };
 const reviveSlice: R.ChangeFrame = {
 	marks: {
-		stones: [
+		priors: [
 			{ count: 2, seq, id: 0 },
 			1,
 			{ count: 3, seq, id: 1 },

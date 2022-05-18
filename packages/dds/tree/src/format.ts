@@ -395,49 +395,80 @@ export namespace Rebased {
 
 	export interface TraitMarks {
 		/**
-		 * Lists the tombstones and birthstones that must be taken into account in order to
-		 * represent the changes made to this trait. Without it, describing the changes would be
+		 * Lists the additional affixes that must be taken into account in order to
+		 * represent the changes made to this trait. Without them, describing the changes would be
 		 * like drawing on an incomplete canvas.
 		 *
-		 * Note that only stones that are necessary for the description of the changes to this
-		 * trait are represented here. This means we do not include stones for prior detaches and
-		 * attaches when the affixes of the detached/attached nodes are not being targeted by this
-		 * change. The only caveat is that whenever we include stones for a prior operation, we
-		 * include all of them (i.e., all of the stones for that unique pair of seq# and id#). The
-		 * reason for this is that otherwise, there is no way to tell which of the stones for that
-		 * prior edit are being represented.
+		 * Note that only affixes that are necessary for the description of the changes to this
+		 * trait are represented here. This means we do not include affixes for prior detaches and
+		 * attaches when they are not being targeted by this change. The only caveat is that
+		 * whenever we include affixes for a prior operation, we include all of them (i.e., all of
+		 * the affixes for that unique pair of seq# and id#). The reason for this is that otherwise
+		 * there is no way to tell which of the affixes for that prior edit are being represented.
 		 */
-		stones?: OffsetList<Stones, NodeCount>;
+		priorA?: OffsetList<PriorAffixes, AffixCount>;
+
+		/**
+		 * Lists the additional (now detached) nodes that must be taken into account in order to
+		 * represent the changes made to this trait. Without them, describing the changes would be
+		 * like drawing on an incomplete canvas.
+		 *
+		 * Note that only nodes that are necessary for the description of the changes to this
+		 * trait are represented here. This means we do not include nodes for prior detaches when
+		 * they are not being targeted by this change. The only caveat is that whenever we include
+		 * nodes for a prior operation, we include all of them (i.e., all of the nodes for that
+		 * unique pair of seq# and id#). The reason for this is that otherwise there is no way to
+		 * tell which of the nodes for that prior edit are being represented here.
+		 */
+		priorN?: OffsetList<PriorNodes, NodeCount>;
 
 		/**
 		 * Operations that attach content in a new location.
 		 * The order of attach segments reflects the intended order of the content in the trait.
+		 *
+		 * Offsets represent affixes that are present in the input context and affixes that were
+		 * for content that was concurrently detached.
 		 */
 		attach?: OffsetList<Attach[], AffixCount>;
 
 		/**
+		 * Represents the changes made to the subtree of each that was concurrently detached.
+		 *
+		 * Offsets represent both nodes that are present in the input context and nodes that were
+		 * concurrently detached.
+		 */
+		modifyD?: OffsetList<Modify, NodeCount>;
+
+		/**
 		 * Represents the changes made to the subtree of each node present in the input context.
 		 *
-		 * Offsets represent both nodes that are deleted and nodes that are preserved.
+		 * Offsets represent nodes that are present in the input context.
 		 */
 		modifyI?: OffsetList<Modify, NodeCount>;
 
 		/**
 		 * Represents the changes made to the subtree of each node present in the output context.
 		 *
-		 * Offsets represent both nodes that are inserted and nodes that are preserved.
+		 * Offsets represent both nodes that are present in the input context and nodes that were
+		 * added by this change.
 		 */
 		modifyO?: OffsetList<Modify, NodeCount>;
 
 		/**
 		 * Operations that affect previously known node locations.
+		 *
+		 * Offsets represent both nodes that are present in the input context and nodes that were
+		 * concurrently detached.
 		 */
-		nodes?: OffsetList<Modify | Detach | Reattach, NodeCount>;
+		nodes?: OffsetList<Detach | Reattach, NodeCount>;
 
 		/**
-		 * Operations that affect concurrently attached content.
-		 * These operation effectively target content that does not exist but may come to exist as
-		 * a result of concurrent changes.
+		 * Operations that may affect concurrently attached content.
+		 * These operation effectively target content that does not yet exist but may come to exist
+		 * as a result of concurrent changes.
+		 *
+		 * Offsets represent affixes that are present in the input context and affixes that were
+		 * for content that was concurrently detached.
 		 */
 		affixes?: OffsetList<OpenAffixEffects | ClosedAffixEffects, AffixCount>;
 	}
@@ -540,39 +571,29 @@ export namespace Rebased {
 		count: NodeCount;
 	}
 
-	export type Stones = Tombstones | Birthstones;
-
-	export interface Tombstones extends IsStone {
-		type?: "Tomb";
+	export interface PriorNodes {
 		count: NodeCount;
+		seq: PriorSeq;
+		id: OpId;
+	}
+
+	export interface PriorAffixes {
+		count: AffixCount;
+		seq: PriorSeq;
+		id: OpId;
+		heir?: true;
 	}
 
 	/**
-	 * Used to represent prior attach operation whose details are relevant to the full characterization
-	 * of current changes.
+	 * The sequence number of the edit that caused the nodes to be detached.
 	 *
-	 * The only known case for it is a prior slice-move whose affixes are being targeted by a concurrent
-	 * insert that embraced the slice-move.
+	 * When the nodes were detached as the result of learning of a prior concurrent change
+	 * that preceded a prior change that the current change depends on, a pair of sequence
+	 * numbers is used instead were `seq[0]` is the earlier change whose effect on `seq[1]`
+	 * these tombstones represent. This can be read as "tombstones from the effect of `seq[0]`
+	 * on `seq[1]`".
 	 */
-	export interface Birthstones extends IsStone {
-		type: "Birth";
-		count: NodeCount;
-		stones?: OffsetList<Stones, NodeCount>;
-	}
-
-	export interface IsStone {
-		/**
-		 * The sequence number of the edit that caused the nodes to be detached.
-		 *
-		 * When the nodes were detached as the result of learning of a prior concurrent change
-		 * that preceded a prior change that the current change depends on, a pair of sequence
-		 * numbers is used instead were `seq[0]` is the earlier change whose effect on `seq[1]`
-		 * these tombstones represent. This can be read as "tombstones from the effect of `seq[0]`
-		 * on `seq[1]`".
-		 */
-		seq: SeqNumber | [SeqNumber, SeqNumber];
-		id: OpId;
-	}
+	export type PriorSeq = SeqNumber | [SeqNumber, SeqNumber];
 }
 
 export namespace Sequenced {
