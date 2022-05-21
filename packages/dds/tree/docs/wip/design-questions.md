@@ -638,13 +638,92 @@ Do we solely need to indicate which slice-move (if any) affixes come from or we 
 
 * User 4: slice-move all of foo to the end of trait foo (4th, 5th, 6th occurrences of affixes for B)
 
-In order for an insert to target any of the three affixes introduced by user 4, it would have to be commutative with prior slice moves. If it were so, then it would have to have ended up in the 2nd occurrence of the affixes (introduced by user 2). In other words, no insert can target the affixes introduced by user 3 (the 3rd occurrence) therefore, no insert can target the affixes in the 5th occurrence. Similarly, such an insert would not have continue to target the first occurrence of such affixes, which means no insert can target the affixes in the 4th occurrence. These two facts together combine to make it so that across all replicas for affixes introduced by a prior change, only the original and the and the "heir" replica (i.e., first-born replica of the longest chain of slice-moved) can be targeted. This then means a single bit/boolean is sufficient to tell them apart (see scenarios K and L).
+In order for an insert to target any of the three affixes introduced by user 4, it would have to be commutative with prior slice moves. If it were so, then it would have to have ended up in the 2nd occurrence of the affixes (introduced by user 2). In other words, no insert can target the affixes introduced by user 3 (the 3rd occurrence) therefore, no insert can target the affixes in the 5th occurrence. Similarly, such an insert would not have continue to target the first occurrence of such affixes, which means no insert can target the affixes in the 4th occurrence. These two facts together combine to make it so that across all replicas for affixes introduced by a prior change, only the original and the and the "heir" replica (i.e., first-born replica of the longest chain of slice-moved) can be targeted. This then means a single bit/boolean is sufficient to tell them apart (see scenarios K and L). The boolean only need to track whether the tombstone is a replica because the only thing we care about is differentiating the original from the replica. Actually, there's a possibility that different parts of the same original would end up in the same trait so we need to be able to differentiate them. These could then be bulk-moved together so using the seq# and id# of the move that brought the tombstone about is not sufficient to tell those apart. Does this means we need to track the whole move chain? Could we just remember the first slice-move that introduced a replication (constant storage instead of linear)? This should work because you can only chain concurrent moves when the target of a move lands in an affix that is itself the target of a move, and when that's the case, all of the content of the first move (and its affixes) end up being included. This allows us to both differentiate the original from replicas, and differentiate one replica from the other.
 
-## Would it be best to represent priorA and priorN together?
+## Should we represent priors for affixes and priors for nodes together, and if so how?
+
+We indeed must. If we don't put them in the same list, then we have no way of communicating the relative order of prior nodes vs. prior affixes. For example, there would be no way to differentiate between a prior slice that includes `[_ A _ _ B]` from one that includes `[A _ _ B _]`. In both cases there are 2 prior nodes and 3 prior affixes, but we can't tell exactly how the prior nodes and affixes are ordered relative to one-another.
+
+Making the list of priors heterogeneous means:
+
+* Offsets represent a combination of nodes and affixes. (though maybe we can do some grouping so that it's always clear how many nodes and how many affixes are represented in a given offset)
+
+* Non-offset elements need to explicitly state which kind they are (i.e., node or affix).
+
+A more pressing problem is that prior nodes and affixes are typically interleaved: the priors for `[_ A _ _ B]` would translate into `[1a, 1n, 2a, 1n]` which is not efficient. This pattern of `[1a, 1n, 1a]` (or `[1n, 2a, 1n]` ?) is very common because whenever nodes are detached, their affixes go away too. In addition to this pattern, it's possible to have runs of node-only priors (e.g., when applying a set-range to a sequence of nodes that was detached) and runs of affix-only priors (e.g., when many slice-moves introduce affixes only and those affixes are being targeted). So we have four types of runs:
+
+* Current nodes and affixes (offset)
+
+* Prior nodes only (questionable)*
+
+* Prior affixes only
+
+* A combination of prior nodes and affixes
+
+The nodes-only is questionable because there doesn't seem to be a downside to including their affixes too: they did exist, the only reason we wouldn't include them is because the operations on the trait do not target them, but if there's no cost to having them then there's no reason to keep that degree of freedom in the format. It may in fact speed things up not have that degree of freedom.
+
+How do we efficiently and conveniently encode these?
+It may be best to treat the efficiency and the convenience aspects separately by making the representation efficient and having a thin wrapper around it than can expose a convenient API. This also lets us tweak the representation for efficiency without having to re-implement the code that depends on the data exposed by the convenient API.
+
+All that aside, it would still be good for the representation to be straightforward so that the samples are easy to author and understand.
+
+Maybe we can draw on the fact that the trait extremities always exist, and therefore don't need to be explicitly represented, to simplify the representation.
+
+Proposal for priors: always use prefix-node-affix triplets, make that a top-level unit. Offsets can be interpreted as only representing such triplets since, aside from trait extremities, current nodes and affixes will only show up in that triplet form. Priors can then identify themselves as a run triplets. Note that the omission of the start affix (the end affix is always omitted) means the offsets in the priors array and the offsets in the other arrays are off by one with respect to one another. This is not terribly troubling because the offsets in the priors array are in terms of triplets anyway.
+
+The practice of using a full triplet even when less than that needs to be represented means that when a node is concurrently inserted in the midst of that triplet (see e4p in scenario J), the triplet ends up duplicated. This is inelegant but not harmful because all changes that include tombstone information for one of the two "fragments" will be forced to also carry the second fragment.
+
+## Should a changeset store all the tombs for a trait that it targets?
+
+The implicit questions is: should it even store those tombstones that represents regions of the trait that it is not targeting?
+
+Scenario M seems to suggest the answer is yes:
+
+* Starting state: foo=[A B]
+
+* User 1: set-delete A
+
+* User 2: set-delete B
+
+* User 3: insert X after A
+
+* User 4: insert Y after B
+
+If each insert only stored the tombstone that is relevant to its insert then, when rebasing edit 4 over edit 3, we wouldn't know how to order the tombstone for A relative to the tombstone for B.
+
+Note that slice move-ins also create gaps whenever an affix is imported by the move but the node that the affix is associated with is not being imported. (See scenario N)
+
+This seems to indicate that when rebasing over a move-in, we need to know not just how many actual nodes were introduced, but also how many tombstones and where.
+
+## What kinds of tombstones need to be recorded when rebasing over a slice-move-in?
+
+ There are three kinds of tombstones that *relevant* to slice-moves:
+
+* The tombstones for the nodes that weren't imported but whose affixes were imported. There can be at most 2 per slice-move: one on each extremity of the slice.
+
+* The tombstones introduced at the source of the slice-move by operations that were concurrent to the move (and fell within the slice).
+
+* The tombstones introduced at the source of the slice-move by operations that were prior, but not concurrent, to the move (and fell within the slice).
+
+Only the first kind needs to be recorded when rebasing over the move-in for a slice move. Scenario N demonstrates that need.
+
+It would be nice to have a proof that such information isn't needed for the other two kinds.
+
+## Should slice-move-ins convey tombstone information?
+
+The alternative is that a changeset being rebased over a slice-move-in would need to go look at the source move-out to figure out what tombstone information to add.
+
+In some cases that's fine because the change being rebased is actually embracing that move, so it already has direct access to that information, but since that's not true in all cases, we would indeed need to look up the source some of the time.
+
+As a matter of simplicity, we can choose to include it for now and revisit the performance implications once more production data has been gathered.
 
 ## Should move-in counts be updated to represent the actual number of attached nodes?
 
-## Should move-ins indicate the number of affixes being imported?
+## Should replicated tombstones carry the whole replication history?
+
+Scenario L seems to indicate that if we don't do so, then we can run into situations where we can't tell apart two tombstones are that actually independent.
+
+But is that solely a consequence of the fact we don't include the totality of a tombstone when we replicate it? IOW, would it help if we took the whole tombstone run even if only a fragment of it was affected by the slice? No: we would still end up with two tombstones that are only different because of some move at an arbitrary point in the chain of moves. The difference it would make is that part of the larger tombstone would in each case never be targeted.
 
 ## Other Notes
 

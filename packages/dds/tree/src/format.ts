@@ -395,32 +395,20 @@ export namespace Rebased {
 
 	export interface TraitMarks {
 		/**
-		 * Lists the additional affixes that must be taken into account in order to
-		 * represent the changes made to this trait. Without them, describing the changes would be
-		 * like drawing on an incomplete canvas.
-		 *
-		 * Note that only affixes that are necessary for the description of the changes to this
-		 * trait are represented here. This means we do not include affixes for prior detaches and
-		 * attaches when they are not being targeted by this change. The only caveat is that
-		 * whenever we include affixes for a prior operation, we include all of them (i.e., all of
-		 * the affixes for that unique pair of seq# and id#). The reason for this is that otherwise
-		 * there is no way to tell which of the affixes for that prior edit are being represented.
-		 */
-		priorA?: OffsetList<PriorAffixes, AffixCount>;
-
-		/**
-		 * Lists the additional (now detached) nodes that must be taken into account in order to
-		 * represent the changes made to this trait. Without them, describing the changes would be
-		 * like drawing on an incomplete canvas.
+		 * Lists the additional (now deleted/detached) nodes and affixes that must be taken into
+		 * account in order to represent the changes made to this trait. Without them, describing
+		 * the changes would be like drawing on an incomplete canvas.
 		 *
 		 * Note that only nodes that are necessary for the description of the changes to this
-		 * trait are represented here. This means we do not include nodes for prior detaches when
-		 * they are not being targeted by this change. The only caveat is that whenever we include
-		 * nodes for a prior operation, we include all of them (i.e., all of the nodes for that
-		 * unique pair of seq# and id#). The reason for this is that otherwise there is no way to
-		 * tell which of the nodes for that prior edit are being represented here.
+		 * trait are represented here. This means we do not include nodes for prior detaches and
+		 * deletes when the detached/deleted nodes are not being targeted by this change. The only
+		 * caveat is that whenever we include nodes/affixes for a prior operation, we include all
+		 * of them (i.e., all of the nodes for that unique pair of seq# and id#). The reason for
+		 * this is that otherwise there we would have precisely encode which of the nodes detached
+		 * by that prior edit are being represented here. It's simpler in most cases to represent
+		 * them all.
 		 */
-		priorN?: OffsetList<PriorNodes, NodeCount>;
+		tombs?: OffsetList<Tombstones, NodeCount>;
 
 		/**
 		 * Operations that attach content in a new location.
@@ -474,8 +462,6 @@ export namespace Rebased {
 	}
 
 	export type OffsetList<TContent, TOffset> = (TOffset | TContent)[];
-
-	export type NodeMark = Modify | Detach | Reattach;
 
 	export interface Modify {
 		[key: string]: TraitMarks;
@@ -571,17 +557,27 @@ export namespace Rebased {
 		count: NodeCount;
 	}
 
-	export interface PriorNodes {
+	/**
+	 * Represents a consecutive run of detached nodes and their affixes.
+	 *
+	 * Note that in some situations a prior affix should appear without its associated node.
+	 * This can happen when a slice-move applied to an affix but not the node this affix is
+	 * associated with, or when a slice-move applied to the affix that represents the start
+	 * (or end) of a trait. When that's the case the lone affix is still represented by a full
+	 * tombstone.
+	 */
+	export interface Tombstones extends PriorOp {
 		count: NodeCount;
-		seq: PriorSeq;
-		id: OpId;
+		/**
+		 * The chain of slice-moves that replicated these tombstones.
+		 * This is necessary to tell apart tombstones in all cases.
+		 */
+		src?: PriorOp[];
 	}
 
-	export interface PriorAffixes {
-		count: AffixCount;
+	export interface PriorOp {
 		seq: PriorSeq;
 		id: OpId;
-		heir?: true;
 	}
 
 	/**
