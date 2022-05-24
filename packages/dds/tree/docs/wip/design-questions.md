@@ -697,7 +697,7 @@ This seems to indicate that when rebasing over a move-in, we need to know not ju
 
 ## What kinds of tombstones need to be recorded when rebasing over a slice-move-in?
 
- There are three kinds of tombstones that *relevant* to slice-moves:
+ There are three kinds of tombstones that are *relevant* to slice-moves:
 
 * The tombstones for the nodes that weren't imported but whose affixes were imported. There can be at most 2 per slice-move: one on each extremity of the slice.
 
@@ -724,6 +724,14 @@ As a matter of simplicity, we can choose to include it for now and revisit the p
 Scenario L seems to indicate that if we don't do so, then we can run into situations where we can't tell apart two tombstones are that actually independent.
 
 But is that solely a consequence of the fact we don't include the totality of a tombstone when we replicate it? IOW, would it help if we took the whole tombstone run even if only a fragment of it was affected by the slice? No: we would still end up with two tombstones that are only different because of some move at an arbitrary point in the chain of moves. The difference it would make is that part of the larger tombstone would in each case never be targeted.
+
+## Should we decouple move and forward?
+
+Mild clue that having them together is odd: in order to make a slice-range whose extremity includes a node but not its affixes, we have to resort to the tie-breaking flag. It seems a little odd that tie-breaking would need to be leveraged for something like this, which is not about multiple users targeting the affix (the slice-range author doesn't want to target the affix at all).
+
+Clue that they may make more sense separately: one could want to forward the affixes between the nodes A B and C without moving B. If moving and forwarding are coupled then such an intention would have to be expressed by slice-moving B along with the affixes and then set-moving it back (or better: set-returning it which we may not offer a way to express).
+
+If they were separated, how would you convey what the typical slice-range over multiple does? Specifically, how you you convey that the stuff being moved (nodes and slots) need to be interleaved at the destination?
 
 ## Other Notes
 

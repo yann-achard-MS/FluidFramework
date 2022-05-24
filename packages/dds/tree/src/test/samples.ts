@@ -2107,7 +2107,7 @@ export const e4_r_e1: S.Transaction = {
 				foo: {
 					tombs: [{ count: 1, seq: 1, id: 0 }],
 					attach: [
-						2,
+						4,
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 					],
 				},
@@ -2126,7 +2126,7 @@ export const e4_r_e2: S.Transaction = {
 				foo: {
 					tombs: [{ count: 1, seq: 1, id: 0 }, { count: 1, seq: 2, id: 0 }],
 					attach: [
-						2,
+						4,
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 					],
 				},
@@ -2143,9 +2143,13 @@ export const e4p: S.Transaction = {
 		marks: {
 			modifyI: [{
 				foo: {
-					tombs: [{ count: 1, seq: 1, id: 0 }, { count: 1, seq: 2, id: 0 }],
+					tombs: [
+						{ count: 1, seq: 1, id: 0 },
+						1, // X
+						{ count: 1, seq: 2, id: 0 },
+					],
 					attach: [
-						4,
+						6,
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 					],
 				},
@@ -2161,17 +2165,16 @@ export namespace ScenarioN {
 	on by separate changes, we need to include tombstones for orphan affixes at the edge of the
 	range when rebasing over slice move-ins.
 
-	In this scenario, if E5 and E6 don't record both tombstones for B when rebasing
-	over both of E3's slice move-ins, then the rebasing of E5 over E6 will not know how to order
-	the two tombstones the tombstone in E6 relative to the one in E6.
+	In this scenario, if E2 and E3 don't record both tombstones for B when rebasing
+	over both of E1's slice move-ins, then the rebasing of E2 over E3 will not know how to order
+	the tombstone in E2 relative to the one in E3.
 
 	Starting with traits foo=[A B C], bar=[]:
-	  E1: User 1: set-delete node B
-	  E3: User 2:
-	    slice-move foo [A_ (_)B] to the start of trait baz
-	    slice-move foo [B(_) _C] to the end of trait baz
-	  E5: User 3: insert X before B (LLW commutative)
-	  E6: User 3: insert Y after B (LLW commutative)
+	  E1: User 1:
+	    slice-move foo [A_ (_)B] to the start of trait bar
+	    slice-move foo [B(_) _C] to the end of trait bar
+	  E2: User 2: insert X before B (LLW commutative)
+	  E3: User 3: insert Y after B (LLW commutative)
 
 	Expected outcome: bar=[X Y]
 	*/
