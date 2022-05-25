@@ -5,7 +5,7 @@
 
 import { strict as assert } from "assert";
 import {
-	AffixCount,
+	GapCount,
 	NodeCount,
 	RangeType,
 	Rebased as R,
@@ -22,146 +22,114 @@ const seq = 42;
 
 const insert: R.ChangeFrame = {
 	marks: {
-		attach: [
-			[
-				{
-					type: "Insert",
-					id: 0,
-					content: [{ id: "A1" }],
-				},
-				{
-					type: "Insert",
-					id: 1,
-					content: [{ id: "A2" }],
-				},
-			],
-			3,
-			[
-				{
-					type: "Insert",
-					id: 1,
-					content: [{ id: "B" }, { id: "C" }, { id: "D" }],
-					mods: [
-						1,
-						{
-							modify: {
-								bar: {
-									attach: [
-										[{
-											type: "Insert",
-											id: 2,
-											content: [{ id: "CA" }],
-										}],
-									],
-								},
-							},
-						},
+		modifyOld: [{
+			foo: {
+				attach: [
+					[
+						{ type: "Insert", id: 0, content: [{ id: "A" }] },
+						{ type: "Insert", id: 1, content: [{ id: "B" }] },
 					],
-				},
-			],
-		],
+					2,
+					[{ type: "Insert", id: 2, content: [{ id: "E" }, { id: "F" }] }],
+				],
+				modifyOld: [{
+					bar: {
+						attach: [
+							[{ type: "Insert", id: 3, content: [{ id: "C2" }] }],
+						],
+					},
+				}],
+				modifyNew: [{
+					bar: {
+						attach: [
+							[{ type: "Insert", id: 4, content: [{ id: "A2" }] }],
+						],
+					},
+				}],
+			},
+		}],
 	},
 };
 const deleteSet: R.ChangeFrame = {
 	marks: {
-		nodes: [
-			{
-				id: 0,
-				type: "Delete",
-				count: 2,
+		modifyOld: [{
+			foo: {
+				nodes: [
+					{ type: "Delete", id: 0, count: 1 },
+					{ type: "Delete", id: 1, count: 1 },
+					2,
+					{ type: "Delete", id: 2, count: 2 },
+				],
+				modifyOld: [{
+					bar: {
+						nodes: [
+							{ type: "Delete", id: 3, count: 1 },
+						],
+					},
+				}],
 			},
-			1,
-			{
-				type: "Delete",
-				id: 1,
-				count: 3,
-			},
-		],
+		}],
 	},
 };
 const deleteSlice: R.ChangeFrame = {
 	marks: {
-		nodes: [
-			{
-				id: 0,
-				type: "Delete",
-				count: 2,
+		modifyOld: [{
+			foo: {
+				nodes: [
+					{ type: "Delete", id: 0, count: 2 },
+					2,
+					{ type: "Delete", id: 1, count: 2 },
+				],
+				gaps: [
+					1,
+					{ count: 1, stack: [ { type: "Scorch", id: 0 } ] },
+					3,
+					{ count: 1, stack: [ { type: "Scorch", id: 0 } ] },
+				],
 			},
-			1,
-			{
-				type: "Delete",
-				id: 1,
-				count: 3,
-			},
-		],
-		gaps: [
-			2,
-			{
-				count: 8,
-				stack: [ { type: "Scorch", id: 0 } ],
-			},
-			6,
-			{
-				count: 8,
-				stack: [ { type: "Scorch", id: 0 } ],
-			},
-		],
+		}],
 	},
 };
 const reviveSet: R.ChangeFrame = {
 	marks: {
-		priors: [
-			{ count: 2, seq, id: 0 },
-			1,
-			{ count: 3, seq, id: 1 },
-		],
-		nodes: [
-			{
-				type: "Revive",
-				id: 0,
-				count: 2,
+		modifyOld: [{
+			foo: {
+				tombs: [
+					{ count: 2, seq, id: 0 },
+					1,
+					{ count: 2, seq, id: 1 },
+				],
+				nodes: [
+					{ type: "Revive", id: 0, count: 2 },
+					1,
+					{ type: "Revive", id: 1, count: 2 },
+				],
 			},
-			1,
-			{
-				type: "Revive",
-				id: 1,
-				count: 3,
-			},
-		],
+		}],
 	},
 };
 const reviveSlice: R.ChangeFrame = {
 	marks: {
-		priors: [
-			{ count: 2, seq, id: 0 },
-			1,
-			{ count: 3, seq, id: 1 },
-		],
-		nodes: [
-			{
-				type: "Revive",
-				id: 0,
-				count: 2,
+		modifyOld: [{
+			foo: {
+				tombs: [
+					{ count: 2, seq, id: 0 },
+					1,
+					{ count: 2, seq, id: 1 },
+				],
+				nodes: [
+					{ type: "Revive", id: 0, count: 2 },
+					1,
+					{ type: "Revive", id: 1, count: 2 },
+				],
+				gaps: [
+					1,
+					{ count: 1, stack: [ { type: "Heal", id: 0 } ] },
+					3,
+					{ count: 1, stack: [ { type: "Heal", id: 1 } ] },
+				],
 			},
-			1,
-			{
-				type: "Revive",
-				id: 1,
-				count: 3,
-			},
-		],
-		gaps: [
-			2,
-			{
-				count: 8,
-				stack: [ { type: "Heal", id: 0 } ],
-			},
-			6,
-			{
-				count: 8,
-				stack: [ { type: "Heal", id: 1 } ],
-			},
-		],
+		}],
 	},
 };
 // const setValue: R.ChangeFrame = {
@@ -192,342 +160,136 @@ const reviveSlice: R.ChangeFrame = {
 // };
 const moveSetInTrait: R.ChangeFrame = {
 	moves: [
-		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
+		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
 	],
 	marks: {
-		nodes: [
-			{
-				modify: {
-					foo: {
-						attach: [
-							4,
-							[{ type: "Move", id: 0, count: 1 }],
-						],
-						nodes: [
-							2,
-							{ type: "Move", id: 0, count: 1 },
-						],
-					},
-				},
+		modifyOld: [{
+			foo: {
+				nodes: [
+					1, // A
+					{ type: "Move", id: 0, count: 2 },
+				],
+				attach: [
+					4, // [-A-B-C-D
+					[{ type: "Move", id: 0, count: 2 }],
+				],
 			},
-		],
+		}],
 	},
 };
 const moveSliceInTrait: R.ChangeFrame = {
 	moves: [
-		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
+		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
 	],
 	marks: {
-		nodes: [
-			{
-				modify: {
-					foo: {
-						attach: [
-							4,
-							[{ type: "Move", id: 0, count: 1 }],
-						],
-						nodes: [
-							2,
-							{ type: "Move", id: 0, count: 1 },
-						],
-						affixes: [
-							10,
-							{
-								count: 4,
-								stack: [ { type: "Forward", id: 0 } ],
-							},
-						],
-					},
-				},
+		modifyOld: [{
+			foo: {
+				nodes: [
+					1, // A
+					{ type: "Move", id: 0, count: 2 },
+				],
+				gaps: [
+					2, // [-A-B
+					{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+				],
+				attach: [
+					4, // [-A-B-C-D
+					[{ type: "Move", id: 0, count: 2 }],
+				],
 			},
-		],
-	},
-};
-const moveSetAcrossTraits: R.ChangeFrame = {
-	moves: [
-		{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
-	],
-	marks: {
-		nodes: [
-			{
-				modify: {
-					foo: {
-						nodes: [
-							{ type: "Move", id: 0, count: 1 },
-						],
-					},
-					bar: {
-						attach: [
-							[{ type: "Move", id: 0, count: 1 }],
-						],
-					},
-				},
-			},
-		],
-	},
-};
-const moveSliceAcrossTraits: R.ChangeFrame = {
-	moves: [
-		{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
-	],
-	marks: {
-		nodes: [
-			{
-				modify: {
-					foo: {
-						nodes: [
-							2,
-							{ type: "Move", id: 0, count: 1 },
-						],
-						affixes: [
-							10,
-							{
-								count: 4,
-								stack: [ { type: "Forward", id: 0 } ],
-							},
-						],
-					},
-					bar: {
-						attach: [
-							2,
-							[{ type: "Move", id: 0, count: 1 }],
-						],
-					},
-				},
-			},
-		],
+		}],
 	},
 };
 const returnSetInTrait: R.ChangeFrame = {
 	moves: [
-		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
+		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
 	],
 	marks: {
-		nodes: [
-			{
-				modify: {
-					foo: {
-						tombs: [
-							3,
-							{ count: 1, seq, id: 0 },
-						],
-						nodes: [
-							1,
-							{ type: "Move", id: 0, count: 1 },
-							1,
-							{ type: "Return", id: 0, count: 1 },
-						],
-					},
-				},
+		modifyOld: [{
+			foo: {
+				tombs: [
+					1, // A
+					{ count: 2, seq, id: 0 }, // B C
+				],
+				nodes: [
+					1, // A
+					{ type: "Return", id: 0, count: 2 },
+					1, // D
+					{ type: "Move", id: 0, count: 2 },
+				],
 			},
-		],
+		}],
 	},
 };
 const returnSliceInTrait: R.ChangeFrame = {
 	moves: [
-		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
+		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
 	],
 	marks: {
-		nodes: [
-			{
-				modify: {
-					foo: {
-						tombs: [
-							3,
-							{ count: 1, seq, id: 0 },
-						],
-						nodes: [
-							1,
-							{ type: "Move", id: 0, count: 1 },
-							1,
-							{ type: "Return", id: 0, count: 1 },
-						],
-						affixes: [
-							10,
-							{
-								count: 4,
-								stack: [ { type: "Unforward", id: 0 } ],
-							},
-						],
-					},
-				},
+		modifyOld: [{
+			foo: {
+				tombs: [
+					1, // A
+					{ count: 2, seq, id: 0 }, // B C
+				],
+				nodes: [
+					1, // A
+					{ type: "Return", id: 0, count: 2 },
+					1, // D
+					{ type: "Move", id: 0, count: 2 },
+				],
+				gaps: [
+					2, // [-A-B
+					{ count: 1, stack: [{ type: "Unforward", id: 0 }] },
+				],
 			},
-		],
-	},
-};
-const returnSetAcrossTraits: R.ChangeFrame = {
-	moves: [
-		{ id: 0, src: { bar: 0 }, dst: { foo: 0 } },
-	],
-	marks: {
-		nodes: [
-			{
-				modify: {
-					foo: {
-						tombs: [
-							{ count: 1, seq, id: 0 },
-						],
-						nodes: [
-							{ type: "Return", id: 0, count: 1 },
-						],
-					},
-					bar: {
-						nodes: [
-							{ type: "Move", id: 0, count: 1 },
-						],
-					},
-				},
-			},
-		],
-	},
-};
-const returnSliceAcrossTraits: R.ChangeFrame = {
-	moves: [
-		{ id: 0, src: { bar: 0 }, dst: { foo: 0 } },
-	],
-	marks: {
-		nodes: [
-			{
-				modify: {
-					foo: {
-						tombs: [
-							{ count: 1, seq, id: 0 },
-						],
-						nodes: [
-							{ type: "Return", id: 0, count: 1 },
-						],
-						affixes: [
-							10,
-							{
-								count: 4,
-								stack: [ { type: "Unforward", id: 0 } ],
-							},
-						],
-					},
-					bar: {
-						nodes: [
-							{ type: "Move", id: 0, count: 1 },
-						],
-					},
-				},
-			},
-		],
+		}],
 	},
 };
 const returnTwiceSetInTrait: R.ChangeFrame = {
 	moves: [
-		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
+		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
 	],
 	marks: {
-		nodes: [
-			{
-				modify: {
-					foo: {
-						tombs: [
-							1,
-							{ count: 1, seq, id: 0 },
-						],
-						nodes: [
-							1,
-							{ type: "Return", id: 0, count: 1 },
-							1,
-							{ type: "Move", id: 0, count: 1 },
-						],
-					},
-				},
+		modifyOld: [{
+			foo: {
+				tombs: [
+					4, // A B C D
+					{ count: 2, seq, id: 0 }, // B C
+				],
+				nodes: [
+					1, // A
+					{ type: "Move", id: 0, count: 2 }, // B C
+					1, // D
+					{ type: "Return", id: 0, count: 2 }, // B C (tombs)
+				],
 			},
-		],
+		}],
 	},
 };
 const returnTwiceSliceInTrait: R.ChangeFrame = {
 	moves: [
-		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
+		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
 	],
 	marks: {
-		nodes: [
-			{
-				modify: {
-					foo: {
-						tombs: [
-							1,
-							{ count: 1, seq, id: 0 },
-						],
-						nodes: [
-							1,
-							{ type: "Return", id: 0, count: 1 },
-							1,
-							{ type: "Move", id: 0, count: 1 },
-						],
-						affixes: [
-							10,
-							{
-								count: 4,
-								stack: [ { type: "Forward", id: 0 } ],
-							},
-						],
-					},
-				},
+		modifyOld: [{
+			foo: {
+				tombs: [
+					4, // A B C D
+					{ count: 2, seq, id: 0 }, // B C
+				],
+				nodes: [
+					1, // A
+					{ type: "Move", id: 0, count: 2 }, // B C
+					1, // D
+					{ type: "Return", id: 0, count: 2 }, // B C (tombs)
+				],
+				gaps: [
+					2, // [-A-B
+					{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+				],
 			},
-		],
-	},
-};
-const returnTwiceSetAcrossTraits: R.ChangeFrame = {
-	moves: [
-		{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
-	],
-	marks: {
-		nodes: [
-			{
-				modify: {
-					foo: {
-						nodes: [
-							{ type: "Move", id: 0, count: 1 },
-						],
-					},
-					bar: {
-						tombs: [
-							{ count: 1, seq, id: 0 },
-						],
-						nodes: [
-							{ type: "Return", id: 0, count: 1 },
-						],
-					},
-				},
-			},
-		],
-	},
-};
-const returnTwiceSliceAcrossTraits: R.ChangeFrame = {
-	moves: [
-		{ id: 0, src: { foo: 0 }, dst: { bar: 0 } },
-	],
-	marks: {
-		nodes: [
-			{
-				modify: {
-					foo: {
-						nodes: [
-							{ type: "Move", id: 0, count: 1 },
-						],
-						affixes: [
-							10,
-							{
-								count: 4,
-								stack: [ { type: "Forward", id: 0 } ],
-							},
-						],
-					},
-					bar: {
-						tombs: [
-							{ count: 1, seq, id: 0 },
-						],
-						nodes: [
-							{ type: "Return", id: 0, count: 1 },
-						],
-					},
-				},
-			},
-		],
+		}],
 	},
 };
 
@@ -575,21 +337,11 @@ describe(invert.name, () => {
 				const actual = testInvert(moveSetInTrait);
 				assert.deepEqual(actual, returnSetInTrait);
 			});
-			it("Across traits", () => {
-				const actual = testInvert(moveSetAcrossTraits);
-				assert.deepEqual(actual, returnSetAcrossTraits);
-			});
 		});
 		describe("For slice ranges", () => {
-			describe("For set ranges", () => {
-				it("Within traits", () => {
-					const actual = testInvert(moveSliceInTrait);
-					assert.deepEqual(actual, returnSliceInTrait);
-				});
-				it("Across traits", () => {
-					const actual = testInvert(moveSliceAcrossTraits);
-					assert.deepEqual(actual, returnSliceAcrossTraits);
-				});
+			it("Within traits", () => {
+				const actual = testInvert(moveSliceInTrait);
+				assert.deepEqual(actual, returnSliceInTrait);
 			});
 		});
 	});
@@ -600,19 +352,11 @@ describe(invert.name, () => {
 				const actual = testInvert(returnSetInTrait);
 				assert.deepEqual(actual, returnTwiceSetInTrait);
 			});
-			it("Across traits", () => {
-				const actual = testInvert(returnSetAcrossTraits);
-				assert.deepEqual(actual, returnTwiceSetAcrossTraits);
-			});
 		});
 		describe("For slice ranges", () => {
 			it("Within traits", () => {
 				const actual = testInvert(returnSliceInTrait);
 				assert.deepEqual(actual, returnTwiceSliceInTrait);
-			});
-			it("Across traits", () => {
-				const actual = testInvert(returnSliceAcrossTraits);
-				assert.deepEqual(actual, returnTwiceSliceAcrossTraits);
 			});
 		});
 	});
@@ -623,19 +367,11 @@ describe(invert.name, () => {
 				const actual = testInvert(returnTwiceSetInTrait);
 				assert.deepEqual(actual, returnSetInTrait);
 			});
-			it("Across traits", () => {
-				const actual = testInvert(returnTwiceSetAcrossTraits);
-				assert.deepEqual(actual, returnSetAcrossTraits);
-			});
 		});
 		describe("For slice ranges", () => {
 			it("Within traits", () => {
 				const actual = testInvert(returnTwiceSliceInTrait);
 				assert.deepEqual(actual, returnSliceInTrait);
-			});
-			it("Across traits", () => {
-				const actual = testInvert(returnTwiceSliceAcrossTraits);
-				assert.deepEqual(actual, returnSliceAcrossTraits);
 			});
 		});
 	});
