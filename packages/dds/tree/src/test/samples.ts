@@ -128,11 +128,7 @@ export namespace ScenarioA1 {
 	  User 2: move slice-like range B C D to some other trait bar
 	  User 3: insert X after B (commutative)
 
-	X should end up in trait bar. In order for that to be possible, we need to preserve
-	the fact that the move operation performed by user 2 was targeted not only at node D but also at nodes B and C. We
-	also need to preserve the fact that the insertion of X was made with respect to B. This is challenging because the
-	third edit will be rebased over the deletion of B C. This last point also holds for insertions of detached content
-	(i.e., `MoveIn*`)
+	Expected outcome: foo=[A] bar=[X D]
 	*/
 
 	export const e1: S.Transaction = {
@@ -143,7 +139,7 @@ export namespace ScenarioA1 {
 				modifyI: [{
 					foo: {
 						nodes: [
-							1, // Skip A
+							1, // A
 							{ type: "Delete", id:0 , count: 2 },
 						],
 					},
@@ -161,12 +157,12 @@ export namespace ScenarioA1 {
 				modifyI: [{
 					foo: {
 						nodes: [
-							1, // Skip A
+							1, // A
 							{ type: "Move", id: 0, count: 3 },
 						],
-						affixes: [
-							4,
-							{ count: 4, stack: [{ type: "Forward", id: 0 }] },
+						gaps: [
+							2,
+							{ count: 2, stack: [{ type: "Forward", id: 0 }] },
 						],
 					},
 					bar: {
@@ -187,7 +183,7 @@ export namespace ScenarioA1 {
 				modifyI: [{
 					foo: {
 						attach: [
-							4,
+							2,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 						],
 					},
@@ -207,12 +203,12 @@ export namespace ScenarioA1 {
 					foo: {
 						tombs: [1, { count: 2, seq: 1, id: 1 } ],
 						nodes: [
-							1, // Skip A
+							1, // A
 							{ type: "Move", id: 0, count: 3 },
 						],
-						affixes: [
-							4,
-							{ count: 4, stack: [{ type: "Forward", id: 0 }] },
+						gaps: [
+							2,
+							{ count: 2, stack: [{ type: "Forward", id: 0 }] },
 						],
 					},
 					bar: {
@@ -235,7 +231,7 @@ export namespace ScenarioA1 {
 					foo: {
 						tombs: [1, { count: 2, seq: 1, id: 1 } ],
 						attach: [
-							4,
+							2,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 						],
 					},
@@ -253,11 +249,10 @@ export namespace ScenarioA1 {
 				modifyI: [{
 					bar: {
 						tombs: [
-							1, // A
 							{ count: 2, seq: 1, id: 0 },
 						],
 						attach: [
-							3,
+							1,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 						],
 					},
@@ -278,11 +273,7 @@ export namespace ScenarioA2 {
 	  User 2: move slice-like range C D to some other trait bar
 	  User 3: insert X after C (commutative)
 
-	X should end up in trait bar. In order for that to be possible, we need to preserve
-	the fact that the move operation performed by user 2 was targeted not only at node D but also at nodes B and C. We
-	also need to preserve the fact that the insertion of X was made with respect to B. This is challenging because the
-	third edit will be rebased over the deletion of B C. This last point also holds for insertions of detached content
-	(i.e., `MoveIn*`)
+	Expected outcome: foo=[A] bar=[X D]
 	*/
 
 	export const e1: S.Transaction = {
@@ -293,7 +284,7 @@ export namespace ScenarioA2 {
 				modifyI: [{
 					foo: {
 						nodes: [
-							1, // Skip A
+							1, // A
 							{ type: "Delete", id: 0, count: 2 },
 						],
 					},
@@ -311,12 +302,12 @@ export namespace ScenarioA2 {
 				modifyI: [{
 					foo: {
 						nodes: [
-							2, // Skip A B
+							2, // A B
 							{ type: "Move", id: 0, count: 2 },
 						],
-						affixes: [
-							6,
-							{ count: 2, stack: [{ type: "Forward", id: 0 }] },
+						gaps: [
+							2,
+							{ count: 1, stack: [{ type: "Forward", id: 0 }] },
 						],
 					},
 					bar: {
@@ -337,7 +328,7 @@ export namespace ScenarioA2 {
 				modifyI: [{
 					foo: {
 						attach: [
-							6,
+							3,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 						],
 					},
@@ -351,18 +342,18 @@ export namespace ScenarioA2 {
 		ref: 0,
 		newRef: 1,
 		frames: [{
-			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
+			moves: [{ id: 0, src: { foo: 2 }, dst: { bar: 0 } }],
 			marks: {
 				modifyI: [{
 					foo: {
 						tombs: [1, { count: 2, seq: 1, id: 1 } ],
 						nodes: [
-							2, // Skip A B
+							2, // A B
 							{ type: "Move", id: 0, count: 2 },
 						],
-						affixes: [
-							6,
-							{ count: 2, stack: [{ type: "Forward", id: 0 }] },
+						gaps: [
+							3,
+							{ count: 1, stack: [{ type: "Forward", id: 0 }] },
 						],
 					},
 					bar: {
@@ -385,7 +376,7 @@ export namespace ScenarioA2 {
 					foo: {
 						tombs: [1, { count: 2, seq: 1, id: 1 } ],
 						attach: [
-							6,
+							3,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 						],
 					},
@@ -405,7 +396,7 @@ export namespace ScenarioA2 {
 						// Note the count:1 because only one of the deleted nodes got imported
 						tombs: [{ count: 1, seq: 1, id: 1 }],
 						attach: [
-							2,
+							1,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 						],
 					},
@@ -447,7 +438,7 @@ export namespace ScenarioB {
 				modifyI: [{
 					foo: {
 						attach: [
-							2,
+							1,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
 						],
 					},
@@ -464,7 +455,7 @@ export namespace ScenarioB {
 				modifyI: [{
 					foo: {
 						attach: [
-							4,
+							2,
 							[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 						],
 					},
@@ -483,7 +474,7 @@ export namespace ScenarioB {
 					foo: {
 						tombs: [{ count: 4, seq: 1, id: 1 }],
 						attach: [
-							2,
+							1,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
 						],
 					},
@@ -502,7 +493,7 @@ export namespace ScenarioB {
 					foo: {
 						tombs: [{ count: 4, seq: 1, id: 1 }],
 						attach: [
-							4,
+							2,
 							[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 						],
 					},
@@ -525,7 +516,7 @@ export namespace ScenarioB {
 							{ count: 3, seq: 1, id: 1 },
 						],
 						attach: [
-							4, // After B
+							3, // After B
 							[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 						],
 					},
@@ -538,11 +529,12 @@ export namespace ScenarioB {
 export namespace ScenarioC {
 	/**
 	 * In trait foo [A]:
-	 * User 1: set-delete A
-	 * User 1: undo
-	 * User 2: set-delete A
-	 * User 3: set-delete A
+	 * E1: User 1: set-delete A
+	 * E2: User 1: undo
+	 * E3: User 2: set-delete A
+	 * E4: User 3: set-delete A
 	 *
+	 * Expected outcome: foo=[]
 	 * A should be deleted by user 2's edit.
 	 * User 3's edit should be muted.
 	 */
@@ -649,7 +641,7 @@ export namespace ScenarioC {
 
 	export const e4_r_e1: S.Transaction = {
 		ref: 0,
-		seq: 5,
+		seq: 4,
 		newRef: 1,
 		frames: [{
 			marks: {
@@ -667,7 +659,7 @@ export namespace ScenarioC {
 
 	export const e4_r_e2: S.Transaction = {
 		ref: 0,
-		seq: 5,
+		seq: 4,
 		newRef: 2,
 		frames: [{
 			marks: {
@@ -684,7 +676,7 @@ export namespace ScenarioC {
 
 	export const e4p: S.Transaction = {
 		ref: 0,
-		seq: 5,
+		seq: 4,
 		newRef: 3,
 		frames: [{
 			marks: {
@@ -710,6 +702,7 @@ export namespace ScenarioD {
 	    insert X after B (with commutative move semantics)
 	    move set-like range [A B X C] to some other trait baz
 
+	Expected outcome: foo=[] bar=[B] baz=[A B X C]
 	X should be inserted to into the baz trait (as opposed to ending up in the bar trait).
 	The commutativity of the insertion of X could still be leveraged if user 1 moved content from trait baz
 	*/
@@ -723,11 +716,11 @@ export namespace ScenarioD {
 				modifyI: [{
 					foo: {
 						nodes: [
-							1, // Skip A
+							1, // A
 							{ type: "Move", id: 0, count: 1 },
 						],
-						affixes: [
-							3,
+						gaps: [
+							2,
 							{ count: 1, stack: [{ type: "Forward", id: 0 }] },
 						],
 					},
@@ -772,24 +765,29 @@ export namespace ScenarioD {
 		ref: 0,
 		newRef: 1,
 		frames: [{
-			moves: [{ id: 0, src: { foo: 0 }, dst: { baz: 0 } }],
+			moves: [
+				{ id: 0, src: { foo: 0 }, dst: { baz: 0 } },
+				{ id: 1, src: { bar: 0 }, dst: { baz: 1 } },
+			],
 			marks: {
 				modifyI: [{
 					foo: {
-						tombs: [
-							1,
-							{ seq: 1, id: 0, count: 1 }, // B
-						],
 						nodes: [
-							{ type: "Move", id: 0, count: 3 },
+							{ type: "Move", id: 0, count: 2 },
+						],
+					},
+					bar: {
+						nodes: [
+							{ type: "Move", id: 1, count: 1 },
 						],
 					},
 					baz: {
 						attach: [
 							[
-								{ type: "Move", id: 0, count: 2 },
+								{ type: "Move", id: 0, count: 1 }, // A
+								{ type: "Move", id: 1, count: 1 }, // B
 								{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.Move },
-								{ type: "Move", id: 0, count: 1 },
+								{ type: "Move", id: 0, count: 1 }, // C
 							],
 						],
 					},
@@ -807,7 +805,8 @@ export namespace ScenarioE {
 	    insert X after B (with commutative-move semantics)
 	    delete slice-like range [A B X C]
 
-	B should be deleted (as opposed to inserted in trait bar).
+	Expected outcome: foo=[] bar=[B]
+	X should be deleted (as opposed to inserted in trait bar).
 	*/
 
 	export const e1: S.Transaction = {
@@ -819,11 +818,11 @@ export namespace ScenarioE {
 				modifyI: [{
 					foo: {
 						nodes: [
-							1, // Skip A
+							1, // A
 							{ type: "Move", id: 0, count: 1 },
 						],
-						affixes: [
-							3,
+						gaps: [
+							2,
 							{ count: 1, stack: [{ type: "Forward", id: 0 }] },
 						],
 					},
@@ -847,8 +846,8 @@ export namespace ScenarioE {
 						nodes: [
 							{ type: "Delete", id: 0, count: 3 },
 						],
-						affixes: [
-							{ count: 8, stack: [{ type: "Scorch", id: 0 }] },
+						gaps: [
+							{ count: 4, stack: [{ type: "Scorch", id: 0 }] },
 						],
 					},
 				}],
@@ -871,8 +870,8 @@ export namespace ScenarioE {
 						nodes: [
 							{ type: "Delete", id: 0, count: 3 },
 						],
-						affixes: [
-							{ count: 8, stack: [{ type: "Scorch", id: 0 }] },
+						gaps: [
+							{ count: 4, stack: [{ type: "Scorch", id: 0 }] },
 						],
 					},
 				}],
@@ -883,12 +882,12 @@ export namespace ScenarioE {
 
 export namespace ScenarioF {
 	/*
-	starting state: 'AB' (known to both client 1 and client 2)
-	  Edit #1 by client 1: insert 'r' at index 0 (local state: 'rAB')
-	  Edit #2 by client 2: insert 'xz' at index 1 (local state: 'AxzB')
-	  Edit #3 by client 2: insert 'y' at index 2 (local state: 'AxyzB')
+	starting state: [A B] (known to both client 1 and client 2)
+	  Edit #1 by client 1: insert [r] at index 0 (local state: [r A B])
+	  Edit #2 by client 2: insert [xz] at index 1 (local state: [A x z B])
+	  Edit #3 by client 2: insert [y] at index 2 (local state: [A x y z B])
 
-	Expected outcome: 'rAxyzB'
+	Expected outcome: [r A x y z B]
 	*/
 
 	export const e1: S.Transaction = {
@@ -915,7 +914,7 @@ export namespace ScenarioF {
 				modifyI: [{
 					foo: {
 						attach: [
-							2, // After A
+							1,
 							[{ type: "Insert", id: 0, content: [{ id: "x" }, { id: "z" }] }],
 						],
 					},
@@ -932,8 +931,26 @@ export namespace ScenarioF {
 				modifyI: [{
 					foo: {
 						attach: [
-							4, // After x
+							2,
 							[{ type: "Insert", id: 0, content: [{ id: "y" }] }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e2p: S.Transaction = {
+		seq: 2,
+		ref: 0,
+		newRef: 1,
+		frames: [{
+			marks: {
+				modifyI: [{
+					foo: {
+						attach: [
+							2,
+							[{ type: "Insert", id: 0, content: [{ id: "x" }, { id: "z" }] }],
 						],
 					},
 				}],
@@ -953,24 +970,6 @@ export namespace ScenarioF {
 		},
 	};
 
-	export const e2p: S.Transaction = {
-		seq: 2,
-		ref: 0,
-		newRef: 1,
-		frames: [{
-			marks: {
-				modifyI: [{
-					foo: {
-						attach: [
-							4, // After A
-							[{ type: "Insert", id: 0, content: [{ id: "x" }, { id: "z" }] }],
-						],
-					},
-				}],
-			},
-		}],
-	};
-
 	export const e3p: S.Transaction = {
 		seq: 3,
 		ref: 0,
@@ -980,7 +979,7 @@ export namespace ScenarioF {
 				modifyI: [{
 					foo: {
 						attach: [
-							6, // After x
+							3,
 							[{ type: "Insert", id: 0, content: [{ id: "y" }] }],
 						],
 					},
@@ -996,13 +995,12 @@ export namespace ScenarioG {
 	/*
 	In trait foo [A B]:
 	  User 1: move slice [A B] to some other trait bar
-	  User 2: insert [X Y] after A (with commutative-move semantics) (local: [A X Y B])
-	  User 2: insert N after X (with never-move semantics) (local: [A X N Y B])
-	  User 2: insert M before X (with never-move semantics) (local: [A M X N Y B])
-	  User 2: insert O after Y (with never-move semantics) (local: [A M X N Y O B])
+	  User 2: insert [X Y] after A (commute:move) (local: [A X Y B])
+	  User 2: insert N after X (commute:none) (local: [A X N Y B])
+	  User 2: insert M before X (commute:none) (local: [A M X N Y B])
+	  User 2: insert O after Y (commute:none) (local: [A M X N Y O B])
 
-	X Y should be inserted to into the bar trait.
-	M N O  should be inserted to into the foo trait (in that order).
+	Expected outcome: foo=[M N O] bar=[A X Y B]
 	*/
 
 	export const e1: S.Transaction = {
@@ -1016,8 +1014,9 @@ export namespace ScenarioG {
 						nodes: [
 							{ type: "Move", id: 0, count: 2 },
 						],
-						affixes: [
-							{ count: 6, stack: [{ type: "Forward", id: 0 }] },
+						gaps: [
+							1,
+							{ count: 1, stack: [{ type: "Forward", id: 0 }] },
 						],
 					},
 					bar: {
@@ -1038,7 +1037,7 @@ export namespace ScenarioG {
 				modifyI: [{
 					foo: {
 						attach: [
-							2, // After A
+							1,
 							[{
 								type: "Insert",
 								id: 0,
@@ -1060,7 +1059,7 @@ export namespace ScenarioG {
 				modifyI: [{
 					foo: {
 						attach: [
-							4, // After X
+							2,
 							[{ type: "Insert", id: 0, content: [{ id: "N" }], heed: Effects.None }],
 						],
 					},
@@ -1077,7 +1076,7 @@ export namespace ScenarioG {
 				modifyI: [{
 					foo: {
 						attach: [
-							3, // Before X
+							1, // Before X
 							[{ type: "Insert", id: 0, content: [{ id: "M" }], heed: Effects.None }],
 						],
 					},
@@ -1094,7 +1093,7 @@ export namespace ScenarioG {
 				modifyI: [{
 					foo: {
 						attach: [
-							10, // After Y
+							5,
 							[{ type: "Insert", id: 0, content: [{ id: "O" }], heed: Effects.None }],
 						],
 					},
@@ -1112,7 +1111,7 @@ export namespace ScenarioG {
 				modifyI: [{
 					bar: {
 						attach: [
-							2, // After A
+							1,
 							[{
 								type: "Insert",
 								id: 0,
@@ -1134,8 +1133,9 @@ export namespace ScenarioG {
 					nodes: [
 						{ type: "Move", id: 0, count: 4 }, // A X Y B
 					],
-					affixes: [
-						{ count: 10, stack: [{ type: "Forward", id: 0 }] },
+					gaps: [
+						1,
+						{ count: 3, stack: [{ type: "Forward", id: 0 }] },
 					],
 				},
 				bar: {
@@ -1161,7 +1161,7 @@ export namespace ScenarioG {
 							{ count: 1, seq: 1, id: 0 }, // B
 						],
 						attach: [
-							4, // After X
+							2,
 							[{ type: "Insert", id: 0, content: [{ id: "N" }], heed: Effects.None }],
 						],
 					},
@@ -1175,15 +1175,22 @@ export namespace ScenarioG {
 		marks: {
 			modifyI: [{
 				foo: {
+					tombs: [
+						2, // A X
+						{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST)
+						1, // N
+						{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST)
+					],
 					nodes: [
 						{ type: "Move", id: 0, count: 2 }, // A X
-						1, // N
+						3, // ST N ST
 						{ type: "Move", id: 0, count: 2 }, // Y B
 					],
-					affixes: [
-						{ count: 5, stack: [{ type: "Forward", id: 0 }] },
-						2, // Before and After N
-						{ count: 5, stack: [{ type: "Forward", id: 0 }] },
+					gaps: [
+						1, // [-A
+						{ count: 2, stack: [{ type: "Forward", id: 0 }] }, // A-X-ST
+						2, // ST-N-ST
+						{ count: 2, stack: [{ type: "Forward", id: 0 }] }, // ST-B-Y
 					],
 				},
 				bar: {
@@ -1209,7 +1216,6 @@ export namespace ScenarioG {
 							{ count: 1, seq: [1, 2], id: 0 }, // Y
 						],
 						attach: [
-							1, // Before X
 							[{ type: "Insert", id: 0, content: [{ id: "M" }], heed: Effects.None }],
 						],
 					},
@@ -1223,19 +1229,30 @@ export namespace ScenarioG {
 		marks: {
 			modifyI: [{
 				foo: {
+					tombs: [
+						1, // A
+						{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST1)
+						1, // M
+						{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST2)
+						1, // X
+						{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST3)
+						1, // N
+						{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST4)
+					],
 					nodes: [
 						{ type: "Move", id: 0, count: 1 }, // A
-						1, // M
+						3, // ST M ST
 						{ type: "Move", id: 0, count: 1 }, // X
-						1, // N
+						3, // ST N ST
 						{ type: "Move", id: 0, count: 2 }, // Y B
 					],
-					affixes: [
-						{ count: 3, stack: [{ type: "Forward", id: 0 }] },
-						2, // Before and After M
-						{ count: 2, stack: [{ type: "Forward", id: 0 }] },
-						2, // Before and After N
-						{ count: 5, stack: [{ type: "Forward", id: 0 }] },
+					gaps: [
+						1, // [-A
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] }, // A-ST1
+						2, // ST1-M-ST2
+						{ count: 2, stack: [{ type: "Forward", id: 0 }] }, // ST2-X-ST3
+						2, // ST3-N-ST4
+						{ count: 2, stack: [{ type: "Forward", id: 0 }] }, // ST4-B-Y
 					],
 				},
 				bar: {
@@ -1259,10 +1276,10 @@ export namespace ScenarioG {
 							1, // M
 							{ count: 1, seq: [1, 2], id: 0 }, // X
 							1, // N
-							{ count: 1, seq: [1, 2], id: 0 }, // Y (maybe omit this)
+							{ count: 1, seq: [1, 2], id: 0 }, // Y
 						],
 						attach: [
-							8, // After Y
+							4,
 							[{ type: "Insert", id: 0, content: [{ id: "O" }], heed: Effects.None }],
 						],
 					},
@@ -1277,31 +1294,31 @@ export namespace ScenarioG {
 export namespace ScenarioH {
 	/**
 	Starting state: foo=[A B] bar=[U V] baz=[]
-	  User 1: slice-move all of trait foo after U with a (non-commutative)
+	  User 1: slice-move all of trait foo after U with a (commute:all)
 	  User 2: slice-move all of trait bar into trait baz
-	  User 3: insert X after A in foo (commutative)
+	  User 3: insert X after A and insert Y after B in foo (commute:all)
 
-	X should end up in bar (with A and B).
+	Expected outcome: foo=[] bar=[A X B Y] baz=[U V]
 	*/
 
 	export const e1: S.Transaction = {
 		ref: 0,
 		seq: 1,
 		frames: [{
-			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
+			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 1 } }],
 			marks: {
 				modifyI: [{
 					foo: {
 						nodes: [
 							{ type: "Move", id: 0, count: 2 },
 						],
-						affixes: [
-							{ count: 6, stack: [{ type: "Forward", id: 0 }] },
+						gaps: [
+							{ count: 3, stack: [{ type: "Forward", id: 0 }] },
 						],
 					},
 					bar: {
 						attach: [
-							2, // After U
+							1,
 							[{ type: "Move", id: 0, count: 2 }],
 						],
 					},
@@ -1321,8 +1338,8 @@ export namespace ScenarioH {
 						nodes: [
 							{ type: "Move", id: 0, count: 2 },
 						],
-						affixes: [
-							{ count: 6, stack: [{ type: "Forward", id: 0 }] },
+						gaps: [
+							{ count: 3, stack: [{ type: "Forward", id: 0 }] },
 						],
 					},
 					baz: {
@@ -1343,8 +1360,9 @@ export namespace ScenarioH {
 				modifyI: [{
 					foo: {
 						attach: [
-							2, // After A
+							1,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
+							[{ type: "Insert", id: 0, content: [{ id: "Y" }], heed: Effects.All }],
 						],
 					},
 				}],
@@ -1361,15 +1379,21 @@ export namespace ScenarioH {
 			marks: {
 				modifyI: [{
 					bar: {
+						tombs: [
+							1, // U
+							{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST1)
+							2,// A B
+							{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST2)
+						],
 						nodes: [
 							{ type: "Move", id: 0, count: 1 },
-							2, // A B
+							4, // ST1 A B ST2
 							{ type: "Move", id: 0, count: 1 },
 						],
-						affixes: [
-							{ count: 3, stack: [{ type: "Forward", id: 0 }] },
-							4,
-							{ count: 3, stack: [{ type: "Forward", id: 0 }] },
+						gaps: [
+							{ count: 3, stack: [{ type: "Forward", id: 0 }] }, // [-U-A-ST1
+							3, // ST1-A-B-ST2
+							{ count: 3, stack: [{ type: "Forward", id: 0 }] }, // ST2-B-V-[
 						],
 					},
 					baz: {
@@ -1391,8 +1415,9 @@ export namespace ScenarioH {
 				modifyI: [{
 					bar: {
 						attach: [
-							4, // After A
+							2,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
+							[{ type: "Insert", id: 0, content: [{ id: "Y" }], heed: Effects.All }],
 						],
 					},
 				}],
@@ -1409,8 +1434,9 @@ export namespace ScenarioH {
 				modifyI: [{
 					bar: {
 						attach: [
-							2, // After A
+							1,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
+							[{ type: "Insert", id: 0, content: [{ id: "Y" }], heed: Effects.All }],
 						],
 					},
 				}],
@@ -1461,13 +1487,13 @@ export namespace ScenarioI {
 						nodes: [
 							{ type: "Move", id: 0, count: 2 },
 						],
-						affixes: [
+						gaps: [
 							{ count: 6, stack: [{ type: "Forward", id: 0 }] },
 						],
 					},
 					bar: {
 						attach: [
-							2, // After X
+							1,
 							[{ type: "Move", id: 0, count: 2 }],
 						],
 					},
@@ -1487,13 +1513,13 @@ export namespace ScenarioI {
 						nodes: [
 							{ type: "Move", id: 0, count: 2 },
 						],
-						affixes: [
+						gaps: [
 							{ count: 6, stack: [{ type: "Forward", id: 0 }] },
 						],
 					},
 					foo: {
 						attach: [
-							2, // After A
+							1,
 							[{ type: "Move", id: 0, count: 2 }],
 						],
 					},
@@ -1543,7 +1569,7 @@ export namespace ScenarioJ {
 						nodes: [
 							{ type: "Move", id: 0, count: 3 },
 						],
-						affixes: [
+						gaps: [
 							2,
 							{ count: 4, stack: [{ type: "Forward", id: 0 }] },
 						],
@@ -1625,7 +1651,7 @@ export namespace ScenarioJ {
 						nodes: [
 							{ type: "Move", id: 0, count: 3 },
 						],
-						affixes: [
+						gaps: [
 							2,
 							{ count: 4, stack: [{ type: "Forward", id: 0 }] },
 						],
@@ -1824,7 +1850,7 @@ export namespace ScenarioK {
 						nodes: [
 							{ type: "Move", id: 0, count: 3 },
 						],
-						affixes: [
+						gaps: [
 							2,
 							{ count: 4, stack: [{ type: "Forward", id: 0 }] },
 						],
@@ -1870,7 +1896,7 @@ export namespace ScenarioK {
 						nodes: [
 							{ type: "Move", id: 0, count: 3 },
 						],
-						affixes: [
+						gaps: [
 							2,
 							{ count: 4, stack: [{ type: "Forward", id: 0 }] },
 						],
@@ -1950,8 +1976,8 @@ export namespace ScenarioL {
 	  E1: User 1: set-delete nodes A B
 	  E2: User 2: slice-move all of foo to the start of trait bar
 	  E3: User 2:
-	    slice-move foo [_A_] to the end of trait baz
-	    slice-move foo [_B_] to the start of trait baz
+	    slice-move foo [_A] to the end of trait baz
+	    slice-move foo [B_] to the start of trait baz
 	  E4: User 2: slice-move all of baz to the start of trait qux
 	  E5: User 3: insert X after B (LLW commutative)
 	  E6: User 3: insert Y before A (LLW commutative)

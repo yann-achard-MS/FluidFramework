@@ -94,7 +94,7 @@ const deleteSlice: R.ChangeFrame = {
 				count: 3,
 			},
 		],
-		affixes: [
+		gaps: [
 			2,
 			{
 				count: 8,
@@ -150,7 +150,7 @@ const reviveSlice: R.ChangeFrame = {
 				count: 3,
 			},
 		],
-		affixes: [
+		gaps: [
 			2,
 			{
 				count: 8,

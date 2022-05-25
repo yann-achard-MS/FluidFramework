@@ -458,7 +458,7 @@ export namespace Rebased {
 		 * Offsets represent affixes that are present in the input context and affixes that were
 		 * for content that was concurrently detached.
 		 */
-		affixes?: OffsetList<OpenAffixEffects | ClosedAffixEffects, AffixCount>;
+		gaps?: OffsetList<OpenAffixEffects | ClosedAffixEffects, AffixCount>;
 	}
 
 	export type OffsetList<TContent, TOffset> = (TOffset | TContent)[];

@@ -733,6 +733,32 @@ Clue that they may make more sense separately: one could want to forward the aff
 
 If they were separated, how would you convey what the typical slice-range over multiple does? Specifically, how you you convey that the stuff being moved (nodes and slots) need to be interleaved at the destination?
 
+## Does it make sense to offer range bounds that have degrees of freedom for both "before/after" and "left/right"?
+
+The "left/right" has also been described as "FWW/LWW" but that terminology makes less sense without the "before/after" terminology. It has also been described as "First-to-last/Last-to-first" which slices the degrees of freedom the other way. Note that in model where we consider an empty trait to have only one insertion slot, the "FWW/LWW" terminology makes less sense that the rest.
+
+One thing that is clear, is that having both allows more intentions than having either. For example, without both it's always possible to express `A [_ _ B _ _] C` but it's not possible to represent both `A _ _[ B ]_ _ C` and `A _ [_ B _] _ C`.
+
+This does not answer our question because it's not clear that both are valuable. It seems reasonable to say that that being able to express `A _ _[ B ]_ _ C` is valuable because it effectively lets us specify whether concurrent inserts adjacent to be should have their content affected by the range. This then leaves us with the question: is the ability to express `A [_ _ B _ _] C` and `A _ _[ B ]_ _ C` sufficient?
+
+Let's try to invent a scenario where `A _ [_ B _] _ C` is leveraged: say we're inserting strings into a sequence and we want to make it possible to make slice ranges such that all the sequence elements starting with a given letter (including concurrently inserted ones) would be covered by the range. In such a scenario, if a user is trying to insert "A2" between "A1" and "B1", they would chose to insert after "A1", and a slice-range for entries that start with "A" would go from Before(A1, FFW) to After(A1, FWW).
+
+While the above scenario appears to motivate the extra degrees of freedom, it seems dubious because there's no way to offer the kind of guarantees it is trying to make. For example, it does not work if we're inserting "B1" in a context where there are only "A*" entries and "C*" entries. It also fails in similar ways when we want to consider more than just the first letter. Abstractly speaking, having `A _ [_ B _] _ C` lets you make ranges such that inserts can elect to be on either side of the boundary by effectively picking one neighbor to be closer to. This fails to be useful when they could have been a theoretical neighbor in between those that the inserted content should have been closer to.
+
+The conclusion, unless we discover scenarios that better motivate the ability to express `A _ [_ B _] _ C`, is that the ability to express `A [_ _ B _ _] C` and `A _ _[ B ]_ _ C` is sufficient. This lets us make a model where there is only one "slot" between nodes, and inserts use a Left/Right flag to dictate which side they want to be closer to. Ranges, on the other hand, indicate whether they want to include all or none of the content between the two nodes.
+
+A corollary is that an empty trait is then represented as a single gap as opposed to being represented by two things.
+
+## How are slice ranges best expressed?
+
+This question exists at two layers: the API that application authors use and the format that changesets are represented in.
+
+Application API (1): a common model is that of describing ranges as intervals where the boundary value (in this case a boundary node) is either included or not. For example `A [ _ B _ C]` would be represented as `(A C]`. One implication of this model is that describing ranges that include gaps at the extremities of the trait requires referring to the trait extremities themselves: `(start, end)`. This is unfortunate in that it complicates the model in two way: it's not just about nodes, and, when it comes to trait extremities, inclusive boundaries make no sense.
+
+Application API (2): another common model is to refer to gaps by the index one would use to insert at that gap.
+
+Changeset format: if we continue to separate the representation of effects on nodes and affixes then a straightforward representation to describe ranges of nodes and ranges of gap as a pair of integers where the first integer represents the first node/gap affected and the second integer represents the last node/gap affected. An alternative it to have the second integer be a count of affected nodes/gaps.
+
 ## Other Notes
 
 Avoid data races against the computer because it leads to user confusion. In other words: we don't want merge outcomes to be different if the Fluid service is a little faster or a little slower.
