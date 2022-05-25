@@ -283,7 +283,7 @@ export namespace Original {
 		 */
 		side?: Sibling.Next;
 		/**
-		 * Omit if `Tiebreak.LWW` for terseness.
+		 * Omit if `Tiebreak.Right` for terseness.
 		 */
 		tiebreak?: Tiebreak;
 		/**

@@ -1676,7 +1676,7 @@ describe(rebase.name, () => {
 		describe("ScenarioB", () => {
 			it("e2", () => {
 				const actual = rebase(ScenarioB.e3, ScenarioB.e2);
-				assert.deepEqual(actual.frames, ScenarioB.e3p.frames);
+				assert.deepEqual(actual.frames, ScenarioB.e3_r_e2.frames);
 			});
 		});
 
@@ -1690,21 +1690,21 @@ describe(rebase.name, () => {
 		describe("ScenarioE", () => {
 			it("e2", () => {
 				const actual = rebase(ScenarioE.e2, ScenarioE.e1);
-				assert.deepEqual(actual.frames, ScenarioE.e2p.frames);
+				assert.deepEqual(actual.frames, ScenarioE.e2_r_e1.frames);
 			});
 		});
 
 		describe("ScenarioF", () => {
 			it("e2", () => {
 				const actual = rebase(ScenarioF.e2, ScenarioF.e1);
-				assert.deepEqual(actual.frames, ScenarioF.e2p.frames);
+				assert.deepEqual(actual.frames, ScenarioF.e2_r_e1.frames);
 			});
 		});
 
 		describe("ScenarioG", () => {
 			it("e2", () => {
 				const actual = rebase(ScenarioG.e2, ScenarioG.e1);
-				assert.deepEqual(actual.frames, ScenarioG.e2p.frames);
+				assert.deepEqual(actual.frames, ScenarioG.e2_r_e1.frames);
 			});
 		});
 	});

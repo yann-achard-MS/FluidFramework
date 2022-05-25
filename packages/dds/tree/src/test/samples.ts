@@ -205,7 +205,7 @@ export namespace ScenarioA {
 		}],
 	};
 
-	export const e2p: S.Transaction = {
+	export const e2_r_e1: S.Transaction = {
 		seq: 2,
 		ref: 0,
 		newRef: 1,
@@ -253,7 +253,7 @@ export namespace ScenarioA {
 		}],
 	};
 
-	export const e3p: S.Transaction = {
+	export const e3_r_e2: S.Transaction = {
 		seq: 3,
 		ref: 0,
 		newRef: 2,
@@ -342,7 +342,7 @@ export namespace ScenarioB {
 		}],
 	};
 
-	export const e2p: S.Transaction = {
+	export const e2_r_e1: S.Transaction = {
 		ref: 0,
 		seq: 2,
 		newRef: 1,
@@ -384,7 +384,7 @@ export namespace ScenarioB {
 		}],
 	};
 
-	export const e3p: S.Transaction = {
+	export const e3_r_e2: S.Transaction = {
 		ref: 0,
 		seq: 3,
 		newRef: 2,
@@ -496,7 +496,7 @@ export namespace ScenarioC {
 		}],
 	};
 
-	export const e3p: S.Transaction = {
+	export const e3_r_e2: S.Transaction = {
 		ref: 0,
 		seq: 3,
 		newRef: 2,
@@ -564,7 +564,7 @@ export namespace ScenarioC {
 		}],
 	};
 
-	export const e4p: S.Transaction = {
+	export const e4_r_e3: S.Transaction = {
 		ref: 0,
 		seq: 4,
 		newRef: 3,
@@ -643,7 +643,7 @@ export namespace ScenarioE {
 		}],
 	};
 
-	export const e2p: S.Transaction = {
+	export const e2_r_e1: S.Transaction = {
 		seq: 2,
 		ref: 0,
 		newRef: 1,
@@ -725,7 +725,7 @@ export namespace ScenarioF {
 		}],
 	};
 
-	export const e2p: S.Transaction = {
+	export const e2_r_e1: S.Transaction = {
 		seq: 2,
 		ref: 0,
 		newRef: 1,
@@ -743,7 +743,7 @@ export namespace ScenarioF {
 		}],
 	};
 
-	export const e3d: R.ChangeFrame = {
+	export const e1_p_e2: R.ChangeFrame = {
 		marks: {
 			modifyOld: [{
 				foo: {
@@ -755,7 +755,7 @@ export namespace ScenarioF {
 		},
 	};
 
-	export const e3p: S.Transaction = {
+	export const e3_r_e2: S.Transaction = {
 		seq: 3,
 		ref: 0,
 		newRef: 2,
@@ -890,7 +890,7 @@ export namespace ScenarioG {
 		}],
 	};
 
-	export const e2p: S.Transaction = {
+	export const e2_r_e1: S.Transaction = {
 		seq: 2,
 		ref: 0,
 		newRef: 1,
@@ -913,7 +913,7 @@ export namespace ScenarioG {
 		}],
 	};
 
-	export const e3d: R.ChangeFrame = {
+	export const e1_p_e2: R.ChangeFrame = {
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 		marks: {
 			modifyOld: [{
@@ -935,7 +935,7 @@ export namespace ScenarioG {
 		},
 	};
 
-	export const e3p: S.Transaction = {
+	export const e3_r_e2: S.Transaction = {
 		seq: 3,
 		ref: 0,
 		newRef: 2,
@@ -958,7 +958,7 @@ export namespace ScenarioG {
 		}],
 	};
 
-	export const e4d: R.ChangeFrame = {
+	export const e1_p_e3: R.ChangeFrame = {
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 		marks: {
 			modifyOld: [{
@@ -990,7 +990,7 @@ export namespace ScenarioG {
 		},
 	};
 
-	export const e4p: S.Transaction = {
+	export const e4_r_e3: S.Transaction = {
 		seq: 4,
 		ref: 0,
 		newRef: 3,
@@ -1012,7 +1012,7 @@ export namespace ScenarioG {
 		}],
 	};
 
-	export const e5d: R.ChangeFrame = {
+	export const e1_p_e4: R.ChangeFrame = {
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 		marks: {
 			modifyOld: [{
@@ -1052,7 +1052,7 @@ export namespace ScenarioG {
 		},
 	};
 
-	export const e5p: S.Transaction = {
+	export const e5_r_e4: S.Transaction = {
 		seq: 5,
 		ref: 0,
 		newRef: 3,
@@ -1164,7 +1164,7 @@ export namespace ScenarioH {
 		}],
 	};
 
-	export const e2p: S.Transaction = {
+	export const e2_r_e1: S.Transaction = {
 		ref: 0,
 		seq: 2,
 		newRef: 1,
@@ -1219,7 +1219,7 @@ export namespace ScenarioH {
 		}],
 	};
 
-	export const e3p: S.Transaction = {
+	export const e3_r_e2: S.Transaction = {
 		ref: 0,
 		seq: 3,
 		newRef: 2,
@@ -1332,9 +1332,9 @@ export namespace ScenarioJ {
 	Starting with a trait foo that contains the nodes [A B C]:
 	  1. User 1: set-delete node B
 	  2. User 2: slice-move _[A B C]_ to trait bar
-	  3. User 3: insert Y after B (LLW commutative)
-	  4. User 4: insert X before B (LLW commutative)
-	  5. User 5: insert W after A (FFW) and insert Z before C (FFW) (with knowledge with e1 and e2)
+	  3. User 3: insert Y after B (commute:all)
+	  4. User 4: insert X before B (commute:all)
+	  5. User 5: insert W after A and insert Z before C (with knowledge with e1 and e2)
 
 	Expected outcome: foo=[] bar=[A W X Y Z C]
 	*/
@@ -1436,7 +1436,7 @@ export namespace ScenarioJ {
 		}],
 	};
 
-	export const e2p: S.Transaction = {
+	export const e2_r_e1: S.Transaction = {
 		ref: 0,
 		seq: 2,
 		newRef: 1,
@@ -1483,7 +1483,7 @@ export namespace ScenarioJ {
 		}],
 	};
 
-	export const e3p: S.Transaction = {
+	export const e3_r_e2: S.Transaction = {
 		ref: 0,
 		seq: 3,
 		newRef: 2,
@@ -1540,7 +1540,7 @@ export namespace ScenarioJ {
 		}],
 	};
 
-	export const e4p: S.Transaction = {
+	export const e4_e3: S.Transaction = {
 		ref: 0,
 		seq: 4,
 		newRef: 3,
@@ -1583,7 +1583,7 @@ export namespace ScenarioJ {
 		}],
 	};
 
-	export const e5p: S.Transaction = {
+	export const e5_r_e4: S.Transaction = {
 		ref: 2,
 		seq: 5,
 		newRef: 4,
@@ -1692,7 +1692,7 @@ export namespace ScenarioK {
 		}],
 	};
 
-	export const e2p: S.Transaction = {
+	export const e2_r_e1: S.Transaction = {
 		ref: 0,
 		seq: 2,
 		newRef: 1,
@@ -1740,7 +1740,7 @@ export namespace ScenarioK {
 		}],
 	};
 
-	export const e3p: S.Transaction = {
+	export const e3_r_e2: S.Transaction = {
 		ref: 0,
 		seq: 3,
 		newRef: 2,
@@ -1875,7 +1875,7 @@ export const e4: S.Transaction = {
 	}],
 };
 
-export const e2p: S.Transaction = {
+export const e2_r_e1: S.Transaction = {
 	ref: 0,
 	seq: 2,
 	newRef: 1,
@@ -1911,7 +1911,7 @@ export const e3_r_e1: S.Transaction = {
 	}],
 };
 
-export const e3p: S.Transaction = {
+export const e3_r_e2: S.Transaction = {
 	ref: 0,
 	seq: 3,
 	newRef: 2,
