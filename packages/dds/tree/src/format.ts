@@ -416,7 +416,7 @@ export namespace Rebased {
 		 * - nodes that are present in the input context
 		 * - nodes that are represented by tombstones
 		 */
-		attach?: OffsetList<Attach[], AffixCount>;
+		attach?: OffsetList<Attach[], GapCount>;
 
 		/**
 		 * Operations that may affect concurrently attached content.
@@ -429,7 +429,7 @@ export namespace Rebased {
 		 * - nodes that are present in the input context
 		 * - nodes that are represented by tombstones
 		 */
-		gaps?: OffsetList<OpenAffixEffects | ClosedAffixEffects, AffixCount>;
+		gaps?: OffsetList<OpenGapEffects | ClosedGapEffects, GapCount>;
 
 		/**
 		 * Operations that affect nodes (or locations where a node used to be).
@@ -443,7 +443,8 @@ export namespace Rebased {
 		 * Represents the changes made to the subtree of each node that was concurrently detached.
 		 *
 		 * Offsets represent both nodes that are present in the input context and nodes that were
-		 * concurrently detached.
+		 * concurrently detached. The `src` path for move entries uses indices that are in sync
+		 * with the contents of this list.
 		 */
 		modifyDel?: OffsetList<Modify, NodeCount>;
 
@@ -458,7 +459,8 @@ export namespace Rebased {
 		 * Represents the changes made to the subtree of each node present in the output context.
 		 *
 		 * Offsets represent both nodes that are present in the input context and nodes that were
-		 * added by this change.
+		 * added by this change. The `dst` path for move entries uses indices that are in sync with
+		 * the contents of this list.
 		 */
 		modifyNew?: OffsetList<Modify, NodeCount>;
 	}
@@ -491,7 +493,7 @@ export namespace Rebased {
 		tiebreak?: Tiebreak.Left;
 	}
 
-	export interface IsAffixEffect {
+	export interface IsGapEffect {
 		/**
 		 * When `true`, if a concurrent insertion that is sequenced before the range operation falls
 		 * within the bounds of the range, then the inserted content will *not* be included in the
@@ -523,29 +525,32 @@ export namespace Rebased {
 
 	export type Attach = Insert | MoveIn;
 
-	export interface OpenAffixEffects {
-		count: AffixCount;
+	export interface OpenGapEffects {
+		count: GapCount;
+		/**
+		 * Stack of effects applying to the gaps.
+		 */
 		stack: (Scorch | Forward)[];
 	}
 
-	export interface ClosedAffixEffects {
-		count: AffixCount;
+	export interface ClosedGapEffects {
+		count: GapCount;
 		stack: (Heal | Unforward)[];
 	}
 
-	export interface Scorch extends HasOpId, IsAffixEffect {
+	export interface Scorch extends HasOpId, IsGapEffect {
 		type: "Scorch";
 	}
 
-	export interface Heal extends HasOpId, IsAffixEffect {
+	export interface Heal extends HasOpId, IsGapEffect {
 		type: "Heal";
 	}
 
-	export interface Forward extends HasOpId, IsAffixEffect {
+	export interface Forward extends HasOpId, IsGapEffect {
 		type: "Forward";
 	}
 
-	export interface Unforward extends HasOpId, IsAffixEffect {
+	export interface Unforward extends HasOpId, IsGapEffect {
 		type: "Unforward";
 	}
 
@@ -667,7 +672,7 @@ export interface HasSeqNumber {
 }
 
 export type NodeCount = number;
-export type AffixCount = number;
+export type GapCount = number;
 export type Offset = number;
 export type SeqNumber = number;
 export type Value = number | string | boolean;

@@ -6,7 +6,7 @@
 import structuredClone from "@ungap/structured-clone";
 import { assert } from "@fluidframework/common-utils";
 import {
-	AffixCount,
+	GapCount,
 	Effects,
 	NodeCount,
 	Offset,
@@ -36,11 +36,11 @@ export function mapObject<T,U>(obj: T, f: (v: T[keyof T], k: keyof T) => U): ({ 
 
 export type OneOrMany<T> = T | T[];
 
-export function isInsert(mark: Readonly<AffixCount | R.Attach>): mark is R.Insert {
+export function isInsert(mark: Readonly<GapCount | R.Attach>): mark is R.Insert {
 	return typeof mark === "object" && "type" in mark && mark.type === "Insert";
 }
 
-export function isMoveIn(mark: Readonly<AffixCount | R.Attach>): mark is R.MoveIn {
+export function isMoveIn(mark: Readonly<GapCount | R.Attach>): mark is R.MoveIn {
 	return typeof mark === "object" && "type" in mark && mark.type === "Move";
 }
 
@@ -83,7 +83,7 @@ export function lengthFromNodeMark(mark: Readonly<NodeCount | R.NodeMark>): numb
 	return mark.count;
 }
 
-export function lengthFromOffsets(marks: Readonly<NodeCount | AffixCount | any>[] | undefined): number {
+export function lengthFromOffsets(marks: Readonly<NodeCount | GapCount | any>[] | undefined): number {
 	let length = 0;
 	if (marks !== undefined) {
 		for (const mark of marks) {
