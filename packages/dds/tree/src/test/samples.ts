@@ -1816,15 +1816,15 @@ export namespace ScenarioM {
 	that they are targeting.
 	In this scenario, if each insert changeset only stored the tombstone that is relevant to its
 	insert's target location then, when rebasing edit 4 over edit 3, we wouldn't know how to order
-	the tombstone for A relative to the tombstone for B.
+	the tombstones for A B relative to the tombstones for C D.
 
-	Starting state: foo=[A B C]
-	User 1: set-delete A
-	User 2: set-delete B
+	Starting state: foo=[A B C D]
+	User 1: set-delete A B
+	User 2: set-delete C D
 	User 3: insert X before B
-	User 4: insert Y before C
+	User 4: insert Y before D
 
-	Expected outcome: foo=[X Y C]
+	Expected outcome: foo=[X Y]
 */
 
 export const e1: S.Transaction = {
@@ -1835,7 +1835,7 @@ export const e1: S.Transaction = {
 			modifyOld: [{
 				foo: {
 					nodes: [
-						{  type: "Delete", id: 0, count: 1 },
+						{ type: "Delete", id: 0, count: 2 },
 					],
 				},
 			}],
@@ -1851,8 +1851,8 @@ export const e2: S.Transaction = {
 			modifyOld: [{
 				foo: {
 					nodes: [
-						1, // A
-						{  type: "Delete", id: 0, count: 1 },
+						2, // A B
+						{ type: "Delete", id: 0, count: 2 },
 					],
 				},
 			}],
@@ -1885,7 +1885,7 @@ export const e4: S.Transaction = {
 			modifyOld: [{
 				foo: {
 					attach: [
-						2,
+						3,
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 					],
 				},
@@ -1903,7 +1903,7 @@ export const e2_r_e1: S.Transaction = {
 			modifyOld: [{
 				foo: {
 					nodes: [
-						{  type: "Delete", id: 0, count: 1 },
+						{ type: "Delete", id: 0, count: 2 },
 					],
 				},
 			}],
@@ -1919,7 +1919,7 @@ export const e3_r_e1: S.Transaction = {
 		marks: {
 			modifyOld: [{
 				foo: {
-					tombs: [{ count: 1, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
 						1,
 						[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
@@ -1938,7 +1938,7 @@ export const e3_r_e2: S.Transaction = {
 		marks: {
 			modifyOld: [{
 				foo: {
-					tombs: [{ count: 1, seq: 1, id: 0 }, { count: 1, seq: 2, id: 0 }],
+					tombs: [{ count: 2, seq: 1, id: 0 }, { count: 2, seq: 2, id: 0 }],
 					attach: [
 						1,
 						[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
@@ -1957,9 +1957,9 @@ export const e4_r_e1: S.Transaction = {
 		marks: {
 			modifyOld: [{
 				foo: {
-					tombs: [{ count: 1, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
-						2,
+						3,
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 					],
 				},
@@ -1976,9 +1976,9 @@ export const e4_r_e2: S.Transaction = {
 		marks: {
 			modifyOld: [{
 				foo: {
-					tombs: [{ count: 1, seq: 1, id: 0 }, { count: 1, seq: 2, id: 0 }],
+					tombs: [{ count: 2, seq: 1, id: 0 }, { count: 2, seq: 2, id: 0 }],
 					attach: [
-						2,
+						3,
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 					],
 				},
@@ -1987,7 +1987,7 @@ export const e4_r_e2: S.Transaction = {
 	}],
 };
 
-export const e4p: S.Transaction = {
+export const e4_r_e3: S.Transaction = {
 	ref: 0,
 	seq: 4,
 	newRef: 3,
@@ -1998,10 +1998,11 @@ export const e4p: S.Transaction = {
 					tombs: [
 						{ count: 1, seq: 1, id: 0 },
 						1, // X
+						{ count: 1, seq: 1, id: 0 },
 						{ count: 1, seq: 2, id: 0 },
 					],
 					attach: [
-						3, // [-A-X-B
+						4, // [-A-X-B-C
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 					],
 				},
