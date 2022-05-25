@@ -395,55 +395,44 @@ export namespace Rebased {
 
 	export interface TraitMarks {
 		/**
-		 * Lists the additional (now deleted/detached) nodes and affixes that must be taken into
-		 * account in order to represent the changes made to this trait. Without them, describing
-		 * the changes would be like drawing on an incomplete canvas.
+		 * Lists the additional (now deleted/detached) nodes and that must be taken into account in order to represent
+		 * the changes made to this trait. Without them, describing the changes would be like drawing on an incomplete
+		 * canvas.
 		 *
-		 * Note that only nodes that are necessary for the description of the changes to this
-		 * trait are represented here. This means we do not include nodes for prior detaches and
-		 * deletes when the detached/deleted nodes are not being targeted by this change. The only
-		 * caveat is that whenever we include nodes/affixes for a prior operation, we include all
-		 * of them (i.e., all of the nodes for that unique pair of seq# and id#). The reason for
-		 * this is that otherwise there we would have precisely encode which of the nodes detached
-		 * by that prior edit are being represented here. It's simpler in most cases to represent
-		 * them all.
+		 * Note that all tombstones introduced by concurrent changes are represented here. This includes tombstones
+		 * that are not directly relevant to the description of the changes made to the trait. This is necessary to
+		 * ensure that later changes that are concurrent to this change always know how the tombstones they carry
+		 * ought to be ordered relative to the tombstones in this change.
 		 */
 		tombs?: OffsetList<Tombstones, NodeCount>;
 
 		/**
-		 * Operations that attach content in a new location.
-		 * The order of attach segments reflects the intended order of the content in the trait.
+		 * Operations that attach content in a gap.
+		 * The order of attach segments in each `Attach[]` reflects the intended order of the content in the trait.
 		 *
-		 * Offsets represent affixes that are present in the input context and affixes that were
-		 * for content that was concurrently detached.
+		 * Offsets represent gaps between any two of the following:
+		 * - the start of the field
+		 * - the end of the field
+		 * - nodes that are present in the input context
+		 * - nodes that are represented by tombstones
 		 */
 		attach?: OffsetList<Attach[], AffixCount>;
 
 		/**
-		 * Represents the changes made to the subtree of each that was concurrently detached.
+		 * Operations that may affect concurrently attached content.
+		 * These operation effectively target content that does not yet exist but may come to exist
+		 * as a result of concurrent changes.
 		 *
-		 * Offsets represent both nodes that are present in the input context and nodes that were
-		 * concurrently detached.
+		 * Offsets represent gaps between any two of the following:
+		 * - the start of the field
+		 * - the end of the field
+		 * - nodes that are present in the input context
+		 * - nodes that are represented by tombstones
 		 */
-		modifyD?: OffsetList<Modify, NodeCount>;
+		gaps?: OffsetList<OpenAffixEffects | ClosedAffixEffects, AffixCount>;
 
 		/**
-		 * Represents the changes made to the subtree of each node present in the input context.
-		 *
-		 * Offsets represent nodes that are present in the input context.
-		 */
-		modifyI?: OffsetList<Modify, NodeCount>;
-
-		/**
-		 * Represents the changes made to the subtree of each node present in the output context.
-		 *
-		 * Offsets represent both nodes that are present in the input context and nodes that were
-		 * added by this change.
-		 */
-		modifyO?: OffsetList<Modify, NodeCount>;
-
-		/**
-		 * Operations that affect previously known node locations.
+		 * Operations that affect nodes (or locations where a node used to be).
 		 *
 		 * Offsets represent both nodes that are present in the input context and nodes that were
 		 * concurrently detached.
@@ -451,14 +440,27 @@ export namespace Rebased {
 		nodes?: OffsetList<Detach | Reattach, NodeCount>;
 
 		/**
-		 * Operations that may affect concurrently attached content.
-		 * These operation effectively target content that does not yet exist but may come to exist
-		 * as a result of concurrent changes.
+		 * Represents the changes made to the subtree of each node that was concurrently detached.
 		 *
-		 * Offsets represent affixes that are present in the input context and affixes that were
-		 * for content that was concurrently detached.
+		 * Offsets represent both nodes that are present in the input context and nodes that were
+		 * concurrently detached.
 		 */
-		gaps?: OffsetList<OpenAffixEffects | ClosedAffixEffects, AffixCount>;
+		modifyDel?: OffsetList<Modify, NodeCount>;
+
+		/**
+		 * Represents the changes made to the subtree of each node present in the input context.
+		 *
+		 * Offsets represent nodes that are present in the input context.
+		 */
+		modifyOld?: OffsetList<Modify, NodeCount>;
+
+		/**
+		 * Represents the changes made to the subtree of each node present in the output context.
+		 *
+		 * Offsets represent both nodes that are present in the input context and nodes that were
+		 * added by this change.
+		 */
+		modifyNew?: OffsetList<Modify, NodeCount>;
 	}
 
 	export type OffsetList<TContent, TOffset> = (TOffset | TContent)[];
@@ -484,9 +486,9 @@ export namespace Rebased {
 		heed?: Effects | [Effects, Effects];
 
 		/**
-		 * Omit if `Tiebreak.LWW` for terseness.
+		 * Omit if `Tiebreak.Right` for terseness.
 		 */
-		tiebreak?: Tiebreak;
+		tiebreak?: Tiebreak.Left;
 	}
 
 	export interface IsAffixEffect {
@@ -558,13 +560,13 @@ export namespace Rebased {
 	}
 
 	/**
-	 * Represents a consecutive run of detached nodes and their affixes.
+	 * Represents a consecutive run of detached nodes.
 	 *
-	 * Note that in some situations a prior affix should appear without its associated node.
-	 * This can happen when a slice-move applied to an affix but not the node this affix is
-	 * associated with, or when a slice-move applied to the affix that represents the start
-	 * (or end) of a trait. When that's the case the lone affix is still represented by a full
-	 * tombstone.
+	 * Note that in some situations a tombstone is created for the purpose of representing a gap
+	 * even though no node has been detached.
+	 * This can happen when a slice-move applied to a gap but not the nodes on both sides of the
+	 * gap, or when a slice-move is applied to the gap that represents the start (or end) of a
+	 * field.
 	 */
 	export interface Tombstones extends PriorOp {
 		count: NodeCount;
@@ -672,221 +674,10 @@ export type Value = number | string | boolean;
 export type NodeId = string;
 export type ClientId = number;
 export type TraitLabel = string;
-export enum Tiebreak { LWW, FWW }
+export enum Tiebreak { Left, Right }
 export enum Effects {
 	All = "All",
 	Move = "Move",
 	Delete = "Delete",
 	None = "None",
-}
-
-export namespace EffectsInRegions {
-	type Trait = [AffixPair, NodeList, AffixPair];
-	type AffixPair = [Affix, Affix];
-	type Affix = AffixEffect[];// Order implies precedence of slices and order of attaches
-	type AffixEffect = "Insert" | "MoveIn" | "SliceDelete" | "SliceMoveOut";
-	type NodeList = NodeTriplet[];
-	type NodeTriplet = [AffixPair, Node, AffixPair];
-	type Node = NodeEffect[]; // Order implies precedence
-	type NodeEffect = "SetDelete" | "SetMoveOut" | "SliceDelete" | "SliceMoveOut";
-
-	export const t1: Trait = [
-		[[], []],
-		[ // NodeList
-			[ // NodeTriplet
-				[[], []],
-				[],
-				[[], []],
-			],
-			[ // NodeTriplet
-				[[], []],
-				[],
-				[[], []],
-			],
-			[ // NodeTriplet
-				[["Insert"], ["SliceDelete"]],
-				["SliceDelete"],
-				[["SliceDelete"], ["SliceDelete"]],
-			],
-			[ // NodeTriplet
-				[["SliceMoveOut", "SliceDelete"], ["SliceMoveOut", "SliceDelete"]],
-				["SliceMoveOut", "SliceDelete"],
-				[["SliceMoveOut", "SliceDelete"], []],
-			],
-		], // NodeList
-		[[], []],
-	];
-
-	// In this representation there's no way to ensure that a slice starts and ends at an affix
-}
-
-export namespace EffectsInRegionsWithSkips {
-	type Trait = [AffixPair | 1, NodeList | 1, AffixPair | 1];
-	type AffixPair = [Affix | 1, Affix | 1];
-	type Affix = AffixEffect[];// Order implies precedence of slices and order of attaches
-	type AffixEffect = "Insert" | "MoveIn" | "SliceDelete" | "SliceMoveOut";
-	type NodeList = (NodeTriplet | number)[];
-	type NodeTriplet = [AffixPair | 1, Node | 1, AffixPair | 1];
-	type Node = NodeEffect[]; // Order implies precedence
-	type NodeEffect = "SetDelete" | "SetMoveOut" | "SliceDelete" | "SliceMoveOut";
-
-	export const t1: Trait = [
-		1,
-		[ // NodeList
-			2,
-			[ // NodeTriplet
-				[["Insert"], ["SliceDelete"]],
-				["SliceDelete"],
-				[["SliceDelete"], ["SliceDelete"]],
-			],
-			[ // NodeTriplet
-				[["SliceMoveOut", "SliceDelete"], ["SliceMoveOut", "SliceDelete"]],
-				["SliceMoveOut", "SliceDelete"],
-				[["SliceMoveOut", "SliceDelete"], 1],
-			],
-		], // NodeList
-		1,
-	];
-
-	// In this representation there's no way to ensure that a slice starts and ends at an affix
-}
-
-export namespace RegionsInEffectsWithSkips {
-	type Trait = (Effect | Skip)[];
-	type Skip = number; // Mix of affixes and nodes
-	interface Effect {
-		kind: EffectKind;
-		nested?: Trait; // The length of the affected region determined by looking at nested skips
-	}
-	type EffectKind = "Insert" | "MoveIn" | "SetDelete" | "SetMoveOut" | "SliceDelete" | "SliceMoveOut";
-
-	export const t1: Trait = [
-		12, // 2 affixes + 2 node triplets (ugh!)
-		{ kind: "Insert" },
-		{
-			kind: "SliceDelete",
-			nested: [
-				4,
-				{
-					kind: "SliceMoveOut",
-					nested: [
-						4,
-					],
-				},
-			],
-		},
-		3, // last affix of 4th node + 2 final affixes
-	];
-}
-
-export namespace EffectMajor {
-	interface Trait {
-		inserts?: AffixRegions<Content>;
-		setDel?: NodeRegions<number>;
-		sliceDelNodes?: NodeRegions<number>;
-		// Issue: we can have overlapping (non-idempotent) slice deletes within a single change
-		sliceDelAffixes?: AffixRegions<number>;
-		sliceMovNodes?: NodeRegions<number>;
-		// Issue: we can have overlapping (non-idempotent) slice moves within a single change
-		sliceMovAffixes?: AffixRegions<number>;
-		priorSetDeletes?: [SeqNumber, NodeRegions<number>][];
-	}
-	type AffixRegions<TContent = any> = [number, TContent][];
-	type NodeRegions<TContent = any> = [number, TContent][];
-	type Content = any;
-
-	export const t1: Trait = {
-		inserts: [[10, []]],
-		sliceDelNodes: [[2, 1]],
-		sliceDelAffixes: [[11, 6]],
-		sliceMovNodes: [[3, 1]],
-		sliceMovAffixes: [[14, 3]],
-	};
-}
-
-export namespace EffectMajor2 {
-	interface Trait {
-		// Attaches (whether new or prior) cannot overlap
-		// Answers: affix -> ordered attaches
-		attaches?: List<Attach[]>;
-
-		// Embrace the overlap by splitting
-		// Answers: node -> detach
-		nodeRanges?: List<NewDetach | PriorDetach | MutedDetach>;
-
-		// Embrace the overlap by splitting
-		// Answers: affix -> stack of effects
-		affixRanges?: List<AffixEffects>;
-	}
-	type List<TContent> = (Offset | TContent)[];
-
-	interface Insert {
-		type: "Insert";
-		id: OpId;
-		content: any[];
-		commute: Effects;
-	}
-
-	interface MoveIn {
-		type: "Move";
-		id: OpId;
-		commute: Effects;
-	}
-
-	type NewAttach = Insert | MoveIn;
-	type Attach = NewAttach | PriorAttach;
-
-	interface AffixEffects {
-		// Number of affixes impacted
-		count: number;
-		stack: (SliceDelete | SliceMove)[];
-	}
-
-	interface SliceDelete {
-		type: "Del";
-		id: OpId;
-	}
-
-	interface SliceMove {
-		type: "Mov";
-		id: OpId;
-	}
-
-	interface PriorAttach {
-		id: OpId;
-		count: number;
-		seq: SeqNumber;
-		commute: Effects;
-	}
-
-	interface NewDetach {
-		type: "Del" | "Mov";
-		id: OpId;
-		count: number;
-	}
-
-	interface MutedDetach extends NewDetach {
-		priors: [SeqNumber, OpId][];
-	}
-
-	interface PriorDetach {
-		priors: [SeqNumber, OpId][];
-		count: number;
-	}
-
-	export const t1: Trait = {
-		attaches: [
-			10,
-			[{ type: "Insert", id: 0, commute: Effects.All, content: [] }],
-		],
-		nodeRanges: [
-			{ type: "Del", id: 1, count: 1 },
-			{ type: "Mov", id: 2, count: 1 },
-		],
-		affixRanges: [
-			3,
-			{ count: 3, stack: [{ type: "Del", id: 1 }] },
-			{ count: 3, stack: [{ type: "Mov", id: 2 }, { type: "Del", id: 1 }] },
-		],
-	};
 }
