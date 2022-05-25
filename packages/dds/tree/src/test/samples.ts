@@ -1086,9 +1086,15 @@ export namespace ScenarioH {
 	within falls within. It is up to the slice-range the insert falls within to determine whether
 	it commutes with a slice range at its destination, thus indirectly affecting the final location
 	of the insert.
+	It also demonstrates the need for synthetic tombstones. Without them, the effect of E2 on the
+	gap between U and V would end up affecting the totality of the gap between B and V, which would
+	be a problem since Y, which after being rebased over E1 targets that gap, should remain in bar
+	as opposed to being affected by E2. The synthetic tombstone allows us to compartment the gap
+	between U and V into two gaps: U-ST and ST-V where the former is affected by E2 but the latter
+	is not.
 
 	Starting state: foo=[A B] bar=[U V] baz=[]
-	  User 1: slice-move all of trait foo before V with a (commute:all)
+	  User 1: slice-move all of trait foo before V with a (commute:none)
 	  User 2: slice-move all of trait bar into trait baz
 	  User 3: insert X before B and insert Y before the end in foo (commute:all)
 
@@ -1113,7 +1119,7 @@ export namespace ScenarioH {
 					bar: {
 						attach: [
 							1,
-							[{ type: "Move", id: 0, count: 2 }],
+							[{ type: "Move", id: 0, count: 2, heed: Effects.None }],
 						],
 					},
 				}],
@@ -1154,7 +1160,7 @@ export namespace ScenarioH {
 				modifyOld: [{
 					foo: {
 						attach: [
-							1,
+							1, // [-A
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
 							[{ type: "Insert", id: 0, content: [{ id: "Y" }], heed: Effects.All }],
 						],
@@ -1208,10 +1214,16 @@ export namespace ScenarioH {
 			marks: {
 				modifyOld: [{
 					bar: {
+						tombs: [
+							1, // U
+							{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST1)
+							2,// A B
+							{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST2)
+						],
 						attach: [
-							2, // [-U-A
-							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
-							[{ type: "Insert", id: 0, content: [{ id: "Y" }], heed: Effects.All }],
+							3, // [-U-ST1-A
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }], // A-B
+							[{ type: "Insert", id: 0, content: [{ id: "Y" }], heed: Effects.All }], // B-ST2
 						],
 					},
 				}],
@@ -1227,10 +1239,17 @@ export namespace ScenarioH {
 			marks: {
 				modifyOld: [{
 					bar: {
+						tombs: [
+							{ count: 1, seq: 2, id: 0 }, // U
+							{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST1)
+							2,// A B
+							{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST2)
+							{ count: 1, seq: 2, id: 0 }, // V
+						],
 						attach: [
-							1, // [-A
-							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
-							[{ type: "Insert", id: 0, content: [{ id: "Y" }], heed: Effects.All }],
+							3, // [-U-ST1-A
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }], // A-B
+							[{ type: "Insert", id: 0, content: [{ id: "Y" }], heed: Effects.All }], // B-ST2
 						],
 					},
 				}],
