@@ -653,13 +653,16 @@ export enum Sibling {
  * A monotonically increasing positive integer assigned to each segment.
  * The first segment is assigned OpId 0. The next one is assigned OpID 1, and so on.
  * These IDs define total a temporal ordering over all the changes within a change frame.
- * OpIds are scoped to a single frame, so referring to OpIds across frame would require
+ * OpIds are scoped to a single frame, so referring to OpIds across frames would require
  * qualifying them by frame number (and potentially sequence/commit number).
  *
- * The temporal ordering is leveraged to resolve which node a given segment is anchored to:
+ * The temporal ordering is leveraged in the `Original` format to resolve which node a given segment is anchored to:
  * A segment is anchored to the first node, when scanning in the direction indicated by the `side`
  * field, that was either inserted by an operation whose OpId is lower, or left untouched (i.e.
  * represented by an offset), or the end of the trait, whichever is encountered first.
+ *
+ * The uniqueness of IDs is leveraged in either format to uniquely identify tombstones so that two changes can tell
+ * whether they carry tombstones for the same nodes or for different nodes.
  */
 export type OpId = number;
 
