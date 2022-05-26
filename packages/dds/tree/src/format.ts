@@ -443,15 +443,15 @@ export namespace Rebased {
 		 * Represents the changes made to the subtree of each node that was concurrently detached.
 		 *
 		 * Offsets represent both nodes that are present in the input context and nodes that were
-		 * concurrently detached. The `src` path for move entries uses indices that are in sync
-		 * with the contents of this list.
+		 * concurrently detached.
 		 */
 		modifyDel?: OffsetList<Modify, NodeCount>;
 
 		/**
 		 * Represents the changes made to the subtree of each node present in the input context.
 		 *
-		 * Offsets represent nodes that are present in the input context.
+		 * Offsets represent nodes that are present in the input context. The `src` path for move
+		 * entries uses indices that are in sync with the contents of this list.
 		 */
 		modifyOld?: OffsetList<Modify, NodeCount>;
 
