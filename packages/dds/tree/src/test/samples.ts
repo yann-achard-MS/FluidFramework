@@ -1803,8 +1803,8 @@ export namespace ScenarioL {
 	    slice-move foo [_A] to the end of trait baz
 	    slice-move foo [B_] to the start of trait baz
 	  E4: User 2: slice-move all of baz to the start of trait qux
-	  E5: User 3: insert X after B (LLW commutative)
-	  E6: User 3: insert Y before A (LLW commutative)
+	  E5: User 3: insert X after B (commute:all)
+	  E6: User 3: insert Y before A (commute:all)
 
 	Expected outcome: qux=[X Y]
 	*/
@@ -1813,7 +1813,8 @@ export namespace ScenarioL {
 export namespace ScenarioM {
 /*
 	This scenario demonstrates the need for changesets to record all the tombstones for each field
-	that they are targeting.
+	that they are targeting. More precisely, it is necessary to record all tombstones that are
+	adjacent to currently recorded tombstones, but recording all of them leads to simpler rebase code.
 	In this scenario, if each insert changeset only stored the tombstone that is relevant to its
 	insert's target location then, when rebasing edit 4 over edit 3, we wouldn't know how to order
 	the tombstones for A B relative to the tombstones for C D.

@@ -661,8 +661,10 @@ export enum Sibling {
  * field, that was either inserted by an operation whose OpId is lower, or left untouched (i.e.
  * represented by an offset), or the end of the trait, whichever is encountered first.
  *
- * The uniqueness of IDs is leveraged in either format to uniquely identify tombstones so that two changes can tell
- * whether they carry tombstones for the same nodes or for different nodes.
+ * The uniqueness of IDs is leveraged in either format to
+ * 1. uniquely identify tombstones so that two changes can tell whether they carry tombstones for the same nodes or
+ * for different nodes.
+ * 2. uniquely identify the matching move-out for a move-in and vice-versa.
  */
 export type OpId = number;
 

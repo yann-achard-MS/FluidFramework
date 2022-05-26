@@ -679,21 +679,53 @@ The implicit questions is: should it even store those tombstones that represents
 
 Scenario M seems to suggest the answer is yes:
 
-* Starting state: foo=[A B]
+* Starting state: foo=[A B C D]
 
-* User 1: set-delete A
+* User 1: set-delete A B
 
-* User 2: set-delete B
+* User 2: set-delete C D
 
 * User 3: insert X after A
 
-* User 4: insert Y after B
+* User 4: insert Y after C
 
-If each insert only stored the tombstone that is relevant to its insert then, when rebasing edit 4 over edit 3, we wouldn't know how to order the tombstone for A relative to the tombstone for B.
+If each insert only stored the tombstone that is relevant to its insert then, when rebasing edit 4 over edit 3, we wouldn't know how to order the tombstones for AB relative to the tombstones for CD.
 
 Note that slice move-ins also create gaps whenever an affix is imported by the move but the node that the affix is associated with is not being imported. (See scenario N)
 
 This seems to indicate that when rebasing over a move-in, we need to know not just how many actual nodes were introduced, but also how many tombstones and where.
+
+Would it be possible to instead record tombstones when they would be adjacent to an existing tombstone? That would work for scenario M because E3 would end up recording both tombstone runs (E4 would only record the run for CD). But what if we introduce a step in between:
+
+- Starting state: foo=[A B U C D]
+
+- E1: User 1: set-delete A B
+
+- E2: User 2: set-delete C D
+
+- E3: User 3: set-delete U
+
+- E4: User 3: insert X after A
+
+- E5 User 4: insert Y after C
+
+Now E4 will have tombstones for AB and U while E5 will have tombstones for U and CD. This is theoretically enough thought it might complicate merge code.
+
+What about this:
+
+- Starting state: foo=[A B U C D]
+
+- E1: User 1: set-delete A B
+
+- E2: User 3: set-delete U
+
+- E3: User 2: set-delete C D
+
+- E4: User 3: insert X after A
+
+- E5 User 4: insert Y after C
+
+Now E4 will have tombstones for AB U CD, which is bound to be enough.
 
 ## What kinds of tombstones need to be recorded when rebasing over a slice-move-in?
 
@@ -719,11 +751,35 @@ As a matter of simplicity, we can choose to include it for now and revisit the p
 
 ## Should move-in counts be updated to represent the actual number of attached nodes?
 
+**=> Yes**
+
+We need to update the move-in count when rebasing the move-out over a commutative insert. If we don't then we'll the wrong idea about some things:
+
+- When rebasing the move-in over an insert at a fixed-offset that splits the move-in, not having an updated length means we would potentially be wrong about whether the move-in segment gets split or not.
+
+- More generally, modifies/set-values over inserted nodes would not be at the correct index.
+
+- The indices in the move table would be wrong (both for the spine and for the target field).
+
+This also applies to rebasing the move-out over deletions.
+
 ## Should replicated tombstones carry the whole replication history?
 
 Scenario L seems to indicate that if we don't do so, then we can run into situations where we can't tell apart two tombstones are that actually independent.
 
 But is that solely a consequence of the fact we don't include the totality of a tombstone when we replicate it? IOW, would it help if we took the whole tombstone run even if only a fragment of it was affected by the slice? No: we would still end up with two tombstones that are only different because of some move at an arbitrary point in the chain of moves. The difference it would make is that part of the larger tombstone would in each case never be targeted.
+
+It is instead a consequence of the fact that we don't label tombstones to indicate which fragment of possibly many nodes were deleted by a single op? Yes: if we were to label each fragment at the time they are being pulled apart then we would only need to remember which part of the whole it represents and possibly that it got here through a move (although that last part has been brought into question by scenario K's inability to motivate it)
+
+How do we label tombstones so that fragments of the same run of tombstones are distinguishable and orderable?
+
+In theory, fragments should never overlap but synthetic tombstones make that not the case. It may still be possible to tell about the order and the difference because the overlap is bounded to 1, and should always come with a non-overlapping part.
+
+When looking at a tombstone, do we need to know whether it is a fragment or the whole thing?
+
+Could we ditch op IDs and frame IDs from tombstones if we take the view that all tombstones for a given seq number form a big (though disjoint) tombstone for which we need to represent some of the parts?
+
+Do we effectively need to record some part of all tombstone runs but it's not important which part?
 
 ## Should we decouple move and forward?
 
@@ -731,7 +787,7 @@ Mild clue that having them together is odd: in order to make a slice-range whose
 
 Clue that they may make more sense separately: one could want to forward the affixes between the nodes A B and C without moving B. If moving and forwarding are coupled then such an intention would have to be expressed by slice-moving B along with the affixes and then set-moving it back (or better: set-returning it which we may not offer a way to express).
 
-If they were separated, how would you convey what the typical slice-range over multiple does? Specifically, how you you convey that the stuff being moved (nodes and slots) need to be interleaved at the destination?
+If they were separated, how would you convey what the typical slice-range over multiple does? Specifically, how you you convey that the stuff being moved (nodes and slots) need to be interleaved at the destination? Would we just rely on a joint "move-in" that takes from both? If so how do we know the relative ordering?
 
 ## Does it make sense to offer range bounds that have degrees of freedom for both "before/after" and "left/right"?
 
