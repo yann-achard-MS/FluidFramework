@@ -1648,7 +1648,7 @@ export namespace ScenarioK {
 	  - insert X at the end of foo (commute:move)
 	  - insert Y at the end of foo (commute:none)
 
-	Expected outcome: foo=[A X C Y]
+	Expected outcome: foo=[X Y]
 	*/
 
 	export const e1: S.Transaction = {
@@ -2032,6 +2032,308 @@ export namespace ScenarioN {
 
 	Expected outcome: foo=[A B C] bar=[X Y]
 	*/
+}
+
+export namespace ScenarioO {
+/**
+ * This scenario demonstrates that if an edit has tombstones that fall in the same cursor gap as
+ * some move-in that it is being rebased over, then that edit but include the tombstones introduced
+ * by the extremities of that move-in (if any).
+ *
+ * In this scenario, if e5_r_e3 doesn't acquire the tombstones for AB when rebasing e5_r_e2 over e3_r_e2,
+ * then when rebasing e5_r_e3 over e4_r_e3, we will not know how to order the tombstones for AB and V in
+ * e5_r_e4, which means we will not know how to order X and Y.
+ *
+ * Starting state foo[A B] bar=[U V]
+ * E1: U1: set-delete V
+ * E2: U2: set-delete A B
+ * E3: U1: slice-move [A B] after U
+ * E4: U3: insert X after A (commute:all)
+ * E5: U4: insert Y before V
+ *
+ * Expected outcome: foo=[] bar=[U X Y]
+ */
+
+export const e1: S.Transaction = {
+	ref: 0,
+	seq: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					nodes: [
+						1,
+						{ type: "Delete", id: 0, count: 1 },
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e2: S.Transaction = {
+	ref: 0,
+	seq: 2,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					nodes: [
+						{ type: "Delete", id: 0, count: 2 },
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e3: S.Transaction = {
+	ref: 1, // Known of 1
+	seq: 3,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					nodes: [
+						{ type: "Move", id: 0, count: 2 },
+					],
+					gaps: [
+						1,
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				bar: {
+					attach: [
+						1,
+						[{ type: "Move", id: 0, count: 2, tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					attach: [
+						1,
+						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					attach: [
+						1,
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e2_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 2,
+	newRef: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					nodes: [
+						{ type: "Delete", id: 0, count: 2 },
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e3_r_e2: S.Transaction = {
+	ref: 0,
+	seq: 3,
+	newRef: 2,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					tombs: [{ count: 2, seq: 2, id: 0 }],
+					nodes: [
+						{ type: "Move", id: 0, count: 2 },
+					],
+					gaps: [
+						1,
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				bar: {
+					attach: [
+						1,
+						[{ type: "Move", id: 0, count: 2, tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	newRef: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					attach: [
+						1,
+						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4_r_e2: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	newRef: 2,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					tombs: [{ count: 2, seq: 2, id: 0 }],
+					attach: [
+						1,
+						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4_r_e3: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	newRef: 3,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					tombs: [
+						1,
+						{ count: 2, seq: 2, id: 0, src: [{ seq: 3, id: 0 }] },
+					],
+					attach: [
+						2, // [-A-U
+						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	newRef: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					tombs: [1, { count: 1, seq: 1, id: 0 }],
+					attach: [
+						1,
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5_r_e2: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	newRef: 2,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					tombs: [1, { count: 1, seq: 1, id: 0 }],
+					attach: [
+						1,
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5_r_e3: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	newRef: 3,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					tombs: [1, { count: 1, seq: 1, id: 0 }],
+					attach: [
+						1,
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5_r_e4: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	newRef: 4,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					tombs: [
+						1,
+						{ count: 1, seq: 2, id: 0 },
+						1,
+						{ count: 1, seq: 2, id: 0 },
+						// We can't know the seq:1 tombstone goes after the seq:2 tombstones if
+						// e5_r_e3 doesn't learn of the seq:2 tombstones from e3_r_e2.
+						{ count: 1, seq: 1, id: 1 },
+					],
+					attach: [
+						4,
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+					],
+				},
+			}],
+		},
+	}],
+};
 }
 
 export const allOriginals = [
