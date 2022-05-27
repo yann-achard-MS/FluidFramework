@@ -2049,7 +2049,7 @@ export namespace ScenarioO {
  * E2: U2: set-delete A B
  * E3: U1: slice-move [A B] after U
  * E4: U3: insert X after A (commute:all)
- * E5: U4: insert Y before V
+ * E5: U4: insert Y after V
  *
  * Expected outcome: foo=[] bar=[U X Y]
  */
@@ -2261,8 +2261,8 @@ export const e5_r_e1: S.Transaction = {
 				bar: {
 					tombs: [1, { count: 1, seq: 1, id: 0 }],
 					attach: [
-						1,
-						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+						2,
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
 					],
 				},
 			}],
@@ -2280,8 +2280,8 @@ export const e5_r_e2: S.Transaction = {
 				bar: {
 					tombs: [1, { count: 1, seq: 1, id: 0 }],
 					attach: [
-						1,
-						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+						2,
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
 					],
 				},
 			}],
@@ -2299,8 +2299,8 @@ export const e5_r_e3: S.Transaction = {
 				bar: {
 					tombs: [1, { count: 1, seq: 1, id: 0 }],
 					attach: [
-						1,
-						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+						2,
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
 					],
 				},
 			}],
@@ -2317,17 +2317,17 @@ export const e5_r_e4: S.Transaction = {
 			modifyOld: [{
 				bar: {
 					tombs: [
-						1,
-						{ count: 1, seq: 2, id: 0 },
-						1,
-						{ count: 1, seq: 2, id: 0 },
+						1, // U
+						{ count: 1, seq: 2, id: 0 }, // A
+						1, // X
+						{ count: 1, seq: 2, id: 0 }, // B
 						// We can't know the seq:1 tombstone goes after the seq:2 tombstones if
 						// e5_r_e3 doesn't learn of the seq:2 tombstones from e3_r_e2.
-						{ count: 1, seq: 1, id: 1 },
+						{ count: 1, seq: 1, id: 1 }, // V
 					],
 					attach: [
-						4,
-						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+						5,
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
 					],
 				},
 			}],
