@@ -226,7 +226,12 @@ export namespace ScenarioA {
 					},
 					bar: {
 						attach: [
-							[{ type: "Move", id: 0, count: 3 }], // Count does not get updated
+							[{
+								type: "Move",
+								id: 0,
+								count: 1, // Updated
+								tombs: [{ count: 2, seq: 1, id: 1 }],
+							}],
 						],
 					},
 				}],
@@ -1475,7 +1480,12 @@ export namespace ScenarioJ {
 					},
 					bar: {
 						attach: [
-							[{ type: "Move", id: 0, count: 3 }], // Count is not updated
+							[{
+								type: "Move",
+								id: 0,
+								count: 2, // Updated
+								tombs: [1, { count: 1, seq: 1, id: 0 }],
+							}],
 						],
 					},
 				}],
@@ -1729,7 +1739,12 @@ export namespace ScenarioK {
 							{ count: 1, stack: [{ type: "Forward", id: 0 }] },
 						],
 						attach: [
-							[{ type: "Move", id: 0, count: 1 }], // Count is not updated
+							[{
+								type: "Move",
+								id: 0,
+								count: 0, // Updated
+								tombs: [{ count: 1, seq: 1, id: 0 }],
+							}],
 						],
 					},
 				}],
@@ -2014,24 +2029,150 @@ export const e4_r_e3: S.Transaction = {
 }
 
 export namespace ScenarioN {
-	/**
-	This scenario demonstrates that to successfully order two tombstones that are relied
-	on by separate changes, we need to include tombstones for orphan gaps at the edge of the
-	range when rebasing over slice move-ins.
+/**
+ * This scenario demonstrates that to successfully order two tombstones that are relied
+ * on by separate changes, we need to include tombstones for orphan gaps at the edge of the
+ * range when rebasing over slice move-ins.
+ *
+ * In this scenario, if E2 and E3 don't record synthetic tombstones when rebasing over e1, then the
+ * rebasing of e3_r_e1 over e2_r_e1 will not know how to order the inserts.
+ *
+ * Starting with traits foo=[A B C], bar=[]:
+ * E1: User 1:
+ * 	slice-move foo A[_]B to the end of trait bar
+ * 	slice-move foo B[_]C to the end of trait bar
+ * E2: User 2: insert Y before C (commute:all)
+ * E3: User 3: insert X before B (commute:all)
+ *
+ * Expected outcome: foo=[A B C] bar=[X Y]
+*/
 
-	In this scenario, if E2 and E3 don't record both tombstones for B when rebasing
-	over both of E1's slice move-ins, then the rebasing of E2 over E3 will not know how to order
-	the tombstone in E2 relative to the one in E3.
+export const e1: S.Transaction = {
+	ref: 0,
+	seq: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					gaps: [
+						1,
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+						{ count: 1, stack: [{ type: "Forward", id: 1 }] },
+					],
+				},
+				bar: {
+					attach: [
+						[
+							{ type: "Move", id: 0, count: 0, tombs: [{ count: 2, seq: 1, id: 0 }] },
+							{ type: "Move", id: 1, count: 0, tombs: [{ count: 2, seq: 1, id: 1 }] },
+						],
+					],
+				},
+			}],
+		},
+	}],
+};
 
-	Starting with traits foo=[A B C], bar=[]:
-	  E1: User 1:
-	    slice-move foo A[_]B to the start of trait bar
-	    slice-move foo B[_]C to the end of trait bar
-	  E2: User 2: insert X before B (commute:all)
-	  E3: User 3: insert Y before C (commute:all)
+export const e2: S.Transaction = {
+	ref: 0,
+	seq: 2,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					attach: [
+						2,
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+					],
+				},
+			}],
+		},
+	}],
+};
 
-	Expected outcome: foo=[A B C] bar=[X Y]
-	*/
+export const e3: S.Transaction = {
+	ref: 0,
+	seq: 2,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					attach: [
+						1,
+						[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e2_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 2,
+	newRef: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					tombs: [
+						{ count: 2, seq: 1, id: 0 }, // Synthetic
+						{ count: 2, seq: 1, id: 1 }, // Synthetic
+					],
+					attach: [
+						3,
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e3_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 3,
+	newRef: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					tombs: [
+						{ count: 2, seq: 1, id: 0 }, // Synthetic
+						{ count: 2, seq: 1, id: 1 }, // Synthetic
+					],
+					attach: [
+						1,
+						[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e3_r_e2: S.Transaction = {
+	ref: 0,
+	seq: 3,
+	newRef: 2,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					tombs: [
+						{ count: 2, seq: 1, id: 0 }, // Synthetic
+						{ count: 1, seq: 1, id: 1 }, // Synthetic
+						1, // Y
+						{ count: 1, seq: 1, id: 1 }, // Synthetic
+					],
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+					],
+				},
+			}],
+		},
+	}],
+};
 }
 
 export namespace ScenarioO {
@@ -2184,7 +2325,26 @@ export const e3_r_e2: S.Transaction = {
 				bar: {
 					attach: [
 						1,
-						[{ type: "Move", id: 0, count: 2, tiebreak: Tiebreak.Left }],
+						[{
+							type: "Move",
+							id: 0,
+							count: 0, // Updated
+							tiebreak: Tiebreak.Left,
+							// This is the tombstone information motivated by this scenario.
+							// Whether it is explicitly represented here or whether it need to be
+							// derived by each change that rebases over this move-in is a degree of
+							// freedom of the format.
+							// We opt to represent it at the move-in site (and therefore bear the)
+							// cost of updating it when rebasing the move-out over detaches, because
+							// we already need to update the node count in the same cases. In fact,
+							// having the tombstone information here and keeping it updated means
+							// the count could stay as is, but we update it anyway because we
+							// anticipate that most readers of this mark care about the number of
+							// actually inserted nodes.
+							tombs: [
+								{ count: 2, seq: 2, id: 0 }, // A B
+							],
+						}],
 					],
 				},
 			}],
@@ -2297,7 +2457,11 @@ export const e5_r_e3: S.Transaction = {
 		marks: {
 			modifyOld: [{
 				bar: {
-					tombs: [1, { count: 1, seq: 1, id: 0 }],
+					tombs: [
+						1,
+						{ count: 2, seq: 2, id: 0, src: [{ seq: 3, id: 0 }] }, // A B
+						{ count: 1, seq: 1, id: 0 }, // V
+					],
 					attach: [
 						2,
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],

@@ -675,9 +675,9 @@ The practice of using a full triplet even when less than that needs to be repres
 
 ## Should a changeset store all the tombs for a trait that it targets?
 
-The implicit questions is: should it even store those tombstones that represents regions of the trait that it is not targeting?
+The implicit questions is: should it even store those tombstones that represents regions of the trait that it is not targeting? If so which ones? All of them?
 
-Scenario M seems to suggest the answer is yes:
+Scenario M seems to suggest we do need to store more than what is needed to describe the edit:
 
 * Starting state: foo=[A B C D]
 
@@ -691,9 +691,11 @@ Scenario M seems to suggest the answer is yes:
 
 If each insert only stored the tombstone that is relevant to its insert then, when rebasing edit 4 over edit 3, we wouldn't know how to order the tombstones for AB relative to the tombstones for CD.
 
+Instead of saying "this needs more tombstone information than what is needed to describe the edit", we may want to say that whenever tombstones are adjacent, we need to store all tombstones that reside in the same gap.
+
 Note that slice move-ins also create gaps whenever an affix is imported by the move but the node that the affix is associated with is not being imported. (See scenario N)
 
-This seems to indicate that when rebasing over a move-in, we need to know not just how many actual nodes were introduced, but also how many tombstones and where.
+This seems to indicate that when rebasing over a move-in, we may need to know (at least then the move-in is in a gap that already has tombstones) not just how many actual nodes were introduced, but what gaps are introduced by the move on either side. Should this information be represented on move-ins?
 
 Would it be possible to instead record tombstones when they would be adjacent to an existing tombstone? That would work for scenario M because E3 would end up recording both tombstone runs (E4 would only record the run for CD). But what if we introduce a step in between:
 
@@ -729,25 +731,19 @@ Now E4 will have tombstones for AB U CD, which is bound to be enough.
 
 ## What kinds of tombstones need to be recorded when rebasing over a slice-move-in?
 
- There are three kinds of tombstones that are *relevant* to slice-moves:
+ There are three categories of tombstones that are *relevant* when considering the interaction of inserts and slice-moves:
 
-* The tombstones for the nodes that weren't imported but whose affixes were imported. There can be at most 2 per slice-move: one on each extremity of the slice.
+* The tombstones for the nodes that weren't imported but whose gaps were imported. There can be at most 2 per slice-move: one on each extremity of the slice.
 
 * The tombstones introduced at the source of the slice-move by operations that were concurrent to the move (and fell within the slice).
 
 * The tombstones introduced at the source of the slice-move by operations that were prior, but not concurrent, to the move (and fell within the slice).
 
-Only the first kind needs to be recorded when rebasing over the move-in for a slice move. Scenario N demonstrates that need.
+The first category needs to be recorded. Scenario N demonstrates that need.
 
-It would be nice to have a proof that such information isn't needed for the other two kinds.
+The second category can be needed when the tombstones end up on the extremities of the moved-in slice (effectively making them more akin to the first category). This is demonstrated by scenario O. We do not need to record them when they are not on the extremities of the moved-in slice.
 
-## Should slice-move-ins convey tombstone information?
-
-The alternative is that a changeset being rebased over a slice-move-in would need to go look at the source move-out to figure out what tombstone information to add.
-
-In some cases that's fine because the change being rebased is actually embracing that move, so it already has direct access to that information, but since that's not true in all cases, we would indeed need to look up the source some of the time.
-
-As a matter of simplicity, we can choose to include it for now and revisit the performance implications once more production data has been gathered.
+The third category already is recorded in inserts that it is relevant to.
 
 ## Should move-in counts be updated to represent the actual number of attached nodes?
 
@@ -762,6 +758,16 @@ We need to update the move-in count when rebasing the move-out over a commutativ
 - The indices in the move table would be wrong (both for the spine and for the target field).
 
 This also applies to rebasing the move-out over deletions.
+
+## Should slice-move-ins convey tombstone information?
+
+**=> Yes**
+
+The alternative is that a changeset being rebased over a slice-move-in would need to go look at the source move-out to figure out what tombstone information to add.
+
+In some cases that's fine because the change being rebased is actually embracing that move, so it already has direct access to that information, but since that's not true in all cases, we would indeed need to look up the source some of the time.
+
+Since we already have to pay the cost of updating the move-in count in scenarios that affect it, it seems we may as well pay the cost of updating move-in segments with relevant tombstone information.
 
 ## Should replicated tombstones carry the whole replication history?
 

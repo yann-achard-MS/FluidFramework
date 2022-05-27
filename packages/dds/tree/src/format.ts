@@ -520,7 +520,15 @@ export namespace Rebased {
 
 	export interface MoveIn extends HasOpId, IsPlace {
 		type: "Move";
+		/**
+		 * The actual number of nodes being moved-in. This count excludes nodes that were concurrently deleted.
+		 */
 		count: NodeCount;
+		/**
+		 * Describes the nodes that were concurrently deleted at the source of the move.
+		 * Also include synthetic tombstones to represent gaps at the extremities of the slice.
+		 */
+		tombs?: OffsetList<Tombstones, NodeCount>;
 	}
 
 	export type Attach = Insert | MoveIn;
