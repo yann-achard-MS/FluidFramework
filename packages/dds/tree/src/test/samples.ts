@@ -2685,7 +2685,8 @@ export namespace ScenarioQ {
 /**
  * This scenario demonstrates the need to keep information about the tie-braking if the slice-move
  * when rebasing an insert over such a move, even when that insert is then rebased over another
- * slice-move.
+ * slice-move (meaning it is not sufficient to keep information about the last slice-move that
+ * affects a given insert).
  *
  * Without this information, the tie-break information for the second insert will be used, which
  * in this example leads to the wrong outcome (qux=[Y X]). This is true even if we record the
