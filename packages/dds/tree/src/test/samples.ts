@@ -2500,6 +2500,207 @@ export const e5_r_e4: S.Transaction = {
 };
 }
 
+export namespace ScenarioP {
+/**
+ * This scenario demonstrates the need to keep information about the tie-braking of the slice-move
+ * when rebasing an insert over such a move.
+ *
+ * Without this information, the tie-break information for the second insert will be used, which
+ * in this example leads to the wrong outcome (foo=[Y X]).
+ *
+ * Starting state: foo=[], bar=[], baz=[]
+ * U1: slice-move all of bar to the end of foo
+ * U2: slice-move all of baz to the end of foo
+ * U3: insert X in bar
+ * U4: insert Y in baz
+ * Expected outcome: foo=[X Y]
+ */
+
+export const e1: S.Transaction = {
+	ref: 0,
+	seq: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					gaps: [
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				foo: {
+					attach: [
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e2: S.Transaction = {
+	ref: 0,
+	seq: 2,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				baz: {
+					gaps: [
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				foo: {
+					attach: [
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Right }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e3: S.Transaction = {
+	ref: 0,
+	seq: 3,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				baz: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e2_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 2,
+	newRef: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				baz: {
+					gaps: [
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				foo: {
+					attach: [
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e3_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 3,
+	newRef: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e3_r_e2: S.Transaction = {
+	ref: 0,
+	seq: 3,
+	newRef: 2,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	newRef: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				baz: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4_r_e2: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	newRef: 2,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+}
+
+export namespace ScenarioQ {
+/**
+ * This scenario demonstrates the need to keep information about the tie-braking if the slice-move
+ * when rebasing an insert over such a move, even when that insert is then rebased over another
+ * slice-move.
+ *
+ * Without this information, the tie-break information for the second insert will be used, which
+ * in this example leads to the wrong outcome (qux=[Y X]). This is true even if we record the
+ * tie-breaking information for the last move.
+ *
+ * Starting state: foo=[], bar=[], baz=[]
+ * U1: slice-move all of bar to the end of foo
+ * U2: slice-move all of baz to the end of foo
+ * U3: slice-move all of foo to the end of qux
+ * U4: insert X in bar
+ * U5: insert Y in baz
+ * Expected outcome: qux=[X Y]
+ */
+}
+
 export const allOriginals = [
 	...ScenarioA.originals,
 	...ScenarioF.originals,
