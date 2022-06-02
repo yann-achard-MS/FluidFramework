@@ -2509,10 +2509,10 @@ export namespace ScenarioP {
  * in this example leads to the wrong outcome (foo=[Y X]).
  *
  * Starting state: foo=[], bar=[], baz=[]
- * U1: slice-move all of bar to the end of foo
- * U2: slice-move all of baz to the end of foo
- * U3: insert X in bar
- * U4: insert Y in baz
+ * U1: slice-move all of bar to the end of foo (Tiebreak: Left)
+ * U2: slice-move all of baz to the end of foo (Tiebreak: Right)
+ * U3: insert X in bar (Tiebreak: Left)
+ * U4: insert Y in baz (Tiebreak: Left)
  * Expected outcome: foo=[X Y]
  */
 
@@ -2693,11 +2693,11 @@ export namespace ScenarioQ {
  * tie-breaking information for the last move.
  *
  * Starting state: foo=[], bar=[], baz=[]
- * U1: slice-move all of bar to the end of foo
- * U2: slice-move all of baz to the end of foo
+ * U1: slice-move all of bar to the end of foo (Tiebreak: Left)
+ * U2: slice-move all of baz to the end of foo (Tiebreak: Right)
  * U3: slice-move all of foo to the end of qux
- * U4: insert X in bar
- * U5: insert Y in baz
+ * U4: insert X in bar (Tiebreak: Left)
+ * U5: insert Y in baz (Tiebreak: Left)
  * Expected outcome: qux=[X Y]
  */
 }

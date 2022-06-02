@@ -490,7 +490,7 @@ export namespace Rebased {
 		/**
 		 * Omit if `Tiebreak.Right` for terseness.
 		 */
-		tiebreak?: Tiebreak.Left;
+		tiebreak?: Tiebreak;
 	}
 
 	export interface IsGapEffect {

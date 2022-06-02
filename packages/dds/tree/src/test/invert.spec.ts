@@ -98,8 +98,8 @@ const reviveSet: R.ChangeFrame = {
 					{ count: 2, seq, id: 2 },
 				],
 				nodes: [
-					{ type: "Revive", id: 0, count: 1},
-					{ type: "Revive", id: 1, count: 1},
+					{ type: "Revive", id: 0, count: 1 },
+					{ type: "Revive", id: 1, count: 1 },
 					1,
 					{ type: "Revive", id: 2, count: 2 },
 				],
