@@ -594,7 +594,7 @@ We find option 2 preferable for the following reasons:
 
 ## How to represent inserts that commute with a concurrent slice move?
 
-Move the insert mark to the destination of the move. This allows us to avoid having to represent affix effects from prior changes over which the current change was rebased. We do however have to represent the precise affix that the forwarded insert targets because we need to be able to understand how other such forwarded inserts should be ordered relative to it. This includes cases where nodes in the slice that was moved were concurrently deleted (See scenarios A1, A2,  J).
+Move the insert mark to the destination of the move. This allows us to avoid having to represent affix effects from prior changes over which the current change was rebased. We do however have to represent the precise affix that the forwarded insert targets because we need to be able to understand how other such forwarded inserts should be ordered relative to it. This includes cases where nodes in the slice that was moved were concurrently deleted (See scenarios A,  J).
 
 We also need to be able to recover the original intention (i.e., the original insert location). This is needed when postbasing the inverse of the move over the (rebased) insert. This can be worked out based on the affix of the rebased insertion: we can tell that the affix it targets only came about as a result of the move and we can tell the insert was concurrent with the move because of the original ref seq number.
 
@@ -786,6 +786,32 @@ When looking at a tombstone, do we need to know whether it is a fragment or the 
 Could we ditch op IDs and frame IDs from tombstones if we take the view that all tombstones for a given seq number form a big (though disjoint) tombstone for which we need to represent some of the parts?
 
 Do we effectively need to record some part of all tombstone runs but it's not important which part?
+
+## Should sliced-inserts be represented at the src site or dst site?
+
+For now we've assumed it's okay to represent them at the dst site but it's not clear whether that's actually valid, whether the opposite would also be valid, and which of the two options is actually the most convenient and/or performant.
+
+Some things to note regarding validity: if we were to represent sliced inserts at the source, then we would run into cases where, while we would understand how a sliced insert being rebased over another sliced insert is supposed to be ordered relative to it, we would have no way of recording how the rebased insert's content is supposed to be ordered relative to the content inserted by the sliced insert that's being rebased over. This is because, while we would have the required gap information on the src site for ordering in the inserts, we wouldn't have a way to translating that into gap information at the dst site, which is ultimately what we need.
+
+Some things to note regarding convenience/perf: if sliced inserts were represented at the src, then it would force partial checkouts to look at all change marks (even those outside they view cone) to detect those sliced inserts that target a tombstone that corresponds to an old move. This could be alleviated by having a "prior moves" table that partial checkouts would scan: if a partial checkout encounters a prior move that has its dst in its view cone, then it would need to go look in the changeset at the corresponding source location to see if any commutative inserts are there. Note that this "look at the destinations that matter" process is recursive since it's possible that another prior move would have targeted the src of the later prior move, thereby creating a new src site to inspect. This prior-moves table effectively prevents the squashing out of intermediary move locations.
+
+It's also worth noting how much of a pain it is to replicate gap information at the dst site (see "Should slice-move-ins convey tombstone information?" and "Should replicated tombstones carry the whole replication history?"). Perhaps there is a way to get the best of both worlds: gap information for the src would be represented at the src site, but the final insert position would be expressed at the dst site. This would entail having two marks for sliced inserts (note that it's only two marks even in slice-chaining scenarios). An insert being rebased over a slice move would effectively pinch space to align/superpose the source and destination sites together. When rebasing the insert over the move there should be no challenge because no concurrent moves are in the picture yet. When rebasing the insert over another insert that also commutes with the move, we would only have to decide where to put the insert mark at the dst location. This should only be a challenge when the insert marks are adjacent at the src location. This can be resolved based on the tombstone information at the src, then we know to put the offset representing the concurrently inserted content that's we're rebasing over to the immediate left or immediate right of the insert mark at the dst for the rebased insert.
+
+## How to salvage scenarios P & Q?
+
+The issue seems to be that in order to correctly order to sliced inserts that did not start in the same src location, we have to understand how the moves that brought them together were ordered relative to one-another. This is difficult for two reasons:
+
+1. The point in time at which they were brought together (i.e., the links in the chain where their sources diverge/where their destinations converge) can be at any depth.
+
+2. By the time the later insert learns of the existence of the other (when it is rebased over it), it has already be rebased over the later slice moves that they have in common.
+
+The first point prevents us from being able to compress the chain of moves into a single hop (or even a constant number of hops) because any hop may be relevant.
+
+The second point means we can't tell in advance what slice-move information we may need for the purpose of rebasing.
+
+So either we have to save all possibly relevant information as we rebase a sliced insert over each slice move, or we have to allow clients to query this information as needed.
+
+High-level question: in which situations do we want to avoid/allow querying (A) locally maintained data, or (B) service-maintained data. It seems one thing we want to avoid is forcing clients to download the whole history in order to catch up. It does seem like there are scenarios where a recently joined client may have to ask for older history though: the case of undoing either the move or the delete that led moved data to be deleted.
 
 ## Should we decouple move and forward?
 
