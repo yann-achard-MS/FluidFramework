@@ -797,6 +797,8 @@ Some things to note regarding convenience/perf: if sliced inserts were represent
 
 It's also worth noting how much of a pain it is to replicate gap information at the dst site (see "Should slice-move-ins convey tombstone information?" and "Should replicated tombstones carry the whole replication history?"). Perhaps there is a way to get the best of both worlds: gap information for the src would be represented at the src site, but the final insert position would be expressed at the dst site. This would entail having two marks for sliced inserts (note that it's only two marks even in slice-chaining scenarios). An insert being rebased over a slice move would effectively pinch space to align/superpose the source and destination sites together. When rebasing the insert over the move there should be no challenge because no concurrent moves are in the picture yet. When rebasing the insert over another insert that also commutes with the move, we would only have to decide where to put the insert mark at the dst location. This should only be a challenge when the insert marks are adjacent at the src location. This can be resolved based on the tombstone information at the src, then we know to put the offset representing the concurrently inserted content that's we're rebasing over to the immediate left or immediate right of the insert mark at the dst for the rebased insert.
 
+Scenarios P & Q (see below) sort of forced our hand to have marks at all locations that an insert ends up passing through.
+
 ## How to salvage scenarios P & Q?
 
 The issue seems to be that in order to correctly order to sliced inserts that did not start in the same src location, we have to understand how the moves that brought them together were ordered relative to one-another. This is difficult for two reasons:
@@ -811,7 +813,25 @@ The second point means we can't tell in advance what slice-move information we m
 
 So either we have to save all possibly relevant information as we rebase a sliced insert over each slice move, or we have to allow clients to query this information as needed.
 
+We can represent the intermediate locations and list them in the move table for so that they're more quickly findable. Each intermediate location is represented by a "Bounce" mark, that represents the exact location of the dst of the intermediate move (including its tie-break flag. Each bounce mark specifies which prior move op it is lifted by. We need this information so we can tell whether two bounces came from the same move or not. It may make more sense to specify this on the next mark in the chain so we only have to backtrack one hop fewer. The representation has been updated thus.
+
+It's tempting to want to extract all the information from the bounce locations and only represent it in the final insert location, but doing that would take away our ability to precisely describe the bounce location, which is needed when two sliced inserts need to be ordered. The question of whether we also want this information at the final location still stands.
+
 High-level question: in which situations do we want to avoid/allow querying (A) locally maintained data, or (B) service-maintained data. It seems one thing we want to avoid is forcing clients to download the whole history in order to catch up. It does seem like there are scenarios where a recently joined client may have to ask for older history though: the case of undoing either the move or the delete that led moved data to be deleted.
+
+## About the Move Table
+
+Why do we want a move table?
+
+It's useful in scenarios where one of the two marks for a move needs to have its index (or an index on its parent path) updated. For example if 3 nodes are concurrently inserted before a move-out mark, we can quickly access the move-out mark's path in the table and update it there instead of having to delve into the changeset tree to find the corresponding move-in mark, and update the path of the move-out mark on it.
+
+Couldn't we just not have paths?
+
+We could but that would be a problem for partial checkouts: they would potentially see a move-in mark and not see a corresponding move-out mark. They would then have no idea where to go look for the src data. Having the path lets us narrow down what portion of the tree needs to be queried.
+
+How to decide what data goes into move table as opposed to what should be represented on the marks?
+
+If a partial checkout wouldn't need the information in question then we don't include it in the move table. This is done to keep the move-table smaller.
 
 ## Should we decouple move and forward?
 

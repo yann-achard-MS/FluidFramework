@@ -1823,6 +1823,515 @@ export namespace ScenarioL {
 
 	Expected outcome: qux=[X Y]
 	*/
+
+export const e1: S.Transaction = {
+	ref: 0,
+	seq: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					nodes: [
+						{ type: "Delete", id: 0, count: 2 },
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e2: S.Transaction = {
+	ref: 0,
+	seq: 2,
+	frames: [{
+		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
+		marks: {
+			modifyOld: [{
+				foo: {
+					nodes: [
+						{ type: "Move", id: 0, count: 2 },
+					],
+					gaps: [
+						{ count: 3, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Move", id: 0, count: 2, tiebreak: Tiebreak.Right }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e3: S.Transaction = {
+	ref: 0,
+	seq: 3,
+	frames: [{
+		moves: [
+			{ id: 0, src: { bar: 0 }, dst: { baz: 0 } },
+			{ id: 1, src: { bar: 1 }, dst: { baz: 0 } },
+		],
+		marks: {
+			modifyOld: [{
+				bar: {
+					nodes: [
+						{ type: "Move", id: 0, count: 1 },
+						{ type: "Move", id: 1, count: 1 },
+					],
+					gaps: [
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+						1, // A-B
+						{ count: 1, stack: [{ type: "Forward", id: 1 }] },
+					],
+				},
+				baz: {
+					attach: [
+						[{ type: "Move", id: 1, count: 1, tiebreak: Tiebreak.Left }],
+						[{ type: "Move", id: 0, count: 1, tiebreak: Tiebreak.Right }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	frames: [{
+		moves: [{ id: 0, src: { baz: 0 }, dst: { qux: 0 } }],
+		marks: {
+			modifyOld: [{
+				baz: {
+					nodes: [
+						{ type: "Move", id: 0, count: 2 },
+					],
+					gaps: [
+						{ count: 3, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				qux: {
+					attach: [
+						[{ type: "Move", id: 0, count: 2, tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					attach: [
+						2,
+						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e6: S.Transaction = {
+	ref: 0,
+	seq: 6,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Right }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e2_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 2,
+	newRef: 1,
+	frames: [{
+		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
+		marks: {
+			modifyOld: [{
+				foo: {
+					tombs: [{ count: 2, seq: 1, id: 0 }],
+					nodes: [
+						{ type: "Move", id: 0, count: 2 },
+					],
+					gaps: [
+						{ count: 3, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Right }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e3_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 3,
+	newRef: 1,
+	frames: [{
+		moves: [
+			{ id: 0, src: { bar: 0 }, dst: { baz: 0 } },
+			{ id: 1, src: { bar: 1 }, dst: { baz: 0 } },
+		],
+		marks: {
+			modifyOld: [{
+				bar: {
+					tombs: [{ count: 2, seq: [1, 2], id: 0 }],
+					nodes: [
+						{ type: "Move", id: 0, count: 1 },
+						{ type: "Move", id: 1, count: 1 },
+					],
+					gaps: [
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+						1, // A-B
+						{ count: 1, stack: [{ type: "Forward", id: 1 }] },
+					],
+				},
+				baz: {
+					attach: [
+						[{ type: "Move", id: 1, count: 0, tiebreak: Tiebreak.Left }],
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Right }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	newRef: 1,
+	frames: [{
+		moves: [{ id: 0, src: { baz: 0 }, dst: { qux: 0 } }],
+		marks: {
+			modifyOld: [{
+				baz: {
+					tombs: [{ count: 2, seq: [1, 3], id: 0 }],
+					nodes: [
+						{ type: "Move", id: 0, count: 2 },
+					],
+					gaps: [
+						{ count: 3, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				qux: {
+					attach: [
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	newRef: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					tombs: [{ count: 2, seq: 1, id: 0 }],
+					attach: [
+						2,
+						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5_r_e2: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	newRef: 2,
+	frames: [{
+		moves: [{ id: 0, src: { foo: 2 }, dst: { bar: 0 } }],
+		marks: {
+			modifyOld: [{
+				foo: {
+					tombs: [{ count: 2, seq: 1, id: 0 }],
+					attach: [
+						2,
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }],
+					],
+				},
+				bar: {
+					attach: [
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "X" }],
+							src: { seq: 2, id: 0 },
+							tiebreak: Tiebreak.Left,
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5_r_e3: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	newRef: 3,
+	frames: [{
+		moves: [{ id: 0, src: { foo: 2 }, hops: [{ bar: 0 }], dst: { baz: 0 } }],
+		marks: {
+			modifyOld: [{
+				foo: {
+					tombs: [{ count: 2, seq: 1, id: 0 }],
+					attach: [
+						2,
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }],
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Bounce", id: 0, src: { seq: 2, id: 0 }, tiebreak: Tiebreak.Left }],
+					],
+				},
+				baz: {
+					attach: [
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "X" }],
+							src: { seq: 3, id: 1 },
+							tiebreak: Tiebreak.Left,
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5_r_e4: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	newRef: 4,
+	frames: [{
+		moves: [{ id: 0, src: { foo: 2 }, hops: [{ bar: 0 }, { baz: 0 }], dst: { qux: 0 } }],
+		marks: {
+			modifyOld: [{
+				foo: {
+					tombs: [{ count: 2, seq: 1, id: 0 }],
+					attach: [
+						2,
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }],
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Bounce", id: 0, src: { seq: 2, id: 0 }, tiebreak: Tiebreak.Left }],
+					],
+				},
+				baz: {
+					attach: [
+						[{ type: "Bounce", id: 0, src: { seq: 3, id: 1 }, tiebreak: Tiebreak.Left }],
+					],
+				},
+				qux: {
+					attach: [
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "X" }],
+							src: { seq: 4, id: 0 },
+							tiebreak: Tiebreak.Left,
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e6_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 6,
+	newRef: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				foo: {
+					tombs: [{ count: 2, seq: 1, id: 0 }],
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Right }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e6_r_e2: S.Transaction = {
+	ref: 0,
+	seq: 6,
+	newRef: 2,
+	frames: [{
+		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
+		marks: {
+			modifyOld: [{
+				foo: {
+					tombs: [{ count: 2, seq: 1, id: 0 }],
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Right }],
+					],
+				},
+				bar: {
+					attach: [
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "Y" }],
+							src: { seq: 2, id: 0 },
+							tiebreak: Tiebreak.Left,
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e6_r_e3: S.Transaction = {
+	ref: 0,
+	seq: 6,
+	newRef: 3,
+	frames: [{
+		moves: [{ id: 0, src: { foo: 0 }, hops: [{ bar: 0 }], dst: { baz: 0 } }],
+		marks: {
+			modifyOld: [{
+				foo: {
+					tombs: [{ count: 2, seq: 1, id: 0 }],
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Right }],
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Bounce", id: 0, src: { seq: 2, id: 0 }, tiebreak: Tiebreak.Left }],
+					],
+				},
+				baz: {
+					attach: [
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "Y" }],
+							src: { seq: 3, id: 0 },
+							tiebreak: Tiebreak.Right,
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e6_r_e4: S.Transaction = {
+	ref: 0,
+	seq: 6,
+	newRef: 4,
+	frames: [{
+		moves: [{ id: 0, src: { foo: 0 }, hops: [{ bar: 0 }, { baz: 0 }], dst: { qux: 0 } }],
+		marks: {
+			modifyOld: [{
+				foo: {
+					tombs: [{ count: 2, seq: 1, id: 0 }],
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Right }],
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Bounce", id: 0, src: { seq: 2, id: 0 }, tiebreak: Tiebreak.Left }],
+					],
+				},
+				baz: {
+					attach: [
+						[{ type: "Bounce", id: 0, src: { seq: 3, id: 0 }, tiebreak: Tiebreak.Right }],
+					],
+				},
+				qux: {
+					attach: [
+						[{
+							type: "Insert", id: 0,
+							content: [{ id: "Y" }],
+							src: { seq: 4, id: 0 },
+							tiebreak: Tiebreak.Left,
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e6_r_e5: S.Transaction = {
+	ref: 0,
+	seq: 6,
+	newRef: 5,
+	frames: [{
+		moves: [{ id: 0, src: { foo: 0 }, hops: [{ bar: 0 }, { baz: 0 }], dst: { qux: 0 } }],
+		marks: {
+			modifyOld: [{
+				foo: {
+					tombs: [{ count: 2, seq: 1, id: 0 }],
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Right }],
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Bounce", id: 0, src: { seq: 2, id: 0 }, tiebreak: Tiebreak.Left }],
+					],
+				},
+				baz: {
+					attach: [
+						[{ type: "Bounce", id: 0, src: { seq: 3, id: 0 }, tiebreak: Tiebreak.Right }],
+					],
+				},
+				qux: {
+					attach: [
+						1,
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "Y" }],
+							src: { seq: 4, id: 0 },
+							tiebreak: Tiebreak.Left,
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
 }
 
 export namespace ScenarioM {
@@ -2509,7 +3018,7 @@ export namespace ScenarioP {
  * in this example leads to the wrong outcome (foo=[Y X]).
  *
  * Starting state: foo=[], bar=[], baz=[]
- * U1: slice-move all of bar to the end of foo (Tiebreak: Left)
+ * U1: slice-move all of bar to the start of foo (Tiebreak: Left)
  * U2: slice-move all of baz to the end of foo (Tiebreak: Right)
  * U3: insert X in bar (Tiebreak: Left)
  * U4: insert Y in baz (Tiebreak: Left)
@@ -2520,6 +3029,7 @@ export const e1: S.Transaction = {
 	ref: 0,
 	seq: 1,
 	frames: [{
+		moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 		marks: {
 			modifyOld: [{
 				bar: {
@@ -2541,6 +3051,7 @@ export const e2: S.Transaction = {
 	ref: 0,
 	seq: 2,
 	frames: [{
+		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
 		marks: {
 			modifyOld: [{
 				baz: {
@@ -2595,6 +3106,7 @@ export const e2_r_e1: S.Transaction = {
 	seq: 2,
 	newRef: 1,
 	frames: [{
+		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
 		marks: {
 			modifyOld: [{
 				baz: {
@@ -2604,7 +3116,7 @@ export const e2_r_e1: S.Transaction = {
 				},
 				foo: {
 					attach: [
-						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Left }],
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Right }],
 					],
 				},
 			}],
@@ -2617,11 +3129,23 @@ export const e3_r_e1: S.Transaction = {
 	seq: 3,
 	newRef: 1,
 	frames: [{
+		moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 		marks: {
 			modifyOld: [{
+				bar: {
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
+					],
+				},
 				foo: {
 					attach: [
-						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "X" }],
+							src: { seq: 1, id: 0 },
+							tiebreak: Tiebreak.Left, // Move Tiebreak
+						}],
 					],
 				},
 			}],
@@ -2634,11 +3158,23 @@ export const e3_r_e2: S.Transaction = {
 	seq: 3,
 	newRef: 2,
 	frames: [{
+		moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 		marks: {
 			modifyOld: [{
+				bar: {
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
+					],
+				},
 				foo: {
 					attach: [
-						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "X" }],
+							src: { seq: 1, id: 0 },
+							tiebreak: Tiebreak.Left, // Move Tiebreak
+						}],
 					],
 				},
 			}],
@@ -2668,11 +3204,53 @@ export const e4_r_e2: S.Transaction = {
 	seq: 4,
 	newRef: 2,
 	frames: [{
+		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
 		marks: {
 			modifyOld: [{
+				baz: {
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
+					],
+				},
 				foo: {
 					attach: [
-						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "Y" }],
+							src: { seq: 2, id: 0 },
+							tiebreak: Tiebreak.Right, // Move Tiebreak
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4_r_e3: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	newRef: 3,
+	frames: [{
+		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
+		marks: {
+			modifyOld: [{
+				baz: {
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
+					],
+				},
+				foo: {
+					attach: [
+						1, // [-X
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "Y" }],
+							src: { seq: 2, id: 0 },
+							tiebreak: Tiebreak.Right, // Move Tiebreak
+						}],
 					],
 				},
 			}],
@@ -2693,13 +3271,402 @@ export namespace ScenarioQ {
  * tie-breaking information for the last move.
  *
  * Starting state: foo=[], bar=[], baz=[]
- * U1: slice-move all of bar to the end of foo (Tiebreak: Left)
+ * U1: slice-move all of bar to the start of foo (Tiebreak: Left)
  * U2: slice-move all of baz to the end of foo (Tiebreak: Right)
  * U3: slice-move all of foo to the end of qux
  * U4: insert X in bar (Tiebreak: Left)
  * U5: insert Y in baz (Tiebreak: Left)
  * Expected outcome: qux=[X Y]
  */
+
+ export const e1: S.Transaction = {
+	ref: 0,
+	seq: 1,
+	frames: [{
+		moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
+		marks: {
+			modifyOld: [{
+				bar: {
+					gaps: [
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				foo: {
+					attach: [
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e2: S.Transaction = {
+	ref: 0,
+	seq: 2,
+	frames: [{
+		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
+		marks: {
+			modifyOld: [{
+				baz: {
+					gaps: [
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				foo: {
+					attach: [
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Right }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e3: S.Transaction = {
+	ref: 0,
+	seq: 3,
+	frames: [{
+		moves: [{ id: 0, src: { foo: 0 }, dst: { qux: 0 } }],
+		marks: {
+			modifyOld: [{
+				foo: {
+					gaps: [
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				qux: {
+					attach: [
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Right }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				bar: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				baz: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e2_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 2,
+	newRef: 1,
+	frames: [{
+		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
+		marks: {
+			modifyOld: [{
+				baz: {
+					gaps: [
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				foo: {
+					attach: [
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Right }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e3_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 3,
+	newRef: 1,
+	frames: [{
+		moves: [{ id: 0, src: { foo: 0 }, dst: { qux: 0 } }],
+		marks: {
+			modifyOld: [{
+				foo: {
+					gaps: [
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				qux: {
+					attach: [
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Right }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e3_r_e2: S.Transaction = {
+	ref: 0,
+	seq: 3,
+	newRef: 2,
+	frames: [{
+		moves: [{ id: 0, src: { foo: 0 }, dst: { qux: 0 } }],
+		marks: {
+			modifyOld: [{
+				foo: {
+					gaps: [
+						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
+					],
+				},
+				qux: {
+					attach: [
+						[{ type: "Move", id: 0, count: 0, tiebreak: Tiebreak.Right }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	newRef: 1,
+	frames: [{
+		moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
+		marks: {
+			modifyOld: [{
+				bar: {
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
+					],
+				},
+				foo: {
+					attach: [
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "X" }],
+							src: { seq: 1, id: 0 },
+							tiebreak: Tiebreak.Left, // Move Tiebreak
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4_r_e2: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	newRef: 2,
+	frames: [{
+		moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
+		marks: {
+			modifyOld: [{
+				bar: {
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
+					],
+				},
+				foo: {
+					attach: [
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "X" }],
+							src: { seq: 1, id: 0 },
+							tiebreak: Tiebreak.Left, // Move Tiebreak
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e4_r_e3: S.Transaction = {
+	ref: 0,
+	seq: 4,
+	newRef: 3,
+	frames: [{
+		moves: [{ id: 0, src: { bar: 0 }, hops: [{ foo: 0 }], dst: { qux: 0 } }],
+		marks: {
+			modifyOld: [{
+				bar: {
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
+					],
+				},
+				foo: {
+					attach: [
+						[{
+							type: "Bounce",
+							id: 0,
+							src: { seq: 1, id: 0 },
+							tiebreak: Tiebreak.Left, // Move Tiebreak
+						}],
+					],
+				},
+				qux: {
+					attach: [
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "X" }],
+							src: { seq: 3, id: 0 },
+							tiebreak: Tiebreak.Right, // Move Tiebreak
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5_r_e1: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	newRef: 1,
+	frames: [{
+		marks: {
+			modifyOld: [{
+				baz: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5_r_e2: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	newRef: 2,
+	frames: [{
+		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
+		marks: {
+			modifyOld: [{
+				baz: {
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
+					],
+				},
+				foo: {
+					attach: [
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "Y" }],
+							src: { seq: 2, id: 0 },
+							tiebreak: Tiebreak.Right, // Move Tiebreak
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5_r_e3: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	newRef: 3,
+	frames: [{
+		moves: [{ id: 0, src: { baz: 0 }, hops: [{ foo: 0 }], dst: { qux: 0 } }],
+		marks: {
+			modifyOld: [{
+				baz: {
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
+					],
+				},
+				foo: {
+					attach: [
+						[{
+							type: "Bounce",
+							id: 0,
+							src: { seq: 2, id: 0 },
+							tiebreak: Tiebreak.Right, // Move Tiebreak
+						}],
+					],
+				},
+				qux: {
+					attach: [
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "Y" }],
+							src: { seq: 3, id: 0 },
+							tiebreak: Tiebreak.Right, // Move Tiebreak
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
+
+export const e5_r_e4: S.Transaction = {
+	ref: 0,
+	seq: 5,
+	newRef: 4,
+	frames: [{
+		moves: [{ id: 0, src: { baz: 0 }, hops: [{ foo: 0 }], dst: { qux: 0 } }],
+		marks: {
+			modifyOld: [{
+				baz: {
+					attach: [
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
+					],
+				},
+				foo: {
+					attach: [
+						[{
+							type: "Bounce",
+							id: 0,
+							src: { seq: 2, id: 0 },
+							tiebreak: Tiebreak.Right, // Move Tiebreak
+						}],
+					],
+				},
+				qux: {
+					attach: [
+						1, // [-X
+						[{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "Y" }],
+							src: { seq: 3, id: 0 },
+							tiebreak: Tiebreak.Right, // Move Tiebreak
+						}],
+					],
+				},
+			}],
+		},
+	}],
+};
 }
 
 export const allOriginals = [

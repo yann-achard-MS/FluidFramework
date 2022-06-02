@@ -63,6 +63,7 @@ export namespace Original {
 		id: OpId;
 		src: TreePath;
 		dst: TreePath;
+		hops?: TreePath[];
 	}
 
 	export interface HasOpId {
@@ -516,6 +517,12 @@ export namespace Rebased {
 	export interface Insert extends HasOpId, IsPlace {
 		type: "Insert";
 		content: ProtoNode[];
+		src?: PriorOp;
+	}
+
+	export interface Hop extends HasOpId, IsPlace {
+		type: "Bounce";
+		src?: PriorOp;
 	}
 
 	export interface MoveIn extends HasOpId, IsPlace {
@@ -531,7 +538,7 @@ export namespace Rebased {
 		tombs?: OffsetList<Tombstones, NodeCount>;
 	}
 
-	export type Attach = Insert | MoveIn;
+	export type Attach = Insert | MoveIn | Hop;
 
 	export interface OpenGapEffects {
 		count: GapCount;
