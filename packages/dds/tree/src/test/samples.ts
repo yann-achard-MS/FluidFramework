@@ -982,22 +982,14 @@ export namespace ScenarioG {
 		marks: {
 			modifyOld: [{
 				foo: {
-					tombs: [
-						2, // A X
-						{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST)
-						1, // N
-						{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST)
-					],
 					nodes: [
 						{ type: "Move", id: 0, count: 2 }, // A X
-						3, // ST N ST
+						1, // N
 						{ type: "Move", id: 0, count: 2 }, // Y B
 					],
 					gaps: [
 						1, // [-A
-						{ count: 2, stack: [{ type: "Forward", id: 0 }] }, // A-X-ST
-						2, // ST-N-ST
-						{ count: 2, stack: [{ type: "Forward", id: 0 }] }, // ST-B-Y
+						{ count: 4, stack: [{ type: "Forward", id: 0 }] }, // A-X-N-B-Y
 					],
 				},
 				bar: {
@@ -1018,11 +1010,14 @@ export namespace ScenarioG {
 				modifyOld: [{
 					foo: {
 						tombs: [
+							{ count: 1, seq: 1, id: 0 }, // A
 							{ count: 1, seq: [1, 2], id: 0 }, // X
 							1, // N
 							{ count: 1, seq: [1, 2], id: 0 }, // Y
+							{ count: 1, seq: 1, id: 0 }, // B
 						],
 						attach: [
+							1, // [-A
 							[{ type: "Insert", id: 0, content: [{ id: "M" }], heed: Effects.None }],
 						],
 					},
@@ -1036,30 +1031,16 @@ export namespace ScenarioG {
 		marks: {
 			modifyOld: [{
 				foo: {
-					tombs: [
-						1, // A
-						{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST1)
-						1, // M
-						{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST2)
-						1, // X
-						{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST3)
-						1, // N
-						{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST4)
-					],
 					nodes: [
 						{ type: "Move", id: 0, count: 1 }, // A
-						3, // ST M ST
+						1, // M
 						{ type: "Move", id: 0, count: 1 }, // X
-						3, // ST N ST
+						1, // N
 						{ type: "Move", id: 0, count: 2 }, // Y B
 					],
 					gaps: [
 						1, // [-A
-						{ count: 1, stack: [{ type: "Forward", id: 0 }] }, // A-ST1
-						2, // ST1-M-ST2
-						{ count: 2, stack: [{ type: "Forward", id: 0 }] }, // ST2-X-ST3
-						2, // ST3-N-ST4
-						{ count: 2, stack: [{ type: "Forward", id: 0 }] }, // ST4-B-Y
+						{ count: 5, stack: [{ type: "Forward", id: 0 }] }, // A-M-X-N-B-Y
 					],
 				},
 				bar: {
@@ -1080,13 +1061,15 @@ export namespace ScenarioG {
 				modifyOld: [{
 					foo: {
 						tombs: [
+							{ count: 1, seq: 1, id: 0 }, // A
 							1, // M
 							{ count: 1, seq: [1, 2], id: 0 }, // X
 							1, // N
 							{ count: 1, seq: [1, 2], id: 0 }, // Y
+							{ count: 1, seq: 1, id: 0 }, // B
 						],
 						attach: [
-							4,
+							5,
 							[{ type: "Insert", id: 0, content: [{ id: "O" }], heed: Effects.None }],
 						],
 					},
@@ -1282,13 +1265,11 @@ export namespace ScenarioH {
 					bar: {
 						tombs: [
 							{ count: 1, seq: 2, id: 0 }, // U
-							{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST1)
 							2,// A B
-							{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST2)
 							{ count: 1, seq: 2, id: 0 }, // V
 						],
 						attach: [
-							3, // [-U-ST1-A
+							2, // [-U-A
 							[{ // A-B
 								type: "Insert",
 								id: 0,
@@ -1296,7 +1277,7 @@ export namespace ScenarioH {
 								src: { seq: 1, id: 0 },
 								heed: Effects.None,
 							}],
-							[{ // B-ST2
+							[{ // B-V
 								type: "Insert",
 								id: 1,
 								content: [{ id: "Y" }],
