@@ -116,7 +116,7 @@ This is not a problem since we can mint new IDs for the ops (as if both halves h
 
 More concerning are the splits that occur at rebase time:
 
-* Deletion segments can be split when a prior insertion need to be represented in the middle of it.
+* Deletion segments can be split when a prior insertion needs to be represented in the middle of it.
 
 This is more concerning because it forces us to either mint new IDs for the segment parts, or tolerate that the same ID be used by each part of the original segment, thereby dropping the "one segment => one ID" rule. Note that we'd still maintain the "one change => one ID" rule, which is perhaps the only important part.
 
@@ -819,15 +819,50 @@ It's tempting to want to extract all the information from the bounce locations a
 
 High-level question: in which situations do we want to avoid/allow querying (A) locally maintained data, or (B) service-maintained data. It seems one thing we want to avoid is forcing clients to download the whole history in order to catch up. It does seem like there are scenarios where a recently joined client may have to ask for older history though: the case of undoing either the move or the delete that led moved data to be deleted.
 
+## Can we do away with synthetic tombstones?
+
+We can because whenever a slice covers a gap that would normally have a synthetic tombstone in it, any insert that should be affected by the 
+
+## How can we avoid relying on op ID monotonicity?
+
+The reliance on op ID comes from scenario N:
+
+* Starting with traits foo=[A B C], bar=[]:
+
+* E1: User 1:
+  
+  *  slice-move foo A[_]B to the end of trait bar
+  
+  *  slice-move foo B[_]C to the end of trait bar
+
+* E2: User 2: insert Y before C (commute: all)
+
+* E3: User 3: insert X before B (commute: all)
+
+* Expected outcome: foo=[A B C] bar=[X Y]
+
+In this scenario, the only reason we can tell that X should go before Y in bar, is that the A[_]B slice move happened before the B[_]C slice move, which we can tell because of the op ID.
+
+To avoid relying on this, we could add a rule that whenever an attach is rebased over a move-in that falls within the same gap, some "Intake" mark needs to be added to represent that move-in. When the attach is then later rebased over sliced inserts that commute with the move-in, we can look for the mark that corresponds to the move-in.
+
+What about the case where a move-in we're rebasing over doesn't fall within the same gap at the time of the rebase, but eventually will due to later concurrent deletions? When that's the case, both the attach and the sliced insert should carry some tombstones that separate the two gaps, so there will be no time-based tie-breaking.
+
+What about when the move-in actually introduces content?
+We would still need an Intake marker on the side of the introduced content where the attach being rebased is located. This is a little weird because it means that if we have two attaches in the same gap, and a move-in lands between them, then if the move-in carries content, we'll end up with two Intake marks for the same move-in.
+
+## When do we need to mint new op IDs?
+
+This may affect op ID monotonicity.
+
 ## About the Move Table
 
 Why do we want a move table?
 
 It's useful in scenarios where one of the two marks for a move needs to have its index (or an index on its parent path) updated. For example if 3 nodes are concurrently inserted before a move-out mark, we can quickly access the move-out mark's path in the table and update it there instead of having to delve into the changeset tree to find the corresponding move-in mark, and update the path of the move-out mark on it.
 
-Couldn't we just not have paths?
+Couldn't we just not have paths pointing between src and dst marks?
 
-We could but that would be a problem for partial checkouts: they would potentially see a move-in mark and not see a corresponding move-out mark. They would then have no idea where to go look for the src data. Having the path lets us narrow down what portion of the tree needs to be queried.
+We could but that would be a problem for partial checkouts: they would potentially see a move-in mark and not see a corresponding move-out mark. They would then have no idea where to go look for the src data. Having the path lets us narrow down what portion of the tree needs to be queried. In addition to this, having the path allows even non-partial checkouts to simplify their rebasing because it lets them completely deal with a move-in or move-out they encounter at the moment they encounter it. Not having the paths would mean leaving for later some of the rebasing work encountered on the first of the two marks.
 
 How to decide what data goes into move table as opposed to what should be represented on the marks?
 
