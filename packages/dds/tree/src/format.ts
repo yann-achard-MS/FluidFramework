@@ -531,11 +531,6 @@ export namespace Rebased {
 		 * The actual number of nodes being moved-in. This count excludes nodes that were concurrently deleted.
 		 */
 		count: NodeCount;
-		/**
-		 * Describes the nodes that were concurrently deleted at the source of the move.
-		 * Also include synthetic tombstones to represent gaps at the extremities of the slice.
-		 */
-		tombs?: OffsetList<Tombstones, NodeCount>;
 	}
 
 	export type Attach = Insert | MoveIn | Hop;
@@ -590,11 +585,6 @@ export namespace Rebased {
 	 */
 	export interface Tombstones extends PriorOp {
 		count: NodeCount;
-		/**
-		 * The chain of slice-moves that replicated these tombstones.
-		 * This is necessary to tell apart tombstones in all cases.
-		 */
-		src?: PriorOp[];
 	}
 
 	export interface PriorOp {
@@ -675,6 +665,10 @@ export enum Sibling {
  * A segment is anchored to the first node, when scanning in the direction indicated by the `side`
  * field, that was either inserted by an operation whose OpId is lower, or left untouched (i.e.
  * represented by an offset), or the end of the trait, whichever is encountered first.
+ *
+ * The temporal ordering is leveraged in the `Rebased` format to resolve tie-breaking issues when an insert that
+ * commuted with a slice-move needs to decide its insertion place relative to another such insertion that commuted with
+ * a different slice-move from the same transaction as the other slice-move. (See scenario N)
  *
  * The uniqueness of IDs is leveraged in either format to
  * 1. uniquely identify tombstones so that two changes can tell whether they carry tombstones for the same nodes or

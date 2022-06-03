@@ -226,12 +226,7 @@ export namespace ScenarioA {
 					},
 					bar: {
 						attach: [
-							[{
-								type: "Move",
-								id: 0,
-								count: 1, // Updated
-								tombs: [{ count: 2, seq: 1, id: 1 }],
-							}],
+							[{ type: "Move", id: 0, count: 1 /* <-Updated */ }],
 						],
 					},
 				}],
@@ -263,15 +258,26 @@ export namespace ScenarioA {
 		ref: 0,
 		newRef: 2,
 		frames: [{
+			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: {
 				modifyOld: [{
-					bar: {
-						tombs: [
-							{ count: 2, seq: 1, id: 0 },
+					foo: {
+						tombs: [1, { count: 2, seq: 1, id: 1 } ],
+						attach: [
+							2,
+							[{ type: "Bounce", id: 0, heed: Effects.All }],
 						],
+					},
+					bar: {
 						attach: [
 							1,
-							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
+							[{
+								type: "Insert",
+								id: 0,
+								content: [{ id: "X" }],
+								src: { seq: 2, id: 0 },
+								heed: Effects.All,
+							}],
 						],
 					},
 				}],
@@ -902,6 +908,13 @@ export namespace ScenarioG {
 		frames: [{
 			marks: {
 				modifyOld: [{
+					foo: {
+						tombs: [{ count: 2, seq: 1, id: 0 }],
+						attach: [
+							1,
+							[{ type: "Bounce", id: 0, heed: Effects.Move }],
+						],
+					},
 					bar: {
 						attach: [
 							1,
@@ -909,6 +922,7 @@ export namespace ScenarioG {
 								type: "Insert",
 								id: 0,
 								content: [{ id: "X" }, { id: "Y" }],
+								src: { seq: 1, id: 0 },
 								heed: Effects.Move,
 							}],
 						],
@@ -1087,16 +1101,10 @@ export namespace ScenarioG {
 export namespace ScenarioH {
 	/**
 	This scenario demonstrates how commutative inserts are only affected by the slice range they
-	fall within, as opposed to also being affected by slice range that a the slice range they fall
+	fall within, as opposed to also being affected by a slice range that the slice range they fall
 	within falls within. It is up to the slice-range the insert falls within to determine whether
 	it commutes with a slice range at its destination, thus indirectly affecting the final location
 	of the insert.
-	It also demonstrates the need for synthetic tombstones. Without them, the effect of E2 on the
-	gap between U and V would end up affecting the totality of the gap between B and V, which would
-	be a problem since Y, which after being rebased over E1 targets that gap, should remain in bar
-	as opposed to being affected by E2. The synthetic tombstone allows us to compartment the gap
-	between U and V into two gaps: U-ST and ST-V where the former is affected by E2 but the latter
-	is not.
 
 	Starting state: foo=[A B] bar=[U V] baz=[]
 	  User 1: slice-move all of trait foo before V with a (commute:none)
@@ -1167,7 +1175,7 @@ export namespace ScenarioH {
 						attach: [
 							1, // [-A
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
-							[{ type: "Insert", id: 0, content: [{ id: "Y" }], heed: Effects.All }],
+							[{ type: "Insert", id: 1, content: [{ id: "Y" }], heed: Effects.All }],
 						],
 					},
 				}],
@@ -1184,21 +1192,15 @@ export namespace ScenarioH {
 			marks: {
 				modifyOld: [{
 					bar: {
-						tombs: [
-							1, // U
-							{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST1)
-							2,// A B
-							{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST2)
-						],
 						nodes: [
 							{ type: "Move", id: 0, count: 1 },
-							4, // ST1 A B ST2
+							2, // A B
 							{ type: "Move", id: 0, count: 1 },
 						],
 						gaps: [
-							{ count: 3, stack: [{ type: "Forward", id: 0 }] }, // [-U-A-ST1
-							3, // ST1-A-B-ST2
-							{ count: 3, stack: [{ type: "Forward", id: 0 }] }, // ST2-B-V-[
+							{ count: 2, stack: [{ type: "Forward", id: 0 }] }, // [-U-A
+							1, // A-B
+							{ count: 2, stack: [{ type: "Forward", id: 0 }] }, // B-V-[
 						],
 					},
 					baz: {
@@ -1216,19 +1218,39 @@ export namespace ScenarioH {
 		seq: 3,
 		newRef: 1,
 		frames: [{
+			moves: [
+				{ id: 0, src: { foo: 1 }, dst: { bar: 2 } },
+				{ id: 1, src: { foo: 2 }, dst: { bar: 3 } },
+			],
 			marks: {
 				modifyOld: [{
-					bar: {
+					foo: {
 						tombs: [
-							1, // U
-							{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST1)
-							2,// A B
-							{ count: 1, seq: 1, id: 0 }, // synthetic tombstone (ST2)
+							{ count: 2, seq: 1, id: 0 },
 						],
 						attach: [
-							3, // [-U-ST1-A
-							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }], // A-B
-							[{ type: "Insert", id: 0, content: [{ id: "Y" }], heed: Effects.All }], // B-ST2
+							1, // [-A
+							[{ type: "Bounce", id: 0, heed: Effects.All }], // A-B
+							[{ type: "Bounce", id: 1, heed: Effects.All }], // B-]
+						],
+					},
+					bar: {
+						attach: [
+							2, // [-U-A
+							[{ // A-B
+								type: "Insert",
+								id: 0,
+								content: [{ id: "X" }],
+								src: { seq: 1, id: 0 },
+								heed: Effects.None,
+							}],
+							[{ // B-V
+								type: "Insert",
+								id: 1,
+								content: [{ id: "Y" }],
+								src: { seq: 1, id: 0 },
+								heed: Effects.None,
+							}],
 						],
 					},
 				}],
@@ -1241,8 +1263,22 @@ export namespace ScenarioH {
 		seq: 3,
 		newRef: 2,
 		frames: [{
+			moves: [
+				{ id: 0, src: { foo: 1 }, dst: { bar: 1 } },
+				{ id: 1, src: { foo: 2 }, dst: { bar: 1 } },
+			],
 			marks: {
 				modifyOld: [{
+					foo: {
+						tombs: [
+							{ count: 2, seq: 1, id: 0 },
+						],
+						attach: [
+							1, // [-A
+							[{ type: "Bounce", id: 0, heed: Effects.All }], // A-B
+							[{ type: "Bounce", id: 1, heed: Effects.All }], // B-]
+						],
+					},
 					bar: {
 						tombs: [
 							{ count: 1, seq: 2, id: 0 }, // U
@@ -1253,8 +1289,20 @@ export namespace ScenarioH {
 						],
 						attach: [
 							3, // [-U-ST1-A
-							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }], // A-B
-							[{ type: "Insert", id: 0, content: [{ id: "Y" }], heed: Effects.All }], // B-ST2
+							[{ // A-B
+								type: "Insert",
+								id: 0,
+								content: [{ id: "X" }],
+								src: { seq: 1, id: 0 },
+								heed: Effects.None,
+							}],
+							[{ // B-ST2
+								type: "Insert",
+								id: 1,
+								content: [{ id: "Y" }],
+								src: { seq: 1, id: 0 },
+								heed: Effects.None,
+							}],
 						],
 					},
 				}],
@@ -1350,18 +1398,27 @@ export namespace ScenarioI {
 }
 
 export namespace ScenarioJ {
-	/**
-	This scenario demonstrates the need to replicate tombstone information when inserting into at
-	the destination of a slice-move.
-	Starting with a trait foo that contains the nodes [A B C]:
-	  1. User 1: set-delete node B
-	  2. User 2: slice-move _[A B C]_ to trait bar
-	  3. User 3: insert Y after B (commute:all)
-	  4. User 4: insert X before B (commute:all)
-	  5. User 5: insert W after A and insert Z before C (with knowledge with e1 and e2)
-
-	Expected outcome: foo=[] bar=[A W X Y Z C]
-	*/
+/**
+ * This scenario was originally meant to demonstrate the need to replicate tombstone information when inserting at the
+ * destination of a slice-move.
+ *
+ * This scenario was predicated on the notion that inserts that commuted with a move would be solely represented by a
+ * mark at the destination of the move, which forces the format to replicate tombstone information at the destination
+ * site. Assuming such a design, a tombstone for B was needed in bar for the representation of e3_r_e2 and e4_r_e2 so
+ * that they target gap could differentiated from the gaps targeted by the inserts of e5.
+ *
+ * Using the current format, this challenge is resolved by looking at the src marks for e3_r_e2 and e4_r_e3 when
+ * rebasing e5 over them: the tombstone for B at the src site dictates that W and Z belong on the outside of X and Y.
+ *
+ * Starting state: foo=[A B C] bar=[]
+ * 	1. User 1: set-delete node B
+ * 	2. User 2: slice-move _[A B C]_ to trait bar
+ * 	3. User 3: insert Y after B (commute:all)
+ * 	4. User 4: insert X before B (commute:all)
+ * 	5. User 5: insert W after A and insert Z before C (with knowledge with e1 and e2)
+ *
+ * Expected outcome: foo=[] bar=[A W X Y Z C]
+*/
 
 	export const e1: S.Transaction = {
 		ref: 0,
@@ -1480,12 +1537,7 @@ export namespace ScenarioJ {
 					},
 					bar: {
 						attach: [
-							[{
-								type: "Move",
-								id: 0,
-								count: 2, // Updated
-								tombs: [1, { count: 1, seq: 1, id: 0 }],
-							}],
+							[{ type: "Move", id: 0, count: 2 /* Updated */ }],
 						],
 					},
 				}],
@@ -1517,13 +1569,20 @@ export namespace ScenarioJ {
 		seq: 3,
 		newRef: 2,
 		frames: [{
+			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 1 } }],
 			marks: {
 				modifyOld: [{
-					bar: {
-						tombs: [1, { count: 1, seq: 1, id: 0, src: [{ seq: 2, id: 0 }] }],
+					foo: {
+						tombs: [1, { count: 1, seq: 1, id: 0 }],
 						attach: [
 							2,
-							[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
+							[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }],
+						],
+					},
+					bar: {
+						attach: [
+							1,
+							[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
 						],
 					},
 				}],
@@ -1555,10 +1614,17 @@ export namespace ScenarioJ {
 		seq: 4,
 		newRef: 2,
 		frames: [{
+			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 1 } }],
 			marks: {
 				modifyOld: [{
+					foo: {
+						tombs: [1, { count: 1, seq: 1, id: 0 }],
+						attach: [
+							1,
+							[{ type: "Bounce", id: 0 }],
+						],
+					},
 					bar: {
-						tombs: [1, { count: 1, seq: 1, id: 0, src: [{ seq: 2, id: 0 }] }],
 						attach: [
 							1,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
@@ -1569,20 +1635,22 @@ export namespace ScenarioJ {
 		}],
 	};
 
-	export const e4_e3: S.Transaction = {
+	export const e4_r_e3: S.Transaction = {
 		ref: 0,
 		seq: 4,
 		newRef: 3,
 		frames: [{
+			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 1 } }],
 			marks: {
 				modifyOld: [{
-					bar: {
-						tombs: [
+					foo: {
+						tombs: [1, { count: 1, seq: 1, id: 0 }],
+						attach: [
 							1,
-							{ count: 1, seq: 1, id: 0, src: [{ seq: 2, id: 0 }] },
-							1, // Y
-							{ count: 1, seq: 1, id: 0, src: [{ seq: 2, id: 0 }] },
+							[{ type: "Bounce", id: 0 }],
 						],
+					},
+					bar: {
 						attach: [
 							1,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
@@ -1602,9 +1670,9 @@ export namespace ScenarioJ {
 				modifyOld: [{
 					bar: {
 						attach: [
-							1,
-							[{ type: "Insert", id: 0, content: [{ id: "W" }], tiebreak: Tiebreak.Left }],
-							[{ type: "Insert", id: 0, content: [{ id: "Z" }] }],
+							1, // [-A
+							[{ type: "Insert", id: 0, content: [{ id: "W" }], tiebreak: Tiebreak.Left }], // A-Y
+							[{ type: "Insert", id: 0, content: [{ id: "Z" }] }], // Y-]
 						],
 					},
 				}],
@@ -1621,7 +1689,7 @@ export namespace ScenarioJ {
 				modifyOld: [{
 					bar: {
 						attach: [
-							1,
+							1, // [-A
 							[{ type: "Insert", id: 0, content: [{ id: "W" }], tiebreak: Tiebreak.Left }],
 							1, // X-Y
 							[{ type: "Insert", id: 0, content: [{ id: "Z" }] }],
@@ -1634,32 +1702,21 @@ export namespace ScenarioJ {
 }
 
 export namespace ScenarioK {
-	/**
-	This scenario attempts but fails to demonstrate the need to differentiate tombstone replicas
-	that are introduced by slice moves from their originals.
-
-	Without this differentiation, the two tombstones in e3p would look the same, but it's not clear
-	that this is a problem. Indeed, it could only be an issue if a change could be manufactured
-	such that it contains only one of the two replicas. This would be an issue because when
-	rebasing such a change over a change such as e3p, we wouldn't be able to tell which of the two
-	tombstones in ep3 that change contains.
-	It seems impossible to manufacture such a change:
-	- The only way to have only one of two tombstones for a trait is to not be concurrent to the
-	prior change that introduced the older tombstone. This is because we have a rule that a change
-	that uses a tombstone in a trait must also carry all subsequently created tombstones for that
-	trait.
-	- If the change we're trying to create doesn't know about the set-delete operation then it does
-	not need to carry tombstone information for A's replica introduced by the slice move.
-
-	Starting state foo=[A]:
-	User 1: set-delete node A
-	User 2: slice-move [A-] to the start of trait foo
-	User 3:
-	  - insert X at the end of foo (commute:move)
-	  - insert Y at the end of foo (commute:none)
-
-	Expected outcome: foo=[X Y]
-	*/
+/**
+ * This scenario was originally a failed attempt to demonstrate the need to differentiate tombstone replicas
+ * that are introduced by slice moves from their originals. This was predicated on the notion that inserts that
+ * commuted with a move would be solely represented by a mark at the destination of the move, which forces the
+ * format to replicate tombstone information at the destination site.
+ *
+ * Starting state foo=[A]:
+ * User 1: set-delete node A
+ * User 2: slice-move [A-] to the start of trait foo
+ * User 3:
+ * 	- insert X at the end of foo (commute:move)
+ * 	- insert Y at the end of foo (commute:none)
+ *
+ * Expected outcome: foo=[X Y]
+*/
 
 	export const e1: S.Transaction = {
 		ref: 0,
@@ -1739,12 +1796,7 @@ export namespace ScenarioK {
 							{ count: 1, stack: [{ type: "Forward", id: 0 }] },
 						],
 						attach: [
-							[{
-								type: "Move",
-								id: 0,
-								count: 0, // Updated
-								tombs: [{ count: 1, seq: 1, id: 0 }],
-							}],
+							[{ type: "Move", id: 0, count: 0 /* Updated */ }],
 						],
 					},
 				}],
@@ -1779,17 +1831,26 @@ export namespace ScenarioK {
 		seq: 3,
 		newRef: 2,
 		frames: [{
+			moves: [{ id: 0, src: { foo: 0 }, dst: { foo: 0 } }],
 			marks: {
 				modifyOld: [{
 					foo: {
 						tombs: [
-							{ count: 1, seq: 1, id: 0, src: [{ seq: 2, id: 0 }] },
 							{ count: 1, seq: 1, id: 0 },
 						],
 						attach: [
-							1, // [-A2
-							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.Move }],
-							[{ type: "Insert", id: 1, content: [{ id: "Y" }], heed: Effects.None }],
+							[
+								{
+									type: "Insert",
+									id: 0,
+									content: [{ id: "X" }],
+									src: { seq: 2, id: 0 },
+								},
+							],
+							[
+								{ type: "Bounce", id: 0, heed: Effects.Move },
+								{ type: "Insert", id: 1, content: [{ id: "Y" }], heed: Effects.None },
+							],
 						],
 					},
 				}],
@@ -1799,30 +1860,33 @@ export namespace ScenarioK {
 }
 
 export namespace ScenarioL {
-	/**
-	This scenario demonstrates that two different tombstones can have originated from the same edit
-	(E1), been first replicated by the same slice-move (E2), been last replicated by the same
-	slice-move (E4) yet be targeted by different concurrent inserts that end up in the same trait
-	and therefore need to be able to distinguish one replica from the other, and order them properly.
-	This entails that recording information about the original edit, and the first
-	and/or last replication edits is not enough to tell apart all tombstones.
-
-	Note how the slice-moves in E3 flip the order of X and Y. This is done to help distinguish
-	designs where the two tombstones are successfully told apart from designs where they are not.
-	Indeed, without this flip, they would have the same outcome.
-
-	Starting with traits foo=[A B], bar=[], baz=[], qux=[]:
-	  E1: User 1: set-delete nodes A B
-	  E2: User 2: slice-move all of foo to the start of trait bar
-	  E3: User 2:
-	    slice-move foo [_A] to the end of trait baz
-	    slice-move foo [B_] to the start of trait baz
-	  E4: User 2: slice-move all of baz to the start of trait qux
-	  E5: User 3: insert X after B (commute:all)
-	  E6: User 3: insert Y before A (commute:all)
-
-	Expected outcome: qux=[X Y]
-	*/
+/**
+ * This scenario was originally meant to demonstrate that two different tombstones can have originated from the same
+ * edit (E1), been first replicated by the same slice-move (E2), been last replicated by the same
+ * slice-move (E4) yet be targeted by different concurrent inserts that end up in the same trait
+ * and therefore need to be able to distinguish one replica from the other, and order them properly.
+ *
+ * This scenario was predicated on the notion that inserts that commuted with a move would be solely represented by a
+ * mark at the destination of the move, which forces the format to replicate tombstone information at the destination
+ * site. Assuming such a design, the tombstones from E1 end up duplicated in qux, with no way to tell them apart.
+ * Note how the slice-moves in E3 flip the order of X and Y. This was done to help distinguish designs where the two
+ * tombstones are successfully told apart from designs where they are not. Indeed, without this flip, they would have
+ * the same outcome.
+ *
+ * The current format does not rely on tombstone replication at move destination sites so the issue does not come up.
+ *
+ * Starting with traits foo=[A B], bar=[], baz=[], qux=[]:
+ * 	E1: User 1: set-delete nodes A B
+ * 	E2: User 2: slice-move all of foo to the start of trait bar
+ * 	E3: User 2:
+ * 	slice-move foo [_A] to the end of trait baz
+ * 	slice-move foo [B_] to the start of trait baz
+ * 	E4: User 2: slice-move all of baz to the start of trait qux
+ * 	E5: User 3: insert X after B (commute:all)
+ * 	E6: User 3: insert Y before A (commute:all)
+ *
+ * Expected outcome: qux=[X Y]
+*/
 
 export const e1: S.Transaction = {
 	ref: 0,
@@ -2336,20 +2400,20 @@ export const e6_r_e5: S.Transaction = {
 
 export namespace ScenarioM {
 /*
-	This scenario demonstrates the need for changesets to record all the tombstones for each field
-	that they are targeting. More precisely, it is necessary to record all tombstones that are
-	adjacent to currently recorded tombstones, but recording all of them leads to simpler rebase code.
-	In this scenario, if each insert changeset only stored the tombstone that is relevant to its
-	insert's target location then, when rebasing edit 4 over edit 3, we wouldn't know how to order
-	the tombstones for A B relative to the tombstones for C D.
-
-	Starting state: foo=[A B C D]
-	User 1: set-delete A B
-	User 2: set-delete C D
-	User 3: insert X before B
-	User 4: insert Y before D
-
-	Expected outcome: foo=[X Y]
+ * This scenario demonstrates the need for changesets to record all the tombstones for each field
+ * that they are targeting. More precisely, it is necessary to record all tombstones that are
+ * adjacent to currently recorded tombstones, but recording all of them leads to simpler rebase code.
+ *
+ * In this scenario, if each insert changeset only stored the tombstone that is relevant to its
+ * insert's target location then, when rebasing edit 4 over edit 3, we wouldn't know how to order
+ * the tombstones for A B relative to the tombstones for C D.
+ *
+ * Starting state: foo=[A B C D]
+ * User 1: set-delete A B
+ * User 2: set-delete C D
+ * User 3: insert X before B
+ * User 4: insert Y before D
+ * Expected outcome: foo=[X Y]
 */
 
 export const e1: S.Transaction = {
@@ -2539,12 +2603,20 @@ export const e4_r_e3: S.Transaction = {
 
 export namespace ScenarioN {
 /**
- * This scenario demonstrates that to successfully order two tombstones that are relied
- * on by separate changes, we need to include tombstones for orphan gaps at the edge of the
- * range when rebasing over slice move-ins.
+ * This scenario was originally meant to demonstrate that to successfully order two tombstones that are relied on by
+ * separate changes, we need to include synthetic tombstones for orphan gaps at the edge of the range when rebasing
+ * over slice move-ins.
  *
- * In this scenario, if E2 and E3 don't record synthetic tombstones when rebasing over e1, then the
+ * This scenario was predicated on the notion that inserts that commuted with a move would be solely represented by a
+ * mark at the destination of the move, which forces the format to replicate tombstone information at the destination
+ * site. Assuming such a design, if E2 and E3 don't record synthetic tombstones when rebasing over e1, then the
  * rebasing of e3_r_e1 over e2_r_e1 will not know how to order the inserts.
+ *
+ * This design is no longer in effect so the need for synthetic tombstones is moot.
+ * That said, this scenario is still interesting in that it reveals the need for sliced inserts to understand the
+ * relative ordering in time of prior moves, even when those slice moves are within the same transaction.
+ * In this scenario, the only reason we can tell that X should go before Y in bar, is that the A[_]B slice move
+ * happened before the B[_]C slice move.
  *
  * Starting with traits foo=[A B C], bar=[]:
  * E1: User 1:
@@ -2560,6 +2632,10 @@ export const e1: S.Transaction = {
 	ref: 0,
 	seq: 1,
 	frames: [{
+		moves: [
+			{ id: 0, src: { foo: 1 }, dst: { bar: 0 } },
+			{ id: 1, src: { foo: 2 }, dst: { bar: 0 } },
+		],
 		marks: {
 			modifyOld: [{
 				foo: {
@@ -2572,8 +2648,8 @@ export const e1: S.Transaction = {
 				bar: {
 					attach: [
 						[
-							{ type: "Move", id: 0, count: 0, tombs: [{ count: 2, seq: 1, id: 0 }] },
-							{ type: "Move", id: 1, count: 0, tombs: [{ count: 2, seq: 1, id: 1 }] },
+							{ type: "Move", id: 0, count: 0 },
+							{ type: "Move", id: 1, count: 0 },
 						],
 					],
 				},
@@ -2621,16 +2697,20 @@ export const e2_r_e1: S.Transaction = {
 	seq: 2,
 	newRef: 1,
 	frames: [{
+		moves: [
+			{ id: 0, src: { foo: 2 }, dst: { bar: 0 } },
+		],
 		marks: {
 			modifyOld: [{
-				bar: {
-					tombs: [
-						{ count: 2, seq: 1, id: 0 }, // Synthetic
-						{ count: 2, seq: 1, id: 1 }, // Synthetic
-					],
+				foo: {
 					attach: [
-						3,
-						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
+						2,
+						[{ type: "Bounce", id: 0 }],
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "Y" }], src: { seq: 1, id: 1 } }],
 					],
 				},
 			}],
@@ -2643,16 +2723,20 @@ export const e3_r_e1: S.Transaction = {
 	seq: 3,
 	newRef: 1,
 	frames: [{
+		moves: [
+			{ id: 0, src: { foo: 1 }, dst: { bar: 0 } },
+		],
 		marks: {
 			modifyOld: [{
-				bar: {
-					tombs: [
-						{ count: 2, seq: 1, id: 0 }, // Synthetic
-						{ count: 2, seq: 1, id: 1 }, // Synthetic
-					],
+				foo: {
 					attach: [
 						1,
-						[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+						[{ type: "Bounce", id: 0 }],
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "X" }], src: { seq: 1, id: 0 } }],
 					],
 				},
 			}],
@@ -2665,17 +2749,20 @@ export const e3_r_e2: S.Transaction = {
 	seq: 3,
 	newRef: 2,
 	frames: [{
+		moves: [
+			{ id: 0, src: { foo: 1 }, dst: { bar: 0 } },
+		],
 		marks: {
 			modifyOld: [{
-				bar: {
-					tombs: [
-						{ count: 2, seq: 1, id: 0 }, // Synthetic
-						{ count: 1, seq: 1, id: 1 }, // Synthetic
-						1, // Y
-						{ count: 1, seq: 1, id: 1 }, // Synthetic
-					],
+				foo: {
 					attach: [
-						[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+						1,
+						[{ type: "Bounce", id: 0 }],
+					],
+				},
+				bar: {
+					attach: [
+						[{ type: "Insert", id: 0, content: [{ id: "X" }], src: { seq: 1, id: 0 } }],
 					],
 				},
 			}],
@@ -2686,13 +2773,17 @@ export const e3_r_e2: S.Transaction = {
 
 export namespace ScenarioO {
 /**
- * This scenario demonstrates that if an edit has tombstones that fall in the same cursor gap as
- * some move-in that it is being rebased over, then that edit but include the tombstones introduced
- * by the extremities of that move-in (if any).
+ * This scenario was originally meant to demonstrate that if an edit has tombstones that fall in the same cursor gap as
+ * some move-in that it is being rebased over, then that edit must include the tombstones introduced by the extremities
+ * of that move-in (if any).
  *
- * In this scenario, if e5_r_e3 doesn't acquire the tombstones for AB when rebasing e5_r_e2 over e3_r_e2,
+ * This scenario was predicated on the notion that inserts that commuted with a move would be solely represented by a
+ * mark at the destination of the move, which forces the format to replicate tombstone information at the destination
+ * site. Assuming such a design, if e5_r_e3 doesn't acquire the tombstones for AB when rebasing e5_r_e2 over e3_r_e2,
  * then when rebasing e5_r_e3 over e4_r_e3, we will not know how to order the tombstones for AB and V in
  * e5_r_e4, which means we will not know how to order X and Y.
+ *
+ * This design is no longer in effect so the need for such tombstones is moot.
  *
  * Starting state foo[A B] bar=[U V]
  * E1: U1: set-delete V
@@ -2834,26 +2925,7 @@ export const e3_r_e2: S.Transaction = {
 				bar: {
 					attach: [
 						1,
-						[{
-							type: "Move",
-							id: 0,
-							count: 0, // Updated
-							tiebreak: Tiebreak.Left,
-							// This is the tombstone information motivated by this scenario.
-							// Whether it is explicitly represented here or whether it need to be
-							// derived by each change that rebases over this move-in is a degree of
-							// freedom of the format.
-							// We opt to represent it at the move-in site (and therefore bear the)
-							// cost of updating it when rebasing the move-out over detaches, because
-							// we already need to update the node count in the same cases. In fact,
-							// having the tombstone information here and keeping it updated means
-							// the count could stay as is, but we update it anyway because we
-							// anticipate that most readers of this mark care about the number of
-							// actually inserted nodes.
-							tombs: [
-								{ count: 2, seq: 2, id: 0 }, // A B
-							],
-						}],
+						[{ type: "Move", id: 0, count: 0, /* Updated */ tiebreak: Tiebreak.Left }],
 					],
 				},
 			}],
@@ -2903,15 +2975,19 @@ export const e4_r_e3: S.Transaction = {
 	seq: 4,
 	newRef: 3,
 	frames: [{
+		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 2 } }],
 		marks: {
 			modifyOld: [{
-				bar: {
-					tombs: [
-						1,
-						{ count: 2, seq: 2, id: 0, src: [{ seq: 3, id: 0 }] },
-					],
+				foo: {
+					tombs: [{ count: 2, seq: 2, id: 0 }],
 					attach: [
-						2, // [-A-U
+						1,
+						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }],
+					],
+				},
+				bar: {
+					attach: [
+						1, // [-U
 						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
 					],
 				},
@@ -2968,11 +3044,10 @@ export const e5_r_e3: S.Transaction = {
 				bar: {
 					tombs: [
 						1,
-						{ count: 2, seq: 2, id: 0, src: [{ seq: 3, id: 0 }] }, // A B
 						{ count: 1, seq: 1, id: 0 }, // V
 					],
 					attach: [
-						2,
+						2, // [-U-V
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
 					],
 				},
@@ -2990,16 +3065,11 @@ export const e5_r_e4: S.Transaction = {
 			modifyOld: [{
 				bar: {
 					tombs: [
-						1, // U
-						{ count: 1, seq: 2, id: 0 }, // A
-						1, // X
-						{ count: 1, seq: 2, id: 0 }, // B
-						// We can't know the seq:1 tombstone goes after the seq:2 tombstones if
-						// e5_r_e3 doesn't learn of the seq:2 tombstones from e3_r_e2.
+						2, // U X
 						{ count: 1, seq: 1, id: 1 }, // V
 					],
 					attach: [
-						5,
+						3, // [-U-X-V
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
 					],
 				},
