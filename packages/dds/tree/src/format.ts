@@ -442,6 +442,7 @@ export namespace Rebased {
 
 		/**
 		 * Represents the changes made to the subtree of each node that was concurrently detached.
+		 * This is needed to represent changes to a subtree that was concurrently deleted.
 		 *
 		 * Offsets represent both nodes that are present in the input context and nodes that were
 		 * concurrently detached.
@@ -458,6 +459,7 @@ export namespace Rebased {
 
 		/**
 		 * Represents the changes made to the subtree of each node present in the output context.
+		 * This is needed to represent changes to a subtree that was added by this changeset.
 		 *
 		 * Offsets represent both nodes that are present in the input context and nodes that were
 		 * added by this change. The `dst` path for move entries uses indices that are in sync with
@@ -492,6 +494,16 @@ export namespace Rebased {
 		 * Omit if `Tiebreak.Right` for terseness.
 		 */
 		tiebreak?: Tiebreak;
+
+		/**
+		 * Indicates a prior concurrent slice-move that the target place was affected by.
+		 */
+		src?: PriorOp;
+
+		/**
+		 * Indicates a prior concurrent slice-delete that the target place was affected by.
+		 */
+		scorch?: PriorOp;
 	}
 
 	export interface IsGapEffect {
@@ -517,12 +529,10 @@ export namespace Rebased {
 	export interface Insert extends HasOpId, IsPlace {
 		type: "Insert";
 		content: ProtoNode[];
-		src?: PriorOp;
 	}
 
 	export interface Hop extends HasOpId, IsPlace {
 		type: "Bounce";
-		src?: PriorOp;
 	}
 
 	export interface MoveIn extends HasOpId, IsPlace {
