@@ -854,6 +854,18 @@ We would still need an Intake marker on the side of the introduced content where
 
 This may affect op ID monotonicity.
 
+## How to represent intentions affected by prior gap effects?
+
+For example, how to represent a commutative insert that landed in scorched gap? This seems to be specific to attach operations since they're the only ones affected by gap effects and slice-deletes, since we already have a way of reflecting the effects of slice-moves.
+
+There seem to be two options:
+
+1. Expand on the tombstone scheme to track prior gap effects. Maybe this could be done by making tombstone information be gap-centric instead of node-centric
+
+2. Add a field on inserts and move-ins that get caught in a slice-delete.
+
+Option #2 has been adopted. The field is `scorch` on `IsPlace`.
+
 ## About the Move Table
 
 Why do we want a move table?
