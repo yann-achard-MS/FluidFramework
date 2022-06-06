@@ -2662,10 +2662,14 @@ export namespace ScenarioN {
  * rebasing of e3_r_e1 over e2_r_e1 will not know how to order the inserts.
  *
  * This design is no longer in effect so the need for synthetic tombstones is moot.
- * That said, this scenario is still interesting in that it reveals the need for sliced inserts to understand the
- * relative ordering in time of prior moves, even when those slice moves are within the same transaction.
- * In this scenario, the only reason we can tell that X should go before Y in bar, is that the A[_]B slice move
- * happened before the B[_]C slice move.
+ * That said, this scenario is still interesting in that it reveals the need for sliced inserts to either:
+ *
+ *   (I) Understand the relative ordering in time of prior moves, even when those slice moves are within the same
+ *   transaction. In this scenario, the time ordering tells us that X should go before Y in bar, because the A[_]B
+ *   slice move happened before the B[_]C slice move.
+ *
+ *  (II) Leave "Intake" marks in the changesets that rebased over them when those changesets include an attach that
+ *  targets the same gap. This is the approach chosen here.
  *
  * Starting with traits foo=[A B C], bar=[]:
  * E1: User 1:
@@ -2759,7 +2763,10 @@ export const e2_r_e1: S.Transaction = {
 				},
 				bar: {
 					attach: [
-						[{ type: "Insert", id: 0, content: [{ id: "Y" }], src: { seq: 1, id: 1 } }],
+						[
+							{ type: "Intake", seq: 1, id: 0 },
+							{ type: "Insert", id: 0, content: [{ id: "Y" }], src: { seq: 1, id: 1 } },
+						],
 					],
 				},
 			}],
@@ -2785,7 +2792,10 @@ export const e3_r_e1: S.Transaction = {
 				},
 				bar: {
 					attach: [
-						[{ type: "Insert", id: 0, content: [{ id: "X" }], src: { seq: 1, id: 0 } }],
+						[
+							{ type: "Insert", id: 0, content: [{ id: "X" }], src: { seq: 1, id: 0 } },
+							{ type: "Intake", seq: 1, id: 1 },
+						],
 					],
 				},
 			}],
@@ -2811,7 +2821,10 @@ export const e3_r_e2: S.Transaction = {
 				},
 				bar: {
 					attach: [
-						[{ type: "Insert", id: 0, content: [{ id: "X" }], src: { seq: 1, id: 0 } }],
+						[
+							{ type: "Insert", id: 0, content: [{ id: "X" }], src: { seq: 1, id: 0 } },
+							{ type: "Intake", seq: 1, id: 1 },
+						],
 					],
 				},
 			}],
