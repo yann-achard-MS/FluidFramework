@@ -531,7 +531,7 @@ export namespace Rebased {
 		content: ProtoNode[];
 	}
 
-	export interface Hop extends HasOpId, IsPlace {
+	export interface Bounce extends HasOpId, IsPlace {
 		type: "Bounce";
 	}
 
@@ -543,7 +543,7 @@ export namespace Rebased {
 		count: NodeCount;
 	}
 
-	export type Attach = Insert | MoveIn | Hop;
+	export type Attach = Insert | MoveIn | Bounce;
 
 	export interface OpenGapEffects {
 		count: GapCount;
