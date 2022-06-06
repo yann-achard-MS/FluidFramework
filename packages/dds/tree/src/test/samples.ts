@@ -594,6 +594,74 @@ export namespace ScenarioC {
 	};
 }
 
+export namespace ScenarioD {
+	/**
+	 * This scenario demonstrates how to represent a silenced insert.
+	 *
+	 * Starting state: foo=[A B]
+	 * E1: User 1: slice-delete [A B]
+	 * E2: User 2: insert X at index 1 (commute:all)
+	 *
+	 * Expected outcome: foo=[]
+	 * User 2's edit should be muted.
+	 */
+
+	export const e1: S.Transaction = {
+		ref: 0,
+		seq: 1,
+		frames: [{
+			marks: {
+				modifyOld: [{
+					foo: {
+						nodes: [
+							{ type: "Delete", id: 0 , count: 2 },
+						],
+						gaps: [
+							{ count: 1, stack: [{ type: "Scorch", id: 0 }] },
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e2: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		frames: [{
+			marks: {
+				modifyOld: [{
+					foo: {
+						attach: [
+							1,
+							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+
+	export const e2_r_e1: S.Transaction = {
+		ref: 0,
+		seq: 2,
+		newRef: 1,
+		frames: [{
+			marks: {
+				modifyOld: [{
+					foo: {
+						tombs: [{ count: 2, seq: 1, id: 0 }],
+						attach: [
+							1,
+							[{ type: "Insert", id: 0, content: [{ id: "X" }], scorch: { seq: 1, id: 0 } }],
+						],
+					},
+				}],
+			},
+		}],
+	};
+}
+
 export namespace ScenarioE {
 	/*
 	This scenario demonstrates how subsequent changes within the same commit affect prior changes
