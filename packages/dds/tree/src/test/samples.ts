@@ -210,7 +210,7 @@ export namespace ScenarioA {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [1, { count: 2, seq: 1, id: 1 } ],
+						tombs: [1, { count: 2, seq: 1 } ],
 						nodes: [
 							1, // A
 							{ type: "Move", id: 0, count: 3 },
@@ -238,7 +238,7 @@ export namespace ScenarioA {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [1, { count: 2, seq: 1, id: 1 } ],
+						tombs: [1, { count: 2, seq: 1 } ],
 						attach: [
 							2,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], heed: Effects.All }],
@@ -258,7 +258,7 @@ export namespace ScenarioA {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [1, { count: 2, seq: 1, id: 1 } ],
+						tombs: [1, { count: 2, seq: 1 } ],
 						attach: [
 							2,
 							[{ type: "Bounce", id: 0, heed: Effects.All }],
@@ -357,7 +357,7 @@ export namespace ScenarioB {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [{ count: 5, seq: 1, id: 0 }],
+						tombs: [{ count: 5, seq: 1 }],
 						attach: [
 							1,
 							[{ type: "Insert", id: 0, content: [{ id: "W" }] }],
@@ -378,7 +378,7 @@ export namespace ScenarioB {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [{ count: 5, seq: 1, id: 0 }],
+						tombs: [{ count: 5, seq: 1 }],
 						attach: [
 							2,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
@@ -400,11 +400,11 @@ export namespace ScenarioB {
 				modify: [{
 					foo: {
 						tombs: [
-							{ count: 1, seq: 1, id: 0 },
+							{ count: 1, seq: 1 },
 							1, // W
-							{ count: 2, seq: 1, id: 0 },
+							{ count: 2, seq: 1 },
 							1, // Y
-							{ count: 1, seq: 1, id: 0 },
+							{ count: 1, seq: 1 },
 						],
 						attach: [
 							3, // [-A-W-B
@@ -459,7 +459,7 @@ export namespace ScenarioC {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [{ count: 1, seq: 1, id: 0 }],
+						tombs: [{ count: 1, seq: 1 }],
 						nodes: [
 							{ type: "Revive", id: 0 , count: 1 },
 						],
@@ -493,7 +493,7 @@ export namespace ScenarioC {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [{ count: 1, seq: 1, id: 0 }],
+						tombs: [{ count: 1, seq: 1 }],
 						nodes: [
 							{ type: "Delete", id: 0 , count: 1 },
 						],
@@ -544,7 +544,7 @@ export namespace ScenarioC {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [{ count: 1, seq: 1, id: 0 }],
+						tombs: [{ count: 1, seq: 1 }],
 						nodes: [
 							{ type: "Delete", id: 0 , count: 1 },
 						],
@@ -579,7 +579,7 @@ export namespace ScenarioC {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [{ count: 1, seq: 1, id: 0 }],
+						tombs: [{ count: 1, seq: 1 }],
 						nodes: [
 							{ type: "Delete", id: 0 , count: 1 },
 						],
@@ -646,7 +646,7 @@ export namespace ScenarioD {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [{ count: 2, seq: 1, id: 0 }],
+						tombs: [{ count: 2, seq: 1 }],
 						attach: [
 							1,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }], scorch: { seq: 1, id: 0 } }],
@@ -973,7 +973,7 @@ export namespace ScenarioG {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [{ count: 2, seq: 1, id: 0 }],
+						tombs: [{ count: 2, seq: 1 }],
 						attach: [
 							1,
 							[{ type: "Bounce", id: 0, heed: Effects.Move }],
@@ -1027,9 +1027,9 @@ export namespace ScenarioG {
 				modify: [{
 					foo: {
 						tombs: [
-							{ count: 1, seq: 1, id: 0 }, // A
-							{ count: 2, seq: [1, 2], id: 0 }, // X Y
-							{ count: 1, seq: 1, id: 0 }, // B
+							{ count: 1, seq: 1 }, // A
+							{ count: 2, seq: [1, 2] }, // X Y
+							{ count: 1, seq: 1 }, // B
 						],
 						attach: [
 							2,
@@ -1074,11 +1074,11 @@ export namespace ScenarioG {
 				modify: [{
 					foo: {
 						tombs: [
-							{ count: 1, seq: 1, id: 0 }, // A
-							{ count: 1, seq: [1, 2], id: 0 }, // X
+							{ count: 1, seq: 1 }, // A
+							{ count: 1, seq: [1, 2] }, // X
 							1, // N
-							{ count: 1, seq: [1, 2], id: 0 }, // Y
-							{ count: 1, seq: 1, id: 0 }, // B
+							{ count: 1, seq: [1, 2] }, // Y
+							{ count: 1, seq: 1 }, // B
 						],
 						attach: [
 							1, // [-A
@@ -1125,12 +1125,12 @@ export namespace ScenarioG {
 				modify: [{
 					foo: {
 						tombs: [
-							{ count: 1, seq: 1, id: 0 }, // A
+							{ count: 1, seq: 1 }, // A
 							1, // M
-							{ count: 1, seq: [1, 2], id: 0 }, // X
+							{ count: 1, seq: [1, 2] }, // X
 							1, // N
-							{ count: 1, seq: [1, 2], id: 0 }, // Y
-							{ count: 1, seq: 1, id: 0 }, // B
+							{ count: 1, seq: [1, 2] }, // Y
+							{ count: 1, seq: 1 }, // B
 						],
 						attach: [
 							5,
@@ -1273,7 +1273,7 @@ export namespace ScenarioH {
 				modify: [{
 					foo: {
 						tombs: [
-							{ count: 2, seq: 1, id: 0 },
+							{ count: 2, seq: 1 },
 						],
 						attach: [
 							1, // [-A
@@ -1318,7 +1318,7 @@ export namespace ScenarioH {
 				modify: [{
 					foo: {
 						tombs: [
-							{ count: 2, seq: 1, id: 0 },
+							{ count: 2, seq: 1 },
 						],
 						attach: [
 							1, // [-A
@@ -1328,9 +1328,9 @@ export namespace ScenarioH {
 					},
 					bar: {
 						tombs: [
-							{ count: 1, seq: 2, id: 0 }, // U
+							{ count: 1, seq: 2 }, // U
 							2,// A B
-							{ count: 1, seq: 2, id: 0 }, // V
+							{ count: 1, seq: 2 }, // V
 						],
 						attach: [
 							2, // [-U-A
@@ -1571,7 +1571,7 @@ export namespace ScenarioJ {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [1, { count: 1, seq: 1, id: 0 }],
+						tombs: [1, { count: 1, seq: 1 }],
 						nodes: [
 							{ type: "Move", id: 0, count: 3 },
 						],
@@ -1598,7 +1598,7 @@ export namespace ScenarioJ {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [1, { count: 1, seq: 1, id: 0 }],
+						tombs: [1, { count: 1, seq: 1 }],
 						attach: [
 							2,
 							[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
@@ -1618,7 +1618,7 @@ export namespace ScenarioJ {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [1, { count: 1, seq: 1, id: 0 }],
+						tombs: [1, { count: 1, seq: 1 }],
 						attach: [
 							2,
 							[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }],
@@ -1643,7 +1643,7 @@ export namespace ScenarioJ {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [1, { count: 1, seq: 1, id: 0 }],
+						tombs: [1, { count: 1, seq: 1 }],
 						attach: [
 							1,
 							[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
@@ -1663,7 +1663,7 @@ export namespace ScenarioJ {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [1, { count: 1, seq: 1, id: 0 }],
+						tombs: [1, { count: 1, seq: 1 }],
 						attach: [
 							1,
 							[{ type: "Bounce", id: 0 }],
@@ -1689,7 +1689,7 @@ export namespace ScenarioJ {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [1, { count: 1, seq: 1, id: 0 }],
+						tombs: [1, { count: 1, seq: 1 }],
 						attach: [
 							1,
 							[{ type: "Bounce", id: 0 }],
@@ -1832,7 +1832,7 @@ export namespace ScenarioK {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [{ count: 1, seq: 1, id: 0 }],
+						tombs: [{ count: 1, seq: 1 }],
 						nodes: [
 							{ type: "Move", id: 0, count: 1 },
 						],
@@ -1857,7 +1857,7 @@ export namespace ScenarioK {
 			marks: {
 				modify: [{
 					foo: {
-						tombs: [{ count: 1, seq: 1, id: 0 }],
+						tombs: [{ count: 1, seq: 1 }],
 						attach: [
 							1,
 							[
@@ -1881,7 +1881,7 @@ export namespace ScenarioK {
 				modify: [{
 					foo: {
 						tombs: [
-							{ count: 1, seq: 1, id: 0 },
+							{ count: 1, seq: 1 },
 						],
 						attach: [
 							[
@@ -2073,7 +2073,7 @@ export const e2_r_e1: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }],
 					nodes: [
 						{ type: "Move", id: 0, count: 2 },
 					],
@@ -2103,7 +2103,7 @@ export const e3_r_e1: S.Transaction = {
 		marks: {
 			modify: [{
 				bar: {
-					tombs: [{ count: 2, seq: [1, 2], id: 0 }],
+					tombs: [{ count: 2, seq: [1, 2] }],
 					nodes: [
 						{ type: "Move", id: 0, count: 1 },
 						{ type: "Move", id: 1, count: 1 },
@@ -2134,7 +2134,7 @@ export const e4_r_e1: S.Transaction = {
 		marks: {
 			modify: [{
 				baz: {
-					tombs: [{ count: 2, seq: [1, 3], id: 0 }],
+					tombs: [{ count: 2, seq: [1, 3] }],
 					nodes: [
 						{ type: "Move", id: 0, count: 2 },
 					],
@@ -2160,7 +2160,7 @@ export const e5_r_e1: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }],
 					attach: [
 						2,
 						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
@@ -2180,7 +2180,7 @@ export const e5_r_e2: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }],
 					attach: [
 						2,
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }],
@@ -2211,7 +2211,7 @@ export const e5_r_e3: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }],
 					attach: [
 						2,
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }],
@@ -2247,7 +2247,7 @@ export const e5_r_e4: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }],
 					attach: [
 						2,
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }],
@@ -2287,7 +2287,7 @@ export const e6_r_e1: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }],
 					attach: [
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Right }],
 					],
@@ -2306,7 +2306,7 @@ export const e6_r_e2: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }],
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Right }],
 					],
@@ -2336,7 +2336,7 @@ export const e6_r_e3: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }],
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Right }],
 					],
@@ -2371,7 +2371,7 @@ export const e6_r_e4: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }],
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Right }],
 					],
@@ -2410,7 +2410,7 @@ export const e6_r_e5: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }],
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Right }],
 					],
@@ -2553,7 +2553,7 @@ export const e3_r_e1: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }],
 					attach: [
 						1,
 						[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
@@ -2572,7 +2572,7 @@ export const e3_r_e2: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }, { count: 2, seq: 2, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }, { count: 2, seq: 2 }],
 					attach: [
 						1,
 						[{ type: "Insert", id: 0, content: [{ id: "X" }] }],
@@ -2591,7 +2591,7 @@ export const e4_r_e1: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }],
 					attach: [
 						3,
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
@@ -2610,7 +2610,7 @@ export const e4_r_e2: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 1, id: 0 }, { count: 2, seq: 2, id: 0 }],
+					tombs: [{ count: 2, seq: 1 }, { count: 2, seq: 2 }],
 					attach: [
 						3,
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }] }],
@@ -2630,10 +2630,10 @@ export const e4_r_e3: S.Transaction = {
 			modify: [{
 				foo: {
 					tombs: [
-						{ count: 1, seq: 1, id: 0 },
+						{ count: 1, seq: 1 },
 						1, // X
-						{ count: 1, seq: 1, id: 0 },
-						{ count: 1, seq: 2, id: 0 },
+						{ count: 1, seq: 1 },
+						{ count: 1, seq: 2 },
 					],
 					attach: [
 						4, // [-A-X-B-C
@@ -2971,7 +2971,7 @@ export const e3_r_e2: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 2, id: 0 }],
+					tombs: [{ count: 2, seq: 2 }],
 					nodes: [
 						{ type: "Move", id: 0, count: 2 },
 					],
@@ -3017,7 +3017,7 @@ export const e4_r_e2: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 2, id: 0 }],
+					tombs: [{ count: 2, seq: 2 }],
 					attach: [
 						1,
 						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
@@ -3037,7 +3037,7 @@ export const e4_r_e3: S.Transaction = {
 		marks: {
 			modify: [{
 				foo: {
-					tombs: [{ count: 2, seq: 2, id: 0 }],
+					tombs: [{ count: 2, seq: 2 }],
 					attach: [
 						1,
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }],
@@ -3062,7 +3062,7 @@ export const e5_r_e1: S.Transaction = {
 		marks: {
 			modify: [{
 				bar: {
-					tombs: [1, { count: 1, seq: 1, id: 0 }],
+					tombs: [1, { count: 1, seq: 1 }],
 					attach: [
 						2,
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
@@ -3081,7 +3081,7 @@ export const e5_r_e2: S.Transaction = {
 		marks: {
 			modify: [{
 				bar: {
-					tombs: [1, { count: 1, seq: 1, id: 0 }],
+					tombs: [1, { count: 1, seq: 1 }],
 					attach: [
 						2,
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
@@ -3102,7 +3102,7 @@ export const e5_r_e3: S.Transaction = {
 				bar: {
 					tombs: [
 						1,
-						{ count: 1, seq: 1, id: 0 }, // V
+						{ count: 1, seq: 1 }, // V
 					],
 					attach: [
 						2, // [-U-V
@@ -3124,7 +3124,7 @@ export const e5_r_e4: S.Transaction = {
 				bar: {
 					tombs: [
 						2, // U X
-						{ count: 1, seq: 1, id: 1 }, // V
+						{ count: 1, seq: 1 }, // V
 					],
 					attach: [
 						3, // [-U-X-V

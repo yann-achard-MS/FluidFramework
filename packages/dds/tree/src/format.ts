@@ -587,8 +587,9 @@ export namespace Rebased {
 	 * gap, or when a slice-move is applied to the gap that represents the start (or end) of a
 	 * field.
 	 */
-	export interface Tombstones extends PriorOp {
+	export interface Tombstones {
 		count: NodeCount;
+		seq: PriorSeq;
 	}
 
 	export interface PriorOp {

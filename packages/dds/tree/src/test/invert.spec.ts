@@ -96,10 +96,10 @@ const reviveSet: R.ChangeFrame = {
 		modify: [{
 			foo: {
 				tombs: [
-					{ count: 1, seq, id: 0 },
-					{ count: 1, seq, id: 1 },
+					{ count: 1, seq },
+					{ count: 1, seq },
 					1,
-					{ count: 2, seq, id: 2 },
+					{ count: 2, seq },
 				],
 				nodes: [
 					{ type: "Revive", id: 0, count: 1 },
@@ -116,9 +116,9 @@ const reviveSlice: R.ChangeFrame = {
 		modify: [{
 			foo: {
 				tombs: [
-					{ count: 2, seq, id: 0 },
+					{ count: 2, seq },
 					1,
-					{ count: 2, seq, id: 1 },
+					{ count: 2, seq },
 				],
 				nodes: [
 					{ type: "Revive", id: 0, count: 2 },
@@ -212,7 +212,7 @@ const returnSetInTrait: R.ChangeFrame = {
 			foo: {
 				tombs: [
 					1, // A
-					{ count: 2, seq, id: 0 }, // B C
+					{ count: 2, seq }, // B C
 				],
 				nodes: [
 					1, // A
@@ -233,7 +233,7 @@ const returnSliceInTrait: R.ChangeFrame = {
 			foo: {
 				tombs: [
 					1, // A
-					{ count: 2, seq, id: 0 }, // B C
+					{ count: 2, seq }, // B C
 				],
 				nodes: [
 					1, // A
@@ -258,7 +258,7 @@ const returnTwiceSetInTrait: R.ChangeFrame = {
 			foo: {
 				tombs: [
 					4, // A B C D
-					{ count: 2, seq, id: 0 }, // B C
+					{ count: 2, seq }, // B C
 				],
 				nodes: [
 					1, // A
@@ -279,7 +279,7 @@ const returnTwiceSliceInTrait: R.ChangeFrame = {
 			foo: {
 				tombs: [
 					4, // A B C D
-					{ count: 2, seq, id: 0 }, // B C
+					{ count: 2, seq }, // B C
 				],
 				nodes: [
 					1, // A
