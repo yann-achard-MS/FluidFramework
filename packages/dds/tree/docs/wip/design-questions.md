@@ -854,7 +854,7 @@ We would still need an Intake marker on the side of the introduced content where
 
 This may affect op ID monotonicity.
 
-## Why do we have three `modify` arrays?
+## How to represent `modify`s?
 
 We have the following needs:
 
@@ -862,33 +862,25 @@ We have the following needs:
 
 2. When rebasing a sliced Insert or sliced MoveIn, we may need to locate the Bounce mark at the source location of the move that previously affected it (see scenario Q). This is a dst mark => src mark travel.
 
-3. When applying a change that contains a MoveIn or Return mark, we need to be able to determine which portion of the document tree in the input context or which portion of the changeset needs to be attached at the target location of the MoveIn/Return mark. This is a dst mark => src tree travel.
+3. When applying a change that contains a MoveIn or Return mark, we need to be able to determine which portion of the document tree in the input context to be attached at the target location of the MoveIn/Return mark. This is a dst mark => src tree travel.
 
 4. Same as #3 but "dst mark => src mark" because the moved content is coming from a subtree that is being inserted by the same change.
 
+5. Same as #3 but for cases where the source content has been concurrently deleted.
+
 It's worth noting that #3 could be satisfied by having a dst mark => src mark relationship (required by #2) and a src mark => src tree relationship where relevant. While this would work, it may require a partial checkout to fetch the portion of the changeset with the right src mark just so they can fetch the portion of the tree with the right document content. Ideally we'd like to avoid this intermediary step.
 
-In all cases, we would expect a full (i.e., not partial) checkout to eventually find the matching mark/nodes in the application of the full changeset. Partial checkouts however may not have access to the matching marks or nodes, and need to be told where to look for them. This is done by including a path in the changeset for each mark that is part of a movement pair: given a src or dst mark, it can obtain the path for the marching src/dst mark. The partial checkout can then either request the missing portion of the changeset if it doesn't have it, and it can efficiently access the mark of interest in that portion. The "efficiently" here refers to the fact that the path allows the seeker of the mark to scan through `modify` arrays without drilling down in each entry. Only one entry will need drilling into. Note that this only addresses #1, #2 and #4 above, but not #3.
+In all cases, we would expect a full (i.e., not partial) checkout to eventually find the matching mark/nodes in the application of the full changeset. Partial checkouts however may not have access to the matching marks or nodes, and need to be told where to look for them. This is done by including a path in the changeset for each mark that is part of a movement pair: given a src or dst mark, it can obtain the path for the matching src/dst mark. The partial checkout can then either request the missing portion of the changeset if it doesn't have it, and it can efficiently access the mark of interest in that portion. The "efficiently" here refers to the fact that the path allows the seeker of the mark to scan through `modify` arrays without drilling down in each entry. Only one entry will need drilling into. Note that this only addresses #1, #2 and #4 above, but not #3.
 
-In the current design, need #3 is addressed by the fact that src marks are represented at a path that matches the document path. The only wrinkles are cases where the source content has been concurrently deleted, or the source content is under inserted content. It's possible that paths could be augmented to indicate when the index is to be interpreted as being within inserted or deleted content. Seeing the "inserted content" indication would tell the change application code that the data needs to come from a changeset as opposed to the document tree. Seeing the "deleted content" indication would tell the change application code not to bother finding the content.
+Need #3 can be addressed by ensuring that the paths to src marks can also be interpreted as paths to the document content. In fact, since the document tree representation is less likely to be sparse, we have the opportunity to adopt a path representation that prevents the content lookup code from having to scan through field sequences: it should be able to use the indices in the path. The code that needs to lookup marks based on the path needs to do some seeking no matter what (because of run-length encoded offsets) so it's not too much extra work to require that this code must adapt to other marks if present.
+
+Note that the code that needs to determine what content is being moved-in needs to be able to differentiate between needs #3, #4 and #5. Paths can be annotated to indicate when the index is to be interpreted as being within inserted, concurrently deleted, or already present content. Seeing the annotation would tell the change application code whether the data needs to come from the document tree (#3), from a part of the changeset (#4), or if there is no content left (#5). 
 
 The separation of `modifyOld` and `modifyDel/New` ensures that, when fetching tree content from a part of the tree that was present in the input context, the path of the src mark is the same as the path of the source content, thus removing the need to store two paths (one to the src mark, one to the src content). It should be possible however, to put the mark at a path with different indices (but same labels) so long as we keep track of what does or does not count against that index when we iterate through the array to find a mark.
 
 The separation of `modifyNew` and `modifyDel/Old` ensures that the path correspondence described above can easily be achieved when computing the inverse of a change.
 
-`modifyDel` is needed because we still want to preserve intentions that pertain to deleted nodes. These can be ignored by the change application logic but are needed by the rebase/postbase logic.
-
-Change application can proceed by applying the effects of marks in the following order:
-
-1. `modifyOld`
-
-2. `attach`
-
-3. `modifyNew`
-
-4. `nodes`
-
-Another motivator is to make the format simpler to work with by making it more uniform: if we didn't have `modifyNew` then we'd need to represent nested operations within inserts and revives.
+## Squashing
 
 What options are there?
 
