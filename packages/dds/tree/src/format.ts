@@ -441,31 +441,14 @@ export namespace Rebased {
 		nodes?: OffsetList<Detach | Reattach, NodeCount>;
 
 		/**
-		 * Represents the changes made to the subtree of each node that was concurrently detached.
-		 * This is needed to represent changes to a subtree that was concurrently deleted.
+		 * Represents the changes made to the subtrees of any of the following nodes:
+		 * - nodes that are present in the input context
+		 * - nodes that have been concurrently deleted by prior changes
+		 * - nodes that are being revived by this change
 		 *
-		 * Offsets represent both nodes that are present in the input context and nodes that were
-		 * concurrently detached.
+		 * Offsets represent both tombstones and nodes that are present in the input context.
 		 */
-		modifyDel?: OffsetList<Modify, NodeCount>;
-
-		/**
-		 * Represents the changes made to the subtree of each node present in the input context.
-		 *
-		 * Offsets represent nodes that are present in the input context. The `src` path for move
-		 * entries uses indices that are in sync with the contents of this list.
-		 */
-		modifyOld?: OffsetList<Modify, NodeCount>;
-
-		/**
-		 * Represents the changes made to the subtree of each node present in the output context.
-		 * This is needed to represent changes to a subtree that was added by this changeset.
-		 *
-		 * Offsets represent both nodes that are present in the input context and nodes that were
-		 * added by this change. The `dst` path for move entries uses indices that are in sync with
-		 * the contents of this list.
-		 */
-		modifyNew?: OffsetList<Modify, NodeCount>;
+		modify?: OffsetList<Modify, NodeCount>;
 	}
 
 	export type OffsetList<TContent, TOffset> = (TOffset | TContent)[];
@@ -529,6 +512,7 @@ export namespace Rebased {
 	export interface Insert extends HasOpId, IsPlace {
 		type: "Insert";
 		content: ProtoNode[];
+		mods?: OffsetList<Modify, NodeCount>;
 	}
 
 	export interface Bounce extends HasOpId, IsPlace {
@@ -689,7 +673,7 @@ export enum Sibling {
  * The uniqueness of IDs is leveraged in either format to
  * 1. uniquely identify tombstones so that two changes can tell whether they carry tombstones for the same nodes or
  * for different nodes.
- * 2. uniquely identify the matching move-out for a move-in and vice-versa.
+ * 2. uniquely identify the matching move-out for a move-in/return and vice-versa.
  */
 export type OpId = number;
 

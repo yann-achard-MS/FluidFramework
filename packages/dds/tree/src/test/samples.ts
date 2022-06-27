@@ -60,7 +60,7 @@ export namespace SwapCousins {
 			{ id: 1, src: { bar: 0 }, dst: { foo: 0 } },
 		],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [{ type: "Move", id: 0, count: 1 }],
 					attach: [[ { type: "Move", id: 1, count: 1 } ]],
@@ -92,36 +92,32 @@ export namespace SwapParentChild {
 			},
 		],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [{ type: "Move", id: 0, count: 1 }],
-					modifyOld: [{
+					modify: [{
 						bar: {
 							nodes: [{ type: "Move", id: 1, count: 1 }],
-							modifyOld: [{
+							modify: [{
 								baz: {
 									nodes: [{ type: "Move", id: 2, count: 1 }],
 								},
+								bar: {
+									attach: [
+										[{ type: "Move", id: 0, count: 1 }],
+									],
+								},
 							}],
+						},
+						baz: {
+							attach: [
+								[{ type: "Move", id: 2, count: 1 }],
+							],
 						},
 					}],
 					attach: [
 						[{ type: "Move", id: 1, count: 1 }],
 					],
-					modifyNew: [{
-						bar: {
-							attach: [
-								[{ type: "Move", id: 0, count: 1 }],
-							],
-							modifyNew: [{
-								baz: {
-									attach: [
-										[{ type: "Move", id: 2, count: 1 }],
-									],
-								},
-							}],
-						},
-					}],
 				},
 			}],
 		},
@@ -149,7 +145,7 @@ export namespace ScenarioA {
 		seq: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							1, // A
@@ -167,7 +163,7 @@ export namespace ScenarioA {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							1, // A
@@ -193,7 +189,7 @@ export namespace ScenarioA {
 		seq: 3,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							2,
@@ -212,7 +208,7 @@ export namespace ScenarioA {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [1, { count: 2, seq: 1, id: 1 } ],
 						nodes: [
@@ -240,7 +236,7 @@ export namespace ScenarioA {
 		newRef: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [1, { count: 2, seq: 1, id: 1 } ],
 						attach: [
@@ -260,7 +256,7 @@ export namespace ScenarioA {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [1, { count: 2, seq: 1, id: 1 } ],
 						attach: [
@@ -304,10 +300,10 @@ export namespace ScenarioB {
 		seq: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
-							{ type: "Delete", id: 0 , count: 5 },
+							{ type: "Delete", id: 0, count: 5 },
 						],
 					},
 				}],
@@ -320,7 +316,7 @@ export namespace ScenarioB {
 		seq: 2,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							1,
@@ -339,7 +335,7 @@ export namespace ScenarioB {
 		seq: 3,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							2,
@@ -359,7 +355,7 @@ export namespace ScenarioB {
 		newRef: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [{ count: 5, seq: 1, id: 0 }],
 						attach: [
@@ -380,7 +376,7 @@ export namespace ScenarioB {
 		newRef: 2,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [{ count: 5, seq: 1, id: 0 }],
 						attach: [
@@ -401,7 +397,7 @@ export namespace ScenarioB {
 		newRef: 2,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [
 							{ count: 1, seq: 1, id: 0 },
@@ -445,7 +441,7 @@ export namespace ScenarioC {
 		seq: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Delete", id: 0 , count: 1 },
@@ -461,7 +457,7 @@ export namespace ScenarioC {
 		seq: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [{ count: 1, seq: 1, id: 0 }],
 						nodes: [
@@ -478,7 +474,7 @@ export namespace ScenarioC {
 		seq: 3,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Delete", id: 0 , count: 1 },
@@ -495,7 +491,7 @@ export namespace ScenarioC {
 		newRef: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [{ count: 1, seq: 1, id: 0 }],
 						nodes: [
@@ -513,7 +509,7 @@ export namespace ScenarioC {
 		newRef: 2,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Delete", id: 0 , count: 1 },
@@ -529,7 +525,7 @@ export namespace ScenarioC {
 		seq: 4,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Delete", id: 0 , count: 1 },
@@ -546,7 +542,7 @@ export namespace ScenarioC {
 		newRef: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [{ count: 1, seq: 1, id: 0 }],
 						nodes: [
@@ -564,7 +560,7 @@ export namespace ScenarioC {
 		newRef: 2,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Delete", id: 0 , count: 1 },
@@ -581,7 +577,7 @@ export namespace ScenarioC {
 		newRef: 3,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [{ count: 1, seq: 1, id: 0 }],
 						nodes: [
@@ -611,7 +607,7 @@ export namespace ScenarioD {
 		seq: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Delete", id: 0 , count: 2 },
@@ -630,7 +626,7 @@ export namespace ScenarioD {
 		seq: 2,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							1,
@@ -648,7 +644,7 @@ export namespace ScenarioD {
 		newRef: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [{ count: 2, seq: 1, id: 0 }],
 						attach: [
@@ -685,7 +681,7 @@ export namespace ScenarioE {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 0 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						gaps: [
 							1,
@@ -707,7 +703,7 @@ export namespace ScenarioE {
 		ref: 0,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Delete", id: 0, count: 2 },
@@ -728,7 +724,7 @@ export namespace ScenarioE {
 		newRef: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Delete", id: 0, count: 2 },
@@ -759,7 +755,7 @@ export namespace ScenarioF {
 		seq: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							[{ type: "Insert", id: 0, content: [{ id: "r" }] }],
@@ -775,7 +771,7 @@ export namespace ScenarioF {
 		seq: 2,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							1,
@@ -792,7 +788,7 @@ export namespace ScenarioF {
 		seq: 3,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							2,
@@ -810,7 +806,7 @@ export namespace ScenarioF {
 		newRef: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							2,
@@ -824,7 +820,7 @@ export namespace ScenarioF {
 
 	export const e1_p_e2: R.ChangeFrame = {
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					attach: [
 						[{ type: "Insert", id: 0, content: [{ id: "r" }] }],
@@ -840,7 +836,7 @@ export namespace ScenarioF {
 		newRef: 2,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							3,
@@ -876,7 +872,7 @@ export namespace ScenarioG {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Move", id: 0, count: 2 },
@@ -901,7 +897,7 @@ export namespace ScenarioG {
 		seq: 2,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							1,
@@ -923,7 +919,7 @@ export namespace ScenarioG {
 		seq: 3,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							2,
@@ -940,7 +936,7 @@ export namespace ScenarioG {
 		seq: 4,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							1, // Before X
@@ -957,7 +953,7 @@ export namespace ScenarioG {
 		seq: 5,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							5,
@@ -975,7 +971,7 @@ export namespace ScenarioG {
 		newRef: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [{ count: 2, seq: 1, id: 0 }],
 						attach: [
@@ -1003,7 +999,7 @@ export namespace ScenarioG {
 	export const e1_p_e2: R.ChangeFrame = {
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [
 						{ type: "Move", id: 0, count: 4 }, // A X Y B
@@ -1028,7 +1024,7 @@ export namespace ScenarioG {
 		newRef: 2,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [
 							{ count: 1, seq: 1, id: 0 }, // A
@@ -1048,7 +1044,7 @@ export namespace ScenarioG {
 	export const e1_p_e3: R.ChangeFrame = {
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [
 						{ type: "Move", id: 0, count: 2 }, // A X
@@ -1075,7 +1071,7 @@ export namespace ScenarioG {
 		newRef: 3,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [
 							{ count: 1, seq: 1, id: 0 }, // A
@@ -1097,7 +1093,7 @@ export namespace ScenarioG {
 	export const e1_p_e4: R.ChangeFrame = {
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [
 						{ type: "Move", id: 0, count: 1 }, // A
@@ -1126,7 +1122,7 @@ export namespace ScenarioG {
 		newRef: 3,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [
 							{ count: 1, seq: 1, id: 0 }, // A
@@ -1171,7 +1167,7 @@ export namespace ScenarioH {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 1 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Move", id: 0, count: 2 },
@@ -1197,7 +1193,7 @@ export namespace ScenarioH {
 		frames: [{
 			moves: [{ id: 0, src: { bar: 0 }, dst: { baz: 0 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					bar: {
 						nodes: [
 							{ type: "Move", id: 0, count: 2 },
@@ -1221,7 +1217,7 @@ export namespace ScenarioH {
 		seq: 3,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							1, // [-A
@@ -1241,7 +1237,7 @@ export namespace ScenarioH {
 		frames: [{
 			moves: [{ id: 0, src: { bar: 0 }, dst: { baz: 0 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					bar: {
 						nodes: [
 							{ type: "Move", id: 0, count: 1 },
@@ -1274,7 +1270,7 @@ export namespace ScenarioH {
 				{ id: 1, src: { foo: 2 }, dst: { bar: 3 } },
 			],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [
 							{ count: 2, seq: 1, id: 0 },
@@ -1319,7 +1315,7 @@ export namespace ScenarioH {
 				{ id: 1, src: { foo: 2 }, dst: { bar: 1 } },
 			],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [
 							{ count: 2, seq: 1, id: 0 },
@@ -1399,7 +1395,7 @@ export namespace ScenarioI {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 1 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Move", id: 0, count: 2 },
@@ -1425,7 +1421,7 @@ export namespace ScenarioI {
 		frames: [{
 			moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 1 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					bar: {
 						nodes: [
 							{ type: "Move", id: 0, count: 2 },
@@ -1474,7 +1470,7 @@ export namespace ScenarioJ {
 		seq: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							1, // A
@@ -1492,7 +1488,7 @@ export namespace ScenarioJ {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Move", id: 0, count: 3 },
@@ -1517,7 +1513,7 @@ export namespace ScenarioJ {
 		seq: 3,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							2,
@@ -1534,7 +1530,7 @@ export namespace ScenarioJ {
 		seq: 4,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							1,
@@ -1551,7 +1547,7 @@ export namespace ScenarioJ {
 		seq: 5,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					bar: {
 						attach: [
 							1,
@@ -1573,7 +1569,7 @@ export namespace ScenarioJ {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [1, { count: 1, seq: 1, id: 0 }],
 						nodes: [
@@ -1600,7 +1596,7 @@ export namespace ScenarioJ {
 		newRef: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [1, { count: 1, seq: 1, id: 0 }],
 						attach: [
@@ -1620,7 +1616,7 @@ export namespace ScenarioJ {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 1 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [1, { count: 1, seq: 1, id: 0 }],
 						attach: [
@@ -1645,7 +1641,7 @@ export namespace ScenarioJ {
 		newRef: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [1, { count: 1, seq: 1, id: 0 }],
 						attach: [
@@ -1665,7 +1661,7 @@ export namespace ScenarioJ {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 1 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [1, { count: 1, seq: 1, id: 0 }],
 						attach: [
@@ -1691,7 +1687,7 @@ export namespace ScenarioJ {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 1 }, dst: { bar: 1 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [1, { count: 1, seq: 1, id: 0 }],
 						attach: [
@@ -1716,7 +1712,7 @@ export namespace ScenarioJ {
 		newRef: 3,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					bar: {
 						attach: [
 							1, // [-A
@@ -1735,7 +1731,7 @@ export namespace ScenarioJ {
 		newRef: 4,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					bar: {
 						attach: [
 							1, // [-A
@@ -1772,7 +1768,7 @@ export namespace ScenarioK {
 		seq: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Delete", id: 0, count: 1 },
@@ -1789,7 +1785,7 @@ export namespace ScenarioK {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 0 }, dst: { foo: 0 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						nodes: [
 							{ type: "Move", id: 0, count: 1 },
@@ -1812,7 +1808,7 @@ export namespace ScenarioK {
 		seq: 3,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						attach: [
 							1,
@@ -1834,7 +1830,7 @@ export namespace ScenarioK {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 0 }, dst: { foo: 0 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [{ count: 1, seq: 1, id: 0 }],
 						nodes: [
@@ -1859,7 +1855,7 @@ export namespace ScenarioK {
 		newRef: 1,
 		frames: [{
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [{ count: 1, seq: 1, id: 0 }],
 						attach: [
@@ -1882,7 +1878,7 @@ export namespace ScenarioK {
 		frames: [{
 			moves: [{ id: 0, src: { foo: 0 }, dst: { foo: 0 } }],
 			marks: {
-				modifyOld: [{
+				modify: [{
 					foo: {
 						tombs: [
 							{ count: 1, seq: 1, id: 0 },
@@ -1942,7 +1938,7 @@ export const e1: S.Transaction = {
 	seq: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [
 						{ type: "Delete", id: 0, count: 2 },
@@ -1959,7 +1955,7 @@ export const e2: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [
 						{ type: "Move", id: 0, count: 2 },
@@ -1987,7 +1983,7 @@ export const e3: S.Transaction = {
 			{ id: 1, src: { bar: 1 }, dst: { baz: 0 } },
 		],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					nodes: [
 						{ type: "Move", id: 0, count: 1 },
@@ -2016,7 +2012,7 @@ export const e4: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { baz: 0 }, dst: { qux: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					nodes: [
 						{ type: "Move", id: 0, count: 2 },
@@ -2040,7 +2036,7 @@ export const e5: S.Transaction = {
 	seq: 5,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					attach: [
 						2,
@@ -2057,7 +2053,7 @@ export const e6: S.Transaction = {
 	seq: 6,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					attach: [
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Right }],
@@ -2075,7 +2071,7 @@ export const e2_r_e1: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }],
 					nodes: [
@@ -2105,7 +2101,7 @@ export const e3_r_e1: S.Transaction = {
 			{ id: 1, src: { bar: 1 }, dst: { baz: 0 } },
 		],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					tombs: [{ count: 2, seq: [1, 2], id: 0 }],
 					nodes: [
@@ -2136,7 +2132,7 @@ export const e4_r_e1: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { baz: 0 }, dst: { qux: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					tombs: [{ count: 2, seq: [1, 3], id: 0 }],
 					nodes: [
@@ -2162,7 +2158,7 @@ export const e5_r_e1: S.Transaction = {
 	newRef: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
@@ -2182,7 +2178,7 @@ export const e5_r_e2: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 2 }, dst: { bar: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
@@ -2213,7 +2209,7 @@ export const e5_r_e3: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 2 }, hops: [{ bar: 0 }], dst: { baz: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
@@ -2249,7 +2245,7 @@ export const e5_r_e4: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 2 }, hops: [{ bar: 0 }, { baz: 0 }], dst: { qux: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
@@ -2289,7 +2285,7 @@ export const e6_r_e1: S.Transaction = {
 	newRef: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
@@ -2308,7 +2304,7 @@ export const e6_r_e2: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
@@ -2338,7 +2334,7 @@ export const e6_r_e3: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 0 }, hops: [{ bar: 0 }], dst: { baz: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
@@ -2373,7 +2369,7 @@ export const e6_r_e4: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 0 }, hops: [{ bar: 0 }, { baz: 0 }], dst: { qux: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
@@ -2412,7 +2408,7 @@ export const e6_r_e5: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 0 }, hops: [{ bar: 0 }, { baz: 0 }], dst: { qux: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
@@ -2470,7 +2466,7 @@ export const e1: S.Transaction = {
 	seq: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [
 						{ type: "Delete", id: 0, count: 2 },
@@ -2486,7 +2482,7 @@ export const e2: S.Transaction = {
 	seq: 2,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [
 						2, // A B
@@ -2503,7 +2499,7 @@ export const e3: S.Transaction = {
 	seq: 3,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					attach: [
 						1,
@@ -2520,7 +2516,7 @@ export const e4: S.Transaction = {
 	seq: 4,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					attach: [
 						3,
@@ -2538,7 +2534,7 @@ export const e2_r_e1: S.Transaction = {
 	newRef: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [
 						{ type: "Delete", id: 0, count: 2 },
@@ -2555,7 +2551,7 @@ export const e3_r_e1: S.Transaction = {
 	newRef: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
@@ -2574,7 +2570,7 @@ export const e3_r_e2: S.Transaction = {
 	newRef: 2,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }, { count: 2, seq: 2, id: 0 }],
 					attach: [
@@ -2593,7 +2589,7 @@ export const e4_r_e1: S.Transaction = {
 	newRef: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }],
 					attach: [
@@ -2612,7 +2608,7 @@ export const e4_r_e2: S.Transaction = {
 	newRef: 2,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 1, id: 0 }, { count: 2, seq: 2, id: 0 }],
 					attach: [
@@ -2631,7 +2627,7 @@ export const e4_r_e3: S.Transaction = {
 	newRef: 3,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [
 						{ count: 1, seq: 1, id: 0 },
@@ -2690,7 +2686,7 @@ export const e1: S.Transaction = {
 			{ id: 1, src: { foo: 2 }, dst: { bar: 0 } },
 		],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					gaps: [
 						1,
@@ -2716,7 +2712,7 @@ export const e2: S.Transaction = {
 	seq: 2,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					attach: [
 						2,
@@ -2733,7 +2729,7 @@ export const e3: S.Transaction = {
 	seq: 2,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					attach: [
 						1,
@@ -2754,7 +2750,7 @@ export const e2_r_e1: S.Transaction = {
 			{ id: 0, src: { foo: 2 }, dst: { bar: 0 } },
 		],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					attach: [
 						2,
@@ -2783,7 +2779,7 @@ export const e3_r_e1: S.Transaction = {
 			{ id: 0, src: { foo: 1 }, dst: { bar: 0 } },
 		],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					attach: [
 						1,
@@ -2812,7 +2808,7 @@ export const e3_r_e2: S.Transaction = {
 			{ id: 0, src: { foo: 1 }, dst: { bar: 0 } },
 		],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					attach: [
 						1,
@@ -2862,7 +2858,7 @@ export const e1: S.Transaction = {
 	seq: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					nodes: [
 						1,
@@ -2879,7 +2875,7 @@ export const e2: S.Transaction = {
 	seq: 2,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [
 						{ type: "Delete", id: 0, count: 2 },
@@ -2895,7 +2891,7 @@ export const e3: S.Transaction = {
 	seq: 3,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [
 						{ type: "Move", id: 0, count: 2 },
@@ -2921,7 +2917,7 @@ export const e4: S.Transaction = {
 	seq: 4,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					attach: [
 						1,
@@ -2938,7 +2934,7 @@ export const e5: S.Transaction = {
 	seq: 5,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					attach: [
 						1,
@@ -2956,7 +2952,7 @@ export const e2_r_e1: S.Transaction = {
 	newRef: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					nodes: [
 						{ type: "Delete", id: 0, count: 2 },
@@ -2973,7 +2969,7 @@ export const e3_r_e2: S.Transaction = {
 	newRef: 2,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 2, id: 0 }],
 					nodes: [
@@ -3001,7 +2997,7 @@ export const e4_r_e1: S.Transaction = {
 	newRef: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					attach: [
 						1,
@@ -3019,7 +3015,7 @@ export const e4_r_e2: S.Transaction = {
 	newRef: 2,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 2, id: 0 }],
 					attach: [
@@ -3039,7 +3035,7 @@ export const e4_r_e3: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 0 }, dst: { bar: 2 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					tombs: [{ count: 2, seq: 2, id: 0 }],
 					attach: [
@@ -3064,7 +3060,7 @@ export const e5_r_e1: S.Transaction = {
 	newRef: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					tombs: [1, { count: 1, seq: 1, id: 0 }],
 					attach: [
@@ -3083,7 +3079,7 @@ export const e5_r_e2: S.Transaction = {
 	newRef: 2,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					tombs: [1, { count: 1, seq: 1, id: 0 }],
 					attach: [
@@ -3102,7 +3098,7 @@ export const e5_r_e3: S.Transaction = {
 	newRef: 3,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					tombs: [
 						1,
@@ -3124,7 +3120,7 @@ export const e5_r_e4: S.Transaction = {
 	newRef: 4,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					tombs: [
 						2, // U X
@@ -3163,7 +3159,7 @@ export const e1: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					gaps: [
 						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
@@ -3185,7 +3181,7 @@ export const e2: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					gaps: [
 						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
@@ -3206,7 +3202,7 @@ export const e3: S.Transaction = {
 	seq: 3,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					attach: [
 						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
@@ -3222,7 +3218,7 @@ export const e4: S.Transaction = {
 	seq: 4,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					attach: [
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
@@ -3240,7 +3236,7 @@ export const e2_r_e1: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					gaps: [
 						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
@@ -3263,7 +3259,7 @@ export const e3_r_e1: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
@@ -3292,7 +3288,7 @@ export const e3_r_e2: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
@@ -3320,7 +3316,7 @@ export const e4_r_e1: S.Transaction = {
 	newRef: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					attach: [
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
@@ -3338,7 +3334,7 @@ export const e4_r_e2: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
@@ -3367,7 +3363,7 @@ export const e4_r_e3: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
@@ -3417,7 +3413,7 @@ export namespace ScenarioQ {
 	frames: [{
 		moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					gaps: [
 						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
@@ -3439,7 +3435,7 @@ export const e2: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					gaps: [
 						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
@@ -3461,7 +3457,7 @@ export const e3: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 0 }, dst: { qux: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					gaps: [
 						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
@@ -3482,7 +3478,7 @@ export const e4: S.Transaction = {
 	seq: 4,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					attach: [
 						[{ type: "Insert", id: 0, content: [{ id: "X" }], tiebreak: Tiebreak.Left }],
@@ -3498,7 +3494,7 @@ export const e5: S.Transaction = {
 	seq: 5,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					attach: [
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
@@ -3516,7 +3512,7 @@ export const e2_r_e1: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					gaps: [
 						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
@@ -3539,7 +3535,7 @@ export const e3_r_e1: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 0 }, dst: { qux: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					gaps: [
 						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
@@ -3562,7 +3558,7 @@ export const e3_r_e2: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { foo: 0 }, dst: { qux: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				foo: {
 					gaps: [
 						{ count: 1, stack: [{ type: "Forward", id: 0 }] },
@@ -3585,7 +3581,7 @@ export const e4_r_e1: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
@@ -3614,7 +3610,7 @@ export const e4_r_e2: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { bar: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
@@ -3643,7 +3639,7 @@ export const e4_r_e3: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { bar: 0 }, hops: [{ foo: 0 }], dst: { qux: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				bar: {
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
@@ -3681,7 +3677,7 @@ export const e5_r_e1: S.Transaction = {
 	newRef: 1,
 	frames: [{
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					attach: [
 						[{ type: "Insert", id: 0, content: [{ id: "Y" }], tiebreak: Tiebreak.Left }],
@@ -3699,7 +3695,7 @@ export const e5_r_e2: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { baz: 0 }, dst: { foo: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
@@ -3728,7 +3724,7 @@ export const e5_r_e3: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { baz: 0 }, hops: [{ foo: 0 }], dst: { qux: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak
@@ -3767,7 +3763,7 @@ export const e5_r_e4: S.Transaction = {
 	frames: [{
 		moves: [{ id: 0, src: { baz: 0 }, hops: [{ foo: 0 }], dst: { qux: 0 } }],
 		marks: {
-			modifyOld: [{
+			modify: [{
 				baz: {
 					attach: [
 						[{ type: "Bounce", id: 0, tiebreak: Tiebreak.Left }], // Original Tiebreak

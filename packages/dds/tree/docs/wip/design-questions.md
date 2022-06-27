@@ -854,6 +854,76 @@ We would still need an Intake marker on the side of the introduced content where
 
 This may affect op ID monotonicity.
 
+## Why do we have three `modify` arrays?
+
+We have the following needs:
+
+1. When rebasing an insert over a slice-move, or when rebasing a set range over a move, we need to be able to find the destination mark in the changeset (so we can add relevant marks there). This is a src mark => dst mark travel.
+
+2. When rebasing a sliced Insert or sliced MoveIn, we may need to locate the Bounce mark at the source location of the move that previously affected it (see scenario Q). This is a dst mark => src mark travel.
+
+3. When applying a change that contains a MoveIn or Return mark, we need to be able to determine which portion of the document tree in the input context or which portion of the changeset needs to be attached at the target location of the MoveIn/Return mark. This is a dst mark => src tree travel.
+
+4. Same as #3 but "dst mark => src mark" because the moved content is coming from a subtree that is being inserted by the same change.
+
+It's worth noting that #3 could be satisfied by having a dst mark => src mark relationship (required by #2) and a src mark => src tree relationship where relevant. While this would work, it may require a partial checkout to fetch the portion of the changeset with the right src mark just so they can fetch the portion of the tree with the right document content. Ideally we'd like to avoid this intermediary step.
+
+In all cases, we would expect a full (i.e., not partial) checkout to eventually find the matching mark/nodes in the application of the full changeset. Partial checkouts however may not have access to the matching marks or nodes, and need to be told where to look for them. This is done by including a path in the changeset for each mark that is part of a movement pair: given a src or dst mark, it can obtain the path for the marching src/dst mark. The partial checkout can then either request the missing portion of the changeset if it doesn't have it, and it can efficiently access the mark of interest in that portion. The "efficiently" here refers to the fact that the path allows the seeker of the mark to scan through `modify` arrays without drilling down in each entry. Only one entry will need drilling into. Note that this only addresses #1, #2 and #4 above, but not #3.
+
+In the current design, need #3 is addressed by the fact that src marks are represented at a path that matches the document path. The only wrinkles are cases where the source content has been concurrently deleted, or the source content is under inserted content. It's possible that paths could be augmented to indicate when the index is to be interpreted as being within inserted or deleted content. Seeing the "inserted content" indication would tell the change application code that the data needs to come from a changeset as opposed to the document tree. Seeing the "deleted content" indication would tell the change application code not to bother finding the content.
+
+The separation of `modifyOld` and `modifyDel/New` ensures that, when fetching tree content from a part of the tree that was present in the input context, the path of the src mark is the same as the path of the source content, thus removing the need to store two paths (one to the src mark, one to the src content). It should be possible however, to put the mark at a path with different indices (but same labels) so long as we keep track of what does or does not count against that index when we iterate through the array to find a mark.
+
+The separation of `modifyNew` and `modifyDel/Old` ensures that the path correspondence described above can easily be achieved when computing the inverse of a change.
+
+`modifyDel` is needed because we still want to preserve intentions that pertain to deleted nodes. These can be ignored by the change application logic but are needed by the rebase/postbase logic.
+
+Change application can proceed by applying the effects of marks in the following order:
+
+1. `modifyOld`
+
+2. `attach`
+
+3. `modifyNew`
+
+4. `nodes`
+
+Another motivator is to make the format simpler to work with by making it more uniform: if we didn't have `modifyNew` then we'd need to represent nested operations within inserts and revives.
+
+What options are there?
+
+1. Squashing a new operation into an open transaction
+
+2. Squashing transactions so that they can be unsquashed
+
+3. Squashing transactions so that they can be rebased
+
+4. Squashing transactions so that they can be rebased over
+
+5. Squashing transactions so that they can be postbased
+
+6. Squashing transactions so that they can be used to update the UI
+
+We posit that:
+
+* #1 is a separate issue entirely.
+
+* #4 and #5 are equivalent
+
+* The output of a squash in #2 is sufficient for #>2, #3 is sufficient for #>3, and so on.
+
+Let's focus on #4+ for now.
+
+Challenges:
+
+* Each mark has to bear a seq# because when we rebase a change over the squash we need to produce a change with tombstones that describe which seq# they're from.
+  
+  * Maybe we can embrace that cost and be fine with it, especially in the short term.
+  
+  * Is it possible that the tombstones in the rebased change that's produced when rebasing over the squash could just bear some min and max seq numbers instead? That doesn't seem okay because a different changeset may be rebased over it and that change may have tombstones for more or less prior changes. It should be fine when rebasing over a changeset that has been rebased over more changes since its tombstones will subsume that of the changeset rebased over the squash. The opposite seems more problematic. For example, when rebasing a change that targets the same gap, it's possible that the rebased change's offset may appear greater than it should be when taking into account the tombstones from earlier changes that are included in the change produced by rebasing over the squash.
+
+* What else? Can we avoid needing frame and op IDs?
+
 ## How to represent intentions affected by prior gap effects?
 
 For example, how to represent a commutative insert that landed in scorched gap? This seems to be specific to attach operations since they're the only ones affected by gap effects and slice-deletes, since we already have a way of reflecting the effects of slice-moves.

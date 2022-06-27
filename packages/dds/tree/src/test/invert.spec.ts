@@ -19,27 +19,31 @@ const seq = 42;
 
 const insert: R.ChangeFrame = {
 	marks: {
-		modifyOld: [{
+		modify: [{
 			foo: {
 				attach: [
 					[
-						{ type: "Insert", id: 0, content: [{ id: "A" }] },
+						{
+							type: "Insert",
+							id: 0,
+							content: [{ id: "A" }],
+							mods: [{
+								bar: {
+									attach: [
+										[{ type: "Insert", id: 4, content: [{ id: "A2" }] }],
+									],
+								},
+							}],
+						},
 						{ type: "Insert", id: 1, content: [{ id: "B" }] },
 					],
 					2,
 					[{ type: "Insert", id: 2, content: [{ id: "E" }, { id: "F" }] }],
 				],
-				modifyOld: [{
+				modify: [{
 					bar: {
 						attach: [
 							[{ type: "Insert", id: 3, content: [{ id: "C2" }] }],
-						],
-					},
-				}],
-				modifyNew: [{
-					bar: {
-						attach: [
-							[{ type: "Insert", id: 4, content: [{ id: "A2" }] }],
 						],
 					},
 				}],
@@ -49,7 +53,7 @@ const insert: R.ChangeFrame = {
 };
 const deleteSet: R.ChangeFrame = {
 	marks: {
-		modifyOld: [{
+		modify: [{
 			foo: {
 				nodes: [
 					{ type: "Delete", id: 0, count: 1 },
@@ -57,7 +61,7 @@ const deleteSet: R.ChangeFrame = {
 					2,
 					{ type: "Delete", id: 2, count: 2 },
 				],
-				modifyOld: [{
+				modify: [{
 					bar: {
 						nodes: [
 							{ type: "Delete", id: 3, count: 1 },
@@ -70,7 +74,7 @@ const deleteSet: R.ChangeFrame = {
 };
 const deleteSlice: R.ChangeFrame = {
 	marks: {
-		modifyOld: [{
+		modify: [{
 			foo: {
 				nodes: [
 					{ type: "Delete", id: 0, count: 2 },
@@ -89,7 +93,7 @@ const deleteSlice: R.ChangeFrame = {
 };
 const reviveSet: R.ChangeFrame = {
 	marks: {
-		modifyOld: [{
+		modify: [{
 			foo: {
 				tombs: [
 					{ count: 1, seq, id: 0 },
@@ -109,7 +113,7 @@ const reviveSet: R.ChangeFrame = {
 };
 const reviveSlice: R.ChangeFrame = {
 	marks: {
-		modifyOld: [{
+		modify: [{
 			foo: {
 				tombs: [
 					{ count: 2, seq, id: 0 },
@@ -162,7 +166,7 @@ const moveSetInTrait: R.ChangeFrame = {
 		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
 	],
 	marks: {
-		modifyOld: [{
+		modify: [{
 			foo: {
 				nodes: [
 					1, // A
@@ -181,7 +185,7 @@ const moveSliceInTrait: R.ChangeFrame = {
 		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
 	],
 	marks: {
-		modifyOld: [{
+		modify: [{
 			foo: {
 				nodes: [
 					1, // A
@@ -204,7 +208,7 @@ const returnSetInTrait: R.ChangeFrame = {
 		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
 	],
 	marks: {
-		modifyOld: [{
+		modify: [{
 			foo: {
 				tombs: [
 					1, // A
@@ -225,7 +229,7 @@ const returnSliceInTrait: R.ChangeFrame = {
 		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
 	],
 	marks: {
-		modifyOld: [{
+		modify: [{
 			foo: {
 				tombs: [
 					1, // A
@@ -250,7 +254,7 @@ const returnTwiceSetInTrait: R.ChangeFrame = {
 		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
 	],
 	marks: {
-		modifyOld: [{
+		modify: [{
 			foo: {
 				tombs: [
 					4, // A B C D
@@ -271,7 +275,7 @@ const returnTwiceSliceInTrait: R.ChangeFrame = {
 		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
 	],
 	marks: {
-		modifyOld: [{
+		modify: [{
 			foo: {
 				tombs: [
 					4, // A B C D
