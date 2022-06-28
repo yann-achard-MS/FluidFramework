@@ -11,7 +11,9 @@ import { deepFreeze } from "../utils";
 
 function testInvert(frame: T.Changeset): T.Changeset {
 	deepFreeze(frame);
-	return invert(frame, seq);
+	// Why is this intermediary necessary to make eslint happy?
+	const inverted: T.Changeset = invert(frame, seq);
+	return inverted;
 }
 
 const seq = 42;
