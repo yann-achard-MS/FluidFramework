@@ -62,13 +62,16 @@ const deleteSet: T.Changeset = {
 					2,
 					{ type: "Delete", id: 2, count: 2 },
 				],
-				modify: [{
-					bar: {
-						nodes: [
-							{ type: "Delete", id: 3, count: 1 },
-						],
+				modify: [
+					2, // A B
+					{
+						bar: {
+							nodes: [
+								{ type: "Delete", id: 3, count: 1 },
+							],
+						},
 					},
-				}],
+				],
 			},
 		}],
 	},
@@ -99,14 +102,24 @@ const reviveSet: T.Changeset = {
 				tombs: [
 					{ count: 1, seq },
 					{ count: 1, seq },
-					1,
+					2,
 					{ count: 2, seq },
 				],
 				nodes: [
 					{ type: "Revive", id: 0, count: 1 },
 					{ type: "Revive", id: 1, count: 1 },
-					1,
+					2,
 					{ type: "Revive", id: 2, count: 2 },
+				],
+				modify: [
+					2, // A B
+					{
+						bar: {
+							nodes: [
+								{ type: "Delete", id: 3, count: 1 },
+							],
+						},
+					},
 				],
 			},
 		}],
@@ -297,7 +310,7 @@ const returnTwiceSliceInTrait: T.Changeset = {
 	},
 };
 
-describe.skip(invert.name, () => {
+describe(invert.name, () => {
 	// it("SetValue -> RevertValue", () => {
 	// 	const actual = testInvert(setValue);
 	// 	assert.deepEqual(actual, revertValue);

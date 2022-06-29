@@ -3,8 +3,8 @@
  * Licensed under the MIT License.
  */
 
-import { clone } from "../util";
-import { Transposed as T, SeqNumber } from "./format";
+import { clone, fail, mapObject, neverCase, OffsetListPtr } from "../util";
+import { Transposed as T, SeqNumber, OffsetList, NodeCount, GapCount } from "./format";
 import { normalizeMarks } from "./normalize";
 
 export function invert(frame: T.Changeset, seq: SeqNumber): T.Changeset {
@@ -35,22 +35,108 @@ interface Context {
 }
 
 function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
-	// const { seq } = context;
-	const newMarks: T.TraitMarks = {};
-	return newMarks;
+	const { seq } = context;
+	const newTombs: OffsetList<T.Tombstones, NodeCount> = [];
+	const newAttach: OffsetList<T.Attach[], GapCount> = [];
+	const newGaps: OffsetList<T.GapEffects, GapCount> = [];
+	const newNodes: OffsetList<T.Detach | T.Reattach, NodeCount> = [];
+	const newModify: OffsetList<T.Modify, NodeCount> = [];
+
+	const attachList = marks.attach ?? [];
+	const modifyList = marks.modify ?? [];
+
+	for (const mod of modifyList) {
+		if (typeof mod === "number") {
+			newModify.push(mod);
+		} else {
+			newModify.push(invertModify(mod, context));
+		}
+	}
+	if (marks.nodes !== undefined) {
+		for (const nodeMark of marks.nodes) {
+			if (typeof nodeMark === "number") {
+				newNodes.push(nodeMark);
+				newTombs.push(nodeMark);
+			} else {
+				const type = nodeMark.type;
+				switch (type) {
+					case "Delete": {
+						newTombs.push({
+							seq,
+							count: nodeMark.count,
+						});
+						newNodes.push({
+							type: "Revive",
+							count: nodeMark.count,
+							id: nodeMark.id,
+						});
+						break;
+					}
+					case "Move": {
+						fail("Handle Move");
+						break;
+					}
+					case "Revive": {
+						fail("Handle Revive");
+						break;
+					}
+					case "Return": {
+						fail("Handle Return");
+						break;
+					}
+					default: neverCase(type);
+				}
+			}
+		}
+	}
+	let modifyIdx = OffsetListPtr.fromList(newModify);
+	for (const attachGroup of attachList) {
+		if (typeof attachGroup === "number") {
+			modifyIdx = modifyIdx.fwd(attachGroup);
+			newNodes.push(attachGroup);
+		} else {
+			for (const attach of attachGroup) {
+				const type = attach.type;
+				switch (type) {
+					case "Insert": {
+						newNodes.push({
+							type: "Delete",
+							count: attach.content.length,
+							id: attach.id,
+						});
+						modifyIdx = modifyIdx.addOffset(attach.content.length);
+						break;
+					}
+					case "Move": {
+						fail("Handle Move");
+						break;
+					}
+					case "Bounce": {
+						fail("Handle Bounce");
+						break;
+					}
+					case "Intake": {
+						fail("Handle Intake");
+						break;
+					}
+					default: neverCase(type);
+				}
+			}
+		}
+	}
+	return {
+		tombs: newTombs,
+		gaps: newGaps,
+		attach: newAttach,
+		modify: newModify,
+		nodes: newNodes,
+	};
 }
 
-// function invertMarksOpt(marks: R.TraitMarks | undefined, context: Context): R.TraitMarks | undefined {
-// 	if (marks === undefined) {
-// 		return undefined;
-// 	}
-// 	return invertMarks(marks, context);
-// }
-
-// function invertModify(
-// 	modify: R.Modify,
-// 	context: Context,
-// ): R.Modify | Offset {
-// 	const newModify: R.Modify = mapObject(modify, (traitMarks) => invertMarks(traitMarks, context));
-// 	return newModify;
-// }
+function invertModify(
+	modify: T.Modify,
+	context: Context,
+): T.Modify {
+	const newModify: T.Modify = mapObject(modify, (traitMarks) => invertMarks(traitMarks, context));
+	return newModify;
+}

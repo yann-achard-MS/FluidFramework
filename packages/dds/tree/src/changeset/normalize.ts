@@ -5,7 +5,7 @@
 
 import { Transposed as T, TreePath } from "./format";
 
-export function normalizeFrame(frame: T.Changeset): void {
+export function normalizeChangeSet(frame: T.Changeset): void {
 	if (frame.moves !== undefined) {
 		if (frame.moves.length === 0) {
 			delete frame.moves;
@@ -17,6 +17,38 @@ export function normalizeFrame(frame: T.Changeset): void {
 }
 
 export function normalizeMarks(marks: T.TraitMarks): void {
+	if (marks.tombs) {
+		if (marks.tombs.length === 0) {
+			delete marks.tombs;
+		}
+	}
+	if (marks.attach) {
+		if (marks.attach.length === 0) {
+			delete marks.attach;
+		}
+	}
+	if (marks.gaps) {
+		if (marks.gaps.length === 0) {
+			delete marks.gaps;
+		}
+	}
+	if (marks.nodes) {
+		if (marks.nodes.length === 0) {
+			delete marks.nodes;
+		}
+	}
+	if (marks.modify) {
+		for (const modify of marks.modify) {
+			if (typeof modify === "object") {
+				for (const key of Object.keys(modify)) {
+					normalizeMarks(modify[key]);
+				}
+			}
+		}
+		if (marks.modify.length === 0) {
+			delete marks.modify;
+		}
+	}
 }
 
 export function normalizePath(path: TreePath): TreePath {

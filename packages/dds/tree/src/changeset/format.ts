@@ -60,7 +60,7 @@ export namespace Transposed {
 		 * - nodes that are present in the input context
 		 * - nodes that are represented by tombstones
 		 */
-		attach?: OffsetList<(Attach | Intake)[], GapCount>;
+		attach?: OffsetList<Attach[], GapCount>;
 
 		/**
 		 * Operations that may affect concurrently attached content.
@@ -73,7 +73,7 @@ export namespace Transposed {
 		 * - nodes that are present in the input context
 		 * - nodes that are represented by tombstones
 		 */
-		gaps?: OffsetList<OpenGapEffects | ClosedGapEffects, GapCount>;
+		gaps?: OffsetList<GapEffects, GapCount>;
 
 		/**
 		 * Operations that affect nodes (or locations where a node used to be).
@@ -178,7 +178,9 @@ export namespace Transposed {
 		count: NodeCount;
 	}
 
-	export type Attach = Insert | MoveIn | Bounce;
+	export type Attach = Insert | MoveIn | Bounce | Intake;
+
+	export type GapEffects = OpenGapEffects | ClosedGapEffects;
 
 	export interface OpenGapEffects {
 		count: GapCount;
@@ -351,7 +353,7 @@ export interface ProtoTraits {
 	[key: string]: ProtoTrait;
 }
 
-export type OffsetList<TContent, TOffset> = (TOffset | TContent)[];
+export type OffsetList<TContent = Exclude<unknown, number>, TOffset = number> = (TOffset | TContent)[];
 
 export type ProtoTrait = ProtoNode[];
 export type NodeCount = number;
