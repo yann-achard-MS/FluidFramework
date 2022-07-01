@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { clone, fail, mapObject, neverCase, OffsetListPtr } from "../util";
+import { clone, fail, mapObject, neverCase, nodesContentPolicy, OffsetListPtr, unaryContentPolicy } from "../util";
 import { Transposed as T, SeqNumber, OffsetList, NodeCount, GapCount } from "./format";
 import { normalizeMarks } from "./normalize";
 
@@ -38,12 +38,14 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 	const { seq } = context;
 	const newTombs: OffsetList<T.Tombstones, NodeCount> = [];
 	const newAttach: OffsetList<T.Attach[], GapCount> = [];
-	const newGaps: OffsetList<T.GapEffects, GapCount> = [];
+	const newGaps: OffsetList<T.GapEffectSegment, GapCount> = [];
 	const newNodes: OffsetList<T.Detach | T.Reattach, NodeCount> = [];
 	const newModify: OffsetList<T.Modify, NodeCount> = [];
 
+	const nodesList = marks.nodes ?? [];
 	const attachList = marks.attach ?? [];
 	const modifyList = marks.modify ?? [];
+	const gapsList = marks.gaps ?? [];
 
 	for (const mod of modifyList) {
 		if (typeof mod === "number") {
@@ -52,54 +54,69 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 			newModify.push(invertModify(mod, context));
 		}
 	}
-	if (marks.nodes !== undefined) {
-		for (const nodeMark of marks.nodes) {
-			if (typeof nodeMark === "number") {
-				newNodes.push(nodeMark);
-				newTombs.push(nodeMark);
-			} else {
-				const type = nodeMark.type;
-				switch (type) {
-					case "Delete": {
-						newTombs.push({
-							seq,
-							count: nodeMark.count,
-						});
-						newNodes.push({
-							type: "Revive",
-							count: nodeMark.count,
-							id: nodeMark.id,
-						});
-						break;
-					}
-					case "Move": {
-						fail("Handle Move");
-						break;
-					}
-					case "Revive": {
-						fail("Handle Revive");
-						break;
-					}
-					case "Return": {
-						fail("Handle Return");
-						break;
-					}
-					default: neverCase(type);
+	for (const nodeMark of nodesList) {
+		if (typeof nodeMark === "number") {
+			newNodes.push(nodeMark);
+			newTombs.push(nodeMark);
+		} else {
+			const type = nodeMark.type;
+			switch (type) {
+				case "Delete": {
+					newTombs.push({
+						seq,
+						count: nodeMark.count,
+					});
+					newNodes.push({
+						type: "Revive",
+						id: nodeMark.id,
+						count: nodeMark.count,
+					});
+					break;
 				}
+				case "Revive": {
+					newNodes.push({
+						type: "Delete",
+						id: nodeMark.id,
+						count: nodeMark.count,
+					});
+					break;
+				}
+				case "Move": {
+					newTombs.push({
+						seq,
+						count: nodeMark.count,
+					});
+					newNodes.push({
+						type: "Return",
+						id: nodeMark.id,
+						count: nodeMark.count,
+					});
+					break;
+				}
+				case "Return": {
+					newNodes.push({
+						type: "Move",
+						id: nodeMark.id,
+						count: nodeMark.count,
+					});
+					break;
+				}
+				default: neverCase(type);
 			}
 		}
 	}
-	let modifyPtr = OffsetListPtr.fromList(newModify);
+	let modifyPtr = OffsetListPtr.fromList(newModify, unaryContentPolicy);
+	let nodesPtr = OffsetListPtr.fromList(newNodes, nodesContentPolicy);
 	for (const attachGroup of attachList) {
 		if (typeof attachGroup === "number") {
 			modifyPtr = modifyPtr.fwd(attachGroup);
-			newNodes.push(attachGroup);
+			nodesPtr = nodesPtr.fwd(attachGroup);
 		} else {
 			for (const attach of attachGroup) {
 				const type = attach.type;
 				switch (type) {
 					case "Insert": {
-						newNodes.push({
+						nodesPtr = nodesPtr.insert({
 							type: "Delete",
 							id: attach.id,
 							count: attach.content.length,
@@ -121,7 +138,11 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 						break;
 					}
 					case "Move": {
-						fail("Handle Move");
+						nodesPtr = nodesPtr.insert({
+							type: "Move",
+							id: attach.id,
+							count: attach.count,
+						});
 						break;
 					}
 					case "Bounce": {
@@ -135,6 +156,13 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 					default: neverCase(type);
 				}
 			}
+		}
+	}
+	for (const gapEntry of gapsList) {
+		if (typeof gapEntry === "number") {
+			newGaps.push(gapEntry);
+		} else {
+			newGaps.push(invertGapEffects(gapEntry));
 		}
 	}
 	return {
@@ -152,4 +180,25 @@ function invertModify(
 ): T.Modify {
 	const newModify: T.Modify = mapObject(modify, (traitMarks) => invertMarks(traitMarks, context));
 	return newModify;
+}
+
+function invertGapEffects(gapEntry: T.GapEffectSegment): T.GapEffectSegment {
+	return {
+		count: gapEntry.count,
+		stack: gapEntry.stack.map(invertGapEffect),
+	};
+}
+
+function invertGapEffect(effect: T.GapEffect): T.GapEffect {
+	return { ...effect, type: invertGapEffectType(effect.type) };
+}
+
+function invertGapEffectType(type: T.GapEffectType): T.GapEffectType {
+	switch (type) {
+		case "Scorch": return "Heal";
+		case "Heal": return "Scorch";
+		case "Forward": return "Unforward";
+		case "Unforward": return "Forward";
+		default: neverCase(type);
+	}
 }

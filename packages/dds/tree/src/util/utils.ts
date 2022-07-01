@@ -5,7 +5,7 @@
 
 import { IFluidHandle } from "@fluidframework/core-interfaces";
 import structuredClone from "@ungap/structured-clone";
-import { OffsetList } from "../changeset";
+import { OffsetList, Transposed as T } from "../changeset";
 
 export function clone<T>(original: T): T {
     return structuredClone(original);
@@ -162,14 +162,32 @@ export function merge<T>(lhs: T, rhs: T): Conflicted | Conflict | T {
 export type OffsetListOffsetType<TList> = TList extends OffsetList<infer TContent, infer TOffset> ? TOffset : never;
 export type OffsetListContentType<TList> = TList extends OffsetList<infer TContent, infer TOffset> ? TContent : never;
 
+export interface ContentPolicy<TContent> {
+	getLength(content: TContent): number;
+	split(content: TContent, offset: number): [TContent, TContent];
+}
+
+export const unaryContentPolicy = {
+	getLength: (): number => 1,
+	split: (): never => fail("Length 1 content cannot be split"),
+};
+
+export const nodesContentPolicy = {
+	getLength: (content: T.Detach | T.Reattach): number => content.count,
+	split: <TContent extends T.Detach | T.Reattach>(content: TContent, offset: number): [TContent, TContent] =>
+	[{ ...content, count: offset }, { ...content, count: content.count - offset }],
+};
+
 export class OffsetListPtr<TList extends OffsetList<any, any>> {
 	private readonly list: TList;
+	private readonly contentPolicy: ContentPolicy<OffsetListContentType<TList>>;
 	private readonly listIdx: number;
 	private readonly realIdx: number;
 	private readonly realOffset: number;
 
 	private constructor(
 		list: TList,
+		contentPolicy: ContentPolicy<OffsetListContentType<TList>>,
 		listIdx: number,
 		realIdx: number,
 		realOffset: number,
@@ -178,10 +196,14 @@ export class OffsetListPtr<TList extends OffsetList<any, any>> {
 		this.listIdx = listIdx;
 		this.realIdx = realIdx;
 		this.realOffset = realOffset;
+		this.contentPolicy = contentPolicy;
 	}
 
-	public static fromList<TList extends OffsetList<any, any>>(list: TList): OffsetListPtr<TList> {
-		return new OffsetListPtr(list, 0, 0, 0);
+	public static fromList<TList extends OffsetList<any, any>>(
+		list: TList,
+		contentPolicy: ContentPolicy<OffsetListContentType<TList>>,
+	): OffsetListPtr<TList> {
+		return new OffsetListPtr(list, contentPolicy, 0, 0, 0);
 	}
 
 	public fwd(offset: number): OffsetListPtr<TList> {
@@ -199,12 +221,15 @@ export class OffsetListPtr<TList extends OffsetList<any, any>> {
 					realOffset += toSkip;
 					toSkip = 0;
 				}
+			} else if (elem === undefined) {
+				realOffset += toSkip;
+				toSkip = 0;
 			} else {
-				toSkip -= 1;
+				toSkip -= this.contentPolicy.getLength(elem);
 				listIdx += 1;
 			}
 		}
-		return new OffsetListPtr(this.list, listIdx, this.realIdx + offset, realOffset);
+		return new OffsetListPtr(this.list, this.contentPolicy, listIdx, this.realIdx + offset, realOffset);
 	}
 
 	public insert(mark: OffsetListContentType<TList>): OffsetListPtr<TList> {
@@ -212,7 +237,6 @@ export class OffsetListPtr<TList extends OffsetList<any, any>> {
 		if (elem === undefined) {
 			if (this.realOffset > 0) {
 				this.list.push(this.realOffset);
-				return this.fwd(this.realOffset).insert(mark);
 			}
 			this.list.push(mark);
 		} else if (typeof elem === "number") {
@@ -224,15 +248,17 @@ export class OffsetListPtr<TList extends OffsetList<any, any>> {
 				fail("The ptr offset in the offset element cannot be greater than the length of the element");
 			}
 		} else {
+			const elemLength = this.contentPolicy.getLength(elem);
 			if (this.realOffset === 0) {
 				this.list.splice(this.listIdx, 0, mark);
-			} else if (this.realOffset === 1) {
+			} else if (this.realOffset === elemLength) {
 				this.list.splice(this.listIdx + 1, 0, mark);
 			} else {
-				fail("The ptr offset in the mark element cannot must be zero or one");
+				const [part1, part2] = this.contentPolicy.split(elem, this.realOffset);
+				this.list.splice(this.listIdx, 1, part1, mark, part2);
 			}
 		}
-		return this.fwd(1);
+		return this.fwd(this.contentPolicy.getLength(mark));
 	}
 
 	public addOffset(offset: number): OffsetListPtr<TList> {

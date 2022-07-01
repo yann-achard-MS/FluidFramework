@@ -73,7 +73,7 @@ export namespace Transposed {
 		 * - nodes that are present in the input context
 		 * - nodes that are represented by tombstones
 		 */
-		gaps?: OffsetList<GapEffects, GapCount>;
+		gaps?: OffsetList<GapEffectSegment, GapCount>;
 
 		/**
 		 * Operations that affect nodes (or locations where a node used to be).
@@ -180,19 +180,16 @@ export namespace Transposed {
 
 	export type Attach = Insert | MoveIn | Bounce | Intake;
 
-	export type GapEffects = OpenGapEffects | ClosedGapEffects;
+	export type GapEffect = Scorch | Forward | Heal | Unforward;
 
-	export interface OpenGapEffects {
+	export type GapEffectType = GapEffect["type"];
+
+	export interface GapEffectSegment {
 		count: GapCount;
 		/**
 		 * Stack of effects applying to the gaps.
 		 */
-		stack: (Scorch | Forward)[];
-	}
-
-	export interface ClosedGapEffects {
-		count: GapCount;
-		stack: (Heal | Unforward)[];
+		stack: (GapEffect)[];
 	}
 
 	export interface Scorch extends HasOpId, IsGapEffect {

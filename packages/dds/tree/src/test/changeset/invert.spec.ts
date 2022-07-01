@@ -97,7 +97,7 @@ const deleteSlice: T.Changeset = {
 					1,
 					{ count: 1, stack: [{ type: "Scorch", id: 0 }] },
 					3,
-					{ count: 1, stack: [{ type: "Scorch", id: 0 }] },
+					{ count: 1, stack: [{ type: "Scorch", id: 1 }] },
 				],
 			},
 		}],
@@ -148,12 +148,12 @@ const reviveSlice: T.Changeset = {
 			foo: {
 				tombs: [
 					{ count: 2, seq },
-					1,
+					2,
 					{ count: 2, seq },
 				],
 				nodes: [
 					{ type: "Revive", id: 0, count: 2 },
-					1,
+					2,
 					{ type: "Revive", id: 1, count: 2 },
 				],
 				gaps: [
@@ -350,7 +350,6 @@ describe(invert.name, () => {
 		});
 		it("For slice ranges", () => {
 			const actual = testInvert(deleteSlice);
-			const d = merge(actual, reviveSlice);
 			assert.deepEqual(actual, reviveSlice);
 		});
 	});
@@ -370,7 +369,8 @@ describe(invert.name, () => {
 		describe("For set ranges", () => {
 			it("Within traits", () => {
 				const actual = testInvert(moveSetInTrait);
-				assert.deepEqual(actual, returnSetInTrait);
+			const d = merge(actual, returnSetInTrait);
+			assert.deepEqual(actual, returnSetInTrait);
 			});
 		});
 		describe("For slice ranges", () => {
