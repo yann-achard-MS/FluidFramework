@@ -7,14 +7,14 @@ import { clone, fail, mapObject, neverCase, OffsetListPtr } from "../util";
 import { Transposed as T, SeqNumber, OffsetList, NodeCount, GapCount } from "./format";
 import { normalizeMarks } from "./normalize";
 
-export function invert(frame: T.Changeset, seq: SeqNumber): T.Changeset {
+export function invert(changeset: T.Changeset, seq: SeqNumber): T.Changeset {
 	const context: Context = {
-		frame,
+		changeset,
 		seq,
-		underDelete: false,
+		underInsert: false,
 	};
-	const moves = frame.moves?.map((mv) => ({ id: mv.id, src: clone(mv.dst), dst: clone(mv.src) }));
-	const marks = invertMarks(frame.marks, context);
+	const moves = changeset.moves?.map((mv) => ({ id: mv.id, src: clone(mv.dst), dst: clone(mv.src) }));
+	const marks = invertMarks(changeset.marks, context);
 	normalizeMarks(marks);
 
 	if (moves !== undefined) {
@@ -29,9 +29,9 @@ export function invert(frame: T.Changeset, seq: SeqNumber): T.Changeset {
 }
 
 interface Context {
-	readonly frame: Readonly<T.Changeset>;
+	readonly changeset: Readonly<T.Changeset>;
 	readonly seq: SeqNumber;
-	readonly underDelete: boolean;
+	readonly underInsert: boolean;
 }
 
 function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
@@ -89,10 +89,10 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 			}
 		}
 	}
-	let modifyIdx = OffsetListPtr.fromList(newModify);
+	let modifyPtr = OffsetListPtr.fromList(newModify);
 	for (const attachGroup of attachList) {
 		if (typeof attachGroup === "number") {
-			modifyIdx = modifyIdx.fwd(attachGroup);
+			modifyPtr = modifyPtr.fwd(attachGroup);
 			newNodes.push(attachGroup);
 		} else {
 			for (const attach of attachGroup) {
@@ -101,10 +101,23 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 					case "Insert": {
 						newNodes.push({
 							type: "Delete",
-							count: attach.content.length,
 							id: attach.id,
+							count: attach.content.length,
 						});
-						modifyIdx = modifyIdx.addOffset(attach.content.length);
+						// Tracks the number of inserted nodes that are after the last mod.
+						let nodesUnseen = attach.content.length;
+						if (attach.mods) {
+							for (const mod of attach.mods) {
+								if (typeof mod === "number") {
+									modifyPtr = modifyPtr.addOffset(mod);
+									nodesUnseen -= mod;
+								} else {
+									modifyPtr = modifyPtr.insert(invertModify(mod, { ...context, underInsert: true }));
+									nodesUnseen -= 1;
+								}
+							}
+						}
+						modifyPtr = modifyPtr.addOffset(nodesUnseen);
 						break;
 					}
 					case "Move": {

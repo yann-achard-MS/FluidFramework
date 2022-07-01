@@ -6,6 +6,7 @@
 import { strict as assert } from "assert";
 
 import { invert, Transposed as T } from "../../changeset";
+import { merge } from "../../util";
 
 import { deepFreeze } from "../utils";
 
@@ -63,7 +64,14 @@ const deleteSet: T.Changeset = {
 					{ type: "Delete", id: 2, count: 2 },
 				],
 				modify: [
-					2, // A B
+					{
+						bar: {
+							nodes: [
+								{ type: "Delete", id: 4, count: 1 },
+							],
+						},
+					},
+					1, // B
 					{
 						bar: {
 							nodes: [
@@ -112,11 +120,20 @@ const reviveSet: T.Changeset = {
 					{ type: "Revive", id: 2, count: 2 },
 				],
 				modify: [
-					2, // A B
 					{
 						bar: {
+							tombs: [{ count: 1, seq }],
 							nodes: [
-								{ type: "Delete", id: 3, count: 1 },
+								{ type: "Revive", id: 4, count: 1 },
+							],
+						},
+					},
+					1, // B
+					{
+						bar: {
+							tombs: [{ count: 1, seq }],
+							nodes: [
+								{ type: "Revive", id: 3, count: 1 },
 							],
 						},
 					},
@@ -333,6 +350,7 @@ describe(invert.name, () => {
 		});
 		it("For slice ranges", () => {
 			const actual = testInvert(deleteSlice);
+			const d = merge(actual, reviveSlice);
 			assert.deepEqual(actual, reviveSlice);
 		});
 	});
