@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { Transposed as T, TreePath } from "./format";
+import { OffsetList, Transposed as T, TreePath } from "./format";
 
 export function normalizeChangeSet(frame: T.Changeset): void {
 	if (frame.moves !== undefined) {
@@ -16,22 +16,29 @@ export function normalizeChangeSet(frame: T.Changeset): void {
 	normalizeMarks(frame.marks);
 }
 
-function trimArray<TKey extends string>(key: TKey, obj: { [_ in TKey]?: (number | unknown)[]; }): void {
+function trimOffsetList<
+	TKey extends keyof TObj,
+	TObj extends { [_ in TKey]?: OffsetList; },
+>(key: TKey, obj: TObj): void {
 	const array = obj[key];
 	if (array !== undefined) {
 		while (typeof array[array.length - 1] === "number") {
 			array.pop();
 		}
 		if (array.length === 0) {
+			// Only key that exist in the object and are of type `OffsetList` will be used here.
 			// eslint-disable-next-line @typescript-eslint/no-dynamic-delete
 			delete obj[key];
 		}
 	}
 }
 
-function trimArrays<TKey extends string>(keys: TKey[], obj: { [_ in TKey]?: (number | unknown)[]; }): void {
+function trimOffsetLists<
+	TKey extends keyof TObj,
+	TObj extends { [_ in TKey]?: OffsetList; },
+>(keys: TKey[], obj: TObj): void {
 	for (const key of keys) {
-		trimArray(key, obj);
+		trimOffsetList(key, obj);
 	}
 }
 
@@ -45,7 +52,7 @@ export function normalizeMarks(marks: T.TraitMarks): void {
 			}
 		}
 	}
-	trimArrays(["tombs", "attach", "nodes", "gaps", "modify"], marks);
+	trimOffsetLists(["tombs", "attach", "nodes", "gaps", "modify"], marks);
 }
 
 export function normalizePath(path: TreePath): TreePath {
