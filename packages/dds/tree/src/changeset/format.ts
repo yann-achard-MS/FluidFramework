@@ -90,8 +90,34 @@ export namespace Transposed {
 		 * - nodes that are being revived by this change
 		 *
 		 * Offsets represent both tombstones and nodes that are present in the input context.
+		 *
+		 * Modifications made to newly inserted nodes are represented on their Insert mark.
 		 */
 		modify?: OffsetList<Modify, NodeCount>;
+
+		/**
+		 * Represents change made to the values of any of the following nodes:
+		 * - nodes that are present in the input context
+		 * - nodes that have been concurrently deleted by prior changes
+		 * - nodes that are being revived by this change
+		 *
+		 * Offsets represent both tombstones and nodes that are present in the input context.
+		 *
+		 * Value changes made to newly inserted nodes are represented on their Insert mark.
+		 */
+		values?: OffsetList<ValueMark, NodeCount>;
+	}
+
+	export type ValueMark = SetValue | RevertValue;
+
+	export interface SetValue {
+		type: "Set";
+		value: Value;
+	}
+
+	export interface RevertValue {
+		type: "Revert";
+		seq: SeqNumber;
 	}
 
 	export interface Modify {
@@ -153,7 +179,18 @@ export namespace Transposed {
 	export interface Insert extends HasOpId, IsPlace {
 		type: "Insert";
 		content: ProtoNode[];
-		mods?: OffsetList<Modify, NodeCount>;
+		/**
+		 * Represents the changes made to the inserted subtrees.
+		 *
+		 * Offsets represent nodes being inserted.
+		 */
+		modify?: OffsetList<Modify, NodeCount>;
+		/**
+		 * Represents the changes made to the inserted node's values.
+		 *
+		 * Offsets represent nodes being inserted.
+		 */
+		values?: OffsetList<ValueMark, NodeCount>;
 	}
 
 	export interface Bounce extends HasOpId, IsPlace {

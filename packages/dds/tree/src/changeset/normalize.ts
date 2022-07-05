@@ -52,7 +52,7 @@ export function normalizeMarks(marks: T.TraitMarks): void {
 			}
 		}
 	}
-	trimOffsetLists(["tombs", "attach", "nodes", "gaps", "modify"], marks);
+	trimOffsetLists(["tombs", "attach", "nodes", "gaps", "modify", "values"], marks);
 }
 
 export function normalizePath(path: TreePath): TreePath {

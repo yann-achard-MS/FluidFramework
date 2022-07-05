@@ -41,11 +41,13 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 	const newGaps: OffsetList<T.GapEffectSegment, GapCount> = [];
 	const newNodes: OffsetList<T.Detach | T.Reattach, NodeCount> = [];
 	const newModify: OffsetList<T.Modify, NodeCount> = [];
+	const newValues: OffsetList<T.ValueMark, NodeCount> = [];
 
 	const nodesList = marks.nodes ?? [];
 	const attachList = marks.attach ?? [];
 	const modifyList = marks.modify ?? [];
 	const gapsList = marks.gaps ?? [];
+	const valuesList = marks.values ?? [];
 
 	for (const mod of modifyList) {
 		if (typeof mod === "number") {
@@ -126,8 +128,8 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 						});
 						// Tracks the number of inserted nodes that are after the last mod.
 						let nodesUnseen = attach.content.length;
-						if (attach.mods) {
-							for (const mod of attach.mods) {
+						if (attach.modify) {
+							for (const mod of attach.modify) {
 								if (typeof mod === "number") {
 									modifyPtr = modifyPtr.addOffset(mod);
 									nodesUnseen -= mod;
@@ -168,12 +170,20 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 			newGaps.push(invertGapEffects(gapEntry));
 		}
 	}
+	for (const valueEntry of valuesList) {
+		if (typeof valueEntry === "number") {
+			newValues.push(valueEntry);
+		} else {
+			newValues.push({ type: "Revert", seq });
+		}
+	}
 	return {
 		tombs: newTombs,
 		gaps: newGaps,
 		attach: newAttach,
 		modify: newModify,
 		nodes: newNodes,
+		values: newValues,
 	};
 }
 

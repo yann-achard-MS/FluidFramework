@@ -28,7 +28,7 @@ const insert: T.Changeset = {
 							type: "Insert",
 							id: 0,
 							content: [{ id: "A" }],
-							mods: [{
+							modify: [{
 								bar: {
 									attach: [
 										[{ type: "Insert", id: 4, content: [{ id: "A2" }] }],
@@ -165,32 +165,24 @@ const reviveSlice: T.Changeset = {
 		}],
 	},
 };
-// const setValue: T.Changeset = {
-// 	marks: [{
-// 		value: 1,
-// 		modify: {
-// 			foo: [
-// 				{
-// 					type: "SetValue",
-// 					value: 1,
-// 				},
-// 			],
-// 		},
-// 	}],
-// };
-// const revertValue: T.Changeset = {
-// 	marks: [{
-// 		value: { seq },
-// 		modify: {
-// 			foo: [
-// 				{
-// 					type: "RevertValue",
-// 					seq,
-// 				},
-// 			],
-// 		},
-// 	}],
-// };
+const setValue: T.Changeset = {
+	marks: {
+		modify: [{
+			foo: {
+				values: [2, { type: "Set", value: 1 }],
+			},
+		}],
+	},
+};
+const revertValue: T.Changeset = {
+	marks: {
+		modify: [{
+			foo: {
+				values: [2, { type: "Revert", seq }],
+			},
+		}],
+	},
+};
 const moveSetInTrait: T.Changeset = {
 	moves: [
 		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
@@ -327,15 +319,15 @@ const returnTwiceSliceInTrait: T.Changeset = {
 };
 
 describe(invert.name, () => {
-	// it("SetValue -> RevertValue", () => {
-	// 	const actual = testInvert(setValue);
-	// 	assert.deepEqual(actual, revertValue);
-	// });
+	it("SetValue -> RevertValue", () => {
+		const actual = testInvert(setValue);
+		assert.deepEqual(actual, revertValue);
+	});
 
-	// it("RevertValue -> RevertValue", () => {
-	// 	const actual = testInvert(revertValue);
-	// 	assert.deepEqual(actual, revertValue);
-	// });
+	it("RevertValue -> RevertValue", () => {
+		const actual = testInvert(revertValue);
+		assert.deepEqual(actual, revertValue);
+	});
 
 	it("Insert -> Delete", () => {
 		const actual = testInvert(insert);
