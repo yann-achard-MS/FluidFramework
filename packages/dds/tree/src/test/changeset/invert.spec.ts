@@ -6,7 +6,6 @@
 import { strict as assert } from "assert";
 
 import { invert, Transposed as T } from "../../changeset";
-import { merge } from "../../util";
 
 import { deepFreeze } from "../utils";
 
@@ -369,8 +368,7 @@ describe(invert.name, () => {
 		describe("For set ranges", () => {
 			it("Within traits", () => {
 				const actual = testInvert(moveSetInTrait);
-			const d = merge(actual, returnSetInTrait);
-			assert.deepEqual(actual, returnSetInTrait);
+				assert.deepEqual(actual, returnSetInTrait);
 			});
 		});
 		describe("For slice ranges", () => {

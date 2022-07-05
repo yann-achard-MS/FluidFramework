@@ -16,30 +16,26 @@ export function normalizeChangeSet(frame: T.Changeset): void {
 	normalizeMarks(frame.marks);
 }
 
+function trimArray<TKey extends string>(key: TKey, obj: { [_ in TKey]?: (number | unknown)[]; }): void {
+	const array = obj[key];
+	if (array !== undefined) {
+		while (typeof array[array.length - 1] === "number") {
+			array.pop();
+		}
+		if (array.length === 0) {
+			// eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+			delete obj[key];
+		}
+	}
+}
+
+function trimArrays<TKey extends string>(keys: TKey[], obj: { [_ in TKey]?: (number | unknown)[]; }): void {
+	for (const key of keys) {
+		trimArray(key, obj);
+	}
+}
+
 export function normalizeMarks(marks: T.TraitMarks): void {
-	if (marks.tombs !== undefined) {
-		while (typeof marks.tombs[marks.tombs.length - 1] === "number") {
-			marks.tombs.pop();
-		}
-		if (marks.tombs.length === 0) {
-			delete marks.tombs;
-		}
-	}
-	if (marks.attach !== undefined) {
-		if (marks.attach.length === 0) {
-			delete marks.attach;
-		}
-	}
-	if (marks.gaps !== undefined) {
-		if (marks.gaps.length === 0) {
-			delete marks.gaps;
-		}
-	}
-	if (marks.nodes !== undefined) {
-		if (marks.nodes.length === 0) {
-			delete marks.nodes;
-		}
-	}
 	if (marks.modify !== undefined) {
 		for (const modify of marks.modify) {
 			if (typeof modify === "object") {
@@ -48,10 +44,8 @@ export function normalizeMarks(marks: T.TraitMarks): void {
 				}
 			}
 		}
-		if (marks.modify.length === 0) {
-			delete marks.modify;
-		}
 	}
+	trimArrays(["tombs", "attach", "nodes", "gaps", "modify"], marks);
 }
 
 export function normalizePath(path: TreePath): TreePath {

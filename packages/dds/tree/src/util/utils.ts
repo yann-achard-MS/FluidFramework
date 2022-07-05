@@ -5,7 +5,7 @@
 
 import { IFluidHandle } from "@fluidframework/core-interfaces";
 import structuredClone from "@ungap/structured-clone";
-import { OffsetList, Transposed as T } from "../changeset";
+import { OffsetList } from "../changeset";
 
 export function clone<T>(original: T): T {
     return structuredClone(original);
@@ -172,9 +172,13 @@ export const unaryContentPolicy = {
 	split: (): never => fail("Length 1 content cannot be split"),
 };
 
-export const nodesContentPolicy = {
-	getLength: (content: T.Detach | T.Reattach): number => content.count,
-	split: <TContent extends T.Detach | T.Reattach>(content: TContent, offset: number): [TContent, TContent] =>
+export interface HasCount {
+	readonly count: number;
+}
+
+export const contentWithCountPolicy = {
+	getLength: (content: HasCount): number => content.count,
+	split: <TContent extends HasCount>(content: TContent, offset: number): [TContent, TContent] =>
 	[{ ...content, count: offset }, { ...content, count: content.count - offset }],
 };
 
@@ -232,7 +236,7 @@ export class OffsetListPtr<TList extends OffsetList<any, any>> {
 		return new OffsetListPtr(this.list, this.contentPolicy, listIdx, this.realIdx + offset, realOffset);
 	}
 
-	public insert(mark: OffsetListContentType<TList>): OffsetListPtr<TList> {
+	public addMark(mark: OffsetListContentType<TList>): OffsetListPtr<TList> {
 		const elem = this.list[this.listIdx];
 		if (elem === undefined) {
 			if (this.realOffset > 0) {
@@ -262,9 +266,12 @@ export class OffsetListPtr<TList extends OffsetList<any, any>> {
 	}
 
 	public addOffset(offset: number): OffsetListPtr<TList> {
+		if (offset === 0) {
+			return this;
+		}
 		const elem = this.list[this.listIdx];
 		if (elem === undefined) {
-			// No need to add an offset since there is nothing to the right
+			this.list.push(offset);
 		} else if (typeof elem === "number") {
 			this.list[this.listIdx] = elem + offset;
 		} else {

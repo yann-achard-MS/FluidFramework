@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { clone, fail, mapObject, neverCase, nodesContentPolicy, OffsetListPtr, unaryContentPolicy } from "../util";
+import { clone, fail, mapObject, neverCase, contentWithCountPolicy, OffsetListPtr, unaryContentPolicy } from "../util";
 import { Transposed as T, SeqNumber, OffsetList, NodeCount, GapCount } from "./format";
 import { normalizeMarks } from "./normalize";
 
@@ -54,15 +54,16 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 			newModify.push(invertModify(mod, context));
 		}
 	}
+	let tombsPtr = OffsetListPtr.fromList(newTombs, contentWithCountPolicy);
 	for (const nodeMark of nodesList) {
 		if (typeof nodeMark === "number") {
 			newNodes.push(nodeMark);
-			newTombs.push(nodeMark);
+			tombsPtr = tombsPtr.addOffset(nodeMark);
 		} else {
 			const type = nodeMark.type;
 			switch (type) {
 				case "Delete": {
-					newTombs.push({
+					tombsPtr = tombsPtr.addMark({
 						seq,
 						count: nodeMark.count,
 					});
@@ -74,6 +75,7 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 					break;
 				}
 				case "Revive": {
+					tombsPtr = tombsPtr.addOffset(nodeMark.count);
 					newNodes.push({
 						type: "Delete",
 						id: nodeMark.id,
@@ -82,7 +84,7 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 					break;
 				}
 				case "Move": {
-					newTombs.push({
+					tombsPtr = tombsPtr.addMark({
 						seq,
 						count: nodeMark.count,
 					});
@@ -94,6 +96,7 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 					break;
 				}
 				case "Return": {
+					tombsPtr = tombsPtr.addOffset(nodeMark.count);
 					newNodes.push({
 						type: "Move",
 						id: nodeMark.id,
@@ -106,7 +109,7 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 		}
 	}
 	let modifyPtr = OffsetListPtr.fromList(newModify, unaryContentPolicy);
-	let nodesPtr = OffsetListPtr.fromList(newNodes, nodesContentPolicy);
+	let nodesPtr = OffsetListPtr.fromList(newNodes, contentWithCountPolicy);
 	for (const attachGroup of attachList) {
 		if (typeof attachGroup === "number") {
 			modifyPtr = modifyPtr.fwd(attachGroup);
@@ -116,7 +119,7 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 				const type = attach.type;
 				switch (type) {
 					case "Insert": {
-						nodesPtr = nodesPtr.insert({
+						nodesPtr = nodesPtr.addMark({
 							type: "Delete",
 							id: attach.id,
 							count: attach.content.length,
@@ -129,7 +132,7 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 									modifyPtr = modifyPtr.addOffset(mod);
 									nodesUnseen -= mod;
 								} else {
-									modifyPtr = modifyPtr.insert(invertModify(mod, { ...context, underInsert: true }));
+									modifyPtr = modifyPtr.addMark(invertModify(mod, { ...context, underInsert: true }));
 									nodesUnseen -= 1;
 								}
 							}
@@ -138,7 +141,7 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 						break;
 					}
 					case "Move": {
-						nodesPtr = nodesPtr.insert({
+						nodesPtr = nodesPtr.addMark({
 							type: "Move",
 							id: attach.id,
 							count: attach.count,
