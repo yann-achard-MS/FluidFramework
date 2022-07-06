@@ -271,7 +271,7 @@ export class OffsetListPtr<TList extends OffsetList<any, any>> {
 		}
 		const elem = this.list[this.listIdx];
 		if (elem === undefined) {
-			this.list.push(offset);
+			this.list.push(offset + this.realOffset);
 		} else if (typeof elem === "number") {
 			this.list[this.listIdx] = elem + offset;
 		} else {

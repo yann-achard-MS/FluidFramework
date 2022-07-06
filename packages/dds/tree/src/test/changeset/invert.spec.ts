@@ -174,11 +174,51 @@ const setValue: T.Changeset = {
 		}],
 	},
 };
+const setValueOnInsert: T.Changeset = {
+	marks: {
+		modify: [{
+			foo: {
+				attach: [
+					3,
+					[{
+						type: "Insert",
+						id: 0,
+						content: [{ id: "A" }, { id: "B" }],
+						values: [1, { type: "Set", value: 1 }],
+					}],
+				],
+				values: [
+					1,
+					{ type: "Set", value: 42 },
+					2,
+					{ type: "Set", value: 43 },
+				],
+			},
+		}],
+	},
+};
 const revertValue: T.Changeset = {
 	marks: {
 		modify: [{
 			foo: {
 				values: [2, { type: "Revert", seq }],
+			},
+		}],
+	},
+};
+const revertValueOnInsert: T.Changeset = {
+	marks: {
+		modify: [{
+			foo: {
+				nodes: [3, { type: "Delete", id: 0, count: 2 }],
+				values: [
+					1,
+					{ type: "Revert", seq },
+					2,
+					{ type: "Revert", seq },
+					1,
+					{ type: "Revert", seq },
+				],
 			},
 		}],
 	},
@@ -319,9 +359,15 @@ const returnTwiceSliceInTrait: T.Changeset = {
 };
 
 describe(invert.name, () => {
-	it("SetValue -> RevertValue", () => {
-		const actual = testInvert(setValue);
-		assert.deepEqual(actual, revertValue);
+	describe("SetValue -> RevertValue", () => {
+		it("Under existing content", () => {
+			const actual = testInvert(setValue);
+			assert.deepEqual(actual, revertValue);
+		});
+		it("Under inserted content", () => {
+			const actual = testInvert(setValueOnInsert);
+			assert.deepEqual(actual, revertValueOnInsert);
+		});
 	});
 
 	it("RevertValue -> RevertValue", () => {

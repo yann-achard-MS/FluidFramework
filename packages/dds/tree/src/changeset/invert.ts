@@ -56,6 +56,13 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 			newModify.push(invertModify(mod, context));
 		}
 	}
+	for (const valueEntry of valuesList) {
+		if (typeof valueEntry === "number") {
+			newValues.push(valueEntry);
+		} else {
+			newValues.push({ type: "Revert", seq });
+		}
+	}
 	let tombsPtr = OffsetListPtr.fromList(newTombs, contentWithCountPolicy);
 	for (const nodeMark of nodesList) {
 		if (typeof nodeMark === "number") {
@@ -111,11 +118,13 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 		}
 	}
 	let modifyPtr = OffsetListPtr.fromList(newModify, unaryContentPolicy);
+	let valuesPtr = OffsetListPtr.fromList(newValues, unaryContentPolicy);
 	let nodesPtr = OffsetListPtr.fromList(newNodes, contentWithCountPolicy);
 	for (const attachGroup of attachList) {
 		if (typeof attachGroup === "number") {
 			modifyPtr = modifyPtr.fwd(attachGroup);
 			nodesPtr = nodesPtr.fwd(attachGroup);
+			valuesPtr = valuesPtr.fwd(attachGroup);
 		} else {
 			for (const attach of attachGroup) {
 				const type = attach.type;
@@ -140,6 +149,19 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 							}
 						}
 						modifyPtr = modifyPtr.addOffset(nodesUnseen);
+						let valuesUnseen = attach.content.length;
+						if (attach.values) {
+							for (const valueMark of attach.values) {
+								if (typeof valueMark === "number") {
+									valuesPtr = valuesPtr.addOffset(valueMark);
+									valuesUnseen -= valueMark;
+								} else {
+									valuesPtr = valuesPtr.addMark({ type: "Revert", seq });
+									valuesUnseen -= 1;
+								}
+							}
+						}
+						valuesPtr = valuesPtr.addOffset(valuesUnseen);
 						break;
 					}
 					case "Move": {
@@ -168,13 +190,6 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 			newGaps.push(gapEntry);
 		} else {
 			newGaps.push(invertGapEffects(gapEntry));
-		}
-	}
-	for (const valueEntry of valuesList) {
-		if (typeof valueEntry === "number") {
-			newValues.push(valueEntry);
-		} else {
-			newValues.push({ type: "Revert", seq });
 		}
 	}
 	return {
