@@ -6,6 +6,7 @@
 import { strict as assert } from "assert";
 
 import { invert, Transposed as T } from "../../changeset";
+import { merge } from "../../util";
 
 import { deepFreeze } from "../utils";
 
@@ -189,9 +190,9 @@ const setValueOnInsert: T.Changeset = {
 				],
 				values: [
 					1,
-					{ type: "Set", value: 42 },
+					{ type: "Set", value: 2 },
 					2,
-					{ type: "Set", value: 43 },
+					{ type: "Set", value: 3 },
 				],
 			},
 		}],
@@ -357,6 +358,65 @@ const returnTwiceSliceInTrait: T.Changeset = {
 		}],
 	},
 };
+const changesUnderMove: T.Changeset = {
+	moves: [
+		{ id: 0, src: { foo: 1 }, dst: { foo: 2 } },
+	],
+	marks: {
+		modify: [{
+			foo: {
+				nodes: [
+					1, // A
+					{ type: "Move", id: 0, count: 2 },
+				],
+				attach: [
+					4, // [-A-B-C-D
+					[{ type: "Move", id: 0, count: 2 }],
+				],
+				modify: [
+					1,
+					{
+						bar: {
+							nodes: [{ type: "Delete", id: 1, count: 1 }],
+						},
+					},
+				],
+				values: [2, { type: "Set", value: 42 }],
+			},
+		}],
+	},
+};
+const invertChangesUnderMove: T.Changeset = {
+	moves: [
+		{ id: 0, src: { foo: 2 }, dst: { foo: 1 } },
+	],
+	marks: {
+		modify: [{
+			foo: {
+				tombs: [
+					1, // A
+					{ count: 2, seq }, // B C
+				],
+				nodes: [
+					1, // A
+					{ type: "Return", id: 0, count: 2 },
+					1, // D
+					{ type: "Move", id: 0, count: 2 },
+				],
+				modify: [
+					4,
+					{
+						bar: {
+							tombs: [{ count: 1, seq }],
+							nodes: [{ type: "Revive", id: 1, count: 1 }],
+						},
+					},
+				],
+				values: [5, { type: "Revert", seq }],
+			},
+		}],
+	},
+};
 
 describe(invert.name, () => {
 	describe("SetValue -> RevertValue", () => {
@@ -445,5 +505,11 @@ describe(invert.name, () => {
 				assert.deepEqual(actual, returnSliceInTrait);
 			});
 		});
+	});
+
+	it("Changes under moved nodes", () => {
+		const actual = testInvert(changesUnderMove);
+		const d = merge(actual, invertChangesUnderMove);
+		assert.deepEqual(actual, invertChangesUnderMove);
 	});
 });

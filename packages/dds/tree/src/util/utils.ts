@@ -23,6 +23,16 @@ export function mapObject<T, U>(obj: T, f: (v: T[keyof T], k: keyof T) => U): ({
 	return out as { [K in keyof T]: U };
 }
 
+export function mapGetOrSet<K, V>(map: Map<K, V>, key: K, defaultFactory: () => V): V {
+	const maybe = map.get(key);
+	if (maybe === undefined) {
+		const empty = defaultFactory();
+		map.set(key, empty);
+		return empty;
+	}
+	return maybe;
+}
+
 /**
  * Used as a default branch in switch statements to enforce that all possible branches are accounted for.
  *
@@ -182,7 +192,7 @@ export const contentWithCountPolicy = {
 	[{ ...content, count: offset }, { ...content, count: content.count - offset }],
 };
 
-export class OffsetListPtr<TList extends OffsetList<any, any>> {
+export class OffsetListPtr<TList extends OffsetList> {
 	private readonly list: TList;
 	private readonly contentPolicy: ContentPolicy<OffsetListContentType<TList>>;
 	private readonly listIdx: number;
@@ -203,7 +213,7 @@ export class OffsetListPtr<TList extends OffsetList<any, any>> {
 		this.contentPolicy = contentPolicy;
 	}
 
-	public static fromList<TList extends OffsetList<any, any>>(
+	public static from<TList extends OffsetList<any, any>>(
 		list: TList,
 		contentPolicy: ContentPolicy<OffsetListContentType<TList>>,
 	): OffsetListPtr<TList> {
@@ -278,5 +288,12 @@ export class OffsetListPtr<TList extends OffsetList<any, any>> {
 			this.list.splice(this.listIdx, 0, offset);
 		}
 		return this.fwd(offset);
+	}
+
+	public splice(deleteCount: number, replacement?: TList): TList {
+		// TODO: massage type to remove cast
+		const out: TList = [] as unknown as TList;
+		
+		return out;
 	}
 }

@@ -3,8 +3,17 @@
  * Licensed under the MIT License.
  */
 
-import { clone, fail, mapObject, neverCase, contentWithCountPolicy, OffsetListPtr, unaryContentPolicy } from "../util";
-import { Transposed as T, SeqNumber, OffsetList, NodeCount, GapCount } from "./format";
+import {
+	clone,
+	fail,
+	mapObject,
+	neverCase,
+	contentWithCountPolicy,
+	OffsetListPtr,
+	unaryContentPolicy,
+	mapGetOrSet,
+} from "../util";
+import { Transposed as T, SeqNumber, OffsetList, NodeCount, GapCount, OpId } from "./format";
 import { normalizeMarks } from "./normalize";
 
 export function invert(changeset: T.Changeset, seq: SeqNumber): T.Changeset {
@@ -34,6 +43,20 @@ interface Context {
 	readonly underInsert: boolean;
 }
 
+type ModifyList = OffsetList<T.Modify, NodeCount>;
+type ValueList = OffsetList<T.ValueMark, NodeCount>;
+
+interface MovedMarks {
+	modify: ModifyList;
+	values: ValueList;
+}
+
+interface MoveDst {
+	modifyPtr: OffsetListPtr<ModifyList>;
+	valuesPtr: OffsetListPtr<ValueList>;
+	count: number;
+}
+
 function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 	const { seq } = context;
 	const newTombs: OffsetList<T.Tombstones, NodeCount> = [];
@@ -49,6 +72,12 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 	const gapsList = marks.gaps ?? [];
 	const valuesList = marks.values ?? [];
 
+	const movedMarks: Map<OpId, MovedMarks> = new Map();
+	const movedMarksDst: Map<OpId, MoveDst[]> = new Map();
+
+	const movedMarksFactory = () => ({ modify: [], values: [] });
+	const movedMarksDstFactory = () => [];
+
 	for (const mod of modifyList) {
 		if (typeof mod === "number") {
 			newModify.push(mod);
@@ -63,124 +92,155 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 			newValues.push({ type: "Revert", seq });
 		}
 	}
-	let tombsPtr = OffsetListPtr.fromList(newTombs, contentWithCountPolicy);
-	for (const nodeMark of nodesList) {
-		if (typeof nodeMark === "number") {
-			newNodes.push(nodeMark);
-			tombsPtr = tombsPtr.addOffset(nodeMark);
-		} else {
-			const type = nodeMark.type;
-			switch (type) {
-				case "Delete": {
-					tombsPtr = tombsPtr.addMark({
-						seq,
-						count: nodeMark.count,
-					});
-					newNodes.push({
-						type: "Revive",
-						id: nodeMark.id,
-						count: nodeMark.count,
-					});
-					break;
-				}
-				case "Revive": {
-					tombsPtr = tombsPtr.addOffset(nodeMark.count);
-					newNodes.push({
-						type: "Delete",
-						id: nodeMark.id,
-						count: nodeMark.count,
-					});
-					break;
-				}
-				case "Move": {
-					tombsPtr = tombsPtr.addMark({
-						seq,
-						count: nodeMark.count,
-					});
-					newNodes.push({
-						type: "Return",
-						id: nodeMark.id,
-						count: nodeMark.count,
-					});
-					break;
-				}
-				case "Return": {
-					tombsPtr = tombsPtr.addOffset(nodeMark.count);
-					newNodes.push({
-						type: "Move",
-						id: nodeMark.id,
-						count: nodeMark.count,
-					});
-					break;
-				}
-				default: neverCase(type);
-			}
-		}
-	}
-	let modifyPtr = OffsetListPtr.fromList(newModify, unaryContentPolicy);
-	let valuesPtr = OffsetListPtr.fromList(newValues, unaryContentPolicy);
-	let nodesPtr = OffsetListPtr.fromList(newNodes, contentWithCountPolicy);
-	for (const attachGroup of attachList) {
-		if (typeof attachGroup === "number") {
-			modifyPtr = modifyPtr.fwd(attachGroup);
-			nodesPtr = nodesPtr.fwd(attachGroup);
-			valuesPtr = valuesPtr.fwd(attachGroup);
-		} else {
-			for (const attach of attachGroup) {
-				const type = attach.type;
+	{
+		let tombsPtr = OffsetListPtr.from(newTombs, contentWithCountPolicy);
+		let modifyPtr = OffsetListPtr.from(newModify, unaryContentPolicy);
+		let valuesPtr = OffsetListPtr.from(newValues, unaryContentPolicy);
+		for (const nodeMark of nodesList) {
+			if (typeof nodeMark === "number") {
+				newNodes.push(nodeMark);
+				tombsPtr = tombsPtr.addOffset(nodeMark);
+				modifyPtr = modifyPtr.fwd(nodeMark);
+				valuesPtr = valuesPtr.fwd(nodeMark);
+			} else {
+				const { type, count, id } = nodeMark;
 				switch (type) {
-					case "Insert": {
-						nodesPtr = nodesPtr.addMark({
-							type: "Delete",
-							id: attach.id,
-							count: attach.content.length,
+					case "Delete": {
+						tombsPtr = tombsPtr.addMark({
+							seq,
+							count,
 						});
-						// Tracks the number of inserted nodes that are after the last mod.
-						let nodesUnseen = attach.content.length;
-						if (attach.modify) {
-							for (const mod of attach.modify) {
-								if (typeof mod === "number") {
-									modifyPtr = modifyPtr.addOffset(mod);
-									nodesUnseen -= mod;
-								} else {
-									modifyPtr = modifyPtr.addMark(invertModify(mod, { ...context, underInsert: true }));
-									nodesUnseen -= 1;
-								}
-							}
-						}
-						modifyPtr = modifyPtr.addOffset(nodesUnseen);
-						let valuesUnseen = attach.content.length;
-						if (attach.values) {
-							for (const valueMark of attach.values) {
-								if (typeof valueMark === "number") {
-									valuesPtr = valuesPtr.addOffset(valueMark);
-									valuesUnseen -= valueMark;
-								} else {
-									valuesPtr = valuesPtr.addMark({ type: "Revert", seq });
-									valuesUnseen -= 1;
-								}
-							}
-						}
-						valuesPtr = valuesPtr.addOffset(valuesUnseen);
+						newNodes.push({
+							type: "Revive",
+							id,
+							count,
+						});
+						modifyPtr = modifyPtr.fwd(count);
+						valuesPtr = valuesPtr.fwd(count);
+						break;
+					}
+					case "Revive": {
+						tombsPtr = tombsPtr.addOffset(count);
+						newNodes.push({
+							type: "Delete",
+							id,
+							count,
+						});
+						modifyPtr = modifyPtr.fwd(count);
+						valuesPtr = valuesPtr.fwd(count);
 						break;
 					}
 					case "Move": {
-						nodesPtr = nodesPtr.addMark({
-							type: "Move",
-							id: attach.id,
-							count: attach.count,
+						tombsPtr = tombsPtr.addMark({
+							seq,
+							count,
 						});
+						newNodes.push({
+							type: "Return",
+							id,
+							count,
+						});
+						// Here we need to transfer the inverse of the modify and value marks to the source of the
+						// move in the output. This is because modify and value marks for moved content only appear
+						// at the source of the move.
+						const movedMarksForOp = mapGetOrSet(movedMarks, id, movedMarksFactory);
+						const spliceReplacement = [count];
+						movedMarksForOp.modify.push(spliceReplacement[0]);
+						movedMarksForOp.modify.push(...modifyPtr.splice(count, spliceReplacement));
+						movedMarksForOp.values.push(...valuesPtr.splice(count, spliceReplacement));
 						break;
 					}
-					case "Bounce": {
-						fail("Handle Bounce");
-						break;
-					}
-					case "Intake": {
-						fail("Handle Intake");
+					case "Return": {
+						tombsPtr = tombsPtr.addOffset(count);
+						newNodes.push({
+							type: "Move",
+							id,
+							count,
+						});
+						const movedMarksDstForOp = mapGetOrSet(movedMarksDst, id, movedMarksDstFactory);
+						movedMarksDstForOp.push({ modifyPtr, valuesPtr, count });
+						modifyPtr = modifyPtr.fwd(count);
+						valuesPtr = valuesPtr.fwd(count);
 						break;
 					}
 					default: neverCase(type);
+				}
+			}
+		}
+	}
+	{
+		let modifyPtr = OffsetListPtr.from(newModify, unaryContentPolicy);
+		let valuesPtr = OffsetListPtr.from(newValues, unaryContentPolicy);
+		let nodesPtr = OffsetListPtr.from(newNodes, contentWithCountPolicy);
+		for (const attachGroup of attachList) {
+			if (typeof attachGroup === "number") {
+				nodesPtr = nodesPtr.fwd(attachGroup);
+				modifyPtr = modifyPtr.fwd(attachGroup);
+				valuesPtr = valuesPtr.fwd(attachGroup);
+			} else {
+				for (const attach of attachGroup) {
+					const { type, id } = attach;
+					switch (type) {
+						case "Insert": {
+							const count = attach.content.length;
+							nodesPtr = nodesPtr.addMark({
+								type: "Delete",
+								id,
+								count,
+							});
+							// Tracks the number of inserted nodes that are after the last mod.
+							let nodesUnseen = count;
+							if (attach.modify) {
+								for (const mod of attach.modify) {
+									if (typeof mod === "number") {
+										modifyPtr = modifyPtr.addOffset(mod);
+										nodesUnseen -= mod;
+									} else {
+										const modify = invertModify(mod, { ...context, underInsert: true });
+										modifyPtr = modifyPtr.addMark(modify);
+										nodesUnseen -= 1;
+									}
+								}
+							}
+							modifyPtr = modifyPtr.addOffset(nodesUnseen);
+							let valuesUnseen = count;
+							if (attach.values) {
+								for (const valueMark of attach.values) {
+									if (typeof valueMark === "number") {
+										valuesPtr = valuesPtr.addOffset(valueMark);
+										valuesUnseen -= valueMark;
+									} else {
+										valuesPtr = valuesPtr.addMark({ type: "Revert", seq });
+										valuesUnseen -= 1;
+									}
+								}
+							}
+							valuesPtr = valuesPtr.addOffset(valuesUnseen);
+							break;
+						}
+						case "Move": {
+							const count = attach.count;
+							nodesPtr = nodesPtr.addMark({
+								type: "Move",
+								id,
+								count,
+							});
+							const movedMarksDstForOp = mapGetOrSet(movedMarksDst, id, movedMarksDstFactory);
+							movedMarksDstForOp.push({ modifyPtr, valuesPtr, count });
+							modifyPtr = modifyPtr.fwd(count);
+							valuesPtr = valuesPtr.fwd(count);
+							break;
+						}
+						case "Bounce": {
+							fail("Handle Bounce");
+							break;
+						}
+						case "Intake": {
+							fail("Handle Intake");
+							break;
+						}
+						default: neverCase(type);
+					}
 				}
 			}
 		}
