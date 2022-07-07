@@ -52,8 +52,8 @@ interface MovedMarks {
 }
 
 interface MoveDst {
-	modifyPtr: OffsetListPtr<ModifyList>;
-	valuesPtr: OffsetListPtr<ValueList>;
+	modifyPtr: OffsetListPtr<T.Modify>;
+	valuesPtr: OffsetListPtr<T.ValueMark>;
 	count: number;
 }
 
@@ -93,7 +93,7 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 		}
 	}
 	{
-		let tombsPtr = OffsetListPtr.from(newTombs, contentWithCountPolicy);
+		let tombsPtr = OffsetListPtr.from<T.Tombstones>(newTombs, contentWithCountPolicy);
 		let modifyPtr = OffsetListPtr.from(newModify, unaryContentPolicy);
 		let valuesPtr = OffsetListPtr.from(newValues, unaryContentPolicy);
 		for (const nodeMark of nodesList) {
@@ -171,7 +171,7 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 	{
 		let modifyPtr = OffsetListPtr.from(newModify, unaryContentPolicy);
 		let valuesPtr = OffsetListPtr.from(newValues, unaryContentPolicy);
-		let nodesPtr = OffsetListPtr.from(newNodes, contentWithCountPolicy);
+		let nodesPtr = OffsetListPtr.from<T.NodeMark>(newNodes, contentWithCountPolicy);
 		for (const attachGroup of attachList) {
 			if (typeof attachGroup === "number") {
 				nodesPtr = nodesPtr.fwd(attachGroup);

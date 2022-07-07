@@ -81,7 +81,7 @@ export namespace Transposed {
 		 * Offsets represent both nodes that are present in the input context and nodes that were
 		 * concurrently detached.
 		 */
-		nodes?: OffsetList<Detach | Reattach, NodeCount>;
+		nodes?: OffsetList<NodeMark, NodeCount>;
 
 		/**
 		 * Represents the changes made to the subtrees of any of the following nodes:
@@ -244,6 +244,8 @@ export namespace Transposed {
 	export interface Unforward extends HasOpId, IsGapEffect {
 		type: "Unforward";
 	}
+
+	export type NodeMark = Detach | Reattach;
 
 	export interface Detach extends HasOpId {
 		type: "Delete" | "Move";

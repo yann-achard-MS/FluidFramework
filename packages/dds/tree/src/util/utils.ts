@@ -192,16 +192,16 @@ export const contentWithCountPolicy = {
 	[{ ...content, count: offset }, { ...content, count: content.count - offset }],
 };
 
-export class OffsetListPtr<TList extends OffsetList> {
-	private readonly list: TList;
-	private readonly contentPolicy: ContentPolicy<OffsetListContentType<TList>>;
+export class OffsetListPtr<TContent extends Exclude<unknown, number>> {
+	private readonly list: OffsetList<TContent>;
+	private readonly contentPolicy: ContentPolicy<TContent>;
 	private readonly listIdx: number;
 	private readonly realIdx: number;
 	private readonly realOffset: number;
 
 	private constructor(
-		list: TList,
-		contentPolicy: ContentPolicy<OffsetListContentType<TList>>,
+		list: OffsetList<TContent>,
+		contentPolicy: ContentPolicy<TContent>,
 		listIdx: number,
 		realIdx: number,
 		realOffset: number,
@@ -213,14 +213,14 @@ export class OffsetListPtr<TList extends OffsetList> {
 		this.contentPolicy = contentPolicy;
 	}
 
-	public static from<TList extends OffsetList<any, any>>(
-		list: TList,
-		contentPolicy: ContentPolicy<OffsetListContentType<TList>>,
-	): OffsetListPtr<TList> {
+	public static from<TContent extends Exclude<unknown, number>>(
+		list: OffsetList<TContent>,
+		contentPolicy: ContentPolicy<TContent>,
+	): OffsetListPtr<TContent> {
 		return new OffsetListPtr(list, contentPolicy, 0, 0, 0);
 	}
 
-	public fwd(offset: number): OffsetListPtr<TList> {
+	public fwd(offset: number): OffsetListPtr<TContent> {
 		let realOffset = this.realOffset;
 		let listIdx = this.listIdx;
 		let toSkip = offset;
@@ -246,7 +246,7 @@ export class OffsetListPtr<TList extends OffsetList> {
 		return new OffsetListPtr(this.list, this.contentPolicy, listIdx, this.realIdx + offset, realOffset);
 	}
 
-	public addMark(mark: OffsetListContentType<TList>): OffsetListPtr<TList> {
+	public addMark(mark: TContent): OffsetListPtr<TContent> {
 		const elem = this.list[this.listIdx];
 		if (elem === undefined) {
 			if (this.realOffset > 0) {
@@ -275,7 +275,7 @@ export class OffsetListPtr<TList extends OffsetList> {
 		return this.fwd(this.contentPolicy.getLength(mark));
 	}
 
-	public addOffset(offset: number): OffsetListPtr<TList> {
+	public addOffset(offset: number): OffsetListPtr<TContent> {
 		if (offset === 0) {
 			return this;
 		}
@@ -290,10 +290,15 @@ export class OffsetListPtr<TList extends OffsetList> {
 		return this.fwd(offset);
 	}
 
-	public splice(deleteCount: number, replacement?: TList): TList {
-		// TODO: massage type to remove cast
-		const out: TList = [] as unknown as TList;
-		
+	private split(): void {
+	}
+
+	public splice(deleteCount: number, replacement?: OffsetList<TContent>): OffsetList<TContent> {
+		this.split();
+		const to = this.fwd(deleteCount);
+		to.split();
+		const listItemsCount = to.listIdx - this.listIdx;
+		const out = this.list.splice(this.listIdx, listItemsCount, ...(replacement ?? []));
 		return out;
 	}
 }
