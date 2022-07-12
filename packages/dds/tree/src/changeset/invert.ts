@@ -11,16 +11,14 @@ import {
 	contentWithCountPolicy,
 	OffsetListPtr,
 	unaryContentPolicy,
-	mapGetOrSet,
 } from "../util";
-import { Transposed as T, SeqNumber, OffsetList, NodeCount, GapCount, OpId } from "./format";
+import { Transposed as T, SeqNumber, OffsetList, NodeCount, GapCount } from "./format";
 import { normalizeMarks } from "./normalize";
 
 export function invert(changeset: T.Changeset, seq: SeqNumber): T.Changeset {
 	const context: Context = {
 		changeset,
 		seq,
-		underInsert: false,
 	};
 	const moves = changeset.moves?.map((mv) => ({ id: mv.id, src: clone(mv.dst), dst: clone(mv.src) }));
 	const marks = invertMarks(changeset.marks, context);
@@ -40,21 +38,6 @@ export function invert(changeset: T.Changeset, seq: SeqNumber): T.Changeset {
 interface Context {
 	readonly changeset: Readonly<T.Changeset>;
 	readonly seq: SeqNumber;
-	readonly underInsert: boolean;
-}
-
-type ModifyList = OffsetList<T.Modify, NodeCount>;
-type ValueList = OffsetList<T.ValueMark, NodeCount>;
-
-interface MovedMarks {
-	modify: ModifyList;
-	values: ValueList;
-}
-
-interface MoveDst {
-	modifyPtr: OffsetListPtr<T.Modify>;
-	valuesPtr: OffsetListPtr<T.ValueMark>;
-	count: number;
 }
 
 function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
@@ -71,12 +54,6 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 	const modifyList = marks.modify ?? [];
 	const gapsList = marks.gaps ?? [];
 	const valuesList = marks.values ?? [];
-
-	const movedMarks: Map<OpId, MovedMarks> = new Map();
-	const movedMarksDst: Map<OpId, MoveDst[]> = new Map();
-
-	const movedMarksFactory = () => ({ modify: [], values: [] });
-	const movedMarksDstFactory = () => [];
 
 	for (const mod of modifyList) {
 		if (typeof mod === "number") {
@@ -140,14 +117,6 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 							id,
 							count,
 						});
-						// Here we need to transfer the inverse of the modify and value marks to the source of the
-						// move in the output. This is because modify and value marks for moved content only appear
-						// at the source of the move.
-						const movedMarksForOp = mapGetOrSet(movedMarks, id, movedMarksFactory);
-						const spliceReplacement = [count];
-						movedMarksForOp.modify.push(spliceReplacement[0]);
-						movedMarksForOp.modify.push(...modifyPtr.splice(count, spliceReplacement));
-						movedMarksForOp.values.push(...valuesPtr.splice(count, spliceReplacement));
 						break;
 					}
 					case "Return": {
@@ -157,8 +126,6 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 							id,
 							count,
 						});
-						const movedMarksDstForOp = mapGetOrSet(movedMarksDst, id, movedMarksDstFactory);
-						movedMarksDstForOp.push({ modifyPtr, valuesPtr, count });
 						modifyPtr = modifyPtr.fwd(count);
 						valuesPtr = valuesPtr.fwd(count);
 						break;
@@ -196,7 +163,7 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 										modifyPtr = modifyPtr.addOffset(mod);
 										nodesUnseen -= mod;
 									} else {
-										const modify = invertModify(mod, { ...context, underInsert: true });
+										const modify = invertModify(mod, context);
 										modifyPtr = modifyPtr.addMark(modify);
 										nodesUnseen -= 1;
 									}
@@ -225,9 +192,21 @@ function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
 								id,
 								count,
 							});
-							const movedMarksDstForOp = mapGetOrSet(movedMarksDst, id, movedMarksDstFactory);
-							movedMarksDstForOp.push({ modifyPtr, valuesPtr, count });
-							modifyPtr = modifyPtr.fwd(count);
+							// Tracks the number of moved-in nodes that are after the last mod.
+							let nodesUnseen = count;
+							if (attach.modify) {
+								for (const mod of attach.modify) {
+									if (typeof mod === "number") {
+										modifyPtr = modifyPtr.addOffset(mod);
+										nodesUnseen -= mod;
+									} else {
+										const modify = invertModify(mod, context);
+										modifyPtr = modifyPtr.addMark(modify);
+										nodesUnseen -= 1;
+									}
+								}
+							}
+							modifyPtr = modifyPtr.fwd(nodesUnseen);
 							valuesPtr = valuesPtr.fwd(count);
 							break;
 						}

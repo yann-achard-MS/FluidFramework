@@ -371,7 +371,16 @@ const changesUnderMove: T.Changeset = {
 				],
 				attach: [
 					4, // [-A-B-C-D
-					[{ type: "Move", id: 0, count: 2 }],
+					[{
+						type: "Move",
+						id: 0,
+						count: 2,
+						modify: [{
+							baz: {
+								attach: [[{ type: "Insert", id: 2, content: [{ id: "X" }] }]],
+							},
+						}],
+					}],
 				],
 				modify: [
 					1,
@@ -409,6 +418,11 @@ const invertChangesUnderMove: T.Changeset = {
 						bar: {
 							tombs: [{ count: 1, seq }],
 							nodes: [{ type: "Revive", id: 1, count: 1 }],
+						},
+					},
+					{
+						baz: {
+							nodes: [{ type: "Delete", id: 2, count: 1 }],
 						},
 					},
 				],

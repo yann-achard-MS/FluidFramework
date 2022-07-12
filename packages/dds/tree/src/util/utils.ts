@@ -291,6 +291,7 @@ export class OffsetListPtr<TContent extends Exclude<unknown, number>> {
 	}
 
 	private split(): void {
+		throw new Error("Not implemented");
 	}
 
 	public splice(deleteCount: number, replacement?: OffsetList<TContent>): OffsetList<TContent> {

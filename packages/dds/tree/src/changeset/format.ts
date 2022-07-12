@@ -213,6 +213,12 @@ export namespace Transposed {
 		 * The actual number of nodes being moved-in. This count excludes nodes that were concurrently deleted.
 		 */
 		count: NodeCount;
+		/**
+		 * Represents the changes made to the moved-in subtrees.
+		 *
+		 * Offsets represent nodes being moved-in.
+		 */
+		modify?: OffsetList<Modify, NodeCount>;
 	}
 
 	export type Attach = Insert | MoveIn | Bounce | Intake;
