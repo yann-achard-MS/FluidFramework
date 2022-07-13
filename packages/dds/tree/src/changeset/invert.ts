@@ -40,7 +40,7 @@ interface Context {
 	readonly seq: SeqNumber;
 }
 
-function invertMarks(marks: T.TraitMarks, context: Context): T.TraitMarks {
+function invertMarks(marks: T.FieldMarks, context: Context): T.FieldMarks {
 	const { seq } = context;
 	const newTombs: OffsetList<T.Tombstones, NodeCount> = [];
 	const newAttach: OffsetList<T.Attach[], GapCount> = [];

@@ -42,7 +42,7 @@ function trimOffsetLists<
 	}
 }
 
-export function normalizeMarks(marks: T.TraitMarks): void {
+export function normalizeMarks(marks: T.FieldMarks): void {
 	if (marks.modify !== undefined) {
 		for (const modify of marks.modify) {
 			if (typeof modify === "object") {
