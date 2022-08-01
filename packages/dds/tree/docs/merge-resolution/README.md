@@ -48,14 +48,16 @@ The user intention is therefore to delete that node,
 not to delete whatever node happens to be at index `n`.
 
 This is an important difference because concurrent edits might change the position of that node in the sequence,
-or even move that node to different sequence.
+or even move that node to a different sequence.
 
 User intentions determine which outcome ought to be produced by the merge resolution process in the face of concurrent edits.
 
-A key part of SharedTree's design is therefore the set of editing intentions it allows applications to express and the specific merge outcomes this intentions yield.
+A key part of SharedTree's design is therefore the set of editing intentions it allows applications to express and the specific merge outcomes these intentions yield.
+See [Supported Intentions](./supported-intentions/README.md) for a list intentions supported by SharedTree out of the box.
+
 The set of editing intentions supported by SharedTree is extensible in two ways:
-* New kinds of edits can be supported through new `ChangeFamilies`.
 * High-level intentions can be modeled with commands.
+* New kinds of edits can be supported through new `ChangeFamilies`.
 
 ## Commands
 
@@ -72,16 +74,16 @@ See [Semantic Format](../semantic-format/README.md) for more details.
 
 ## Change Families
 
-A change family is a library of potential edits that a SharedTree instance may support.
+A change family is a library of potential edits that a SharedTree instance can be parametrized with to support.
 
 For example the `SequenceChangeFamily` offers facilities for making edits to fields of the sequence kind.
 
 ## Field Kinds
 
-When considering what kind of data is represented by given part of the document,
+When considering what kind of data is represented by a given part of the document,
 application authors typically have a clear idea of the kinds of edits that make sense for that data.
 Each field in a SharedTree document is assigned a specific field kind through its schema definition.
-Each field kind constitutes an abstract data model that all edits to it must follow.
+Each field kind constitutes an abstract data model that all edits applied to it must follow.
 
 For example, the `Value` field kind is associated with fields that must contain exactly one node.
 All edits for this field kind must therefore have merge resolutions that preserve this invariant.
