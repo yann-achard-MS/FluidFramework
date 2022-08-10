@@ -86,9 +86,8 @@ function invertMarkList(markList: T.MarkList, opIdToTag: (id: OpId) => Changeset
                     };
                     if (mark.value !== undefined) {
                         modify.value = {
-                            type: "Revert",
                             id: mark.value.id,
-                            change: opIdToTag(mark.value.id),
+                            value: DUMMY_INVERSE_VALUE,
                         };
                     }
                     if (mark.fields !== undefined) {
@@ -103,3 +102,9 @@ function invertMarkList(markList: T.MarkList, opIdToTag: (id: OpId) => Changeset
     }
     return inverseMarkList;
 }
+
+/**
+ * Dummy value used in place of actual repair data.
+ * TODO: have `invert` access real repair data.
+ */
+export const DUMMY_INVERSE_VALUE = "Dummy inverse value";

@@ -5,7 +5,7 @@
 
 import { unreachableCase } from "@fluidframework/common-utils";
 import { fail } from "../util";
-import { Transposed as T } from "./format";
+import { ChangesetTag, OpId, Transposed as T } from "./format";
 
 export function isAttachGroup(mark: T.Mark): mark is T.AttachGroup {
     return Array.isArray(mark);
@@ -114,4 +114,29 @@ export function isDetachMark(mark: T.Mark | undefined): mark is T.Detach | T.Mod
         return type === "Delete" || type === "MDelete" || type === "MoveOut" || type === "MMoveOut";
     }
     return false;
+}
+
+export class OpRangeMap {
+    public constructor(private readonly ranges: readonly Readonly<T.OpRange>[]) {}
+
+    public getRange(id: OpId): T.OpRange {
+        const ranges = this.ranges;
+        // TODO: binary search
+        for (let iRange = 1; iRange < ranges.length; iRange += 1) {
+            if (ranges[iRange].min > id) {
+                return ranges[iRange - 1];
+            }
+        }
+        return ranges[ranges.length - 1] ?? fail("No matching range for this Op ID");
+    }
+
+    public getTrueId(id: OpId): OpId {
+        const range = this.getRange(id);
+        return id - range.min;
+    }
+
+    public getTag(id: OpId): ChangesetTag {
+        const range = this.getRange(id);
+        return range.tag;
+    }
 }

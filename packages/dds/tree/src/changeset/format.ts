@@ -28,7 +28,19 @@ export namespace Transposed {
 	}
 
 	export interface ChangesetBase {
-		opRanges?: { min: OpId; tag: ChangesetTag; }[];
+		opRanges?: OpRange[];
+	}
+
+	export interface OpRange {
+		/** The minimum OpId in the range for the change with given tag */
+		min: OpId;
+		/**
+		 * The amount to subtract from to an OpId in the range in order to recover the original OpId for the change
+		 * with the given tag.
+		 */
+		offset?: OpId;
+		/** The tag of the original changeset from which OpIds in this range originally came from */
+		tag: ChangesetTag;
 	}
 
 	/**
@@ -81,17 +93,11 @@ export namespace Transposed {
 		count: number;
 	}
 
-	export type ValueMark = SetValue | RevertValue;
+	export type ValueMark = SetValue;
 
 	export interface SetValue extends HasOpId {
-		type: "Set";
 		/** Can be left unset to represent the value being cleared. */
 		value?: Value;
-	}
-
-	export interface RevertValue extends HasOpId {
-		type: "Revert";
-		change: ChangesetTag;
 	}
 
 	export interface Modify {

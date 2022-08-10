@@ -4,7 +4,7 @@
  */
 
 import { strict as assert } from "assert";
-import { Transposed as T, Value } from "../../changeset";
+import { ChangesetTag, Transposed as T, Value } from "../../changeset";
 import { sequenceChangeRebaser, SequenceChangeset } from "../../feature-libraries";
 import { TreeSchemaIdentifier } from "../../schema";
 import { brand } from "../../util";
@@ -17,19 +17,21 @@ function compose(...changes: SequenceChangeset[]): SequenceChangeset {
     return sequenceChangeRebaser.compose(...changes);
 }
 
-function setRootValueTo(value: Value): SequenceChangeset {
+function setRootValueTo(tag: ChangesetTag, value: Value): SequenceChangeset {
     return {
+        opRanges: [{ min: 0, tag }],
         marks: {
             root: [{
                 type: "Modify",
-                value: { type: "Set", id: 0, value },
+                value: { id: 0, value },
             }],
         },
     };
 }
 
-function setChildValueTo(value: Value): SequenceChangeset {
+function setChildValueTo(tag: ChangesetTag, value: Value): SequenceChangeset {
     return {
+        opRanges: [{ min: 0, tag }],
         marks: {
             root: [{
                 type: "Modify",
@@ -38,7 +40,7 @@ function setChildValueTo(value: Value): SequenceChangeset {
                         42,
                         {
                             type: "Modify",
-                            value: { type: "Set", id: 0, value },
+                            value: { id: 0, value },
                         },
                     ],
                 },
@@ -50,6 +52,7 @@ function setChildValueTo(value: Value): SequenceChangeset {
 describe("SequenceChangeFamily - Compose", () => {
     it("no changes", () => {
         const expected: SequenceChangeset = {
+            opRanges: [],
             marks: {},
         };
         const actual = compose();
@@ -57,27 +60,43 @@ describe("SequenceChangeFamily - Compose", () => {
     });
 
     it("set root | set root", () => {
-        const set1 = setRootValueTo(1);
-        const set2 = setRootValueTo(2);
-        const actual = compose(set1, set2);
-        assert.deepEqual(actual, set2);
-    });
-
-    it("set root | set child", () => {
-        const set1 = setRootValueTo(1);
-        const set2 = setChildValueTo(2);
-        const actual = compose(set1, set2);
+        const set1 = setRootValueTo(1, 1);
+        const set2 = setRootValueTo(2, 2);
         const expected: SequenceChangeset = {
+            opRanges: [
+                { tag: 1, min: 0 },
+                { tag: 2, min: 1, offset: 1 },
+            ],
             marks: {
                 root: [{
                     type: "Modify",
-                    value: { type: "Set", id: 1, value: 1 },
+                    value: { id: 1, value: 2 },
+                }],
+            },
+        };
+        const actual = compose(set1, set2);
+        assert.deepEqual(actual, expected);
+    });
+
+    it("set root | set child", () => {
+        const set1 = setRootValueTo(1, 1);
+        const set2 = setChildValueTo(2, 2);
+        const actual = compose(set1, set2);
+        const expected: SequenceChangeset = {
+            opRanges: [
+                { tag: 1, min: 0 },
+                { tag: 2, min: 1, offset: 1 },
+            ],
+            marks: {
+                root: [{
+                    type: "Modify",
+                    value: { id: 0, value: 1 },
                     fields: {
                         foo: [
                             42,
                             {
                                 type: "Modify",
-                                value: { type: "Set", id: 1, value: 2 },
+                                value: { id: 1, value: 2 },
                             },
                         ],
                     },
@@ -88,20 +107,24 @@ describe("SequenceChangeFamily - Compose", () => {
     });
 
     it("set child | set root", () => {
-        const set1 = setChildValueTo(1);
-        const set2 = setRootValueTo(2);
+        const set1 = setChildValueTo(1, 1);
+        const set2 = setRootValueTo(2, 2);
         const actual = compose(set1, set2);
         const expected: SequenceChangeset = {
+            opRanges: [
+                { tag: 1, min: 0 },
+                { tag: 2, min: 1, offset: 1 },
+            ],
             marks: {
                 root: [{
                     type: "Modify",
-                    value: { type: "Set", id: 1, value: 2 },
+                    value: { id: 1, value: 2 },
                     fields: {
                         foo: [
                             42,
                             {
                                 type: "Modify",
-                                value: { type: "Set", id: 1, value: 1 },
+                                value: { id: 0, value: 1 },
                             },
                         ],
                     },
@@ -112,14 +135,35 @@ describe("SequenceChangeFamily - Compose", () => {
     });
 
     it("set child | set child", () => {
-        const set1 = setChildValueTo(1);
-        const set2 = setChildValueTo(2);
+        const set1 = setChildValueTo(1, 1);
+        const set2 = setChildValueTo(2, 2);
         const actual = compose(set1, set2);
-        assert.deepEqual(actual, set2);
+        const expected: SequenceChangeset = {
+            opRanges: [
+                { tag: 1, min: 0 },
+                { tag: 2, min: 1, offset: 1 },
+            ],
+            marks: {
+                root: [{
+                    type: "Modify",
+                    fields: {
+                        foo: [
+                            42,
+                            {
+                                type: "Modify",
+                                value: { id: 1, value: 2 },
+                            },
+                        ],
+                    },
+                }],
+            },
+        };
+        assert.deepEqual(actual, expected);
     });
 
     it("insert | modify", () => {
         const insert: SequenceChangeset = {
+            opRanges: [{ min: 0, tag: 1 }],
             marks: {
                 root: [
                     [{ type: "Insert", id: 1, content: [{ type, value: 1 }, { type, value: 2 }] }],
@@ -127,6 +171,7 @@ describe("SequenceChangeFamily - Compose", () => {
             },
         };
         const modify: SequenceChangeset = {
+            opRanges: [{ min: 0, tag: 2 }],
             marks: {
                 root: [{
                     type: "Modify",
@@ -139,19 +184,23 @@ describe("SequenceChangeFamily - Compose", () => {
             },
         };
         const expected: SequenceChangeset = {
+            opRanges: [
+                { tag: 1, min: 0, offset: 1 },
+                { tag: 2, min: 1, offset: 2 },
+            ],
             marks: {
                 root: [
                     [{
                         type: "MInsert",
-                        id: 1,
+                        id: 0,
                         content: { type, value: 1 },
                         fields: {
                             foo: [
-                                [{ type: "Insert", id: 2, content: [{ type, value: 2 }] }],
+                                [{ type: "Insert", id: 1, content: [{ type, value: 2 }] }],
                             ],
                         },
                     }],
-                    [{ type: "Insert", id: 1, content: [{ type, value: 2 }] }],
+                    [{ type: "Insert", id: 0, content: [{ type, value: 2 }] }],
                 ],
             },
         };
@@ -307,7 +356,7 @@ describe("SequenceChangeFamily - Compose", () => {
     });
 
     it("set | delete", () => {
-        const set = setRootValueTo(1);
+        const set = setRootValueTo(1, 1);
         // Deletes ABCD--GHIJK
         const deletion: SequenceChangeset = {
             marks: {
@@ -357,7 +406,7 @@ describe("SequenceChangeFamily - Compose", () => {
     });
 
     it("modify | delete", () => {
-        const modify: SequenceChangeset = setChildValueTo(1);
+        const modify: SequenceChangeset = setChildValueTo(1, 1);
         const deletion: SequenceChangeset = {
             marks: {
                 root: [
@@ -408,7 +457,7 @@ describe("SequenceChangeFamily - Compose", () => {
     });
 
     it("set | insert", () => {
-        const set = setRootValueTo(1);
+        const set = setRootValueTo(1, 1);
         const insert: SequenceChangeset = {
             marks: {
                 root: [
@@ -420,7 +469,7 @@ describe("SequenceChangeFamily - Compose", () => {
             marks: {
                 root: [
                     [{ type: "Insert", id: 1, content: [{ type, value: 2 }] }],
-                    { type: "Modify", value: { type: "Set", id: 1, value: 1 } },
+                    { type: "Modify", value: { id: 1, value: 1 } },
                 ],
             },
         };
@@ -429,7 +478,7 @@ describe("SequenceChangeFamily - Compose", () => {
     });
 
     it("modify | insert", () => {
-        const modify: SequenceChangeset = setChildValueTo(1);
+        const modify: SequenceChangeset = setChildValueTo(1, 1);
         const insert: SequenceChangeset = {
             marks: {
                 root: [
@@ -448,7 +497,7 @@ describe("SequenceChangeFamily - Compose", () => {
                                 42,
                                 {
                                     type: "Modify",
-                                    value: { type: "Set", id: 1, value: 1 },
+                                    value: { id: 1, value: 1 },
                                 },
                             ],
                         },

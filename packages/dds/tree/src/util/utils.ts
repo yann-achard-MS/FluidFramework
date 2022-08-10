@@ -20,6 +20,14 @@ export function fail(message: string): never {
     throw new Error(message);
 }
 
+export function mapObject<T, U>(obj: T, f: (v: T[keyof T], k: keyof T) => U): ({ [K in keyof T]: U }) {
+	const out: { [K in keyof T]?: U } = {};
+	for (const [k, v] of Object.entries(obj)) {
+		out[k as keyof T] = f(v, k as keyof T);
+	}
+	return out as { [K in keyof T]: U };
+}
+
 /**
  * Use as a default branch in switch statements to enforce (at compile time) that all possible branches are accounted
  * for, according to the TypeScript type system.
