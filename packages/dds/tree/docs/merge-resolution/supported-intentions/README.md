@@ -16,6 +16,32 @@ The descriptions below use the term "concurrent(ly)" to describe edits made by p
 
 ## Intentions on Nodes
 
+* Nodes:
+  * Set Value
+* Sequences Fields
+  * Insert at place
+  * Delete slice or set range
+  * Move slice or set range to place
+* Value Fields
+  * Replace node
+  * Swap/Rotate nodes (maybe)
+* Optional Fields
+  * Upsert
+  * Clear field
+* Constraints
+* Drilldown (maybe)
+  
+Place DOF:
+* Merge left/right
+* Follow move slices?
+* Follow delete slices?
+* Depth in emulated tree hierarchy (maybe)
+
+Slice DOF:
+* Affect earlier concurrent attaches?
+* Affect later concurrent attaches?
+* Depth in emulated tree hierarchy (maybe)
+
 ### Set Value
 
 > Status: implemented for non-concurrent edits.
