@@ -8,7 +8,7 @@ export * from "./defaultRebaser";
 export * from "./forestIndex";
 export * from "./schemaIndex";
 export * from "./treeTextCursor";
-export * from "./sequence-change-family";
+export * from "./sequence-field";
 export * from "./defaultSchema";
 export {
     isNeverField,
