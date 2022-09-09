@@ -3,22 +3,21 @@
  * Licensed under the MIT License.
  */
 
+import { clone, fail, StackyIterator } from "../../util";
+import { NodeChangeComposer } from "../modular-schema";
+import * as F from "./format";
+import { MarkListFactory } from "./markListFactory";
 import {
     getInputLength,
     getOutputLength,
     isAttach,
     isDetachMark,
-    isGapEffectMark,
     isReattach,
     isSkipMark,
     isTomb,
-    MarkListFactory,
     splitMarkOnInput,
     splitMarkOnOutput,
-    Transposed as T,
-} from "../../changeset";
-import { clone, fail, StackyIterator } from "../../util";
-import { SequenceChangeset } from "./sequenceChangeset";
+} from "./utils";
 
 /**
  * Composes a sequence of changesets into a single changeset.
@@ -32,44 +31,27 @@ import { SequenceChangeset } from "./sequenceChangeset";
  * - Support for moves is not implemented.
  * - Support for slices is not implemented.
  */
-export function compose(changes: SequenceChangeset[]): SequenceChangeset {
+export function compose(changes: F.SequenceChange[], composeChild: NodeChangeComposer): F.SequenceChange {
     if (changes.length === 1) {
         return changes[0];
     }
-    let composedFieldMarks: T.FieldMarks = {};
+    let composed: F.SequenceChange = [];
     for (const change of changes) {
-        composedFieldMarks = composeFieldMarks(composedFieldMarks, change.marks);
-    }
-    return {
-        marks: composedFieldMarks,
-    };
-}
-
-function composeFieldMarks(baseFieldMarks: T.FieldMarks, newFieldMarks: T.FieldMarks): T.FieldMarks {
-    const composed: T.FieldMarks = {};
-    for (const key of Object.keys(newFieldMarks)) {
-        const composedMarkList = composeMarkLists(baseFieldMarks[key] ?? [], newFieldMarks[key]);
-        if (composedMarkList.length > 0) {
-            composed[key] = composedMarkList;
-        }
-    }
-    for (const key of Object.keys(baseFieldMarks)) {
-        if (!(key in newFieldMarks)) {
-            composed[key] = baseFieldMarks[key];
-        }
+        composed = composeMarkLists(composed, change, composeChild);
     }
     return composed;
 }
 
 function composeMarkLists(
-    baseMarkList: T.MarkList,
-    newMarkList: T.MarkList,
-): T.MarkList {
+    baseMarkList: F.MarkList,
+    newMarkList: F.MarkList,
+    composeChild: NodeChangeComposer,
+): F.MarkList {
     const factory = new MarkListFactory();
     const baseIter = new StackyIterator(baseMarkList);
     const newIter = new StackyIterator(newMarkList);
     for (let newMark of newIter) {
-        let baseMark: T.Mark | undefined = baseIter.pop();
+        let baseMark: F.Mark | undefined = baseIter.pop();
         if (baseMark === undefined) {
             // We have reached a region of the field that the base change does not affect.
             // We therefore adopt the new mark as is.
@@ -100,9 +82,9 @@ function composeMarkLists(
             // TODO: properly compose detach marks with their matching new marks if any.
             factory.pushContent(baseMark);
             newIter.push(newMark);
-        } else if (isTomb(baseMark) || isGapEffectMark(baseMark) || isTomb(newMark) || isGapEffectMark(newMark)) {
-            // We don't currently support Tomb and Gap marks (and don't offer ways to generate them).
-            fail("TODO: support Tomb and Gap marks");
+        } else if (isTomb(baseMark) || isTomb(newMark)) {
+            // We don't currently support Tomb marks (and don't offer ways to generate them).
+            fail("TODO: support Tomb marks");
         } else {
             // If we've reached this branch then `baseMark` and `newMark` start at the same location
             // in the document field at the revision after the base changes and before the new changes.
@@ -123,7 +105,7 @@ function composeMarkLists(
             // Past this point, we are guaranteed that `newMark` and `baseMark` have the same length and
             // start at the same location in the revision after the base changes.
             // They therefore refer to the same range for that revision.
-            const composedMark = composeMarks(baseMark, newMark);
+            const composedMark = composeMarks(baseMark, newMark, composeChild);
             factory.push(composedMark);
         }
     }
@@ -142,7 +124,11 @@ function composeMarkLists(
  * Its output range should be the same as `newMark`'s input range.
  * @returns A mark that is equivalent to applying both `baseMark` and `newMark` successively.
  */
-function composeMarks(baseMark: T.Mark, newMark: T.SizedMark): T.Mark {
+function composeMarks(
+    baseMark: F.Mark,
+    newMark: F.SizedMark,
+    composeChild: NodeChangeComposer,
+): F.Mark {
     if (isSkipMark(baseMark)) {
         return clone(newMark);
     }
@@ -177,7 +163,7 @@ function composeMarks(baseMark: T.Mark, newMark: T.SizedMark): T.Mark {
         case "MInsert": {
             switch (newType) {
                 case "Modify": {
-                    updateModifyLike(newMark, baseMark);
+                    updateModifyLike(newMark, baseMark, composeChild);
                     return baseMark;
                 }
                 case "Delete": {
@@ -191,10 +177,7 @@ function composeMarks(baseMark: T.Mark, newMark: T.SizedMark): T.Mark {
         case "Modify": {
             switch (newType) {
                 case "Modify": {
-                    updateModifyLike(newMark, baseMark);
-                    if (baseMark.fields === undefined && baseMark.value === undefined) {
-                        return 1;
-                    }
+                    updateModifyLike(newMark, baseMark, composeChild);
                     return baseMark;
                 }
                 case "Delete": {
@@ -208,12 +191,12 @@ function composeMarks(baseMark: T.Mark, newMark: T.SizedMark): T.Mark {
         case "Revive": {
             switch (newType) {
                 case "Modify": {
-                    const modRevive: T.ModifyReattach = {
+                    const modRevive: F.ModifyReattach = {
                         type: "MRevive",
                         id: baseMark.id,
                         tomb: baseMark.tomb,
+                        changes: newMark.changes,
                     };
-                    updateModifyLike(newMark, modRevive);
                     return modRevive;
                 }
                 case "Delete": {
@@ -227,15 +210,10 @@ function composeMarks(baseMark: T.Mark, newMark: T.SizedMark): T.Mark {
     }
 }
 
-function updateModifyLike(curr: T.Modify, base: T.ModifyInsert | T.Modify | T.ModifyReattach) {
-    if (curr.fields !== undefined) {
-        base.fields = composeFieldMarks(base.fields ?? {}, curr.fields);
-        if (Object.keys(base.fields).length === 0) {
-            delete base.fields;
-        }
-    }
-    if (curr.value !== undefined) {
-        // Later values override earlier ones
-        base.value = clone(curr.value);
-    }
+function updateModifyLike(
+    curr: F.Modify,
+    base: F.ModifyInsert | F.Modify | F.ModifyReattach,
+    composeChild: NodeChangeComposer,
+) {
+    base.changes = composeChild([base.changes, curr.changes]);
 }

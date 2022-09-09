@@ -3,18 +3,18 @@
  * Licensed under the MIT License.
  */
 
+import { NodeChangeRebaser } from "../modular-schema";
+import { clone, fail, StackyIterator } from "../../util";
 import {
     getInputLength,
     getOutputLength,
     isAttach,
     isReattach,
     isSkipMark,
-    MarkListFactory,
     splitMarkOnInput,
-    Transposed as T,
-} from "../../changeset";
-import { clone, fail, StackyIterator } from "../../util";
-import { SequenceChangeset } from "./sequenceChangeset";
+} from "./utils";
+import * as F from "./format";
+import { MarkListFactory } from "./markListFactory";
 
 /**
  * Rebases `change` over `base` assuming they both apply to the same initial state.
@@ -31,31 +31,24 @@ import { SequenceChangeset } from "./sequenceChangeset";
  * - Support for moves is not implemented.
  * - Support for slices is not implemented.
  */
-export function rebase(change: SequenceChangeset, base: SequenceChangeset): SequenceChangeset {
-    const fields = rebaseFieldMarks(change.marks, base.marks);
-    return {
-        marks: fields,
-    };
+export function rebase(
+    change: F.SequenceChange,
+    base: F.SequenceChange,
+    rebaseChild: NodeChangeRebaser,
+): F.SequenceChange {
+    return rebaseMarkList(change, base, rebaseChild);
 }
 
-function rebaseFieldMarks(change: T.FieldMarks, base: T.FieldMarks): T.FieldMarks {
-    const fields: T.FieldMarks = {};
-    for (const key of Object.keys(change)) {
-        if (key in base) {
-            fields[key] = rebaseMarkList(change[key], base[key]);
-        } else {
-            fields[key] = clone(change[key]);
-        }
-    }
-    return fields;
-}
-
-function rebaseMarkList(currMarkList: T.MarkList, baseMarkList: T.MarkList): T.MarkList {
+function rebaseMarkList(
+    currMarkList: F.MarkList,
+    baseMarkList: F.MarkList,
+    rebaseChild: NodeChangeRebaser,
+): F.MarkList {
     const factory = new MarkListFactory();
     const baseIter = new StackyIterator(baseMarkList);
     const currIter = new StackyIterator(currMarkList);
     for (let baseMark of baseIter) {
-        let currMark: T.Mark | undefined = currIter.pop();
+        let currMark: F.Mark | undefined = currIter.pop();
         if (currMark === undefined) {
             break;
         }
@@ -124,7 +117,7 @@ function rebaseMarkList(currMarkList: T.MarkList, baseMarkList: T.MarkList): T.M
     return factory.list;
 }
 
-function rebaseMark(currMark: T.SizedMark, baseMark: T.SizedMark): T.SizedMark {
+function rebaseMark(currMark: F.SizedMark, baseMark: F.SizedMark): F.SizedMark {
     if (isSkipMark(baseMark)) {
         return clone(currMark);
     }

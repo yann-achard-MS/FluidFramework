@@ -3,15 +3,16 @@
  * Licensed under the MIT License.
  */
 
-import { ChangesetTag, isSkipMark, OpId, Transposed as T } from "../../changeset";
 import { fail } from "../../util";
-import { SequenceChangeset } from "./sequenceChangeset";
+import { NodeChangeInverter } from "../modular-schema";
+import * as F from "./format";
+import { isSkipMark } from "./utils";
 
 /**
  * Dummy value used in place of the actual tag.
  * TODO: give `invert` access real tag data.
  */
- export const DUMMY_INVERT_TAG: ChangesetTag = "Dummy Invert Changeset Tag";
+ export const DUMMY_INVERT_TAG: F.ChangesetTag = "Dummy Invert Changeset Tag";
 
 /**
  * Dummy value used in place of actual repair data.
@@ -30,37 +31,26 @@ export const DUMMY_INVERSE_VALUE = "Dummy inverse value";
  * - Support for moves is not implemented.
  * - Support for slices is not implemented.
  */
-export function invert(change: SequenceChangeset): SequenceChangeset {
+export function invert(change: F.SequenceChange, invertChild: NodeChangeInverter): F.SequenceChange {
     // TODO: support the input change being a squash
-    const opIdToTag = (id: OpId): ChangesetTag => {
+    const opIdToTag = (id: F.OpId): F.ChangesetTag => {
         return DUMMY_INVERT_TAG;
     };
-    return {
-        marks: invertFieldMarks(change.marks, opIdToTag),
-    };
+    return invertMarkList(change, opIdToTag, invertChild);
 }
 
-type IdToTagLookup = (id: OpId) => ChangesetTag;
+type IdToTagLookup = (id: F.OpId) => F.ChangesetTag;
 
-function invertFieldMarks(fieldMarks: T.FieldMarks, opIdToTag: IdToTagLookup): T.FieldMarks {
-    const inverseFieldMarks: T.FieldMarks = {};
-    for (const key of Object.keys(fieldMarks)) {
-        const markList = fieldMarks[key];
-        inverseFieldMarks[key] = invertMarkList(markList, opIdToTag);
-    }
-    return inverseFieldMarks;
-}
-
-function invertMarkList(markList: T.MarkList, opIdToTag: IdToTagLookup): T.MarkList {
-    const inverseMarkList: T.MarkList = [];
+function invertMarkList(markList: F.MarkList, opIdToTag: IdToTagLookup, invertChild: NodeChangeInverter): F.MarkList {
+    const inverseMarkList: F.MarkList = [];
     for (const mark of markList) {
-        const inverseMarks = invertMark(mark, opIdToTag);
+        const inverseMarks = invertMark(mark, opIdToTag, invertChild);
         inverseMarkList.push(...inverseMarks);
     }
     return inverseMarkList;
 }
 
-function invertMark(mark: T.Mark, opIdToTag: IdToTagLookup): T.Mark[] {
+function invertMark(mark: F.Mark, opIdToTag: IdToTagLookup, invertChild: NodeChangeInverter): F.Mark[] {
     if (isSkipMark(mark)) {
         return [mark];
     } else {
@@ -89,19 +79,10 @@ function invertMark(mark: T.Mark, opIdToTag: IdToTagLookup): T.Mark[] {
                 }];
             }
             case "Modify": {
-                const modify: T.Modify = {
+                return [{
                     type: "Modify",
-                };
-                if (mark.value !== undefined) {
-                    modify.value = {
-                        id: mark.value.id,
-                        value: DUMMY_INVERSE_VALUE,
-                    };
-                }
-                if (mark.fields !== undefined) {
-                    modify.fields = invertFieldMarks(mark.fields, opIdToTag);
-                }
-                return [modify];
+                    changes: invertChild(mark.changes),
+                }];
             }
             default: fail("Not implemented");
         }
