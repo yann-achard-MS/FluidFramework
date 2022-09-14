@@ -10,6 +10,7 @@ import { TreeNavigationResult } from "../../forest";
 import { TestTreeProvider } from "../utils";
 import { ISharedTree } from "../../shared-tree";
 import { TransactionResult } from "../../checkout";
+import { TreeSchemaIdentifier } from "../../schema-stored";
 
 describe("SharedTree", () => {
     it("can be connected to another tree", async () => {
@@ -142,6 +143,54 @@ describe("SharedTree", () => {
                 assert.equal(readCursor.seek(1), TreeNavigationResult.Ok);
                 assert.equal(readCursor.value, 2);
                 assert.equal(readCursor.seek(1), TreeNavigationResult.NotFound);
+                readCursor.free();
+                tree2.forest.forgetAnchor(destination);
+            }
+        });
+
+        it("can insert and modify node", async () => {
+            const nodeType = brand<TreeSchemaIdentifier>("Node");
+            const provider = await TestTreeProvider.create(2);
+            const [tree1, tree2] = provider.trees;
+
+            // Insert node
+            tree1.runTransaction((forest, editor) => {
+                const writeCursor = singleTextCursor({
+                    type: nodeType,
+                    fields: { num: [{ type: nodeType, value: 41 }] },
+                });
+                editor.insert({
+                    parent: undefined,
+                    parentField: detachedFieldAsKey(forest.rootField),
+                    parentIndex: 0,
+                }, writeCursor);
+                return TransactionResult.Apply;
+            });
+
+            // Modify node
+            tree1.runTransaction((forest, editor) => {
+                editor.setValue({
+                    parent: {
+                        parent: undefined,
+                        parentField: detachedFieldAsKey(forest.rootField),
+                        parentIndex: 0,
+                    },
+                    parentField: brand("num"),
+                    parentIndex: 0,
+                }, 42);
+                return TransactionResult.Apply;
+            });
+
+            await provider.ensureSynchronized();
+
+            {
+                const readCursor = tree2.forest.allocateCursor();
+                const destination = tree2.forest.root(tree2.forest.rootField);
+                const cursorResult = tree2.forest.tryMoveCursorTo(destination, readCursor);
+                assert.equal(cursorResult, TreeNavigationResult.Ok);
+                assert.equal(readCursor.down(brand("num"), 0), TreeNavigationResult.Ok);
+                assert.equal(readCursor.seek(1), TreeNavigationResult.NotFound);
+                assert.equal(readCursor.value, 42);
                 readCursor.free();
                 tree2.forest.forgetAnchor(destination);
             }
