@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import { brand } from "../util";
 import { FieldKey } from "./types";
 
 /**
@@ -69,4 +70,16 @@ export function clonePath(path: UpPath | undefined): UpPath | undefined {
         parentField: path.parentField,
         parentIndex: path.parentIndex,
     };
+}
+
+export function upPathUnder(root: UpPath, tail: [string, number][]): UpPath {
+    const out = tail.reduce(
+        (parent: UpPath, hop: [string, number]): UpPath => ({
+            parent,
+            parentField: brand(hop[0]),
+            parentIndex: hop[1],
+        }),
+        root,
+    );
+    return out;
 }

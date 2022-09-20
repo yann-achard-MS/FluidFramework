@@ -283,6 +283,9 @@ export class AnchorSet {
                 assert(parentField !== undefined, 0x3a7 /* Must be in a field to delete */);
                 this.moveChildren(count, { parent, parentField, parentIndex: start }, undefined);
             },
+            onXForm: (index: number, op: string): void => {
+                assert(parentField !== undefined, 0x3a7 /* Must be in a field to transform */);
+            },
             onInsert: (start: number, content: Delta.ProtoNode[]): void => {
                 assert(parentField !== undefined, 0x3a8 /* Must be in a field to insert */);
                 this.moveChildren(content.length, undefined, { parent, parentField, parentIndex: start });

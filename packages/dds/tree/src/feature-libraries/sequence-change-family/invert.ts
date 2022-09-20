@@ -91,6 +91,9 @@ function invertMark(mark: T.Mark, opIdToTag: IdToTagLookup): T.Mark[] {
                     count: mark.count,
                 }];
             }
+            case "XForm": {
+                return [1];
+            }
             case "Modify": {
                 const modify: T.Modify = {
                     type: "Modify",

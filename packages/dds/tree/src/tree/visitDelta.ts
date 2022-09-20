@@ -80,6 +80,7 @@ export interface DeltaVisitor {
     onMoveOut(index: number, count: number, id: Delta.MoveId): void;
     onMoveIn(index: number, count: number, id: Delta.MoveId): void;
     onSetValue(value: Value): void;
+    onXForm(index: number, op: string): void;
     // TODO: better align this with ITreeCursor:
     // maybe rename its up and down to enter / exit? Maybe Also)?
     // Maybe also have cursor have "current field key" state to allow better handling of empty fields and better match
@@ -174,6 +175,9 @@ function firstPass(delta: Delta.MarkList, props: PassProps): void {
                 case Delta.MarkType.MoveInAndModify:
                     // Handled in the second pass
                     break;
+                case Delta.MarkType.XForm:
+                    visitor.onXForm(index, mark.op);
+                    break;
                 default: unreachableCase(type);
             }
         }
@@ -208,6 +212,10 @@ function secondPass(delta: Delta.MarkList, props: PassProps): void {
                     index += mark.content.length;
                     break;
                 case Delta.MarkType.InsertAndModify:
+                    // Handled in the first pass
+                    index += 1;
+                    break;
+                case Delta.MarkType.XForm:
                     // Handled in the first pass
                     index += 1;
                     break;

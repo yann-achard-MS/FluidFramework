@@ -138,6 +138,7 @@ export const empty: Root = new Map();
  */
 export type Mark =
     | Skip
+    | XForm
     | Modify
     | Delete
     | MoveOut
@@ -168,6 +169,11 @@ export interface Modify {
     type: typeof MarkType.Modify;
     setValue?: Value;
     fields?: FieldMarks;
+}
+
+export interface XForm {
+    type: typeof MarkType.XForm;
+    op: string;
 }
 
 /**
@@ -283,6 +289,7 @@ export const MarkType = {
     ModifyAndDelete: 6,
     MoveOut: 7,
     ModifyAndMoveOut: 8,
+    XForm: 9,
 } as const;
 
 /**
@@ -301,6 +308,7 @@ export function inputLength(mark: Mark): number {
         case MarkType.Modify:
         case MarkType.ModifyAndDelete:
         case MarkType.ModifyAndMoveOut:
+        case MarkType.XForm:
             return 1;
         case MarkType.Insert:
         case MarkType.InsertAndModify:
@@ -389,6 +397,9 @@ export function inputLength(mark: Mark): number {
                         case MarkType.Delete: {
                             outNodes.splice(index, mark.count);
                             break;
+                        }
+                        case MarkType.XForm: {
+                            fail("Not implemented");
                         }
                         case MarkType.ModifyAndDelete: {
                             // TODO: convert move-out of inserted content into insert at the destination

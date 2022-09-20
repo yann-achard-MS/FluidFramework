@@ -22,6 +22,13 @@ export class SequenceEditBuilder extends ProgressiveEditBuilder<SequenceChangese
         super(sequenceChangeFamily, deltaReceiver, anchorSet);
     }
 
+    public xForm(target: UpPath, xForm: string): void {
+        this.applyMarkAtPath({
+            type: "XForm",
+            op: xForm,
+        }, target);
+    }
+
     public setValue(node: NodePath, value: Value) {
         const modify: T.Modify & { value: T.SetValue; } = { type: "Modify", value: { id: 0 } };
         // Only set the `SetValue.value` field if the given `value` is defined.
