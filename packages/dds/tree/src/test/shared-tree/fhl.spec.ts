@@ -180,13 +180,6 @@ describe.only("FHL", () => {
 
         await provider.ensureSynchronized();
 
-        const logJson = (v: any): void => {
-            const str = JSON.stringify(v);
-            const obj = JSON.parse(str);
-            console.debug(obj);
-        };
-        logJson(person);
-
         tree2.runTransaction((forest, editor) => {
             const rootPath: UpPath = {
                 parent: undefined,
@@ -241,7 +234,51 @@ describe.only("FHL", () => {
             const cursorResult = tree2.forest.tryMoveCursorTo(destination, readCursor);
             assert.equal(cursorResult, TreeNavigationResult.Ok);
             const jsonIn = jsonableTreeFromCursor(readCursor);
-            logJson(jsonIn);
+            const expected: JsonableTree = {
+                type: personSchema.name,
+                fields: {
+                    name: [{ value: "Adam", type: stringSchema.name }],
+                    age: [{ value: 35, type: int32Schema.name }],
+                    salary: [{ value: 10420.2, type: float32Schema.name }],
+                    friends: [{ fields: {
+                        Mat: [{ type: stringSchema.name, value: "Mat" }],
+                    }, type: mapStringSchema.name }],
+                    address: [{
+                        fields: {
+                            street: [{ value: "treeStreet", type: stringSchema.name }],
+                            phones: [{
+                                type: phonesSchema.name,
+                                fields: {
+                                    [EmptyKey]: [
+                                        { type: complexPhoneSchema.name, fields: {
+                                            prefix: [{ value: "000", type: stringSchema.name }],
+                                            number: [{ value: "11111111", type: stringSchema.name }],
+                                            kind: [{ value: "cell", type: stringSchema.name }],
+                                        } },
+                                        { type: complexPhoneSchema.name, fields: {
+                                            prefix: [{ value: "123", type: stringSchema.name }],
+                                            number: [{ value: "11111111", type: stringSchema.name }],
+                                            kind: [{ value: "work", type: stringSchema.name }],
+                                        } },
+                                        { type: complexPhoneSchema.name, fields: {
+                                            prefix: [{ value: "456", type: stringSchema.name }],
+                                            number: [{ value: "11111111", type: stringSchema.name }],
+                                            kind: [{ value: "cell", type: stringSchema.name }],
+                                        } },
+                                        { type: complexPhoneSchema.name, fields: {
+                                            prefix: [{ value: "789", type: stringSchema.name }],
+                                            number: [{ value: "11111111", type: stringSchema.name }],
+                                            kind: [{ value: "cell", type: stringSchema.name }],
+                                        } },
+                                    ],
+                                },
+                            }],
+                        },
+                        type: addressSchema.name,
+                    }],
+                },
+            };
+            assert.deepEqual(jsonIn, expected);
             readCursor.free();
             tree2.forest.forgetAnchor(destination);
         }
