@@ -227,7 +227,7 @@ describe.only("FHL", () => {
 
         await provider.ensureSynchronized();
 
-        // Validate insertion
+        // Validate outcome
         {
             const readCursor = tree2.forest.allocateCursor();
             const destination = tree2.forest.root(tree2.forest.rootField);
