@@ -187,6 +187,37 @@ describe.only("FHL", () => {
         };
         logJson(person);
 
+        tree2.runTransaction((forest, editor) => {
+            const rootPath: UpPath = {
+                parent: undefined,
+                parentField: detachedFieldAsKey(forest.rootField),
+                parentIndex: 0,
+            };
+            const phoneListPath = upPathUnder(rootPath, [
+                ["address", 0],
+                ["phones", 0],
+            ]);
+            const phone1TypePath = upPathUnder(phoneListPath, [
+                [EmptyKey, 0],
+                ["type", 0],
+            ]);
+            const phone2TypePath = upPathUnder(phoneListPath, [
+                [EmptyKey, 1],
+                ["type", 0],
+            ]);
+            editor.setValue(phone1TypePath, "work");
+            editor.setValue(phone2TypePath, "mobile");
+            editor.insert(
+                upPathUnder(phoneListPath, [[EmptyKey, 0]]),
+                singleTextCursor({ type: complexPhoneSchema.name, fields: {
+                    prefix: [{ value: "000", type: stringSchema.name }],
+                    number: [{ value: "11111111", type: stringSchema.name }],
+                    type: [{ value: "mobile", type: stringSchema.name }],
+                } },
+            ));
+            return TransactionResult.Apply;
+        });
+
         tree1.runTransaction((forest, editor) => {
             const rootPath: UpPath = {
                 parent: undefined,
