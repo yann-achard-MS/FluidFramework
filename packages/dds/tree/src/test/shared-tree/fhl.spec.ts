@@ -42,7 +42,7 @@ const complexPhoneSchema = namedTreeSchema({
     localFields: {
         number: fieldSchema(FieldKinds.value, [stringSchema.name]),
         prefix: fieldSchema(FieldKinds.value, [stringSchema.name]),
-        type: fieldSchema(FieldKinds.value, [stringSchema.name]),
+        kind: fieldSchema(FieldKinds.value, [stringSchema.name]),
     },
     extraLocalFields: emptyField,
 });
@@ -147,17 +147,17 @@ describe.only("FHL", () => {
                                     { type: complexPhoneSchema.name, fields: {
                                         prefix: [{ value: "123", type: stringSchema.name }],
                                         number: [{ value: "11111111", type: stringSchema.name }],
-                                        type: [{ value: "mobile", type: stringSchema.name }],
+                                        kind: [{ value: "mobile", type: stringSchema.name }],
                                     } },
                                     { type: complexPhoneSchema.name, fields: {
                                         prefix: [{ value: "456", type: stringSchema.name }],
                                         number: [{ value: "11111111", type: stringSchema.name }],
-                                        type: [{ value: "home", type: stringSchema.name }],
+                                        kind: [{ value: "home", type: stringSchema.name }],
                                     } },
                                     { type: complexPhoneSchema.name, fields: {
                                         prefix: [{ value: "789", type: stringSchema.name }],
                                         number: [{ value: "11111111", type: stringSchema.name }],
-                                        type: [{ value: "mobile", type: stringSchema.name }],
+                                        kind: [{ value: "mobile", type: stringSchema.name }],
                                     } },
                                 ],
                             },
@@ -199,11 +199,11 @@ describe.only("FHL", () => {
             ]);
             const phone1TypePath = upPathUnder(phoneListPath, [
                 [EmptyKey, 0],
-                ["type", 0],
+                ["kind", 0],
             ]);
             const phone2TypePath = upPathUnder(phoneListPath, [
                 [EmptyKey, 1],
-                ["type", 0],
+                ["kind", 0],
             ]);
             editor.setValue(phone1TypePath, "work");
             editor.setValue(phone2TypePath, "mobile");
@@ -212,7 +212,7 @@ describe.only("FHL", () => {
                 singleTextCursor({ type: complexPhoneSchema.name, fields: {
                     prefix: [{ value: "000", type: stringSchema.name }],
                     number: [{ value: "11111111", type: stringSchema.name }],
-                    type: [{ value: "mobile", type: stringSchema.name }],
+                    kind: [{ value: "mobile", type: stringSchema.name }],
                 } },
             ));
             return TransactionResult.Apply;
@@ -228,7 +228,7 @@ describe.only("FHL", () => {
                 ["address", 0],
                 ["phones", 0],
             ]);
-            editor.xForm(phonesPath, `$ ~> | fields."".fields.type[value = "mobile"] | { "value": "cell" } |`);
+            editor.xForm(phonesPath, `$ ~> | fields."".fields.kind[value = "mobile"] | { "value": "cell" } |`);
             return TransactionResult.Apply;
         });
 
