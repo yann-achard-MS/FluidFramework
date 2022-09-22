@@ -227,31 +227,23 @@ describe("FHL", () => {
                 ["address", 0],
                 ["phones", 0],
             ]);
-            // const modify: T.Modify = {
-            //     type: "Modify",
-            //     fields: {
-            //         "": [{
-            //             type: "Delete",
-            //             count: 3,
-            //             id: 0,
-            //         }],
-            //     },
-            // };
+            const modifyPhone: T.Modify = {
+                type: "Modify",
+                fields: {
+                    kind: [{
+                        type: "Modify",
+                        value: { id: 0, value: "cell" },
+                    }],
+                },
+            };
+            const modifyPhoneStr = JSON.stringify(modifyPhone);
             const modify: string = `
                 {
                     "type": "Modify",
                     "fields": {
                         "": fields."".(
                             fields.kind.value[0] = "mobile"
-                            ? {
-                                "type": "Modify",
-                                "fields": {
-                                    "kind": [{
-                                        "type": "Modify",
-                                        "value": { "value": "cell" }
-                                    }]
-                                }
-                            }
+                            ? ${modifyPhoneStr}
                             : 1
                         )
                     }
