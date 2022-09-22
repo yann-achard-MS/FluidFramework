@@ -7,7 +7,7 @@ import { assert } from "@fluidframework/common-utils";
 import { ChangeEncoder, ChangeFamily, ProgressiveEditBuilder } from "../../change-family";
 import { ChangeRebaser } from "../../rebase";
 import { FieldKindIdentifier } from "../../schema-stored";
-import { AnchorSet, Delta, FieldKey, UpPath, Value } from "../../tree";
+import { AnchorSet, Delta, FieldKey, JsonableTree, UpPath, Value } from "../../tree";
 import { brand, getOrAddEmptyToMap, JsonCompatibleReadOnly } from "../../util";
 import {
     FieldChangeHandler,
@@ -26,7 +26,7 @@ import { FieldKind } from "./fieldKind";
  * @sealed
  */
 export class ModularChangeFamily implements
-    ChangeFamily<ModularEditBuilder, FieldChangeMap>,
+    ChangeFamily<ModularEditBuilder, FieldChangeMap, FieldChangeMap>,
     ChangeRebaser<FieldChangeMap> {
     readonly encoder: ChangeEncoder<FieldChangeMap>;
 
@@ -37,6 +37,14 @@ export class ModularChangeFamily implements
     }
 
     get rebaser(): ChangeRebaser<FieldChangeMap> { return this; }
+
+    concretize(change: FieldChangeMap, tree: JsonableTree): FieldChangeMap {
+        return change;
+    }
+
+    composeAbstract(changes: FieldChangeMap[]): FieldChangeMap {
+        return this.compose(changes);
+    }
 
     compose(changes: FieldChangeMap[]): FieldChangeMap {
         if (changes.length === 1) {
@@ -191,7 +199,11 @@ export class ModularChangeFamily implements
         return modify;
     }
 
-    buildEditor(deltaReceiver: (delta: Delta.Root) => void, anchors: AnchorSet): ModularEditBuilder {
+    buildEditor(
+        deltaReceiver: (delta: Delta.Root) => void,
+        _changeConcretizer: (change: FieldChangeMap) => FieldChangeMap,
+        anchors: AnchorSet,
+    ): ModularEditBuilder {
         return new ModularEditBuilder(this, deltaReceiver, anchors);
     }
 }
@@ -298,7 +310,7 @@ export class ModularEditBuilder extends ProgressiveEditBuilder<FieldChangeMap> {
         deltaReceiver: (delta: Delta.Root) => void,
         anchors: AnchorSet,
     ) {
-        super(family, deltaReceiver, anchors);
+        super(family, deltaReceiver, (c) => c, anchors);
         this.fieldKinds = family.fieldKinds;
     }
 

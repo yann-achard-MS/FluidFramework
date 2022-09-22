@@ -4,12 +4,17 @@
  */
 
 import { ChangeRebaser } from "../rebase";
-import { AnchorSet, Delta } from "../tree";
+import { AnchorSet, Delta, JsonableTree } from "../tree";
 import { ChangeEncoder } from "./changeEncoder";
 
-export interface ChangeFamily<TEditor, TChange> {
-    buildEditor(deltaReceiver: (delta: Delta.Root) => void, anchorSet: AnchorSet): TEditor;
+export interface ChangeFamily<TEditor, TChange, TAbstractChange = unknown> {
+    buildEditor(
+        deltaReceiver: (delta: Delta.Root) => void,
+        changeConcretizer: (change: TAbstractChange) => TChange,
+        anchorSet: AnchorSet,
+    ): TEditor;
     intoDelta(change: TChange): Delta.Root;
-    readonly rebaser: ChangeRebaser<TChange>;
-    readonly encoder: ChangeEncoder<TChange>;
+    concretize(change: TAbstractChange, tree: JsonableTree | undefined): TChange;
+    readonly rebaser: ChangeRebaser<TChange, TAbstractChange>;
+    readonly encoder: ChangeEncoder<TAbstractChange>;
 }

@@ -12,7 +12,10 @@ export class DefaultChangeFamily implements ChangeFamily<DefaultEditor, DefaultC
     readonly encoder = defaultChangeEncoder;
     readonly rebaser = new DefaultRebaser();
 
-    buildEditor(deltaReceiver: (delta: Delta.Root) => void, anchorSet: AnchorSet): DefaultEditor {
+    buildEditor(): DefaultEditor {
+        throw new Error("Method not implemented.");
+    }
+    concretize(): DefaultChangeset {
         throw new Error("Method not implemented.");
     }
     intoDelta(change: DefaultChangeset): Delta.Root {
@@ -35,6 +38,9 @@ export class DefaultRebaser implements ChangeRebaser<DefaultChangeset> {
     }
     _typeCheck?: Covariant<DefaultChangeset> & Contravariant<DefaultChangeset> & Invariant<DefaultChangeset>;
     compose(changes: DefaultChangeset[]): DefaultChangeset {
+        throw new Error("Method not implemented.");
+    }
+    composeAbstract(changes: DefaultChangeset[]): DefaultChangeset {
         throw new Error("Method not implemented.");
     }
     invert(changes: DefaultChangeset): DefaultChangeset {

@@ -9,6 +9,7 @@ import { AnchorSet } from "../../tree";
 
 const counterRebaser: ChangeRebaser<number> = {
     compose: (changes: number[]) => changes.reduce((a, b) => a + b, 0),
+    composeAbstract: (changes: number[]) => changes.reduce((a, b) => a + b, 0),
     invert: (change: number) => -change,
     rebase: (change: number, over: number) => change,
     rebaseAnchors: (anchor: AnchorSet, over: number) => {},
@@ -16,6 +17,7 @@ const counterRebaser: ChangeRebaser<number> = {
 
 const incorrectCounterRebaser: ChangeRebaser<number> = {
     compose: (changes: number[]) => changes.reduce((a, b) => a + b - 1, 0),
+    composeAbstract: (changes: number[]) => changes.reduce((a, b) => a + b - 1, 0),
     invert: (change: number) => -change + 1,
     rebase: (change: number, over: number) => change + 1,
     rebaseAnchors: (anchor: AnchorSet, over: number) => {},

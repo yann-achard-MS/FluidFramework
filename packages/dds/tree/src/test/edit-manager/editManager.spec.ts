@@ -9,7 +9,7 @@ import { ChangeEncoder, ChangeFamily } from "../../change-family";
 import { Commit, EditManager, SessionId } from "../../edit-manager";
 import { ChangeRebaser } from "../../rebase";
 import { AnchorSet, Delta, FieldKey } from "../../tree";
-import { brand, makeArray, RecursiveReadonly, JsonCompatible } from "../../util";
+import { brand, makeArray, RecursiveReadonly, JsonCompatible, Invariant } from "../../util";
 
 interface NonEmptyTestChangeset {
     /**
@@ -52,6 +52,10 @@ interface AnchorRebaseData {
 }
 
 class TestChangeRebaser implements ChangeRebaser<TestChangeset> {
+    _typeCheck?: Invariant<TestChangeset>;
+    composeAbstract(changes: TestChangeset[]): TestChangeset {
+        return this.compose(changes);
+    }
     public static mintChangeset(inputContext: readonly number[], intention: number): NonEmptyTestChangeset {
         return {
             inputContext: [...inputContext],
@@ -211,6 +215,7 @@ function changeFamilyFactory(rebaser?: ChangeRebaser<TestChangeset>): ChangeFami
     const family = {
         rebaser: rebaser ?? new TestChangeRebaser(),
         encoder: new TestChangeEncoder(),
+        concretize: (c: TestChangeset) => c,
         buildEditor: () => assert.fail("Unexpected call to buildEditor"),
         intoDelta: (change: TestChangeset): Delta.Root => asDelta(change.intentions),
     };

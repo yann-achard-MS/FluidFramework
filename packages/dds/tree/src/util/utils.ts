@@ -4,6 +4,37 @@
  */
 
 import structuredClone from "@ungap/structured-clone";
+import { jsonableTreeFromCursor } from "../feature-libraries";
+import { IForestSubscription, TreeNavigationResult } from "../forest";
+import { JsonableTree } from "../tree";
+
+export function deepFreeze<T>(object: T): void {
+	// Retrieve the property names defined on object
+	const propNames: (keyof T)[] = Object.getOwnPropertyNames(object) as (keyof T)[];
+	// Freeze properties before freezing self
+	for (const name of propNames) {
+		const value = object[name];
+		if (typeof value === "object") {
+			deepFreeze(value);
+		}
+	}
+	Object.freeze(object);
+}
+
+export function treeFromForest(forest: IForestSubscription): JsonableTree | undefined {
+    const cursor = forest.allocateCursor();
+    const destination = forest.root(forest.rootField);
+    const cursorResult = forest.tryMoveCursorTo(destination, cursor);
+    if (cursorResult !== TreeNavigationResult.Ok) {
+        cursor.free();
+        forest.forgetAnchor(destination);
+        return undefined;
+    }
+    const json = jsonableTreeFromCursor(cursor);
+    cursor.free();
+    forest.forgetAnchor(destination);
+    return json;
+}
 
 /**
  * Make all transitive properties in T readonly

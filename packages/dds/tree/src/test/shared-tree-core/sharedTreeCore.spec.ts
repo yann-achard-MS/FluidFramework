@@ -121,7 +121,7 @@ describe("SharedTreeCore", () => {
 
     function createTree(
         indexes?: Index<DefaultChangeset>[],
-    ): SharedTreeCore<DefaultChangeset, DefaultChangeFamily> {
+    ): SharedTreeCore<DefaultChangeset, DefaultChangeset, DefaultChangeFamily> {
         const runtime = new MockFluidDataStoreRuntime();
         const attributes: IChannelAttributes = {
             type: "TestSharedTree",

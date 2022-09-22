@@ -14,6 +14,7 @@ type TestChange = TestChange[] | { I: TestChange; } | { C: TestChange; O: TestCh
 
 const testRebaser: ChangeRebaser<TestChange> = {
     compose: (changes: TestChange[]) => changes,
+    composeAbstract: (changes: TestChange[]) => changes,
     invert: (change: TestChange) => ({ I: change }),
     rebase: (change: TestChange, over: TestChange) => ({ C: change, O: over }),
     rebaseAnchors: (anchor: AnchorSet, over: TestChange) => {},

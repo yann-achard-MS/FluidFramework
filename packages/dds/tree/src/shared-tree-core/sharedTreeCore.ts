@@ -12,9 +12,9 @@ import { ITelemetryContext, ISummaryTreeWithStats, IGarbageCollectionData } from
 import { mergeStats } from "@fluidframework/runtime-utils";
 import { IFluidSerializer, ISharedObjectEvents, SharedObject } from "@fluidframework/shared-object-base";
 import { ChangeFamily } from "../change-family";
-import { Commit, EditManager } from "../edit-manager";
+import { Commit, EditManager, SeqNumber } from "../edit-manager";
 import { AnchorSet, Delta } from "../tree";
-import { brand } from "../util";
+import { brand, deepFreeze } from "../util";
 
 /**
  * The events emitted by a {@link SharedTreeCore}
@@ -34,7 +34,11 @@ const formatVersion = 0;
  * TODO: actually implement
  * TODO: is history policy a detail of what indexes are used, or is there something else to it?
  */
-export class SharedTreeCore<TChange, TChangeFamily extends ChangeFamily<any, TChange>>
+export class SharedTreeCore<
+    TChange,
+    TAbstractChange,
+    TChangeFamily extends ChangeFamily<any, TChange, TAbstractChange>,
+>
     extends SharedObject<ISharedTreeCoreEvents> {
     public readonly editManager: EditManager<TChange, TChangeFamily>;
 
@@ -57,7 +61,8 @@ export class SharedTreeCore<TChange, TChangeFamily extends ChangeFamily<any, TCh
         id: string,
         runtime: IFluidDataStoreRuntime,
         attributes: IChannelAttributes,
-        telemetryContextPrefix: string) {
+        telemetryContextPrefix: string,
+    ) {
         super(id, runtime, attributes, telemetryContextPrefix);
 
         // TODO: clientId may not exist at SharedTree creation.
@@ -124,23 +129,38 @@ export class SharedTreeCore<TChange, TChangeFamily extends ChangeFamily<any, TCh
         this.editManager.setLocalSessionId(this.runtime.clientId);
     }
 
-    public submitEdit(edit: TChange): void {
-        const delta = this.editManager.addLocalChange(edit);
+    protected concretize(change: TAbstractChange, deltas: Delta.Root[]): TChange {
+        // TODO: make class abstract or something
+        return change as unknown as TChange;
+    }
+
+    public submitEdit(abstractChange: TAbstractChange): void {
+        const concreteChange = this.concretize(abstractChange, []);
+        const delta = this.editManager.addLocalChange(concreteChange);
         for (const index of this.indexes) {
-            index.newLocalChange?.(edit);
+            index.newLocalChange?.(concreteChange);
             index.newLocalState?.(delta);
         }
 
-        this.submitLocalMessage(this.changeFamily.encoder.encodeForJson(formatVersion, edit));
+        this.submitLocalMessage(this.changeFamily.encoder.encodeForJson(formatVersion, abstractChange));
     }
 
     protected processCore(message: ISequencedDocumentMessage, local: boolean, localOpMetadata: unknown) {
+        const refNumber = brand<SeqNumber>(message.referenceSequenceNumber);
         const changes = this.changeFamily.encoder.decodeJson(formatVersion, message.contents);
+        // TODO: Update the wire change with changes from the branch to update its anchors
+        // const branchChanges = this.editManager.getBranchUpdate(message.clientId, refNumber);
+        const localChanges = [...this.editManager.getLocalChanges() as TChange[]];
+        deepFreeze(localChanges);
+        const localInverseChanges = localChanges.map((c) => this.changeFamily.rebaser.invert(c)).reverse();
+        const localInverseDeltas = localInverseChanges.map((c) => this.changeFamily.intoDelta(c));
+        const concrete = this.concretize(changes, localInverseDeltas);
+
         const commit: Commit<TChange> = {
             sessionId: message.clientId,
             seqNumber: brand(message.sequenceNumber),
-            refNumber: brand(message.referenceSequenceNumber),
-            changeset: changes,
+            refNumber,
+            changeset: concrete,
         };
 
         const delta = this.editManager.addSequencedChange(commit);

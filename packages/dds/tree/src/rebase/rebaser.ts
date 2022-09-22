@@ -16,7 +16,7 @@ export type RevisionTag = Brand<number, "rebaser.RevisionTag">;
  *
  * @sealed
  */
-export class Rebaser<TChangeRebaser extends ChangeRebaser<any>> {
+export class Rebaser<TChangeRebaser extends ChangeRebaser<any, any>> {
     private lastRevision = 0;
 
     private makeRevision(): RevisionTag {
@@ -104,8 +104,8 @@ export class Rebaser<TChangeRebaser extends ChangeRebaser<any>> {
 
 // TODO: managing the types with this is not working well (inferring any for methods in Rebaser). Do something else.
 export type ChangesetFromChangeRebaser<
-    TChangeRebaser extends ChangeRebaser<any>,
-    > = TChangeRebaser extends ChangeRebaser<infer TChangeset>
+    TChangeRebaser extends ChangeRebaser<any, any>,
+    > = TChangeRebaser extends ChangeRebaser<infer TChangeset, any>
     ? TChangeset
     : never;
 
@@ -141,14 +141,15 @@ export type ChangesetFromChangeRebaser<
  * or just minor semantic precision issues, which could be tolerated.
  * For now assume that such issues are not ok.
  */
-export interface ChangeRebaser<TChangeset> {
-    _typeCheck?: Invariant<TChangeset>;
+export interface ChangeRebaser<TConcreteChange, TAbstractChange = TConcreteChange> {
+    _typeCheck?: Invariant<TConcreteChange>;
 
     /**
      * Compose a collection of changesets into a single one.
      * See {@link ChangeRebaser} for requirements.
      */
-    compose(changes: TChangeset[]): TChangeset;
+    compose(changes: TConcreteChange[]): TConcreteChange;
+    composeAbstract(changes: TAbstractChange[]): TAbstractChange;
 
     /**
      * @returns the inverse of `changes`.
@@ -156,7 +157,7 @@ export interface ChangeRebaser<TChangeset> {
      * `compose([changes, inverse(changes)])` be equal to `compose([])`:
      * See {@link ChangeRebaser} for details.
      */
-    invert(changes: TChangeset): TChangeset;
+    invert(changes: TConcreteChange): TConcreteChange;
 
     /**
      * Rebase `change` over `over`.
@@ -172,12 +173,12 @@ export interface ChangeRebaser<TChangeset> {
      * - `rebase(a, compose([]))` is equal to `a`.
      * - `rebase(compose([]), a)` is equal to `a`.
      */
-    rebase(change: TChangeset, over: TChangeset): TChangeset;
+    rebase(change: TConcreteChange, over: TConcreteChange): TConcreteChange;
 
     // TODO: we are forcing a single AnchorSet implementation, but also making ChangeRebaser deal depend on/use it.
     // This isn't ideal, but it might be fine?
     // Performance and implications for custom Anchor types (ex: Place anchors) aren't clear.
-    rebaseAnchors(anchors: AnchorSet, over: TChangeset): void;
+    rebaseAnchors(anchors: AnchorSet, over: TConcreteChange): void;
 }
 
 export interface FinalChange {

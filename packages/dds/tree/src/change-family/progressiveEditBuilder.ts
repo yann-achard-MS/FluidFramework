@@ -6,11 +6,13 @@
 import { AnchorSet, Delta } from "../tree";
 import { ChangeFamily } from "./changeFamily";
 
-export abstract class ProgressiveEditBuilder<TChange> {
-    private readonly changes: TChange[] = [];
+export abstract class ProgressiveEditBuilder<TConcreteChange, TWireChange = TConcreteChange> {
+    private readonly concrete: TConcreteChange[] = [];
+    private readonly abstract: TWireChange[] = [];
     constructor(
-        private readonly changeFamily: ChangeFamily<unknown, TChange>,
+        private readonly changeFamily: ChangeFamily<unknown, TConcreteChange, TWireChange>,
         private readonly deltaReceiver: (delta: Delta.Root) => void,
+        private readonly changeConcretizer: (change: TWireChange) => TConcreteChange,
         private readonly anchorSet: AnchorSet) {}
 
     /**
@@ -18,10 +20,12 @@ export abstract class ProgressiveEditBuilder<TChange> {
      *
      * @sealed
      */
-    protected applyChange(change: TChange): void {
-        this.changes.push(change);
-        this.changeFamily.rebaser.rebaseAnchors(this.anchorSet, change);
-        const delta = this.changeFamily.intoDelta(change);
+    protected applyChange(change: TWireChange): void {
+        this.abstract.push(change);
+        const concrete = this.changeConcretizer(change);
+        this.concrete.push(concrete);
+        this.changeFamily.rebaser.rebaseAnchors(this.anchorSet, concrete);
+        const delta = this.changeFamily.intoDelta(concrete);
         this.deltaReceiver(delta);
     }
 
@@ -29,7 +33,10 @@ export abstract class ProgressiveEditBuilder<TChange> {
      * @returns a copy of the internal change list so far.
      * @sealed
      */
-    public getChanges(): TChange[] {
-        return [...this.changes];
+    public getConcreteChanges(): TConcreteChange[] {
+        return [...this.concrete];
+    }
+    public getAbstractChanges(): TWireChange[] {
+        return [...this.abstract];
     }
 }

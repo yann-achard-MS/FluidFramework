@@ -48,6 +48,8 @@ enum Operation {
     Insert = 2,
 }
 
+const fail = () => { throw new Error("TODO: test concretizer"); };
+
 /**
  * @param seed - Random seed used to generate the change.
  * @param pathGenerator - Generator of random path.
@@ -55,7 +57,7 @@ enum Operation {
  */
 export function generateRandomChange(seed: number, pathGenerator: (seed: number) => UpPath): T.LocalChangeset {
     const random = makeRandom(seed);
-    const builder = new SequenceEditBuilder(() => {}, new AnchorSet());
+    const builder = new SequenceEditBuilder(() => {}, fail, new AnchorSet());
     const operation = random.integer(Operation.SetValue, Operation.Insert) as Operation;
     switch (operation) {
         case Operation.SetValue:
@@ -79,5 +81,5 @@ export function generateRandomChange(seed: number, pathGenerator: (seed: number)
         default: unreachableCase(operation);
     }
 
-    return builder.getChanges()[0];
+    return builder.getConcreteChanges()[0];
 }

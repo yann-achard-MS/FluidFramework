@@ -10,23 +10,26 @@ import { fail } from "../../util";
 import { jsonableTreeFromCursor } from "../treeTextCursorLegacy";
 import { Transposed as T } from "./changeset";
 import { sequenceChangeFamily } from "./sequenceChangeFamily";
-import { SequenceChangeset } from "./sequenceChangeset";
+import { AbstractChangeset, SequenceChangeset, WireChangeset } from "./sequenceChangeset";
 
-export class SequenceEditBuilder extends ProgressiveEditBuilder<SequenceChangeset> {
+export class SequenceEditBuilder extends ProgressiveEditBuilder<SequenceChangeset, WireChangeset> {
     private opId: number = 0;
 
     constructor(
         deltaReceiver: (delta: Delta.Root) => void,
+        changeConcretizer: (change: WireChangeset) => SequenceChangeset,
         anchorSet: AnchorSet,
     ) {
-        super(sequenceChangeFamily, deltaReceiver, anchorSet);
+        super(sequenceChangeFamily, deltaReceiver, changeConcretizer, anchorSet);
     }
 
     public xForm(target: UpPath, xForm: string): void {
-        this.applyMarkAtPath({
-            type: "XForm",
+        const change: AbstractChangeset = {
+            type: "Abstract",
+            path: target,
             op: xForm,
-        }, target);
+        };
+        this.applyChange(change);
     }
 
     public setValue(node: NodePath, value: Value) {

@@ -121,8 +121,8 @@ const fullSchemaData: SchemaData = {
     globalFieldSchema: new Map([[rootFieldKey, rootPersonSchema]]),
 };
 
-describe.only("FHL", () => {
-    it.only("can apply a transform-based edit", async () => {
+describe("FHL", () => {
+    it("can apply a transform-based edit", async () => {
         const provider = await TestTreeProvider.create(2);
         const [tree1, tree2] = provider.trees;
 

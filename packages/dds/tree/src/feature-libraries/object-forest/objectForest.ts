@@ -3,12 +3,8 @@
  * Licensed under the MIT License.
  */
 
-import jsonata from "jsonata";
 import { assert } from "@fluidframework/common-utils";
-import {
-    RootedTextCursor,
-    jsonableTreeFromCursor as jsonableTreeFromCursorLegacy,
-} from "../treeTextCursorLegacy";
+import { RootedTextCursor } from "../treeTextCursorLegacy";
 import {
     DisposingDependee, ObservingDependent, recordDependency, SimpleDependee, SimpleObservingDependent,
 } from "../../dependency-tracking";
@@ -24,7 +20,7 @@ import {
     ITreeCursorNew,
 } from "../../tree";
 import { brand, fail } from "../../util";
-import { jsonableTreeFromCursor, singleTextCursor } from "../treeTextCursor";
+import { jsonableTreeFromCursor } from "../treeTextCursor";
 
 export class ObjectForest extends SimpleDependee implements IEditableForest {
     private readonly dependent = new SimpleObservingDependent(() => this.invalidateDependents());
@@ -164,20 +160,7 @@ export class ObjectForest extends SimpleDependee implements IEditableForest {
             },
             onXForm: (index: number, op: string): void => {
                 assert(currentField !== undefined, 0x365 /* must be in field to transform */);
-                const readCursor = cursor.fork();
-                const result = readCursor.down(currentField, index);
-                assert(result === TreeNavigationResult.Ok, 0x36c /* can only enter existing nodes */);
-                const jsonIn = jsonableTreeFromCursorLegacy(readCursor);
-                readCursor.clear();
-                const log = (v: any): void => {
-                    console.debug(v);
-                };
-                const expression = jsonata(op);
-                expression.registerFunction("log", log);
-                const r = expression.evaluate(jsonIn);
-                const content: JsonableTree = r as JsonableTree;
-                visitor.onDelete(index, 1);
-                visitor.onInsert(index, [singleTextCursor(content)]);
+                fail("Encountered XForm");
             },
         };
         visitDelta(delta, visitor);

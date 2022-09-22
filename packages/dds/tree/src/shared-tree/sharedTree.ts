@@ -20,12 +20,14 @@ import {
     SequenceChangeFamily,
     SequenceChangeset,
     SequenceEditBuilder,
+    WireChangeset,
 } from "../feature-libraries";
 import { IForestSubscription } from "../forest";
 import { StoredSchemaRepository } from "../schema-stored";
 import { Index, SharedTreeCore } from "../shared-tree-core";
 import { Checkout as TransactionCheckout, runSynchronousTransaction } from "../transaction";
-import { AnchorSet } from "../tree";
+import { AnchorSet, Delta } from "../tree";
+import { fail, treeFromForest } from "../util";
 
 /**
  * Collaboratively editable tree distributed datastructure,
@@ -42,13 +44,17 @@ export interface ISharedTree extends ICheckout<SequenceEditBuilder>, ISharedObje
  * TODO: detail compatibility requirements.
  * TODO: expose or implement Checkout.
  */
-class SharedTree extends SharedTreeCore<SequenceChangeset, SequenceChangeFamily> implements ISharedTree {
+class SharedTree extends SharedTreeCore<
+    SequenceChangeset,
+    WireChangeset,
+    SequenceChangeFamily
+> implements ISharedTree {
     public readonly forest: IForestSubscription;
     /**
      * Rather than implementing TransactionCheckout, have a member that implements it.
      * This allows keeping the `IEditableForest` private.
      */
-    private readonly transactionCheckout: TransactionCheckout<SequenceEditBuilder, SequenceChangeset>;
+    private readonly transactionCheckout: TransactionCheckout<SequenceEditBuilder, SequenceChangeset, WireChangeset>;
 
     public constructor(
         id: string,
@@ -73,6 +79,14 @@ class SharedTree extends SharedTreeCore<SequenceChangeset, SequenceChangeFamily>
                 changeFamily: this.changeFamily,
                 submitEdit: (edit) => this.submitEdit(edit),
             };
+    }
+
+    protected concretize(change: WireChangeset, deltas: Delta.Root[]): SequenceChangeset {
+        if (deltas.length === 0) {
+            const json = treeFromForest(this.forest);
+            return this.changeFamily.concretize(change, json);
+        }
+        fail("TODO: apply local changes to the json tree");
     }
 
     public runTransaction(transaction: (
