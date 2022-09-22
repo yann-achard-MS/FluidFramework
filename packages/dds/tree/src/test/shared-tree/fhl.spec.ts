@@ -3,7 +3,13 @@
  * Licensed under the MIT License.
  */
 import { strict as assert } from "assert";
-import { emptyField, FieldKinds, jsonableTreeFromCursor, singleTextCursor } from "../../feature-libraries";
+import {
+    emptyField,
+    FieldKinds,
+    jsonableTreeFromCursor,
+    singleTextCursor,
+    Transposed as T,
+} from "../../feature-libraries";
 import { brand } from "../../util";
 import { detachedFieldAsKey, EmptyKey, JsonableTree, rootFieldKey, TreeValue, UpPath, upPathUnder } from "../../tree";
 import { TreeNavigationResult } from "../../forest";
@@ -123,6 +129,179 @@ const fullSchemaData: SchemaData = {
 
 describe("FHL", () => {
     it("can apply a transform-based edit", async () => {
+        const provider = await TestTreeProvider.create(2);
+        const [tree1, tree2] = provider.trees;
+
+        const person: JsonableTree = {
+            type: personSchema.name,
+            fields: {
+                name: [{ value: "Adam", type: stringSchema.name }],
+                age: [{ value: 35, type: int32Schema.name }],
+                salary: [{ value: 10420.2, type: float32Schema.name }],
+                friends: [{ fields: {
+                    Mat: [{ type: stringSchema.name, value: "Mat" }],
+                }, type: mapStringSchema.name }],
+                address: [{
+                    fields: {
+                        street: [{ value: "treeStreet", type: stringSchema.name }],
+                        phones: [{
+                            type: phonesSchema.name,
+                            fields: {
+                                [EmptyKey]: [
+                                    // { type: stringSchema.name, value: "+49123456778" },
+                                    // { type: int32Schema.name, value: 123456879 },
+                                    { type: complexPhoneSchema.name, fields: {
+                                        prefix: [{ value: "123", type: stringSchema.name }],
+                                        number: [{ value: "11111111", type: stringSchema.name }],
+                                        kind: [{ value: "mobile", type: stringSchema.name }],
+                                    } },
+                                    { type: complexPhoneSchema.name, fields: {
+                                        prefix: [{ value: "456", type: stringSchema.name }],
+                                        number: [{ value: "11111111", type: stringSchema.name }],
+                                        kind: [{ value: "home", type: stringSchema.name }],
+                                    } },
+                                    { type: complexPhoneSchema.name, fields: {
+                                        prefix: [{ value: "789", type: stringSchema.name }],
+                                        number: [{ value: "11111111", type: stringSchema.name }],
+                                        kind: [{ value: "mobile", type: stringSchema.name }],
+                                    } },
+                                ],
+                            },
+                        }],
+                    },
+                    type: addressSchema.name,
+                }],
+            },
+        };
+
+        // Init
+        tree1.runTransaction((forest, editor) => {
+            editor.insert({
+                parent: undefined,
+                parentField: detachedFieldAsKey(forest.rootField),
+                parentIndex: 0,
+            }, singleTextCursor(person));
+            return TransactionResult.Apply;
+        });
+
+        await provider.ensureSynchronized();
+
+        tree2.runTransaction((forest, editor) => {
+            const rootPath: UpPath = {
+                parent: undefined,
+                parentField: detachedFieldAsKey(forest.rootField),
+                parentIndex: 0,
+            };
+            const phoneListPath = upPathUnder(rootPath, [
+                ["address", 0],
+                ["phones", 0],
+            ]);
+            const phone1TypePath = upPathUnder(phoneListPath, [
+                [EmptyKey, 0],
+                ["kind", 0],
+            ]);
+            const phone2TypePath = upPathUnder(phoneListPath, [
+                [EmptyKey, 1],
+                ["kind", 0],
+            ]);
+            editor.setValue(phone1TypePath, "work");
+            editor.setValue(phone2TypePath, "mobile");
+            editor.insert(
+                upPathUnder(phoneListPath, [[EmptyKey, 0]]),
+                singleTextCursor({ type: complexPhoneSchema.name, fields: {
+                    prefix: [{ value: "000", type: stringSchema.name }],
+                    number: [{ value: "11111111", type: stringSchema.name }],
+                    kind: [{ value: "mobile", type: stringSchema.name }],
+                } },
+            ));
+            return TransactionResult.Apply;
+        });
+
+        tree1.runTransaction((forest, editor) => {
+            const rootPath: UpPath = {
+                parent: undefined,
+                parentField: detachedFieldAsKey(forest.rootField),
+                parentIndex: 0,
+            };
+            const phonesPath = upPathUnder(rootPath, [
+                ["address", 0],
+                ["phones", 0],
+            ]);
+            const modify: T.Modify = {
+                type: "Modify",
+                fields: {
+                    "": [{
+                        type: "Delete",
+                        count: 1,
+                        id: 0,
+                    }],
+                },
+            };
+            const modifyStr = JSON.stringify(modify);
+            editor.xForm(phonesPath, modifyStr);
+            return TransactionResult.Apply;
+        });
+
+        await provider.ensureSynchronized();
+
+        // Validate outcome
+        {
+            const readCursor = tree2.forest.allocateCursor();
+            const destination = tree2.forest.root(tree2.forest.rootField);
+            const cursorResult = tree2.forest.tryMoveCursorTo(destination, readCursor);
+            assert.equal(cursorResult, TreeNavigationResult.Ok);
+            const jsonIn = jsonableTreeFromCursor(readCursor);
+            const expected: JsonableTree = {
+                type: personSchema.name,
+                fields: {
+                    name: [{ value: "Adam", type: stringSchema.name }],
+                    age: [{ value: 35, type: int32Schema.name }],
+                    salary: [{ value: 10420.2, type: float32Schema.name }],
+                    friends: [{ fields: {
+                        Mat: [{ type: stringSchema.name, value: "Mat" }],
+                    }, type: mapStringSchema.name }],
+                    address: [{
+                        fields: {
+                            street: [{ value: "treeStreet", type: stringSchema.name }],
+                            phones: [{
+                                type: phonesSchema.name,
+                                fields: {
+                                    [EmptyKey]: [
+                                        { type: complexPhoneSchema.name, fields: {
+                                            prefix: [{ value: "000", type: stringSchema.name }],
+                                            number: [{ value: "11111111", type: stringSchema.name }],
+                                            kind: [{ value: "cell", type: stringSchema.name }],
+                                        } },
+                                        { type: complexPhoneSchema.name, fields: {
+                                            prefix: [{ value: "123", type: stringSchema.name }],
+                                            number: [{ value: "11111111", type: stringSchema.name }],
+                                            kind: [{ value: "work", type: stringSchema.name }],
+                                        } },
+                                        { type: complexPhoneSchema.name, fields: {
+                                            prefix: [{ value: "456", type: stringSchema.name }],
+                                            number: [{ value: "11111111", type: stringSchema.name }],
+                                            kind: [{ value: "cell", type: stringSchema.name }],
+                                        } },
+                                        { type: complexPhoneSchema.name, fields: {
+                                            prefix: [{ value: "789", type: stringSchema.name }],
+                                            number: [{ value: "11111111", type: stringSchema.name }],
+                                            kind: [{ value: "cell", type: stringSchema.name }],
+                                        } },
+                                    ],
+                                },
+                            }],
+                        },
+                        type: addressSchema.name,
+                    }],
+                },
+            };
+            assert.deepEqual(jsonIn, expected);
+            readCursor.free();
+            tree2.forest.forgetAnchor(destination);
+        }
+    });
+
+    it.skip("state to state xForm", async () => {
         const provider = await TestTreeProvider.create(2);
         const [tree1, tree2] = provider.trees;
 

@@ -20,14 +20,15 @@ import {
     SequenceChangeFamily,
     SequenceChangeset,
     SequenceEditBuilder,
+    singleTextCursorNew,
     WireChangeset,
 } from "../feature-libraries";
-import { IForestSubscription } from "../forest";
+import { IForestSubscription, initializeForest } from "../forest";
 import { StoredSchemaRepository } from "../schema-stored";
 import { Index, SharedTreeCore } from "../shared-tree-core";
 import { Checkout as TransactionCheckout, runSynchronousTransaction } from "../transaction";
 import { AnchorSet, Delta } from "../tree";
-import { fail, treeFromForest } from "../util";
+import { treeFromForest } from "../util";
 
 /**
  * Collaboratively editable tree distributed datastructure,
@@ -81,12 +82,25 @@ class SharedTree extends SharedTreeCore<
             };
     }
 
+    /**
+     * @param change - The abstract change to make concrete.
+     * @param deltas - The changes that would need to be applied to the current state in order to obtain
+     * the state upon which the `change` should apply.
+     */
     protected concretize(change: WireChangeset, deltas: Delta.Root[]): SequenceChangeset {
+        const current = treeFromForest(this.forest);
         if (deltas.length === 0) {
-            const json = treeFromForest(this.forest);
-            return this.changeFamily.concretize(change, json);
+            return this.changeFamily.concretize(change, current);
         }
-        fail("TODO: apply local changes to the json tree");
+        const forest = new ObjectForest(this.forest.schema);
+        if (current !== undefined) {
+            initializeForest(forest, [singleTextCursorNew(current)]);
+        }
+        for (const delta of deltas) {
+            forest.applyDelta(delta);
+        }
+        const json = treeFromForest(this.forest);
+        return this.changeFamily.concretize(change, json);
     }
 
     public runTransaction(transaction: (

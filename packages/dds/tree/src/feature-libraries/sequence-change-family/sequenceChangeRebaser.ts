@@ -26,6 +26,9 @@ export const sequenceChangeRebaser: SequenceChangeRebaser = {
 };
 
 function composeAbstract(changes: WireChangeset[]): WireChangeset {
+    if (changes.length === 1) {
+        return changes[0];
+    }
     if (changes.find(isAbstractChangeset) !== undefined) {
         throw new Error("TODO: compose abstract changesets");
     }
