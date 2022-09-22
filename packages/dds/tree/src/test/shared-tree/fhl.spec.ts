@@ -227,18 +227,37 @@ describe("FHL", () => {
                 ["address", 0],
                 ["phones", 0],
             ]);
-            const modify: T.Modify = {
-                type: "Modify",
-                fields: {
-                    "": [{
-                        type: "Delete",
-                        count: 3,
-                        id: 0,
-                    }],
-                },
-            };
-            const modifyStr = JSON.stringify(modify);
-            editor.xForm(phonesPath, modifyStr);
+            // const modify: T.Modify = {
+            //     type: "Modify",
+            //     fields: {
+            //         "": [{
+            //             type: "Delete",
+            //             count: 3,
+            //             id: 0,
+            //         }],
+            //     },
+            // };
+            const modify: string = `
+                {
+                    "type": "Modify",
+                    "fields": {
+                        "": fields."".(
+                            fields.kind.value[0] = "mobile"
+                            ? {
+                                "type": "Modify",
+                                "fields": {
+                                    "kind": [{
+                                        "type": "Modify",
+                                        "value": { "value": "cell" }
+                                    }]
+                                }
+                            }
+                            : 1
+                        )
+                    }
+                }
+            `;
+            editor.abstractChange(phonesPath, modify);
             return TransactionResult.Apply;
         });
 
@@ -400,7 +419,7 @@ describe("FHL", () => {
                 ["address", 0],
                 ["phones", 0],
             ]);
-            editor.xForm(phonesPath, `$ ~> | fields."".fields.kind[value = "mobile"] | { "value": "cell" } |`);
+            editor.abstractChange(phonesPath, `$ ~> | fields."".fields.kind[value = "mobile"] | { "value": "cell" } |`);
             return TransactionResult.Apply;
         });
 

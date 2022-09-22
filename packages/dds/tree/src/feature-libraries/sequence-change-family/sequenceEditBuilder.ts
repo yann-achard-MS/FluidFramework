@@ -23,7 +23,7 @@ export class SequenceEditBuilder extends ProgressiveEditBuilder<SequenceChangese
         super(sequenceChangeFamily, deltaReceiver, changeConcretizer, anchorSet);
     }
 
-    public xForm(target: UpPath, xForm: string): void {
+    public abstractChange(target: UpPath, xForm: string): void {
         const change: AbstractChangeset = {
             type: "Abstract",
             path: target,
