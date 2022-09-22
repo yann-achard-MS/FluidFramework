@@ -72,9 +72,11 @@ export function clonePath(path: UpPath | undefined): UpPath | undefined {
     };
 }
 
-export function upPathUnder(root: UpPath, tail: [string, number][]): UpPath {
+export function upPathUnder(root: UpPath, tail: [string, number][]): UpPath;
+export function upPathUnder(root: UpPath | undefined, tail: [string, number][]): UpPath | undefined;
+export function upPathUnder(root: UpPath | undefined, tail: [string, number][]): UpPath | undefined {
     const out = tail.reduce(
-        (parent: UpPath, hop: [string, number]): UpPath => ({
+        (parent: UpPath | undefined, hop: [string, number]): UpPath => ({
             parent,
             parentField: brand(hop[0]),
             parentIndex: hop[1],

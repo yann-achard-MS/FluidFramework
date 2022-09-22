@@ -8,7 +8,7 @@ import { ITreeCursor } from "../../forest";
 import { AnchorSet, UpPath, Value, Delta, getDepth } from "../../tree";
 import { fail } from "../../util";
 import { jsonableTreeFromCursor } from "../treeTextCursorLegacy";
-import { Transposed as T } from "./changeset";
+import { toFieldMarks, Transposed as T, wrap, wrap1, wrapN } from "./changeset";
 import { sequenceChangeFamily } from "./sequenceChangeFamily";
 import { AbstractChangeset, SequenceChangeset, WireChangeset } from "./sequenceChangeset";
 
@@ -185,40 +185,6 @@ export class SequenceEditBuilder extends ProgressiveEditBuilder<SequenceChangese
 interface NestBranch {
     marks: T.FieldMarks;
     path: UpPath | undefined;
-}
-
-function toFieldMarks(mark: T.Mark, node: UpPath): T.FieldMarks {
-    const key = node.parentField;
-    const index = node.parentIndex;
-    return {
-        [key as string]: index === 0 ? [mark] : [index, mark],
-    };
-}
-
-function wrapN(mark: T.FieldMarks, node: UpPath | undefined, depth: number) {
-    let currentNode: UpPath | undefined = node;
-    let out: T.FieldMarks = mark;
-    let currentDepth = 0;
-    while (currentNode !== undefined && currentDepth < depth) {
-        out = wrap1(out, currentNode);
-        currentDepth += 1;
-        currentNode = currentNode.parent;
-    }
-    return { marks: out, path: currentNode };
-}
-
-function wrap(mark: T.FieldMarks, node: UpPath | undefined): T.FieldMarks {
-    let currentNode: UpPath | undefined = node;
-    let out: T.FieldMarks = mark;
-    while (currentNode !== undefined) {
-        out = wrap1(out, currentNode);
-        currentNode = currentNode.parent;
-    }
-    return out;
-}
-
-function wrap1(marks: T.FieldMarks, node: UpPath): T.FieldMarks {
-    return toFieldMarks({ type: "Modify", fields: marks }, node);
 }
 
 /**

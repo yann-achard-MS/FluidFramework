@@ -4,6 +4,7 @@
  */
 
 import { unreachableCase } from "@fluidframework/common-utils";
+import { UpPath } from "../../../tree";
 import { fail } from "../../../util";
 import { Skip, Transposed as T } from "./format";
 
@@ -340,4 +341,38 @@ export function tryExtendMark(lhs: T.ObjectMark, rhs: Readonly<T.ObjectMark>): b
         default: break;
     }
     return false;
+}
+
+export function toFieldMarks(mark: T.Mark, node: UpPath): T.FieldMarks {
+    const key = node.parentField;
+    const index = node.parentIndex;
+    return {
+        [key as string]: index === 0 ? [mark] : [index, mark],
+    };
+}
+
+export function wrapN(mark: T.FieldMarks, node: UpPath | undefined, depth: number) {
+    let currentNode: UpPath | undefined = node;
+    let out: T.FieldMarks = mark;
+    let currentDepth = 0;
+    while (currentNode !== undefined && currentDepth < depth) {
+        out = wrap1(out, currentNode);
+        currentDepth += 1;
+        currentNode = currentNode.parent;
+    }
+    return { marks: out, path: currentNode };
+}
+
+export function wrap(mark: T.FieldMarks, node: UpPath | undefined): T.FieldMarks {
+    let currentNode: UpPath | undefined = node;
+    let out: T.FieldMarks = mark;
+    while (currentNode !== undefined) {
+        out = wrap1(out, currentNode);
+        currentNode = currentNode.parent;
+    }
+    return out;
+}
+
+export function wrap1(marks: T.FieldMarks, node: UpPath): T.FieldMarks {
+    return toFieldMarks({ type: "Modify", fields: marks }, node);
 }

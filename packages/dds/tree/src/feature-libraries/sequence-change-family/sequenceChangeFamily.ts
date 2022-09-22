@@ -4,9 +4,10 @@
  */
 
 import jsonata from "jsonata";
+import { Transposed as T } from "../../feature-libraries";
 import { ChangeFamily } from "../../change-family";
 import { AnchorSet, Delta, FieldKey, getGenericTreeField, JsonableTree, UpPath } from "../../tree";
-import { toDelta } from "./changeset";
+import { toDelta, toFieldMarks, wrap } from "./changeset";
 import { sequenceChangeRebaser } from "./sequenceChangeRebaser";
 import { isAbstractChangeset, sequenceChangeEncoder, SequenceChangeset, WireChangeset } from "./sequenceChangeset";
 import { SequenceEditBuilder } from "./sequenceEditBuilder";
@@ -45,17 +46,24 @@ function concretize(change: WireChangeset, tree: JsonableTree): SequenceChangese
         path = path.parent;
     }
 
+    // We pop the top part of the path because we can only target the blessed root right now
+    // TODO: target all roots.
+    stack.pop();
+
     let subTree = tree;
     while (stack.length > 0) {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const [key, index] = stack.pop()!;
-        const field = getGenericTreeField(tree, key, false);
+        const field = getGenericTreeField(subTree, key, false);
         subTree = field[index];
         if (subTree === undefined) {
             return { marks: {} };
         }
     }
     const expression = jsonata(change.op);
-    const concreteChange = expression.evaluate(subTree) as SequenceChangeset;
+    const mark = expression.evaluate(subTree) as T.Mark;
+    const concreteChange: SequenceChangeset = {
+        marks: wrap(toFieldMarks(mark, change.path), change.path.parent),
+    };
     return concreteChange;
 }
