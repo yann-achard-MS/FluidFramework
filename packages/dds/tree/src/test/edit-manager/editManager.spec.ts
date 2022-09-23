@@ -52,6 +52,9 @@ interface AnchorRebaseData {
 }
 
 class TestChangeRebaser implements ChangeRebaser<TestChangeset> {
+    rebaseAbstract(change: TestChangeset, over: TestChangeset): TestChangeset {
+        throw new Error("Method not implemented.");
+    }
     _typeCheck?: Invariant<TestChangeset>;
     composeAbstract(changes: TestChangeset[]): TestChangeset {
         return this.compose(changes);

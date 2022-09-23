@@ -192,8 +192,10 @@ describe("FHL", () => {
                 parentField: detachedFieldAsKey(forest.rootField),
                 parentIndex: 0,
             };
-            const phoneListPath = upPathUnder(rootPath, [
+            const addressPath = upPathUnder(rootPath, [
                 ["address", 0],
+            ]);
+            const phoneListPath = upPathUnder(addressPath, [
                 ["phones", 0],
             ]);
             const phone1TypePath = upPathUnder(phoneListPath, [
@@ -213,6 +215,16 @@ describe("FHL", () => {
                     number: [{ value: "11111111", type: stringSchema.name }],
                     kind: [{ value: "mobile", type: stringSchema.name }],
                 } },
+            ));
+            editor.insert(
+                addressPath,
+                singleTextCursor({
+                    type: addressSchema.name,
+                    fields: {
+                        street: [],
+                        phones: [],
+                    },
+                },
             ));
             return TransactionResult.Apply;
         });
@@ -271,39 +283,45 @@ describe("FHL", () => {
                     friends: [{ fields: {
                         Mat: [{ type: stringSchema.name, value: "Mat" }],
                     }, type: mapStringSchema.name }],
-                    address: [{
-                        fields: {
-                            street: [{ value: "treeStreet", type: stringSchema.name }],
-                            phones: [{
-                                type: phonesSchema.name,
-                                fields: {
-                                    [EmptyKey]: [
-                                        { type: complexPhoneSchema.name, fields: {
-                                            prefix: [{ value: "000", type: stringSchema.name }],
-                                            number: [{ value: "11111111", type: stringSchema.name }],
-                                            kind: [{ value: "cell", type: stringSchema.name }],
-                                        } },
-                                        { type: complexPhoneSchema.name, fields: {
-                                            prefix: [{ value: "123", type: stringSchema.name }],
-                                            number: [{ value: "11111111", type: stringSchema.name }],
-                                            kind: [{ value: "work", type: stringSchema.name }],
-                                        } },
-                                        { type: complexPhoneSchema.name, fields: {
-                                            prefix: [{ value: "456", type: stringSchema.name }],
-                                            number: [{ value: "11111111", type: stringSchema.name }],
-                                            kind: [{ value: "cell", type: stringSchema.name }],
-                                        } },
-                                        { type: complexPhoneSchema.name, fields: {
-                                            prefix: [{ value: "789", type: stringSchema.name }],
-                                            number: [{ value: "11111111", type: stringSchema.name }],
-                                            kind: [{ value: "cell", type: stringSchema.name }],
-                                        } },
-                                    ],
-                                },
-                            }],
+                    address: [
+                        {
+                            type: addressSchema.name,
+                            fields: { street: [], phones: [] },
                         },
-                        type: addressSchema.name,
-                    }],
+                        {
+                            fields: {
+                                street: [{ value: "treeStreet", type: stringSchema.name }],
+                                phones: [{
+                                    type: phonesSchema.name,
+                                    fields: {
+                                        [EmptyKey]: [
+                                            { type: complexPhoneSchema.name, fields: {
+                                                prefix: [{ value: "000", type: stringSchema.name }],
+                                                number: [{ value: "11111111", type: stringSchema.name }],
+                                                kind: [{ value: "cell", type: stringSchema.name }],
+                                            } },
+                                            { type: complexPhoneSchema.name, fields: {
+                                                prefix: [{ value: "123", type: stringSchema.name }],
+                                                number: [{ value: "11111111", type: stringSchema.name }],
+                                                kind: [{ value: "work", type: stringSchema.name }],
+                                            } },
+                                            { type: complexPhoneSchema.name, fields: {
+                                                prefix: [{ value: "456", type: stringSchema.name }],
+                                                number: [{ value: "11111111", type: stringSchema.name }],
+                                                kind: [{ value: "cell", type: stringSchema.name }],
+                                            } },
+                                            { type: complexPhoneSchema.name, fields: {
+                                                prefix: [{ value: "789", type: stringSchema.name }],
+                                                number: [{ value: "11111111", type: stringSchema.name }],
+                                                kind: [{ value: "cell", type: stringSchema.name }],
+                                            } },
+                                        ],
+                                    },
+                                }],
+                            },
+                            type: addressSchema.name,
+                        },
+                    ],
                 },
             };
             assert.deepEqual(jsonIn, expected);

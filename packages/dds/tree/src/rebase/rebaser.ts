@@ -174,6 +174,7 @@ export interface ChangeRebaser<TConcreteChange, TAbstractChange = TConcreteChang
      * - `rebase(compose([]), a)` is equal to `a`.
      */
     rebase(change: TConcreteChange, over: TConcreteChange): TConcreteChange;
+    rebaseAbstract(change: TAbstractChange, over: TConcreteChange): TAbstractChange;
 
     // TODO: we are forcing a single AnchorSet implementation, but also making ChangeRebaser deal depend on/use it.
     // This isn't ideal, but it might be fine?

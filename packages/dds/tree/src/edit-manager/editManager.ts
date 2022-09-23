@@ -68,6 +68,29 @@ export class EditManager<TChangeset, TChangeFamily extends ChangeFamily<any, TCh
         return this.localChanges;
     }
 
+    public getBranchUpdate(sessionId: SessionId, refNumber: SeqNumber): TChangeset[] {
+        if (sessionId === this.localSessionId) {
+            // We shouldn't need to compute any of this.
+            // This is another sign that the concretization ought to be happening in the EditManger.
+            return [this.changeFamily.rebaser.invert(this.localChanges[0])];
+        }
+        const orig = this.getOrCreateBranch(sessionId, refNumber);
+        const branch = {
+            ...orig,
+            localChanges: [...orig.localChanges],
+        };
+        this.updateBranch(branch, refNumber);
+        if (!branch.isDivergent && sessionId === this.getLastCommit()?.sessionId) {
+            // The new commit is not divergent and therefore doesn't need to be rebased.
+            return [];
+        }
+
+        return [
+            ...branch.localChanges.map((c) => this.changeFamily.rebaser.invert(c.changeset)),
+            ...this.getCommitsAfter(branch.refSeq).map((c) => c.changeset)
+        ];
+    }
+
     public addSequencedChange(newCommit: Commit<TChangeset>): Delta.Root {
         if (this.trunk.length > 0) {
             const lastSeqNumber = this.trunk[this.trunk.length - 1].seqNumber;
@@ -98,7 +121,6 @@ export class EditManager<TChangeset, TChangeFamily extends ChangeFamily<any, TCh
             ...newCommit,
             changeset: newChangeFullyRebased,
         });
-
         return this.changeFamily.intoDelta(this.rebaseLocalBranch(newChangeFullyRebased));
     }
 

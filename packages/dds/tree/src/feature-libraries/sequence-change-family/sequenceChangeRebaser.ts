@@ -22,8 +22,27 @@ export const sequenceChangeRebaser: SequenceChangeRebaser = {
     composeAbstract,
     invert,
     rebase,
+    rebaseAbstract,
     rebaseAnchors,
 };
+
+function rebaseAbstract(change: WireChangeset, base: SequenceChangeset): WireChangeset {
+    if (isAbstractChangeset(change)) {
+        const anchors = new AnchorSet();
+        const anchor = anchors.track(change.path);
+        anchors.applyDelta(toDelta(base));
+        const path = anchors.locate(anchor);
+        if (path === undefined) {
+            // TODO: support for anchors that come back
+            return { marks: {} };
+        }
+        return {
+            ...change,
+            path,
+        };
+    }
+    return rebase(change, base);
+}
 
 function composeAbstract(changes: WireChangeset[]): WireChangeset {
     if (changes.length === 1) {

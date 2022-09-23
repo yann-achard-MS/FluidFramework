@@ -17,6 +17,7 @@ const testRebaser: ChangeRebaser<TestChange> = {
     composeAbstract: (changes: TestChange[]) => changes,
     invert: (change: TestChange) => ({ I: change }),
     rebase: (change: TestChange, over: TestChange) => ({ C: change, O: over }),
+    rebaseAbstract: (change: TestChange, over: TestChange) => ({ C: change, O: over }),
     rebaseAnchors: (anchor: AnchorSet, over: TestChange) => {},
 };
 

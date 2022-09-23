@@ -8,7 +8,7 @@ import { ChangeEncoder, ChangeFamily, ProgressiveEditBuilder } from "../../chang
 import { ChangeRebaser } from "../../rebase";
 import { FieldKindIdentifier } from "../../schema-stored";
 import { AnchorSet, Delta, FieldKey, JsonableTree, UpPath, Value } from "../../tree";
-import { brand, getOrAddEmptyToMap, JsonCompatibleReadOnly } from "../../util";
+import { brand, getOrAddEmptyToMap, Invariant, JsonCompatibleReadOnly } from "../../util";
 import {
     FieldChangeHandler,
     FieldChangeMap,
@@ -34,6 +34,10 @@ export class ModularChangeFamily implements
         readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>,
     ) {
         this.encoder = new ModularChangeEncoder(this.fieldKinds);
+    }
+    _typeCheck?: Invariant<FieldChangeMap>;
+    rebaseAbstract(change: FieldChangeMap, over: FieldChangeMap): FieldChangeMap {
+        throw new Error("Method not implemented.");
     }
 
     get rebaser(): ChangeRebaser<FieldChangeMap> { return this; }

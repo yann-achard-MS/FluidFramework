@@ -13,6 +13,9 @@ const counterRebaser: ChangeRebaser<number> = {
     invert: (change: number) => -change,
     rebase: (change: number, over: number) => change,
     rebaseAnchors: (anchor: AnchorSet, over: number) => {},
+    rebaseAbstract: () => {
+        throw new Error("Function not implemented.");
+    },
 };
 
 const incorrectCounterRebaser: ChangeRebaser<number> = {
@@ -20,7 +23,10 @@ const incorrectCounterRebaser: ChangeRebaser<number> = {
     composeAbstract: (changes: number[]) => changes.reduce((a, b) => a + b - 1, 0),
     invert: (change: number) => -change + 1,
     rebase: (change: number, over: number) => change + 1,
-    rebaseAnchors: (anchor: AnchorSet, over: number) => {},
+    rebaseAnchors: (anchor: AnchorSet, over: number) => { },
+    rebaseAbstract: () => {
+        throw new Error("Function not implemented.");
+    },
 };
 
 describe("verifyChangeRebaser", () => {

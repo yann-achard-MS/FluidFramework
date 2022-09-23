@@ -33,6 +33,9 @@ export class DefaultChangeFamily implements ChangeFamily<DefaultEditor, DefaultC
 
 // TODO: implement
 export class DefaultRebaser implements ChangeRebaser<DefaultChangeset> {
+    rebaseAbstract(change: DefaultChangeset, over: DefaultChangeset): DefaultChangeset {
+        throw new Error("Method not implemented.");
+    }
     rebaseAnchors(anchor: AnchorSet, over: DefaultChangeset): void {
         throw new Error("Method not implemented.");
     }
