@@ -142,18 +142,15 @@ describe("FHL", () => {
                             fields: {
                                 [EmptyKey]: [
                                     { type: complexPhoneSchema.name, fields: {
-                                        prefix: [{ value: "123", type: stringSchema.name }],
-                                        number: [{ value: "11111111", type: stringSchema.name }],
+                                        number: [{ value: "B", type: stringSchema.name }],
                                         kind: [{ value: "mobile", type: stringSchema.name }],
                                     } },
                                     { type: complexPhoneSchema.name, fields: {
-                                        prefix: [{ value: "456", type: stringSchema.name }],
-                                        number: [{ value: "11111111", type: stringSchema.name }],
+                                        number: [{ value: "C", type: stringSchema.name }],
                                         kind: [{ value: "home", type: stringSchema.name }],
                                     } },
                                     { type: complexPhoneSchema.name, fields: {
-                                        prefix: [{ value: "789", type: stringSchema.name }],
-                                        number: [{ value: "11111111", type: stringSchema.name }],
+                                        number: [{ value: "D", type: stringSchema.name }],
                                         kind: [{ value: "mobile", type: stringSchema.name }],
                                     } },
                                 ],
@@ -203,8 +200,7 @@ describe("FHL", () => {
             editor.insert(
                 upPathUnder(phoneListPath, [[EmptyKey, 0]]),
                 singleTextCursor({ type: complexPhoneSchema.name, fields: {
-                    prefix: [{ value: "000", type: stringSchema.name }],
-                    number: [{ value: "11111111", type: stringSchema.name }],
+                    number: [{ value: "A", type: stringSchema.name }],
                     kind: [{ value: "mobile", type: stringSchema.name }],
                 } },
             ));
@@ -277,23 +273,19 @@ describe("FHL", () => {
                                     fields: {
                                         [EmptyKey]: [
                                             { type: complexPhoneSchema.name, fields: {
-                                                prefix: [{ value: "000", type: stringSchema.name }],
-                                                number: [{ value: "11111111", type: stringSchema.name }],
+                                                number: [{ value: "A", type: stringSchema.name }],
                                                 kind: [{ value: "cell", type: stringSchema.name }],
                                             } },
                                             { type: complexPhoneSchema.name, fields: {
-                                                prefix: [{ value: "123", type: stringSchema.name }],
-                                                number: [{ value: "11111111", type: stringSchema.name }],
+                                                number: [{ value: "B", type: stringSchema.name }],
                                                 kind: [{ value: "work", type: stringSchema.name }],
                                             } },
                                             { type: complexPhoneSchema.name, fields: {
-                                                prefix: [{ value: "456", type: stringSchema.name }],
-                                                number: [{ value: "11111111", type: stringSchema.name }],
+                                                number: [{ value: "C", type: stringSchema.name }],
                                                 kind: [{ value: "cell", type: stringSchema.name }],
                                             } },
                                             { type: complexPhoneSchema.name, fields: {
-                                                prefix: [{ value: "789", type: stringSchema.name }],
-                                                number: [{ value: "11111111", type: stringSchema.name }],
+                                                number: [{ value: "D", type: stringSchema.name }],
                                                 kind: [{ value: "cell", type: stringSchema.name }],
                                             } },
                                         ],
