@@ -135,21 +135,12 @@ describe("FHL", () => {
         const person: JsonableTree = {
             type: personSchema.name,
             fields: {
-                name: [{ value: "Adam", type: stringSchema.name }],
-                age: [{ value: 35, type: int32Schema.name }],
-                salary: [{ value: 10420.2, type: float32Schema.name }],
-                friends: [{ fields: {
-                    Mat: [{ type: stringSchema.name, value: "Mat" }],
-                }, type: mapStringSchema.name }],
                 address: [{
                     fields: {
-                        street: [{ value: "treeStreet", type: stringSchema.name }],
                         phones: [{
                             type: phonesSchema.name,
                             fields: {
                                 [EmptyKey]: [
-                                    // { type: stringSchema.name, value: "+49123456778" },
-                                    // { type: int32Schema.name, value: 123456879 },
                                     { type: complexPhoneSchema.name, fields: {
                                         prefix: [{ value: "123", type: stringSchema.name }],
                                         number: [{ value: "11111111", type: stringSchema.name }],
@@ -220,10 +211,6 @@ describe("FHL", () => {
                 addressPath,
                 singleTextCursor({
                     type: addressSchema.name,
-                    fields: {
-                        street: [],
-                        phones: [],
-                    },
                 },
             ));
             return TransactionResult.Apply;
@@ -277,20 +264,12 @@ describe("FHL", () => {
             const expected: JsonableTree = {
                 type: personSchema.name,
                 fields: {
-                    name: [{ value: "Adam", type: stringSchema.name }],
-                    age: [{ value: 35, type: int32Schema.name }],
-                    salary: [{ value: 10420.2, type: float32Schema.name }],
-                    friends: [{ fields: {
-                        Mat: [{ type: stringSchema.name, value: "Mat" }],
-                    }, type: mapStringSchema.name }],
                     address: [
                         {
                             type: addressSchema.name,
-                            fields: { street: [], phones: [] },
                         },
                         {
                             fields: {
-                                street: [{ value: "treeStreet", type: stringSchema.name }],
                                 phones: [{
                                     type: phonesSchema.name,
                                     fields: {
