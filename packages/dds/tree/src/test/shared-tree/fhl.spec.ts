@@ -130,7 +130,7 @@ const fullSchemaData: SchemaData = {
 describe("FHL", () => {
     it("can apply an abstract edit", async () => {
         const provider = await TestTreeProvider.create(2);
-        const [tree1, tree2] = provider.trees;
+        const [client1, client2] = provider.trees;
 
         const person: JsonableTree = {
             type: personSchema.name,
@@ -165,8 +165,8 @@ describe("FHL", () => {
             },
         };
 
-        // Init
-        tree1.runTransaction((forest, editor) => {
+        // Init document with person tree
+        client1.runTransaction((forest, editor) => {
             editor.insert({
                 parent: undefined,
                 parentField: detachedFieldAsKey(forest.rootField),
@@ -177,7 +177,8 @@ describe("FHL", () => {
 
         await provider.ensureSynchronized();
 
-        tree2.runTransaction((forest, editor) => {
+        // Make all kinds of changes to the person tree
+        client2.runTransaction((forest, editor) => {
             const rootPath: UpPath = {
                 parent: undefined,
                 parentField: detachedFieldAsKey(forest.rootField),
@@ -216,7 +217,8 @@ describe("FHL", () => {
             return TransactionResult.Apply;
         });
 
-        tree1.runTransaction((forest, editor) => {
+        // Update "mobile" phone kind to "cell"
+        client1.runTransaction((forest, editor) => {
             const rootPath: UpPath = {
                 parent: undefined,
                 parentField: detachedFieldAsKey(forest.rootField),
@@ -256,9 +258,9 @@ describe("FHL", () => {
 
         // Validate outcome
         {
-            const readCursor = tree2.forest.allocateCursor();
-            const destination = tree2.forest.root(tree2.forest.rootField);
-            const cursorResult = tree2.forest.tryMoveCursorTo(destination, readCursor);
+            const readCursor = client2.forest.allocateCursor();
+            const destination = client2.forest.root(client2.forest.rootField);
+            const cursorResult = client2.forest.tryMoveCursorTo(destination, readCursor);
             assert.equal(cursorResult, TreeNavigationResult.Ok);
             const jsonIn = jsonableTreeFromCursor(readCursor);
             const expected: JsonableTree = {
@@ -305,7 +307,7 @@ describe("FHL", () => {
             };
             assert.deepEqual(jsonIn, expected);
             readCursor.free();
-            tree2.forest.forgetAnchor(destination);
+            client2.forest.forgetAnchor(destination);
         }
     });
 
