@@ -38,11 +38,6 @@ export namespace Transposed {
 
 	export type MarkList<TMark = Mark> = TMark[];
 
-	export interface XForm {
-		type: "XForm";
-		op: string;
-	}
-
 	export type Mark =
 		| SizedMark
 		| Attach;
@@ -58,7 +53,6 @@ export namespace Transposed {
 	export type SizedObjectMark =
 		| Tomb
 		| Modify
-		| XForm
 		| Detach
 		| Reattach
 		| ModifyReattach

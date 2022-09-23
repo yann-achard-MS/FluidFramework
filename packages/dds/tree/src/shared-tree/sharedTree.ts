@@ -23,12 +23,11 @@ import {
     singleTextCursorNew,
     WireChangeset,
 } from "../feature-libraries";
-import { IForestSubscription, initializeForest } from "../forest";
+import { IForestSubscription, initializeForest, treeFromForest } from "../forest";
 import { StoredSchemaRepository } from "../schema-stored";
 import { Index, SharedTreeCore } from "../shared-tree-core";
 import { Checkout as TransactionCheckout, runSynchronousTransaction } from "../transaction";
 import { AnchorSet, Delta } from "../tree";
-import { treeFromForest } from "../util";
 
 /**
  * Collaboratively editable tree distributed datastructure,

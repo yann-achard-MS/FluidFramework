@@ -3,10 +3,9 @@
  * Licensed under the MIT License.
  */
 
-import { IEditableForest, IForestSubscription } from "../forest";
+import { IEditableForest, IForestSubscription, treeFromForest } from "../forest";
 import { ChangeFamily, ProgressiveEditBuilder } from "../change-family";
 import { TransactionResult } from "../checkout";
-import { treeFromForest } from "../util";
 
 /**
  * The interface a checkout has to implement for a transaction to be able to be applied to it.
@@ -29,10 +28,11 @@ class Transaction<
     constructor(
         private readonly forest: IEditableForest,
         changeFamily: ChangeFamily<TEditor, TChange, TWireChange>,
+        changeConcretizer: (change: TWireChange) => TChange,
     ) {
         this.editor = changeFamily.buildEditor(
             (delta) => this.forest.applyDelta(delta),
-            (change) => changeFamily.concretize(change, treeFromForest(forest)),
+            changeConcretizer,
             forest.anchors,
         );
     }
@@ -49,7 +49,9 @@ export function runSynchronousTransaction<
         editor: TEditor
     ) => TransactionResult,
 ): TransactionResult {
-    const t = new Transaction(checkout.forest, checkout.changeFamily);
+    const concretizer = (change: TWireChange) =>
+        checkout.changeFamily.concretize(change, treeFromForest(checkout.forest));
+    const t = new Transaction(checkout.forest, checkout.changeFamily, concretizer);
     const result = command(checkout.forest, t.editor);
     const concreteChanges = t.editor.getConcreteChanges();
     const abstractChanges = t.editor.getAbstractChanges();

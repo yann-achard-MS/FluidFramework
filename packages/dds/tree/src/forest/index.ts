@@ -11,6 +11,7 @@ export {
     reduceField,
 } from "./cursorLegacy";
 export * from "./forest";
+export * from "./utils";
 export {
     IEditableForest, FieldLocation, TreeLocation, isFieldLocation, ForestLocation, initializeForest,
 } from "./editableForest";

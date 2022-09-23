@@ -81,13 +81,6 @@ function convertMarkList(marks: T.MarkList): Delta.MarkList {
                     }
                     break;
                 }
-                case "XForm": {
-                    out.pushContent({
-                        type: Delta.MarkType.XForm,
-                        op: mark.op,
-                    });
-                    break;
-                }
                 case "Delete": {
                     const deleteMark: Delta.Delete = {
                         type: Delta.MarkType.Delete,
@@ -253,8 +246,6 @@ function applyOrCollectModifications(
                         fail(ERR_BOUNCE_ON_INSERT);
                     case "Intake":
                         fail(ERR_INTAKE_ON_INSERT);
-                    case "XForm":
-                        fail(ERR_XFORM_ON_INSERT);
                     case "Modify": {
                         if ("tomb" in mark) {
                             continue;
@@ -314,7 +305,6 @@ const ERR_NOT_IMPLEMENTED = "Not implemented";
 const ERR_TOMB_IN_INSERT = "Encountered a concurrent deletion in inserted content";
 const ERR_BOUNCE_ON_INSERT = "Encountered a Bounce mark in an inserted field";
 const ERR_INTAKE_ON_INSERT = "Encountered an Intake mark in an inserted field";
-const ERR_XFORM_ON_INSERT = "Encountered an XForm mark in an inserted field";
 const ERR_REVIVE_ON_INSERT = "Encountered a Revive mark in an inserted field";
 const ERR_RETURN_ON_INSERT = "Encountered a Return mark in an inserted field";
 

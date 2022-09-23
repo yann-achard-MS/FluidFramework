@@ -175,9 +175,6 @@ function firstPass(delta: Delta.MarkList, props: PassProps): void {
                 case Delta.MarkType.MoveInAndModify:
                     // Handled in the second pass
                     break;
-                case Delta.MarkType.XForm:
-                    visitor.onXForm(index, mark.op);
-                    break;
                 default: unreachableCase(type);
             }
         }
@@ -212,10 +209,6 @@ function secondPass(delta: Delta.MarkList, props: PassProps): void {
                     index += mark.content.length;
                     break;
                 case Delta.MarkType.InsertAndModify:
-                    // Handled in the first pass
-                    index += 1;
-                    break;
-                case Delta.MarkType.XForm:
                     // Handled in the first pass
                     index += 1;
                     break;

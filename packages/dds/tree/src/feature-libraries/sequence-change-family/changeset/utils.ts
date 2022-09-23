@@ -119,7 +119,6 @@ export function getOutputLength(mark: T.Mark): number {
         case "MReturn":
         case "MRevive":
         case "Modify":
-        case "XForm":
             return 1;
         case "Delete":
         case "MDelete":
@@ -155,7 +154,6 @@ export function getInputLength(mark: T.Mark): number {
         case "MReturn":
         case "MRevive":
         case "Modify":
-        case "XForm":
         case "MDelete":
         case "MMoveOut":
             return 1;
@@ -189,7 +187,6 @@ export function splitMarkOnInput<TMark extends T.SizedMark>(mark: TMark, length:
     const type = markObj.type;
     switch (type) {
         case "Modify":
-        case "XForm":
         case "MDelete":
         case "MMoveOut":
         case "MReturn":
@@ -226,7 +223,6 @@ export function splitMarkOnOutput<TMark extends T.Mark>(mark: TMark, length: num
     const type = markObj.type;
     switch (type) {
         case "Modify":
-        case "XForm":
         case "MReturn":
         case "MRevive":
         case "MInsert":
