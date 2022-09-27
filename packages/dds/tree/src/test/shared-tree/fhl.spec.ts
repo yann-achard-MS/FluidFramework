@@ -11,7 +11,7 @@ import {
     Transposed as T,
 } from "../../feature-libraries";
 import { brand } from "../../util";
-import { detachedFieldAsKey, EmptyKey, JsonableTree, rootFieldKey, TreeValue, UpPath, upPathUnder } from "../../tree";
+import { detachedFieldAsKey, EmptyKey, JsonableTree, rootFieldKey, TreeValue, UpPath, upPathUnder, Value } from "../../tree";
 import { TreeNavigationResult } from "../../forest";
 import { TestTreeProvider } from "../utils";
 import { ISharedTree } from "../../shared-tree";
@@ -224,7 +224,12 @@ describe("FHL", () => {
                 ["address", 0],
                 ["phones", 0],
             ]);
-            const change: string = `
+            const changeOp = arrayEdit({
+                select: fieldPredicate({ kind: valueIsEq(`"mobile"`) }),
+                change: fieldEdit({ kind: setValue(`"cell"`) }),
+            });
+            editor.abstractChange(phonesPath, changeOp);
+            const sentString = `
                 {
                     "type": "Modify",
                     "fields": {
@@ -244,7 +249,6 @@ describe("FHL", () => {
                     }
                 }
             `;
-            editor.abstractChange(phonesPath, change);
             return TransactionResult.Apply;
         });
 
@@ -300,168 +304,6 @@ describe("FHL", () => {
             client2.forest.forgetAnchor(destination);
         }
     });
-
-    it.skip("state to state xForm", async () => {
-        const provider = await TestTreeProvider.create(2);
-        const [tree1, tree2] = provider.trees;
-
-        const person: JsonableTree = {
-            type: personSchema.name,
-            fields: {
-                name: [{ value: "Adam", type: stringSchema.name }],
-                age: [{ value: 35, type: int32Schema.name }],
-                salary: [{ value: 10420.2, type: float32Schema.name }],
-                friends: [{ fields: {
-                    Mat: [{ type: stringSchema.name, value: "Mat" }],
-                }, type: mapStringSchema.name }],
-                address: [{
-                    fields: {
-                        street: [{ value: "treeStreet", type: stringSchema.name }],
-                        phones: [{
-                            type: phonesSchema.name,
-                            fields: {
-                                [EmptyKey]: [
-                                    // { type: stringSchema.name, value: "+49123456778" },
-                                    // { type: int32Schema.name, value: 123456879 },
-                                    { type: complexPhoneSchema.name, fields: {
-                                        prefix: [{ value: "123", type: stringSchema.name }],
-                                        number: [{ value: "11111111", type: stringSchema.name }],
-                                        kind: [{ value: "mobile", type: stringSchema.name }],
-                                    } },
-                                    { type: complexPhoneSchema.name, fields: {
-                                        prefix: [{ value: "456", type: stringSchema.name }],
-                                        number: [{ value: "11111111", type: stringSchema.name }],
-                                        kind: [{ value: "home", type: stringSchema.name }],
-                                    } },
-                                    { type: complexPhoneSchema.name, fields: {
-                                        prefix: [{ value: "789", type: stringSchema.name }],
-                                        number: [{ value: "11111111", type: stringSchema.name }],
-                                        kind: [{ value: "mobile", type: stringSchema.name }],
-                                    } },
-                                ],
-                            },
-                        }],
-                    },
-                    type: addressSchema.name,
-                }],
-            },
-        };
-
-        // Init
-        tree1.runTransaction((forest, editor) => {
-            editor.insert({
-                parent: undefined,
-                parentField: detachedFieldAsKey(forest.rootField),
-                parentIndex: 0,
-            }, singleTextCursor(person));
-            return TransactionResult.Apply;
-        });
-
-        await provider.ensureSynchronized();
-
-        tree2.runTransaction((forest, editor) => {
-            const rootPath: UpPath = {
-                parent: undefined,
-                parentField: detachedFieldAsKey(forest.rootField),
-                parentIndex: 0,
-            };
-            const phoneListPath = upPathUnder(rootPath, [
-                ["address", 0],
-                ["phones", 0],
-            ]);
-            const phone1TypePath = upPathUnder(phoneListPath, [
-                [EmptyKey, 0],
-                ["kind", 0],
-            ]);
-            const phone2TypePath = upPathUnder(phoneListPath, [
-                [EmptyKey, 1],
-                ["kind", 0],
-            ]);
-            editor.setValue(phone1TypePath, "work");
-            editor.setValue(phone2TypePath, "mobile");
-            editor.insert(
-                upPathUnder(phoneListPath, [[EmptyKey, 0]]),
-                singleTextCursor({ type: complexPhoneSchema.name, fields: {
-                    prefix: [{ value: "000", type: stringSchema.name }],
-                    number: [{ value: "11111111", type: stringSchema.name }],
-                    kind: [{ value: "mobile", type: stringSchema.name }],
-                } },
-            ));
-            return TransactionResult.Apply;
-        });
-
-        tree1.runTransaction((forest, editor) => {
-            const rootPath: UpPath = {
-                parent: undefined,
-                parentField: detachedFieldAsKey(forest.rootField),
-                parentIndex: 0,
-            };
-            const phonesPath = upPathUnder(rootPath, [
-                ["address", 0],
-                ["phones", 0],
-            ]);
-            editor.abstractChange(phonesPath, `$ ~> | fields."".fields.kind[value = "mobile"] | { "value": "cell" } |`);
-            return TransactionResult.Apply;
-        });
-
-        await provider.ensureSynchronized();
-
-        // Validate outcome
-        {
-            const readCursor = tree2.forest.allocateCursor();
-            const destination = tree2.forest.root(tree2.forest.rootField);
-            const cursorResult = tree2.forest.tryMoveCursorTo(destination, readCursor);
-            assert.equal(cursorResult, TreeNavigationResult.Ok);
-            const jsonIn = jsonableTreeFromCursor(readCursor);
-            const expected: JsonableTree = {
-                type: personSchema.name,
-                fields: {
-                    name: [{ value: "Adam", type: stringSchema.name }],
-                    age: [{ value: 35, type: int32Schema.name }],
-                    salary: [{ value: 10420.2, type: float32Schema.name }],
-                    friends: [{ fields: {
-                        Mat: [{ type: stringSchema.name, value: "Mat" }],
-                    }, type: mapStringSchema.name }],
-                    address: [{
-                        fields: {
-                            street: [{ value: "treeStreet", type: stringSchema.name }],
-                            phones: [{
-                                type: phonesSchema.name,
-                                fields: {
-                                    [EmptyKey]: [
-                                        { type: complexPhoneSchema.name, fields: {
-                                            prefix: [{ value: "000", type: stringSchema.name }],
-                                            number: [{ value: "11111111", type: stringSchema.name }],
-                                            kind: [{ value: "cell", type: stringSchema.name }],
-                                        } },
-                                        { type: complexPhoneSchema.name, fields: {
-                                            prefix: [{ value: "123", type: stringSchema.name }],
-                                            number: [{ value: "11111111", type: stringSchema.name }],
-                                            kind: [{ value: "work", type: stringSchema.name }],
-                                        } },
-                                        { type: complexPhoneSchema.name, fields: {
-                                            prefix: [{ value: "456", type: stringSchema.name }],
-                                            number: [{ value: "11111111", type: stringSchema.name }],
-                                            kind: [{ value: "cell", type: stringSchema.name }],
-                                        } },
-                                        { type: complexPhoneSchema.name, fields: {
-                                            prefix: [{ value: "789", type: stringSchema.name }],
-                                            number: [{ value: "11111111", type: stringSchema.name }],
-                                            kind: [{ value: "cell", type: stringSchema.name }],
-                                        } },
-                                    ],
-                                },
-                            }],
-                        },
-                        type: addressSchema.name,
-                    }],
-                },
-            };
-            assert.deepEqual(jsonIn, expected);
-            readCursor.free();
-            tree2.forest.forgetAnchor(destination);
-        }
-    });
 });
 
 /**
@@ -497,4 +339,56 @@ function getTestValue({ forest }: ISharedTree): TreeValue | undefined {
     }
 
     return undefined;
+}
+
+function arrayEdit({ select: filter, change }: { select: string; change: string; }): string {
+    return `
+        {
+            "type": "Modify",
+            "fields": {
+                "": fields."".(
+                    ${filter}
+                    ? ${change}
+                    : 1
+                )
+            }
+        }
+    `;
+}
+
+function fieldEdit(fields: Record<string, string>) {
+    const changes: string[] = [];
+    for (const key of Object.keys(fields)) {
+        if (Object.prototype.hasOwnProperty.call(fields, key)) {
+            changes.push(`"${key}": ${fields[key]}`);
+        }
+    }
+    return `{
+        "type": "Modify",
+        "fields": {
+            ${changes.join(",\n")}
+        }
+    }`;
+}
+
+function valueIsEq(value: string): string {
+    return `value[0] = ${value}`;
+}
+
+function fieldPredicate(fields: Record<string, string>) {
+    const changes: string[] = [];
+    for (const key of Object.keys(fields)) {
+        if (Object.prototype.hasOwnProperty.call(fields, key)) {
+            changes.push(`${key}.${fields[key]}`);
+        }
+    }
+    assert.equal(changes.length, 1);
+    return `fields.${changes[0]}`;
+}
+
+function setValue(value: string) {
+    return `[{
+        "type": "Modify",
+        "value": { "id": 0, "value": ${value} }
+    }]`;
 }
