@@ -239,8 +239,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.7"
-     inkscape:cx="17670.053"
-     inkscape:cy="804.27289"
+     inkscape:cx="19106.5"
+     inkscape:cy="713.6996"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
@@ -2606,7 +2606,7 @@
          style="stroke-width:0.264583"
          y="216.95796"
          x="4911.4229"
-         sodipodi:role="line">Con: Hard to compose</tspan><tspan
+         sodipodi:role="line">Con: Non-trivial to optimize through squash</tspan><tspan
          id="tspan1730"
          style="stroke-width:0.264583"
          y="228.59958"
