@@ -9,6 +9,118 @@ import { JsonableTree, TreeValue } from "../../../tree";
 // Clipboard
 // Constraint scheme
 
+export namespace Atomic {
+	/**
+	 * Immune to concurrent attaches.
+	 * On concurrent detach: set the `tomb` field.
+	 */
+	interface SlicedNode {
+		type: "SlicedNode";
+		tomb?: ChangesetTag;
+
+		/**
+		 * ID minted at the time this was originally created (before any rebasing or squashing).
+		 * This ID is unique across all marks from the same client (and globally unique when
+		 * the ShortId-to-GUID decompression scheme taken into account).
+		 */
+		markId: ShortId;
+	}
+
+	/**
+	 * Immune to concurrent attaches.
+	 * On concurrent detach: set the `tomb` field.
+	 */
+	interface JitSlicedNode {
+		type: "JitSlicedNode";
+		tomb?: ChangesetTag;
+
+		/**
+		 * ID minted at the time the primeval gap mark was originally created (before any rebasing or squashing).
+		 * This ID is unique across all `JitSlicedNode` marks from the same client (and globally unique when
+		 * the ShortId-to-GUID decompression scheme is taken into account).
+		 */
+		primevalId: ShortId;
+
+		/**
+		 * ID of the atomic attach operation that introduced the node targeted this mark.
+		 * Only specified for a node whose existence was brought about by a concurrent insert.
+		 * This ID is unique across all `JitSlicedNode` marks with the same `primevalId`.
+		 */
+		contentId?: ShortId
+	}
+
+	/**
+	 * On concurrent attach of k nodes that commutes with some of the effects:
+	 *
+	 * 1. Preserve this `SlicedGap` as is.
+	 *
+	 * 2. Add k pairs of `[JitSlicedNode, SlicedGap]` after this mark such that both marks
+	 * bear the same `primevalId` as this gap and use the `contentId` matching kth attach mark atom.
+	 * The newly created `SlicedGap`s should only include the effects with which they commuted.
+	 *
+	 * On concurrent attach of k nodes that do not commute with any of the effects:
+	 *
+	 * 1. Preserve this `SlicedGap` as is.
+	 *
+	 * 2. Add a pair of marks `[Skip(k), SlicedGap]` after this mark such that the SlicedGap bears
+	 * the same `primevalId` as this gap and uses the `contentId` matching last attach mark atom.
+	 *
+	 * On concurrent detach: set the `tomb` field.
+	 */
+	interface SlicedGap extends GapEffectPolicy {
+		type: "SlicedGap";
+		tomb?: ChangesetTag;
+		
+		/**
+		 * ID minted at the time the primeval gap mark was originally created (before any rebasing or squashing).
+		 * This ID is unique across all gap marks from the same client (and globally unique when
+		 * the ShortId-to-GUID decompression scheme is taken into account).
+		 */
+		primevalId: ShortId;
+		
+		/**
+		 * ID of the atomic attach operation that introduced the node to the left of this gap.
+		 * Only specified for a gap whose existence was brought about by a concurrent insert.
+		 * This ID is unique across all gap marks with the same `primevalId`.
+		 */
+		contentId?: ShortId;
+
+		/**
+		 * Stack of effects applying to the gap.
+		 */
+		stack: GapEffectKind[];
+	}
+
+	export enum GapEffectKind {
+		Scorch,
+		Fwd,
+		Heal,
+		UnFwd,
+	}
+
+	export interface GapEffectPolicy {
+		/**
+		 * When `true`, if a concurrent insertion that is sequenced before the range operation falls
+		 * within the bounds of the range, then the inserted content will *not* be included in the
+		 * range and therefore will *not* be affected by the operation performed on the range.
+		 *
+		 * Defaults to false.
+		 */
+		excludePriorInsertions?: true;
+		/**
+		 * When `true`, if a concurrent insertion that is sequenced after the range operation falls
+		 * within the bounds of the range, then the inserted content will be included in the range and
+		 * therefore will be affected by the operation performed on the range, unless that insertion
+		 * stipulates that it is not commutative with respect to the range operation.
+		 *
+		 * Defaults to false.
+		 */
+		includePosteriorInsertions?: true;
+	}
+
+	type ShortId = number;
+}
+
 /**
  * Changeset that has may have been transposed (i.e., rebased and/or postbased).
  */
