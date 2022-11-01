@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { FieldKindIdentifier, Delta, FieldKey, Value, TaggedChange } from "../../core";
+import { FieldKindIdentifier, Delta, FieldKey, Value, TaggedChange, RevisionTag } from "../../core";
 import { Brand, Invariant, JsonCompatibleReadOnly } from "../../util";
 
 /**
@@ -29,13 +29,13 @@ export interface FieldChangeRebaser<TChangeset> {
      * Compose a collection of changesets into a single one.
      * See {@link ChangeRebaser} for details.
      */
-    compose(changes: TChangeset[], composeChild: NodeChangeComposer): TChangeset;
+    compose(changes: TChangeset[], composeChild: NodeRebaser): TChangeset;
 
     /**
      * @returns the inverse of `changes`.
      * See {@link ChangeRebaser} for details.
      */
-    invert(change: TaggedChange<TChangeset>, invertChild: NodeChangeInverter): TChangeset;
+    invert(change: TaggedChange<TChangeset>, invertChild: NodeRebaser): TChangeset;
 
     /**
      * Rebase `change` over `over`.
@@ -43,8 +43,18 @@ export interface FieldChangeRebaser<TChangeset> {
      */
     rebase(
         change: TChangeset,
-        over: TaggedChange<TChangeset>,
-        rebaseChild: NodeChangeRebaser,
+        base: TaggedChange<TChangeset>,
+        rebaseChild: NodeRebaser,
+    ): TChangeset;
+
+    /**
+     * Unbase `change` from `over`.
+     * See {@link ChangeRebaser} for details.
+     */
+    unbase(
+        change: TChangeset,
+        base: TaggedChange<TChangeset>,
+        rebaseChild: NodeRebaser,
     ): TChangeset;
 }
 
@@ -52,15 +62,54 @@ export interface FieldChangeRebaser<TChangeset> {
  * Helper for creating a {@link FieldChangeRebaser} which does not need access to revision tags
  */
 export function referenceFreeFieldChangeRebaser<TChangeset>(data: {
-    compose: (changes: TChangeset[], composeChild: NodeChangeComposer) => TChangeset;
-    invert: (change: TChangeset, invertChild: NodeChangeInverter) => TChangeset;
-    rebase: (change: TChangeset, over: TChangeset, rebaseChild: NodeChangeRebaser) => TChangeset;
+    compose: (changes: TChangeset[], nodeRebaser: ReferenceFreeNodeRebaser) => TChangeset;
+    invert: (change: TChangeset, nodeRebaser: ReferenceFreeNodeRebaser) => TChangeset;
+    rebase: (
+        change: TChangeset,
+        over: TChangeset,
+        nodeRebaser: ReferenceFreeNodeRebaser,
+    ) => TChangeset;
 }): FieldChangeRebaser<TChangeset> {
     return {
         compose: data.compose,
-        invert: (change, invertChild) => data.invert(change.change, invertChild),
-        rebase: (change, over, rebaseChild) => data.rebase(change, over.change, rebaseChild),
+        invert: (change, nodeRebaser) =>
+            data.invert(change.change, refFreeNodeRebaser(nodeRebaser, change.revision)),
+        rebase: (change, base, nodeRebaser) =>
+            data.rebase(change, base.change, refFreeNodeRebaser(nodeRebaser, base.revision)),
+        unbase: (change, base, nodeRebaser) => {
+            const inverse = data.invert(
+                base.change,
+                refFreeNodeRebaser(nodeRebaser, base.revision),
+            );
+            const unbased = data.rebase(
+                change,
+                inverse,
+                refFreeNodeRebaser(nodeRebaser, inverse.revision),
+            );
+            return unbased;
+        },
     };
+}
+
+function refFreeNodeRebaser(
+    nodeRebaser: NodeRebaser,
+    revision: RevisionTag | undefined,
+): ReferenceFreeNodeRebaser {
+    return {
+        rebase: (change: NodeChangeset, base: NodeChangeset) =>
+            nodeRebaser.rebase(change, { revision, change: base }),
+        unbase: (change: NodeChangeset, base: NodeChangeset) =>
+            nodeRebaser.unbase(change, { revision, change: base }),
+        invert: (change: NodeChangeset) => nodeRebaser.invert({ revision, change }),
+        compose: (changes: NodeChangeset[]) => nodeRebaser.compose(changes),
+    };
+}
+
+export interface ReferenceFreeNodeRebaser {
+    rebase(change: NodeChangeset, base: NodeChangeset): NodeChangeset;
+    unbase(change: NodeChangeset, base: NodeChangeset): NodeChangeset;
+    invert(change: NodeChangeset): NodeChangeset;
+    compose(changes: NodeChangeset[]): NodeChangeset;
 }
 
 export interface FieldChangeEncoder<TChangeset> {
@@ -92,11 +141,12 @@ export interface FieldEditor<TChangeset> {
 
 export type ToDelta = (child: NodeChangeset) => Delta.Modify;
 
-export type NodeChangeInverter = (change: NodeChangeset) => NodeChangeset;
-
-export type NodeChangeRebaser = (change: NodeChangeset, baseChange: NodeChangeset) => NodeChangeset;
-
-export type NodeChangeComposer = (changes: NodeChangeset[]) => NodeChangeset;
+export interface NodeRebaser {
+    rebase(change: NodeChangeset, base: TaggedChange<NodeChangeset>): NodeChangeset;
+    unbase(change: NodeChangeset, base: TaggedChange<NodeChangeset>): NodeChangeset;
+    invert(change: TaggedChange<NodeChangeset>): NodeChangeset;
+    compose(changes: NodeChangeset[]): NodeChangeset;
+}
 
 export type NodeChangeEncoder = (change: NodeChangeset) => JsonCompatibleReadOnly;
 export type NodeChangeDecoder = (change: JsonCompatibleReadOnly) => NodeChangeset;

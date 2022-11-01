@@ -139,21 +139,21 @@ export interface ChangeRebaser<TChangeset> {
     _typeCheck?: Invariant<TChangeset>;
 
     /**
-     * Compose a collection of changesets into a single one.
+     * Compose a collection of changesets into a single one.  Sometimes written `A ○ B `.
      * See {@link ChangeRebaser} for requirements.
      */
     compose(changes: TChangeset[]): TChangeset;
 
     /**
-     * @returns the inverse of `changes`.
+     * @returns the inverse of `change`. Sometimes written `change⁻¹`.
      *
      * `compose([changes, inverse(changes)])` be equal to `compose([])`:
      * See {@link ChangeRebaser} for details.
      */
-    invert(changes: TaggedChange<TChangeset>): TChangeset;
+    invert(change: TaggedChange<TChangeset>): TChangeset;
 
     /**
-     * Rebase `change` over `over`.
+     * Rebase `change` over `over`. Sometimes written `change ↷ base`.
      *
      * The resulting changeset should, as much as possible, replicate the same semantics as `change`,
      * except be valid to apply after `over` instead of before it.
@@ -162,11 +162,26 @@ export interface ChangeRebaser<TChangeset> {
      * The implementation must ensure that for all possible changesets `a`, `b` and `c`:
      * - `rebase(a, compose([b, c])` is equal to `rebase(rebase(a, b), c)`.
      * - `rebase(compose([a, b]), c)` is equal to
-     * `compose([rebase(a, c), rebase(b, compose([inverse(a), c, rebase(a, c)])])`.
+     * `compose([rebase(a, c), rebase(unbase(a, b), compose(c, rebase(a, c)])])`.
      * - `rebase(a, compose([]))` is equal to `a`.
      * - `rebase(compose([]), a)` is equal to `a`.
      */
     rebase(change: TChangeset, over: TaggedChange<TChangeset>): TChangeset;
+
+    /**
+     * Unbase `change` from `base`. Sometimes written `base ↶ change`.
+     *
+     * @param change - The changeset to unbase.
+     * @param base - The changeset which produced the context that `change` is based on.
+     *
+     * Requirements:
+     * The implementation must ensure that for all possible changesets `a`, `b`:
+     * - `unbase(a, rebase(b, a))` is equal to `b`.
+     * - `rebase(b, unbase(a, b))` is equal to `b`.
+     * - `unbase(a, compose([]))` is equal to `compose([])`.
+     * - `unbase(compose([]), a)` is equal to `a`.
+     */
+    unbase(change: TChangeset, base: TaggedChange<TChangeset>): TChangeset;
 
     // TODO: we are forcing a single AnchorSet implementation, but also making ChangeRebaser deal depend on/use it.
     // This isn't ideal, but it might be fine?

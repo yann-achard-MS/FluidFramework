@@ -26,6 +26,7 @@ import {
     FieldChangeset,
     NodeChangeset,
     ValueChange,
+    NodeRebaser,
 } from "./fieldChangeHandler";
 import { FieldKind } from "./fieldKind";
 import { convertGenericChange, GenericChangeset, genericFieldKind } from "./genericFieldKind";
@@ -41,8 +42,15 @@ export class ModularChangeFamily
     implements ChangeFamily<ModularEditBuilder, FieldChangeMap>, ChangeRebaser<FieldChangeMap>
 {
     readonly encoder: ChangeEncoder<FieldChangeMap>;
-    private readonly childComposer = (childChanges: NodeChangeset[]) =>
-        this.composeNodeChanges(childChanges);
+
+    private readonly nodeRebaser: NodeRebaser = {
+        invert: (change: TaggedChange<NodeChangeset>) => this.invertNodeChange(change),
+        compose: (changes: NodeChangeset[]) => this.composeNodeChanges(changes),
+        rebase: (change: NodeChangeset, base: TaggedChange<NodeChangeset>) =>
+            this.rebaseNodeChange(change, base),
+        unbase: (change: NodeChangeset, base: TaggedChange<NodeChangeset>) =>
+            this.unbaseNodeChange(change, base),
+    };
 
     constructor(readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>) {
         this.encoder = new ModularChangeEncoder(this.fieldKinds);
@@ -81,7 +89,7 @@ export class ModularChangeFamily
                 return convertGenericChange(
                     genericChange,
                     handler,
-                    this.childComposer,
+                    this.nodeRebaser,
                 ) as FieldChangeset;
             }
             return change.change;
@@ -106,7 +114,7 @@ export class ModularChangeFamily
             const { fieldKind, changesets } = this.normalizeFieldChanges(changesForField);
             const composedField = fieldKind.changeHandler.rebaser.compose(
                 changesets,
-                this.childComposer,
+                this.nodeRebaser,
             );
 
             // TODO: Could optimize by checking that composedField is non-empty
@@ -150,9 +158,7 @@ export class ModularChangeFamily
             const invertedChange = getChangeHandler(
                 this.fieldKinds,
                 fieldChange.fieldKind,
-            ).rebaser.invert({ ...changes, change: fieldChange.change }, (childChanges) =>
-                this.invertNodeChange({ ...changes, change: childChanges }),
-            );
+            ).rebaser.invert({ ...changes, change: fieldChange.change }, this.nodeRebaser);
 
             invertedFields.set(field, {
                 fieldKind: fieldChange.fieldKind,
@@ -187,8 +193,7 @@ export class ModularChangeFamily
                 const rebasedField = fieldKind.changeHandler.rebaser.rebase(
                     fieldChangeset,
                     { ...over, change: baseChangeset },
-                    (child, baseChild) =>
-                        this.rebaseNodeChange(child, { ...over, change: baseChild }),
+                    this.nodeRebaser,
                 );
 
                 // TODO: Could optimize by skipping this assignment if `rebasedField` is empty
@@ -216,6 +221,55 @@ export class ModularChangeFamily
                 ...over,
                 change: over.change.fieldChanges,
             }),
+        };
+    }
+
+    unbase(base: TaggedChange<FieldChangeMap>, change: FieldChangeMap): FieldChangeMap {
+        const unbasedFields: FieldChangeMap = new Map();
+
+        for (const [field, fieldChange] of change) {
+            const baseChanges = base.change.get(field);
+            if (baseChanges === undefined) {
+                unbasedFields.set(field, fieldChange);
+            } else {
+                const {
+                    fieldKind,
+                    changesets: [fieldChangeset, baseChangeset],
+                } = this.normalizeFieldChanges([fieldChange, baseChanges]);
+                const rebasedField = fieldKind.changeHandler.rebaser.unbase(
+                    fieldChangeset,
+                    { ...base, change: baseChangeset },
+                    this.nodeRebaser,
+                );
+
+                // TODO: Could optimize by skipping this assignment if `rebasedField` is empty
+                unbasedFields.set(field, {
+                    fieldKind: fieldKind.identifier,
+                    change: brand(rebasedField),
+                });
+            }
+        }
+
+        return unbasedFields;
+    }
+
+    private unbaseNodeChange(
+        change: NodeChangeset,
+        base: TaggedChange<NodeChangeset>,
+    ): NodeChangeset {
+        if (change.fieldChanges === undefined || base.change.fieldChanges === undefined) {
+            return change;
+        }
+
+        return {
+            ...change,
+            fieldChanges: this.unbase(
+                {
+                    ...base,
+                    change: base.change.fieldChanges,
+                },
+                change.fieldChanges,
+            ),
         };
     }
 

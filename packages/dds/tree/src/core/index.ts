@@ -117,6 +117,7 @@ export {
     RevisionTag,
     TaggedChange,
     ChangesetFromChangeRebaser,
+    makeAnonChange,
 } from "../rebase";
 
 export { ICheckout, TransactionResult } from "../checkout";

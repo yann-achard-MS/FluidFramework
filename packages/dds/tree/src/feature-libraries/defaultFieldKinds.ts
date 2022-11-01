@@ -11,6 +11,7 @@ import {
     JsonableTree,
     ITreeCursor,
     TaggedChange,
+    makeAnonChange,
 } from "../core";
 import { brand, fail, JsonCompatible, JsonCompatibleReadOnly } from "../util";
 import { singleTextCursor, jsonableTreeFromCursor } from "./treeTextCursor";
@@ -21,9 +22,7 @@ import {
     ToDelta,
     FieldChangeRebaser,
     FieldChangeHandler,
-    NodeChangeComposer,
-    NodeChangeInverter,
-    NodeChangeRebaser,
+    NodeRebaser,
     NodeChangeset,
     FieldChangeEncoder,
     NodeChangeDecoder,
@@ -118,7 +117,7 @@ export function replaceRebaser<T>(): FieldChangeRebaser<ReplaceOp<T>> {
         rebase: (
             change: ReplaceOp<T>,
             over: TaggedChange<ReplaceOp<T>>,
-            rebaseChild: NodeChangeRebaser,
+            nodeRebaser: NodeRebaser,
         ) => {
             if (change === 0) {
                 return 0;
@@ -128,7 +127,20 @@ export function replaceRebaser<T>(): FieldChangeRebaser<ReplaceOp<T>> {
             }
             return { old: over.change.new, new: change.new };
         },
-        compose: (changes: ReplaceOp<T>[], composeChild: NodeChangeComposer) => {
+        unbase: (
+            change: ReplaceOp<T>,
+            over: TaggedChange<ReplaceOp<T>>,
+            nodeRebaser: NodeRebaser,
+        ) => {
+            if (change === 0) {
+                return 0;
+            }
+            if (over.change === 0) {
+                return change;
+            }
+            return { old: over.change.old, new: change.new };
+        },
+        compose: (changes: ReplaceOp<T>[], nodeRebaser: NodeRebaser) => {
             const f = changes.filter((c): c is Replacement<T> => c !== 0);
             if (f.length === 0) {
                 return 0;
@@ -138,7 +150,7 @@ export function replaceRebaser<T>(): FieldChangeRebaser<ReplaceOp<T>> {
             }
             return { old: f[0].old, new: f[f.length - 1].new };
         },
-        invert: (change: TaggedChange<ReplaceOp<T>>, invertChild: NodeChangeInverter) => {
+        invert: (change: TaggedChange<ReplaceOp<T>>, nodeRebaser: NodeRebaser) => {
             const changes = change.change;
             return changes === 0 ? 0 : { old: changes.new, new: changes.old };
         },
@@ -150,9 +162,9 @@ export function replaceRebaser<T>(): FieldChangeRebaser<ReplaceOp<T>> {
  */
 export const noChangeHandler: FieldChangeHandler<0> = {
     rebaser: referenceFreeFieldChangeRebaser({
-        compose: (changes: 0[], composeChild: NodeChangeComposer) => 0,
-        invert: (changes: 0, invertChild: NodeChangeInverter) => 0,
-        rebase: (change: 0, over: 0, rebaseChild: NodeChangeRebaser) => 0,
+        compose: (changes: 0[], nodeRebaser: NodeRebaser) => 0,
+        invert: (changes: 0, nodeRebaser: NodeRebaser) => 0,
+        rebase: (change: 0, over: 0, nodeRebaser: NodeRebaser) => 0,
     }),
     encoder: new UnitEncoder(),
     editor: { buildChildChange: (index, change) => fail("Child changes not supported") },
@@ -215,7 +227,7 @@ export interface ValueChangeset {
 }
 
 const valueRebaser: FieldChangeRebaser<ValueChangeset> = referenceFreeFieldChangeRebaser({
-    compose: (changes: ValueChangeset[], composeChildren: NodeChangeComposer): ValueChangeset => {
+    compose: (changes: ValueChangeset[], nodeRebaser: NodeRebaser): ValueChangeset => {
         if (changes.length === 0) {
             return {};
         }
@@ -241,17 +253,17 @@ const valueRebaser: FieldChangeRebaser<ValueChangeset> = referenceFreeFieldChang
         }
 
         if (childChanges.length > 0) {
-            composed.changes = composeChildren(childChanges);
+            composed.changes = nodeRebaser.compose(childChanges);
         }
 
         return composed;
     },
 
-    invert: (change: ValueChangeset, invertChild: NodeChangeInverter): ValueChangeset => {
+    invert: (change: ValueChangeset, nodeRebaser: NodeRebaser): ValueChangeset => {
         // TODO: Handle the value inverse
         const inverse: ValueChangeset = {};
         if (change.changes !== undefined) {
-            inverse.changes = invertChild(change.changes);
+            inverse.changes = nodeRebaser.invert(change.changes);
         }
         return inverse;
     },
@@ -259,12 +271,12 @@ const valueRebaser: FieldChangeRebaser<ValueChangeset> = referenceFreeFieldChang
     rebase: (
         change: ValueChangeset,
         over: ValueChangeset,
-        rebaseChild: NodeChangeRebaser,
+        nodeRebaser: NodeRebaser,
     ): ValueChangeset => {
         if (change.changes === undefined || over.changes === undefined) {
             return change;
         }
-        return { ...change, changes: rebaseChild(change.changes, over.changes) };
+        return { ...change, changes: nodeRebaser.rebase(change.changes, over) };
     },
 });
 
