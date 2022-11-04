@@ -362,7 +362,7 @@ function runUnitTestScenario(
          * Local helper to update all the state that is dependent on the sequencing of new edits.
          */
         const recordSequencedEdit = (commit: TestCommit): void => {
-            trunk.push(commit.seqNumber);
+            trunk.push(commit.revision);
             summarizer.addSequencedChange(commit);
             for (const j of joiners) {
                 j.addSequencedChange(commit);
@@ -412,8 +412,8 @@ function runUnitTestScenario(
                     const changeset = TestChange.mint(knownToLocal, seq);
                     localCommits.push({
                         sessionId: localSessionId,
-                        seqNumber: brand(seq),
-                        refNumber: brand(localRef),
+                        revision: brand(seq),
+                        refRevision: brand(localRef),
                         changeset,
                     });
                     knownToLocal.push(seq);
@@ -427,7 +427,7 @@ function runUnitTestScenario(
                     if (commit === undefined) {
                         fail("Invalid test scenario: no local commit to acknowledge");
                     }
-                    if (commit.seqNumber !== seq) {
+                    if (commit.revision !== seq) {
                         fail(
                             "Invalid test scenario: acknowledged commit does not mach oldest local change",
                         );
@@ -462,14 +462,14 @@ function runUnitTestScenario(
                     ].map((s) => s.seq ?? fail("Sequenced changes must all have a seq number"));
                     const commit: TestCommit = {
                         sessionId: step.from,
-                        seqNumber: brand(seq),
-                        refNumber: brand(step.ref),
+                        revision: brand(seq),
+                        refRevision: brand(step.ref),
                         changeset: TestChange.mint(knownToPeer, seq),
                     };
                     /**
                      * Ordered list of intentions for local changes
                      */
-                    const localIntentions = localCommits.map((c) => c.seqNumber);
+                    const localIntentions = localCommits.map((c) => c.revision);
                     // When a peer commit is received we expect the update to be equivalent to the
                     // retraction of any local changes, followed by the peer changes, followed by the
                     // updated version of the local changes.
@@ -484,7 +484,7 @@ function runUnitTestScenario(
                         assert.deepEqual(step.expectedDelta, expected);
                     }
                     recordSequencedEdit(commit);
-                    knownToLocal = [...trunk, ...localCommits.map((c) => c.seqNumber)];
+                    knownToLocal = [...trunk, ...localCommits.map((c) => c.revision)];
                     localRef = seq;
                     break;
                 }

@@ -8,16 +8,15 @@ import { ChangeFamily } from "../change-family";
 import { TaggedChange, RevisionTag } from "../rebase";
 import { SimpleDependee } from "../dependency-tracking";
 import { AnchorSet, Delta } from "../tree";
-import { brand, Brand, fail, RecursiveReadonly } from "../util";
+import { brand, fail, RecursiveReadonly } from "../util";
 
 export interface Commit<TChangeset> {
     sessionId: SessionId;
-    seqNumber: SeqNumber;
-    refNumber: SeqNumber;
+    revision: RevisionTag;
+    refRevision: RevisionTag;
     changeset: TChangeset;
 }
 
-export type SeqNumber = Brand<number, "edit-manager.SeqNumber">;
 export type SessionId = string;
 
 /**
@@ -45,7 +44,7 @@ export class EditManager<
     // Every other change in this list is based on the change preceding it.
     private localChanges: TaggedChange<TChangeset>[] = [];
 
-    // Because we do not have sequence numbers for local changes, we assign them temporary revision tags.
+    // Because we do not have revision tags for local changes, we assign them temporary revision tags.
     // We use negative numbers to avoid collisions with finalized revision tags.
     // TODO: Eventually we will have to send references to local revision tag (e.g. when undoing a local change)
     private nextLocalRevision = -1;
@@ -124,10 +123,10 @@ export class EditManager<
         );
 
         if (this.trunk.length > 0) {
-            const lastSeqNumber = this.trunk[this.trunk.length - 1].seqNumber;
+            const lastSeqNumber = this.trunk[this.trunk.length - 1].revision;
             assert(
-                newCommit.seqNumber > lastSeqNumber,
-                0x3a2 /* Incoming remote op sequence# <= local collabWindow's currentSequence# */,
+                newCommit.revision > lastSeqNumber,
+                "Incoming remote op revision# <= local collabWindow's current revision#",
             );
         }
         if (newCommit.sessionId === this.localSessionId) {
@@ -154,8 +153,8 @@ export class EditManager<
             return Delta.empty;
         }
 
-        const branch = this.getOrCreateBranch(newCommit.sessionId, newCommit.refNumber);
-        this.updateBranch(branch, newCommit.refNumber);
+        const branch = this.getOrCreateBranch(newCommit.sessionId, newCommit.refRevision);
+        this.updateBranch(branch, newCommit.refRevision);
         const newChangeFullyRebased = this.rebaseChangeFromBranchToTrunk(newCommit, branch);
         this.addCommitToBranch(branch, newCommit);
 
@@ -167,7 +166,7 @@ export class EditManager<
 
         return this.changeFamily.intoDelta(
             this.rebaseLocalBranch({
-                revision: brand(newCommit.seqNumber),
+                revision: brand(newCommit.revision),
                 change: newChangeFullyRebased,
             }),
         );
@@ -179,7 +178,7 @@ export class EditManager<
     private addCommitToBranch(branch: Branch<TChangeset>, newCommit: Commit<TChangeset>): void {
         branch.localChanges.push(newCommit);
         const lastCommit = this.getLastCommit();
-        if (lastCommit === undefined || newCommit.refNumber === lastCommit.seqNumber) {
+        if (lastCommit === undefined || newCommit.refRevision === lastCommit.revision) {
             branch.isDivergent = false;
         } else {
             branch.isDivergent ||= newCommit.sessionId !== lastCommit.sessionId;
@@ -216,7 +215,7 @@ export class EditManager<
             commitToRebase.changeset,
         );
 
-        return this.rebaseOverCommits(changeRebasedToRef, this.getCommitsAfter(branch.refSeq));
+        return this.rebaseOverCommits(changeRebasedToRef, this.getCommitsAfter(branch.refRevision));
     }
 
     // TODO: Try to share more logic between this method and `rebaseBranch`
@@ -256,15 +255,15 @@ export class EditManager<
 
     /**
      * Updates the `branch` to reflect the local changes that the session owner would have had after
-     * they learned of the commit with sequence number `newRef` being sequenced.
+     * they learned of the commit with revision number `newRef` being sequenced.
      * This is accomplished by rebasing the branch's changes over any new trunk changes up to and including `newRef`.
-     * Changes with sequence number less than or equal to `newRef` are removed from the branch,
+     * Changes with revision number less than or equal to `newRef` are removed from the branch,
      * since they are now part of the trunk this branch is based on.
      * @param branch - The branch to update.
      * @param newRef - The point in the trunk to rebase the branch up to.
      */
-    private updateBranch(branch: Branch<TChangeset>, newRef: SeqNumber) {
-        const trunkChanges = this.getCommitsAfterAndUpToInclusive(branch.refSeq, newRef);
+    private updateBranch(branch: Branch<TChangeset>, newRef: RevisionTag) {
+        const trunkChanges = this.getCommitsAfterAndUpToInclusive(branch.refRevision, newRef);
         if (trunkChanges.length === 0) {
             // This early return avoids rebasing the branch changes over an empty sandwich.
             return;
@@ -274,7 +273,7 @@ export class EditManager<
 
         let nextTempRevision = -1;
         for (const commit of branch.localChanges) {
-            if (commit.seqNumber > newRef) {
+            if (commit.revision > newRef) {
                 let change = this.rebaseChange(commit.changeset, inverses);
                 change = this.rebaseOverCommits(change, trunkChanges);
                 change = this.rebaseOverCommits(change, newBranchChanges);
@@ -292,7 +291,7 @@ export class EditManager<
         }
 
         branch.localChanges = newBranchChanges;
-        branch.refSeq = newRef;
+        branch.refRevision = newRef;
     }
 
     private rebaseOverCommits(changeToRebase: TChangeset, commits: Commit<TChangeset>[]) {
@@ -310,14 +309,14 @@ export class EditManager<
     }
 
     /**
-     * @param pred - The sequence number of the commit immediately before the commits of interest.
-     * @param last - The sequence number of the last commit of interest.
-     * @returns The trunk commits with sequence numbers greater than `pred` and smaller or equal to `last`,
+     * @param pred - The revision number of the commit immediately before the commits of interest.
+     * @param last - The revision number of the last commit of interest.
+     * @returns The trunk commits with tag numbers greater than `pred` and smaller or equal to `last`,
      * ordered in sequencing order.
      */
     private getCommitsAfterAndUpToInclusive(
-        pred: SeqNumber,
-        last: SeqNumber,
+        pred: RevisionTag,
+        last: RevisionTag,
     ): Commit<TChangeset>[] {
         // This check is just a fast-path for the common case where no concurrent edits occurred.
         if (pred === last) {
@@ -329,40 +328,44 @@ export class EditManager<
     }
 
     /**
-     * @param pred - The sequence number of the commit immediately before the commits of interest.
-     * @returns The trunk commits with sequence numbers greater than `pred`
+     * @param pred - The revision number of the commit immediately before the commits of interest.
+     * @returns The trunk commits with revision numbers greater than `pred`
      */
-    private getCommitsAfter(pred: SeqNumber): Commit<TChangeset>[] {
+    private getCommitsAfter(pred: RevisionTag): Commit<TChangeset>[] {
         const firstIndex = this.getCommitIndexAfter(pred);
         return this.trunk.slice(firstIndex);
     }
 
     /**
-     * @param seqNumber - The sequence number of an operation.
-     * It is acceptable for the trunk not to contain a commit with that sequence number.
-     * @returns The index of the earliest commit with a sequence number greater than `seqNumber`.
+     * @param revision - The revision number of an operation.
+     * It is acceptable for the trunk not to contain a commit with that revision number.
+     * @returns The index of the earliest commit with a revision number greater than `revision`.
      * Note that such a commit is not guaranteed to exist in the trunk
      * (i.e. the return value may be equal to the length of the trunk).
      */
-    private getCommitIndexAfter(seqNumber: SeqNumber): number {
+    private getCommitIndexAfter(revision: RevisionTag): number {
         for (let index = this.trunk.length - 1; index >= 0; --index) {
-            if (this.trunk[index].seqNumber <= seqNumber) {
+            if (this.trunk[index].revision <= revision) {
                 return index + 1;
             }
         }
         return 0;
     }
 
-    private getOrCreateBranch(sessionId: SessionId, refSeq: SeqNumber): Branch<TChangeset> {
+    private getOrCreateBranch(sessionId: SessionId, refRevision: RevisionTag): Branch<TChangeset> {
         if (!this.branches.has(sessionId)) {
-            this.branches.set(sessionId, { localChanges: [], refSeq, isDivergent: false });
+            this.branches.set(sessionId, {
+                localChanges: [],
+                refRevision,
+                isDivergent: false,
+            });
         }
         return this.branches.get(sessionId) as Branch<TChangeset>;
     }
 
     private inverseFromCommit(commit: Commit<TChangeset>): TaggedChange<TChangeset> {
         return {
-            revision: revisionTagForInverse(brand(commit.seqNumber)),
+            revision: revisionTagForInverse(brand(commit.revision)),
             change: this.changeFamily.rebaser.invert(taggedChangeFromCommit(commit)),
         };
     }
@@ -373,7 +376,7 @@ export class EditManager<
 }
 
 function taggedChangeFromCommit<T>(commit: Commit<T>): TaggedChange<T> {
-    return { revision: brand(commit.seqNumber), change: commit.changeset };
+    return { revision: brand(commit.revision), change: commit.changeset };
 }
 
 // This always returns undefined, as we do not currently need an identity for the inverse of a change.
@@ -384,14 +387,14 @@ function revisionTagForInverse(revision: RevisionTag | undefined): RevisionTag |
 
 export interface Branch<TChangeset> {
     localChanges: Commit<TChangeset>[];
-    refSeq: SeqNumber;
+    refRevision: RevisionTag;
     /**
      * A branch is divergent iff it has local changes and there is a change outside the branch with a `seqNumber`
      * between the branch's `refSeq` and the `seqNumber` of the last change in the branch.
      * In other words, the ref commit followed by the local changes
      * do not form a contiguous block in the trunk or final sequence.
      *
-     * Note that a commit whose ref number does not match the latest sequence number at the time of its
+     * Note that a commit whose ref number does not match the latest revision number at the time of its
      * sequencing is not necessarily divergent: if the commit is from the peer who issued the preceding commit,
      * and that preceding commit was not divergent, then the new commit is not divergent either.
      *

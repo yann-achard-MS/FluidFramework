@@ -22,14 +22,14 @@ describe("EditManagerIndex", () => {
         const input: ReadonlySummaryData<TestChange> = {
             trunk: [
                 {
-                    seqNumber: brand(1),
-                    refNumber: brand(0),
+                    revision: brand(1),
+                    refRevision: brand(0),
                     sessionId: "1",
                     changeset: TestChange.mint([0], 1),
                 },
                 {
-                    seqNumber: brand(2),
-                    refNumber: brand(1),
+                    revision: brand(2),
+                    refRevision: brand(1),
                     sessionId: "2",
                     changeset: TestChange.mint([0, 1], 2),
                 },

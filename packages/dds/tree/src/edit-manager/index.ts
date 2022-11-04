@@ -8,7 +8,6 @@ export {
     Commit,
     EditManager,
     MutableSummaryData,
-    SeqNumber,
     SessionId,
     ReadonlySummaryData,
 } from "./editManager";

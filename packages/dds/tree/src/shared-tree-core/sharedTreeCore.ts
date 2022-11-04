@@ -27,7 +27,8 @@ import {
 } from "@fluidframework/shared-object-base";
 import { v4 as uuid } from "uuid";
 import { ChangeFamily } from "../change-family";
-import { Commit, EditManager, SeqNumber } from "../edit-manager";
+import { Commit, EditManager } from "../edit-manager";
+import { RevisionTag } from "../rebase";
 import { AnchorSet, Delta } from "../tree";
 import { brand, JsonCompatibleReadOnly } from "../util";
 
@@ -71,7 +72,7 @@ export class SharedTreeCore<
      * This is number is artificial in that it is made up by this instance as opposed to being provided by the runtime.
      * Is `undefined` after (and only after) this instance is attached.
      */
-    private detachedRevision: SeqNumber | undefined = brand(Number.MIN_SAFE_INTEGER);
+    private detachedRevision: RevisionTag | undefined = brand(Number.MIN_SAFE_INTEGER);
 
     /**
      * @param id - The id of the shared object
@@ -159,11 +160,11 @@ export class SharedTreeCore<
         // in the attach summary that is uploaded to the service.
         // Until this attach workflow happens, this instance essentially behaves as a centralized data structure.
         if (this.detachedRevision !== undefined) {
-            const newRevision: SeqNumber = brand((this.detachedRevision as number) + 1);
+            const newRevision: RevisionTag = brand((this.detachedRevision as number) + 1);
             const commit: Commit<TChange> = {
                 changeset: edit,
-                refNumber: this.detachedRevision,
-                seqNumber: newRevision,
+                refRevision: this.detachedRevision,
+                revision: newRevision,
                 sessionId: this.stableId,
             };
             this.detachedRevision = newRevision;
@@ -190,8 +191,8 @@ export class SharedTreeCore<
         const changes = this.changeFamily.encoder.decodeJson(formatVersion, changeset);
         const commit: Commit<TChange> = {
             sessionId: stableClientId,
-            seqNumber: brand(message.sequenceNumber),
-            refNumber: brand(message.referenceSequenceNumber),
+            revision: brand(message.sequenceNumber),
+            refRevision: brand(message.referenceSequenceNumber),
             changeset: changes,
         };
 
