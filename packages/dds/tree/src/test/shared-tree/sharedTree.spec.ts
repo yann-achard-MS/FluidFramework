@@ -360,6 +360,41 @@ describe("SharedTree", () => {
             validateTree(tree1, expected);
             validateTree(tree2, expected);
         });
+
+        it("can rebase a delete", async () => {
+            const provider = await TestTreeProvider.create(2);
+            const [tree1, tree2] = provider.trees;
+            const [container1, container2] = provider.containers;
+
+            insert(tree1, 0, "a");
+            insert(tree1, 1, "b");
+            insert(tree1, 2, "c");
+
+            await provider.ensureSynchronized();
+
+            validateTrees([tree1, tree2], ["a", "b", "c"]);
+
+            await provider.opProcessingController.pauseProcessing(container1);
+            await provider.opProcessingController.pauseProcessing(container2);
+
+            tree2.runTransaction((forest, editor) => {
+                editor.sequenceField(undefined, rootFieldKeySymbol).delete(0, 1);
+                return TransactionResult.Apply;
+            });
+            validateTree(tree2, ["b", "c"]);
+
+            insert(tree1, 3, "d");
+            validateTree(tree1, ["a", "b", "c", "d"]);
+
+            provider.opProcessingController.resumeProcessing(container1);
+
+            validateTree(tree2, ["b", "c"]);
+
+            provider.opProcessingController.resumeProcessing(container2);
+            await provider.ensureSynchronized();
+
+            validateTrees([tree1, tree2], ["b", "c", "d"]);
+        });
     });
 });
 
@@ -464,4 +499,10 @@ function validateTree(tree: ISharedTree, expected: Value[]): void {
     }
     assert.equal(hasNode, false);
     readCursor.free();
+}
+
+function validateTrees(trees: ISharedTree[], expected: Value[]): void {
+    for (const tree of trees) {
+        validateTree(tree, expected);
+    }
 }
