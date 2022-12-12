@@ -5,7 +5,7 @@
 
 import { assert } from "@fluidframework/common-utils";
 import { ChangeFamily } from "../change-family";
-import { TaggedChange, RevisionTag, tagChange, tagInverse } from "../rebase";
+import { TaggedChange, RevisionTag, tagChange, tagInverse, makeAnonChange } from "../rebase";
 import { SimpleDependee } from "../dependency-tracking";
 import { AnchorSet, Delta } from "../tree";
 import { brand, Brand, fail, RecursiveReadonly } from "../util";
@@ -153,6 +153,10 @@ export class EditManager<
             );
         }
         if (newCommit.sessionId === this.localSessionId) {
+            // This ensures dependent inserts get a lineage event for the inserts they depend on.
+            // Without this line they wouldn't get a lineage even then the dependent insert is sequenced right away
+            this.rebaseLocalBranch(makeAnonChange(this.changeFamily.rebaser.compose([])));
+
             // `newCommit` should correspond to the oldest change in `localChanges`, so we move it into trunk.
             // `localChanges` are already rebased to the trunk, so we can use the stored change instead of rebasing the
             // change in the incoming commit.
@@ -173,6 +177,7 @@ export class EditManager<
                 ...newCommit,
                 changeset: change.change,
             });
+
             return Delta.empty;
         }
 
