@@ -16,7 +16,7 @@ import {
     splitMarkOnInput,
     splitMarkOnOutput,
 } from "./utils";
-import { Attach, Changeset, LineageEvent, Mark, MarkList, SizedMark } from "./format";
+import { Attach, Changeset, Insert, LineageEvent, Mark, MarkList, SizedMark } from "./format";
 import { MarkListFactory } from "./markListFactory";
 
 /**
@@ -161,6 +161,31 @@ class RebaseQueue<T> {
             } else if (isAttachAfterBaseAttach(newMark, baseMark)) {
                 return { baseMark: this.baseMarks.pop() };
             } else {
+                if (newMark.lineage !== undefined) {
+                    for (let i = newMark.lineage.length - 1; i >= 0; i--) {
+                        if (newMark.lineage[i].consumed) {
+                            if (newMark.lineage[i].offset === 0) {
+                                // The newMark was meant to be inserted to the left some content
+                                // whose insert/revive it has already rebased over, so we keep newMark
+                                // to the right of the other base attaches to ensure it stays close to
+                                // that other content.
+                                console.debug(
+                                    `${(baseMark as Insert).content[0].value} -> ${
+                                        (newMark as Insert).content[0].value
+                                    }`,
+                                );
+                                return { baseMark: this.baseMarks.pop() };
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }
+                console.debug(
+                    `${(newMark as Insert).content[0].value} <- ${
+                        (baseMark as Insert).content[0].value
+                    }`,
+                );
                 return { newMark: this.newMarks.pop() };
             }
         } else if (isAttach(newMark)) {
@@ -276,7 +301,7 @@ function getOffsetInReattach(
     }
 
     for (const event of lineage) {
-        if (event.revision === reattachRevision) {
+        if (event.revision === reattachRevision && !event.consumed) {
             return event.offset;
         }
     }
@@ -294,13 +319,15 @@ function compareLineages(
 
     const lineage1Offsets = new Map<RevisionTag, number>();
     for (const event of lineage1) {
-        lineage1Offsets.set(event.revision, event.offset);
+        if (!event.consumed) {
+            lineage1Offsets.set(event.revision, event.offset);
+        }
     }
 
     for (let i = lineage2.length - 1; i >= 0; i--) {
         const event2 = lineage2[i];
         const offset1 = lineage1Offsets.get(event2.revision);
-        if (offset1 !== undefined) {
+        if (offset1 !== undefined && !event2.consumed) {
             const offset2 = event2.offset;
             if (offset1 < offset2) {
                 return -1;
@@ -324,7 +351,14 @@ function updateLineage<T>(requests: LineageRequest<T>[], revision: RevisionTag) 
             mark.lineage = [];
         }
 
-        mark.lineage.push({ revision, offset: request.offset });
+        const index = mark.lineage.findIndex(
+            (event) => event.revision === revision && event.consumed,
+        );
+        if (index === -1) {
+            mark.lineage.push({ revision, offset: request.offset });
+        } else {
+            mark.lineage.splice(index, 1, { revision, offset: request.offset });
+        }
     }
 }
 
@@ -332,11 +366,17 @@ function tryRemoveLineageEvent<T>(mark: Attach<T>, revisionToRemove: RevisionTag
     if (mark.lineage === undefined) {
         return;
     }
-    const index = mark.lineage.findIndex((event) => event.revision === revisionToRemove);
+    const index = mark.lineage.findIndex(
+        (event) => event.revision === revisionToRemove && !event.consumed,
+    );
     if (index >= 0) {
-        mark.lineage.splice(index, 1);
-        if (mark.lineage.length === 0) {
-            delete mark.lineage;
-        }
+        const entry = mark.lineage[index];
+        // Mark the linage a consumed instead of removing it so that we can use it in later rebases.
+        entry.consumed = true;
+        console.debug(`consume ${revisionToRemove} on ${(mark as Insert).content[0].value}`);
+        // mark.lineage.splice(index, 1);
+        // if (mark.lineage.length === 0) {
+        //     delete mark.lineage;
+        // }
     }
 }

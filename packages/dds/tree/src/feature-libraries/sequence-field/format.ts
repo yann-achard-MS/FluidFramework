@@ -76,6 +76,8 @@ export interface LineageEvent {
      * The position of this mark within a range of nodes which were detached in this revision.
      */
     readonly offset: number;
+
+    consumed?: true;
 }
 
 export interface Insert extends HasTiebreakPolicy, HasRevisionTag {
