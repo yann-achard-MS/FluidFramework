@@ -51,7 +51,24 @@ export const sequenceFieldEditor = {
         }),
     delete: (index: number, count: number): Changeset<never> =>
         count === 0 ? [] : markAtIndex(index, { type: "Delete", count }),
-
+    revive: (
+        index: number,
+        count: number,
+        detachedBy: RevisionTag,
+        detachIndex: number,
+        isIntention?: true,
+    ): Changeset<never> => {
+        const mark: Reattach<never> = {
+            type: "Revive",
+            count,
+            detachedBy,
+            detachIndex,
+        };
+        if (isIntention) {
+            mark.isIntention = true;
+        }
+        return count === 0 ? [] : markAtIndex(index, mark);
+    },
     move(sourceIndex: number, count: number, destIndex: number): Changeset<never> {
         if (count === 0 || sourceIndex === destIndex) {
             // TODO: Should we allow creating a move which has no observable effect?
@@ -125,25 +142,6 @@ export const sequenceFieldEditor = {
             factory.pushContent(returnFrom);
         }
         return factory.list;
-    },
-
-    revive: (
-        index: number,
-        count: number,
-        detachedBy: RevisionTag,
-        detachIndex: number,
-        isIntention?: true,
-    ): Changeset<never> => {
-        const mark: Reattach<never> = {
-            type: "Revive",
-            count,
-            detachedBy,
-            detachIndex,
-        };
-        if (isIntention) {
-            mark.isIntention = true;
-        }
-        return count === 0 ? [] : markAtIndex(index, mark);
     },
 };
 
