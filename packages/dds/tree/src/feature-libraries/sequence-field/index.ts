@@ -80,6 +80,7 @@ export {
     MoveEffectTable,
     MovePartition,
     newMoveEffectTable,
+    PairedMarkUpdate,
     splitMarkOnOutput,
     DetachedNodeTracker,
 } from "./utils";
