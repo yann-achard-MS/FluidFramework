@@ -92,6 +92,8 @@ export function sequenceFieldToDelta<TNodeChange>(
                             ),
                         };
                         out.pushContent(insertMark);
+                    } else if (mark.lastDetachedBy === undefined) {
+                        out.pushOffset(mark.count);
                     }
                     break;
                 }
