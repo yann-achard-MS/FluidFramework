@@ -11,6 +11,7 @@ import { FieldAnchorSet } from "./fieldKind";
 /**
  * Functionality provided by a field kind which will be composed with other `FieldChangeHandler`s to
  * implement a unified ChangeFamily supporting documents with multiple field kinds.
+ * @alpha
  */
 export interface FieldChangeHandler<
 	TChangeset,
@@ -38,6 +39,9 @@ export interface KeyChanges<TNodeKeyRange> {
 	readonly added: readonly TNodeKeyRange[];
 }
 
+/**
+ * @alpha
+ */
 export interface FieldChangeRebaser<TChangeset> {
 	/**
 	 * Compose a collection of changesets into a single one.
@@ -73,7 +77,10 @@ export function referenceFreeFieldChangeRebaser<TChangeset>(data: {
 	};
 }
 
-export interface FieldChangeEncoder<TChangeset, TNodeKey> {
+/**
+ * @alpha
+ */
+export interface FieldChangeEncoder<TChangeset> {
 	/**
 	 * Encodes `change` into a JSON compatible object.
 	 */
@@ -89,6 +96,10 @@ export interface FieldChangeEncoder<TChangeset, TNodeKey> {
 	 */
 	encodeNodeKeyForJson(formatVersion: number, key: TNodeKey): JsonCompatibleReadOnly;
 
+/**
+ * @alpha
+ */
+export interface FieldEditor<TChangeset> {
 	/**
 	 * Decodes `key` from a JSON compatible object.
 	 */
@@ -98,32 +109,44 @@ export interface FieldChangeEncoder<TChangeset, TNodeKey> {
 /**
  * The `index` represents the index of the child node in the input context.
  * The `index` should be `undefined` iff the child node does not exist in the input context (e.g., an inserted node).
+ * @alpha
  */
 export type ToDelta = (child: NodeChangeset, index: number | undefined) => Delta.Modify;
 
+/**
+ * @alpha
+ */
 export type NodeReviver = (
 	revision: RevisionTag,
 	index: number,
 	count: number,
 ) => Delta.ProtoNode[];
 
+/**
+ * @alpha
+ */
 export type IdAllocator = () => ChangesetLocalId;
 
 /**
  * An ID which is unique within a revision of a `ModularChangeset`.
  * A `ModularChangeset` which is a composition of multiple revisions may contain duplicate `ChangesetLocalId`s,
  * but they are unique when qualified by the revision of the change they are used in.
+ * @alpha
  */
 export type ChangesetLocalId = Brand<number, "ChangesetLocalId">;
 
 /**
  * Changeset for a subtree rooted at a specific node.
+ * @alpha
  */
 export interface NodeChangeset {
 	fieldChanges?: FieldChangeMap;
 	valueChange?: ValueChange;
 }
 
+/**
+ * @alpha
+ */
 export type ValueChange =
 	| {
 			/**
@@ -153,6 +176,9 @@ export type ValueChange =
 			revert: RevisionTag | undefined;
 	  };
 
+/**
+ * @alpha
+ */
 export interface ModularChangeset {
 	/**
 	 * The numerically highest `ChangesetLocalId` used in this changeset.
@@ -162,8 +188,14 @@ export interface ModularChangeset {
 	changes: FieldChangeMap;
 }
 
+/**
+ * @alpha
+ */
 export type FieldChangeMap = Map<FieldKey, FieldChange>;
 
+/**
+ * @alpha
+ */
 export interface FieldChange {
 	fieldKind: FieldKindIdentifier;
 
@@ -179,6 +211,9 @@ export interface FieldChange {
 	readonly childChanges: FieldAnchorSet<NodeChangeset>;
 }
 
+/**
+ * @alpha
+ */
 export type FieldChangeset = Brand<unknown, "FieldChangeset">;
 export type FieldNodeKey<TValue = number> = Brand<TValue, "FieldNodeKey">;
 export type FieldNodeAnchor = Brand<unknown, "FieldNodeAnchor">;

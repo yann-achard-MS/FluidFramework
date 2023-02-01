@@ -46,6 +46,7 @@ import { decodeJsonFormat0, encodeForJsonFormat0 } from "./modularChangeEncoding
  * as determined by the schema.
  *
  * @sealed
+ * @alpha
  */
 export class ModularChangeFamily
 	implements ChangeFamily<ModularEditBuilder, ModularChangeset>, ChangeRebaser<ModularChangeset>
@@ -459,6 +460,7 @@ class ModularChangeEncoder extends ChangeEncoder<ModularChangeset> {
 
 /**
  * @sealed
+ * @alpha
  */
 export class ModularEditBuilder
 	extends ProgressiveEditBuilderBase<ModularChangeset>
