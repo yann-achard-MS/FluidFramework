@@ -10,9 +10,10 @@ import {
     SchemaPolicy,
     fieldSchema,
     SchemaData,
+    TaggedChange,
 } from "../../core";
 import { isNeverField } from "./comparison";
-import { FieldChangeHandler, FieldEditor } from "./fieldChangeHandler";
+import { FieldChangeHandler, FieldNodeKey } from "./fieldChangeHandler";
 
 /**
  * Functionality for FieldKinds that is stable,
@@ -28,7 +29,12 @@ import { FieldChangeHandler, FieldEditor } from "./fieldChangeHandler";
  *
  * @sealed
  */
-export class FieldKind<TEditor extends FieldEditor<any> = FieldEditor<any>> {
+export class FieldKind<
+    TEditor = unknown,
+    TChangeset = unknown,
+    TNodeKey extends FieldNodeKey = FieldNodeKey,
+    TAnchor = unknown,
+> {
     /**
      * @param identifier - Globally scoped identifier.
      * @param multiplicity - bound on the number of children that fields of this kind may have.
@@ -47,7 +53,13 @@ export class FieldKind<TEditor extends FieldEditor<any> = FieldEditor<any>> {
     public constructor(
         public readonly identifier: FieldKindIdentifier,
         public readonly multiplicity: Multiplicity,
-        public readonly changeHandler: FieldChangeHandler<any, TEditor>,
+        public readonly anchorStoreFactory: <TData>() => FieldAnchorSet<
+            TData,
+            TNodeKey,
+            TAnchor,
+            TChangeset
+        >,
+        public readonly changeHandler: FieldChangeHandler<any, TNodeKey, TEditor>,
         private readonly allowsTreeSupersetOf: (
             originalTypes: ReadonlySet<TreeSchemaIdentifier> | undefined,
             superset: FieldSchema,
@@ -73,6 +85,39 @@ export class FieldKind<TEditor extends FieldEditor<any> = FieldEditor<any>> {
         }
         return this.allowsTreeSupersetOf(originalTypes, superset);
     }
+}
+
+export type MergeCallback<TData> = (existingData: TData, newData: TData) => TData;
+
+export interface FieldAnchorSet<
+    TData = undefined,
+    TKey extends FieldNodeKey = FieldNodeKey,
+    TAnchor = unknown,
+    TChangeset = unknown,
+> {
+    clone(): FieldAnchorSet<TData, TKey, TAnchor, TChangeset>;
+    mergeIn(
+        set: FieldAnchorSet<TData, TKey, TAnchor, TChangeset>,
+        mergeData: MergeCallback<TData>,
+    ): void;
+    track(key: TKey, data: TData, mergeData: MergeCallback<TData>): TAnchor;
+    forget(anchor: TAnchor): void;
+    lookup(key: TKey): FieldAnchorSetEntry<TData, TKey, TAnchor> | undefined;
+    locate(anchor: TAnchor): TKey | undefined;
+    getData(anchor: TAnchor): TData;
+    rebase(over: TaggedChange<TChangeset>, direction: RebaseDirection): void;
+    entries(): IterableIterator<FieldAnchorSetEntry<TData, TKey, TAnchor>>;
+}
+
+export interface FieldAnchorSetEntry<TData, TKey, TAnchor> {
+    readonly key: TKey;
+    readonly anchor: TAnchor;
+    readonly data: TData;
+}
+
+export enum RebaseDirection {
+    Forward,
+    Backward,
 }
 
 /**

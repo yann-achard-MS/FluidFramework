@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { unreachableCase } from "@fluidframework/common-utils";
+import { assert, unreachableCase } from "@fluidframework/common-utils";
 import { Delta, FieldKey, getMapTreeField, MapTree } from "../core";
 import { fail, OffsetListFactory } from "../util";
 import { mapTreeFromCursor } from "./mapTreeCursor";
@@ -228,4 +228,166 @@ export function applyModifyToTree(
     }
 
     return outFieldsMarks;
+}
+
+export interface ChildIndex {
+    index: number;
+    context: Context;
+}
+
+export enum Context {
+    Input,
+    Output,
+}
+
+export function modifyMarkList<TTree>(
+    marks: Delta.Mark<TTree>[],
+    modify: Delta.Modify<TTree>,
+    key: ChildIndex,
+): void {
+    if ((modify.fields ?? modify.setValue) === undefined) {
+        return;
+    }
+    if (key.context === Context.Input) {
+        let iMark = 0;
+        let inputIndex = 0;
+        while (iMark < marks.length) {
+            const mark = marks[iMark];
+            if (typeof mark === "number") {
+                inputIndex += mark;
+            } else {
+                const type = mark.type;
+                switch (type) {
+                    case Delta.MarkType.Modify:
+                    case Delta.MarkType.ModifyAndMoveOut:
+                    case Delta.MarkType.ModifyAndDelete:
+                        inputIndex += 1;
+                        break;
+                    case Delta.MarkType.Delete:
+                    case Delta.MarkType.MoveOut:
+                        inputIndex += mark.count;
+                        break;
+                    case Delta.MarkType.Insert:
+                    case Delta.MarkType.InsertAndModify:
+                    case Delta.MarkType.MoveInAndModify:
+                    case Delta.MarkType.MoveIn:
+                        break;
+                    default:
+                        unreachableCase(type);
+                }
+            }
+            if (inputIndex > key.index) {
+                const countAfterMod = inputIndex - (key.index + 1);
+                const splitMarks: Delta.Mark<TTree>[] = [];
+                if (typeof mark === "number") {
+                    const startOfMark = inputIndex - mark;
+                    const countBeforeMod = key.index - startOfMark;
+                    if (countBeforeMod > 0) {
+                        splitMarks.push(countBeforeMod);
+                    }
+                    splitMarks.push(modify);
+                    if (countAfterMod > 0) {
+                        splitMarks.push(countAfterMod);
+                    }
+                } else {
+                    const type = mark.type;
+                    switch (type) {
+                        case Delta.MarkType.Modify:
+                        case Delta.MarkType.ModifyAndMoveOut:
+                        case Delta.MarkType.ModifyAndDelete:
+                            // This function was originally created for a use case that does not require this
+                            // code path.
+                            assert(false, "Not implemented");
+                        case Delta.MarkType.Delete:
+                        case Delta.MarkType.MoveOut: {
+                            const startOfMark = inputIndex - mark.count;
+                            const countBeforeMod = key.index - startOfMark;
+                            if (countBeforeMod > 0) {
+                                splitMarks.push({
+                                    ...mark,
+                                    count: countBeforeMod,
+                                });
+                            }
+                            if (mark.type === Delta.MarkType.Delete) {
+                                assert(
+                                    modify.fields !== undefined && modify.setValue === undefined,
+                                    "Modifications under a deleted node can only target is descendants",
+                                );
+                                splitMarks.push({
+                                    type: Delta.MarkType.ModifyAndDelete,
+                                    fields: modify.fields,
+                                });
+                            } else {
+                                splitMarks.push({
+                                    type: Delta.MarkType.ModifyAndMoveOut,
+                                    fields: modify.fields,
+                                    setValue: modify.setValue,
+                                    moveId: mark.moveId,
+                                });
+                            }
+                            if (countAfterMod > 0) {
+                                splitMarks.push({
+                                    ...mark,
+                                    count: countAfterMod,
+                                });
+                            }
+                            break;
+                        }
+                        case Delta.MarkType.Insert:
+                        case Delta.MarkType.InsertAndModify:
+                        case Delta.MarkType.MoveInAndModify:
+                        case Delta.MarkType.MoveIn:
+                            assert(
+                                false,
+                                "Input key that target input context cannot overlap move or insert",
+                            );
+                        default:
+                            unreachableCase(type);
+                    }
+                }
+                marks.splice(iMark, 1, ...splitMarks);
+            }
+            iMark += 1;
+        }
+    } else {
+        let iMark = 0;
+        let inputIndex = 0;
+        let outputIndex = 0;
+        while (iMark < marks.length) {
+            const mark = marks[iMark];
+            if (typeof mark === "number") {
+                inputIndex += mark;
+                outputIndex += mark;
+            } else {
+                const type = mark.type;
+                switch (type) {
+                    case Delta.MarkType.Modify:
+                        inputIndex += 1;
+                        outputIndex += 1;
+                        break;
+                    case Delta.MarkType.Insert:
+                        outputIndex += mark.content.length;
+                        break;
+                    case Delta.MarkType.InsertAndModify:
+                    case Delta.MarkType.MoveInAndModify:
+                        outputIndex += 1;
+                        break;
+                    case Delta.MarkType.MoveIn:
+                        outputIndex += mark.count;
+                        break;
+                    case Delta.MarkType.Delete:
+                    case Delta.MarkType.MoveOut:
+                        inputIndex += mark.count;
+                        break;
+                    case Delta.MarkType.ModifyAndMoveOut:
+                    case Delta.MarkType.ModifyAndDelete:
+                        inputIndex += 1;
+                        break;
+                    default:
+                        unreachableCase(type);
+                }
+            }
+            iMark += 1;
+        }
+    }
 }

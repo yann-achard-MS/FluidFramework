@@ -438,7 +438,7 @@ describe("ModularChangeFamily", () => {
         it("compose tagged changes", () => {
             const change1A: FieldChange = {
                 fieldKind: valueField.identifier,
-                change: brand(valueChange1a),
+                fieldChanges: brand(valueChange1a),
             };
 
             const value1 = "Value 1";
@@ -448,7 +448,7 @@ describe("ModularChangeFamily", () => {
 
             const change1B: FieldChange = {
                 fieldKind: singleNodeField.identifier,
-                change: brand(nodeChange1),
+                fieldChanges: brand(nodeChange1),
             };
 
             const change1: TaggedChange<ModularChangeset> = tagChange(
@@ -475,7 +475,7 @@ describe("ModularChangeFamily", () => {
 
             const change2B: FieldChange = {
                 fieldKind: singleNodeField.identifier,
-                change: brand(nodeChange2),
+                fieldChanges: brand(nodeChange2),
             };
 
             deepFreeze(change2B);

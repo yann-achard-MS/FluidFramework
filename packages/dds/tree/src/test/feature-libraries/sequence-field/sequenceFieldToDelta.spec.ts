@@ -131,7 +131,7 @@ describe("SequenceField - toDelta", () => {
     it("revive and modify => insert", () => {
         const nestedChange: FieldChange = {
             fieldKind: FieldKinds.sequence.identifier,
-            change: brand("Dummy Child Change"),
+            fieldChanges: brand("Dummy Child Change"),
         };
         const nodeChange = {
             fieldChanges: new Map([[fooField, nestedChange]]),
@@ -267,7 +267,7 @@ describe("SequenceField - toDelta", () => {
     it.skip("Insert and modify => Insert and modify", () => {
         const nestedChange: FieldChange = {
             fieldKind: FieldKinds.sequence.identifier,
-            change: brand({
+            fieldChanges: brand({
                 type: "MoveIn",
                 id: moveId,
                 count: 42,

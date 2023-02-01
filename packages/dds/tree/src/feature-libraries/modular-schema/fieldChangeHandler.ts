@@ -5,6 +5,8 @@
 
 import { FieldKindIdentifier, Delta, FieldKey, Value, TaggedChange, RevisionTag } from "../../core";
 import { Brand, Invariant, JsonCompatibleReadOnly } from "../../util";
+import { ChildIndex } from "../deltaUtils";
+import { FieldAnchorSet } from "./fieldKind";
 
 /**
  * Functionality provided by a field kind which will be composed with other `FieldChangeHandler`s to
@@ -12,49 +14,47 @@ import { Brand, Invariant, JsonCompatibleReadOnly } from "../../util";
  */
 export interface FieldChangeHandler<
     TChangeset,
-    TEditor extends FieldEditor<TChangeset> = FieldEditor<TChangeset>,
+    TNodeKey extends FieldNodeKey = FieldNodeKey,
+    TEditor = unknown,
 > {
     _typeCheck?: Invariant<TChangeset>;
     rebaser: FieldChangeRebaser<TChangeset>;
-    encoder: FieldChangeEncoder<TChangeset>;
+    encoder: FieldChangeEncoder<TChangeset, TNodeKey>;
     editor: TEditor;
-    intoDelta(change: TChangeset, deltaFromChild: ToDelta, reviver: NodeReviver): Delta.MarkList;
+    /**
+     * Should return a negative integer if `lhs < rhs`, zero if `lhs === rhs`, a positive integer if `lhs > rhs`.
+     */
+    // readonly keyCmp: (lhs: TNodeKey, rhs: TNodeKey) => number;
+    // getKeyChanges(change: TChangeset): KeyChanges<TNodeKeyRange>;
+    // isKeyInSpan(key: TNodeKey, span: TNodeKeyRange): boolean;
+    rebaseKey(key: TNodeKey, over: TChangeset): TNodeKey | undefined;
+    prebaseKey(key: TNodeKey, over: TChangeset): TNodeKey | undefined;
+    keyToDeltaKey(key: TNodeKey): ChildIndex | undefined;
+    intoDelta(change: TChangeset, reviver: NodeReviver): Delta.MarkList;
 }
+
+export interface KeyChanges<TNodeKeyRange> {
+    readonly dropped: readonly TNodeKeyRange[];
+    readonly added: readonly TNodeKeyRange[];
+}
+
 export interface FieldChangeRebaser<TChangeset> {
     /**
      * Compose a collection of changesets into a single one.
-     * Every child included in the composed change must be the result of a call to `composeChild`,
-     * and should be tagged with the revision of its parent change.
-     * Children which were the result of an earlier call to `composeChild` should be tagged with
-     * undefined revision if later passed as an argument to `composeChild`.
-     * See {@link ChangeRebaser} for more details.
      */
-    compose(
-        changes: TaggedChange<TChangeset>[],
-        composeChild: NodeChangeComposer,
-        genId: IdAllocator,
-    ): TChangeset;
+    compose(changes: TaggedChange<TChangeset>[], genId: IdAllocator): TChangeset;
 
     /**
      * @returns the inverse of `changes`.
      * See {@link ChangeRebaser} for details.
      */
-    invert(
-        change: TaggedChange<TChangeset>,
-        invertChild: NodeChangeInverter,
-        genId: IdAllocator,
-    ): TChangeset;
+    invert(change: TaggedChange<TChangeset>, genId: IdAllocator): TChangeset;
 
     /**
      * Rebase `change` over `over`.
      * See {@link ChangeRebaser} for details.
      */
-    rebase(
-        change: TChangeset,
-        over: TaggedChange<TChangeset>,
-        rebaseChild: NodeChangeRebaser,
-        genId: IdAllocator,
-    ): TChangeset;
+    rebase(change: TChangeset, over: TaggedChange<TChangeset>, genId: IdAllocator): TChangeset;
 }
 
 /**
@@ -67,37 +67,32 @@ export function referenceFreeFieldChangeRebaser<TChangeset>(data: {
     rebase: (change: TChangeset, over: TChangeset) => TChangeset;
 }): FieldChangeRebaser<TChangeset> {
     return {
-        compose: (changes, _composeChild, _genId) => data.compose(changes.map((c) => c.change)),
-        invert: (change, _invertChild, _genId) => data.invert(change.change),
-        rebase: (change, over, _rebaseChild, _genId) => data.rebase(change, over.change),
+        compose: (changes, _genId) => data.compose(changes.map((c) => c.change)),
+        invert: (change, _genId) => data.invert(change.change),
+        rebase: (change, over, _genId) => data.rebase(change, over.change),
     };
 }
 
-export interface FieldChangeEncoder<TChangeset> {
+export interface FieldChangeEncoder<TChangeset, TNodeKey> {
     /**
      * Encodes `change` into a JSON compatible object.
      */
-    encodeForJson(
-        formatVersion: number,
-        change: TChangeset,
-        encodeChild: NodeChangeEncoder,
-    ): JsonCompatibleReadOnly;
+    encodeChangeForJson(formatVersion: number, change: TChangeset): JsonCompatibleReadOnly;
 
     /**
      * Decodes `change` from a JSON compatible object.
      */
-    decodeJson(
-        formatVersion: number,
-        change: JsonCompatibleReadOnly,
-        decodeChild: NodeChangeDecoder,
-    ): TChangeset;
-}
+    decodeChangeJson(formatVersion: number, change: JsonCompatibleReadOnly): TChangeset;
 
-export interface FieldEditor<TChangeset> {
     /**
-     * Creates a changeset which represents the given `change` to the child at `childIndex` of this editor's field.
+     * Encodes `key` into a JSON compatible object.
      */
-    buildChildChange(childIndex: number, change: NodeChangeset): TChangeset;
+    encodeNodeKeyForJson(formatVersion: number, key: TNodeKey): JsonCompatibleReadOnly;
+
+    /**
+     * Decodes `key` from a JSON compatible object.
+     */
+    decodeNodeKeyJson(formatVersion: number, key: JsonCompatibleReadOnly): TNodeKey;
 }
 
 /**
@@ -111,15 +106,6 @@ export type NodeReviver = (
     index: number,
     count: number,
 ) => Delta.ProtoNode[];
-
-export type NodeChangeInverter = (change: NodeChangeset) => NodeChangeset;
-
-export type NodeChangeRebaser = (change: NodeChangeset, baseChange: NodeChangeset) => NodeChangeset;
-
-export type NodeChangeComposer = (changes: TaggedChange<NodeChangeset>[]) => NodeChangeset;
-
-export type NodeChangeEncoder = (change: NodeChangeset) => JsonCompatibleReadOnly;
-export type NodeChangeDecoder = (change: JsonCompatibleReadOnly) => NodeChangeset;
 
 export type IdAllocator = () => ChangesetLocalId;
 
@@ -189,7 +175,10 @@ export interface FieldChange {
      * C) `change` is part of an anonymous revision.
      */
     revision?: RevisionTag;
-    change: FieldChangeset;
+    fieldChanges: FieldChangeset;
+    readonly childChanges: FieldAnchorSet<NodeChangeset>;
 }
 
 export type FieldChangeset = Brand<unknown, "FieldChangeset">;
+export type FieldNodeKey<TValue = number> = Brand<TValue, "FieldNodeKey">;
+export type FieldNodeAnchor = Brand<unknown, "FieldNodeAnchor">;
