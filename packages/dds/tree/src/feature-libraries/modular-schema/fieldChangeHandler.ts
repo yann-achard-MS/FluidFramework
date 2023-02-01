@@ -27,11 +27,13 @@ export interface FieldChangeHandler<
 	 */
 	// readonly keyCmp: (lhs: TNodeKey, rhs: TNodeKey) => number;
 	// getKeyChanges(change: TChangeset): KeyChanges<TNodeKeyRange>;
-	// isKeyInSpan(key: TNodeKey, span: TNodeKeyRange): boolean;
+	// isKeyInSpan(key: TNodeKey,span: TNodeKeyRange): boolean;
 	rebaseKey(key: TNodeKey, over: TChangeset): TNodeKey | undefined;
 	prebaseKey(key: TNodeKey, over: TChangeset): TNodeKey | undefined;
 	keyToDeltaKey(key: TNodeKey): ChildIndex | undefined;
-	intoDelta(change: TChangeset, reviver: NodeReviver): Delta.MarkList;
+	intoDelta(change: TChangeset,
+		reviver: NodeReviver,
+	): Delta.FieldChanges;
 }
 
 export interface KeyChanges<TNodeKeyRange> {
@@ -109,9 +111,13 @@ export interface FieldEditor<TChangeset> {
 /**
  * The `index` represents the index of the child node in the input context.
  * The `index` should be `undefined` iff the child node does not exist in the input context (e.g., an inserted node).
+ * Returns `undefined` iff the child changes amount to nothing.
  * @alpha
  */
-export type ToDelta = (child: NodeChangeset, index: number | undefined) => Delta.Modify;
+export type ToDelta = (
+	child: NodeChangeset,
+	index: number | undefined,
+) => Delta.NodeChanges | undefined;
 
 /**
  * @alpha

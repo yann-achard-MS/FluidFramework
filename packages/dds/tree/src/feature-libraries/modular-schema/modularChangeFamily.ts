@@ -344,7 +344,7 @@ export class ModularChangeFamily
 		repairStore: ReadonlyRepairDataStore,
 		path: UpPath | undefined,
 	): Delta.Root {
-		const delta: Map<FieldKey, Delta.MarkList> = new Map();
+		const delta: Map<FieldKey, Delta.FieldChanges> = new Map();
 		for (const [field, fieldChange] of change) {
 			const changeHandler = getChangeHandler(this.fieldKinds, fieldChange.fieldKind);
 			const deltaField = changeHandler.intoDelta(
@@ -377,15 +377,16 @@ export class ModularChangeFamily
 	}
 
 	private deltaFromNodeChange(
-		change: NodeChangeset,
+		{ valueChange, fieldChanges }: NodeChangeset,
 		repairStore: ReadonlyRepairDataStore,
 		path?: UpPath,
-	): Delta.Modify {
-		const modify: Mutable<Delta.Modify> = {
-			type: Delta.MarkType.Modify,
-		};
+	): Delta.NodeChanges | undefined {
+		if (valueChange === undefined && fieldChanges === undefined) {
+			return undefined;
+		}
 
-		const valueChange = change.valueChange;
+		const modify: Mutable<Delta.NodeChanges> = {};
+
 		if (valueChange !== undefined) {
 			if ("revert" in valueChange) {
 				assert(
@@ -402,8 +403,8 @@ export class ModularChangeFamily
 			}
 		}
 
-		if (change.fieldChanges !== undefined) {
-			modify.fields = this.intoDeltaImpl(change.fieldChanges, repairStore, path);
+		if (fieldChanges !== undefined) {
+			modify.fields = this.intoDeltaImpl(fieldChanges, repairStore, path);
 		}
 
 		return modify;
