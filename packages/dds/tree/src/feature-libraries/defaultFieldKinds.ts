@@ -26,24 +26,26 @@ import {
 	ToDelta,
 	FieldChangeRebaser,
 	FieldChangeHandler,
-	NodeChangeComposer,
-	NodeChangeInverter,
-	NodeChangeRebaser,
 	NodeChangeset,
 	FieldChangeEncoder,
-	NodeChangeDecoder,
-	NodeChangeEncoder,
 	FieldEditor,
 	referenceFreeFieldChangeRebaser,
 	NodeReviver,
+	FieldChangeset,
+	FieldNodeKey,
+	FieldAnchorSet,
+	FieldNodeAnchor,
 } from "./modular-schema";
 import { sequenceFieldChangeHandler, SequenceFieldEditor } from "./sequence-field";
 
 type BrandedFieldKind<
 	TName extends string,
 	TMultiplicity extends Multiplicity,
-	TEditor extends FieldEditor<any>,
-> = FieldKind<TEditor> & {
+	TChangeset extends FieldChangeset = FieldChangeset,
+	TEditor extends FieldEditor<TChangeset> = FieldEditor<TChangeset>,
+	TNodeKey extends FieldNodeKey = FieldNodeKey,
+	TAnchor extends FieldNodeAnchor = FieldNodeAnchor,
+> = FieldKind<TChangeset, TEditor, TNodeKey, TAnchor> & {
 	identifier: TName & FieldKindIdentifier;
 	multiplicity: TMultiplicity;
 };
@@ -51,24 +53,29 @@ type BrandedFieldKind<
 function brandedFieldKind<
 	TName extends string,
 	TMultiplicity extends Multiplicity,
-	TEditor extends FieldEditor<any>,
+	TChangeset extends FieldChangeset = FieldChangeset,
+	TEditor extends FieldEditor<TChangeset> = FieldEditor<TChangeset>,
+	TNodeKey extends FieldNodeKey = FieldNodeKey,
+	TAnchor extends FieldNodeAnchor = FieldNodeAnchor,
 >(
 	identifier: TName,
 	multiplicity: TMultiplicity,
-	changeHandler: FieldChangeHandler<any, TEditor>,
+	anchorStoreFactory: <TData>() => FieldAnchorSet<TData, TNodeKey, TAnchor, TChangeset>,
+	changeHandler: FieldChangeHandler<any, any, TEditor>,
 	allowsTreeSupersetOf: (
 		originalTypes: ReadonlySet<TreeSchemaIdentifier> | undefined,
 		superset: FieldSchema,
 	) => boolean,
 	handlesEditsFrom: ReadonlySet<FieldKindIdentifier>,
-): BrandedFieldKind<TName, TMultiplicity, TEditor> {
-	return new FieldKind<TEditor>(
+): BrandedFieldKind<TName, TMultiplicity, TChangeset, TEditor, TNodeKey, TAnchor> {
+	return new FieldKind<TChangeset, TEditor, TNodeKey, TAnchor>(
 		brand(identifier),
 		multiplicity,
+		anchorStoreFactory,
 		changeHandler,
 		allowsTreeSupersetOf,
 		handlesEditsFrom,
-	) as unknown as BrandedFieldKind<TName, TMultiplicity, TEditor>;
+	) as BrandedFieldKind<TName, TMultiplicity, TChangeset, TEditor, TNodeKey, TAnchor>;
 }
 
 /**

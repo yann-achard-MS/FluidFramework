@@ -13,7 +13,13 @@ import {
 	TaggedChange,
 } from "../../core";
 import { isNeverField } from "./comparison";
-import { FieldChangeHandler, FieldNodeKey } from "./fieldChangeHandler";
+import {
+	FieldChangeHandler,
+	FieldChangeset,
+	FieldNodeAnchor,
+	FieldNodeKey,
+	NodeChangeset,
+} from "./fieldChangeHandler";
 
 /**
  * Functionality for FieldKinds that is stable,
@@ -30,12 +36,7 @@ import { FieldChangeHandler, FieldNodeKey } from "./fieldChangeHandler";
  * @sealed
  * @alpha
  */
-export class FieldKind<
-	TEditor = unknown,
-	TChangeset = unknown,
-	TNodeKey extends FieldNodeKey = FieldNodeKey,
-	TAnchor = unknown,
-> {
+export class FieldKind<TChangeset, TNodeKey, TAnchor, TEditor = unknown> {
 	/**
 	 * @param identifier - Globally scoped identifier.
 	 * @param multiplicity - bound on the number of children that fields of this kind may have.
@@ -60,7 +61,7 @@ export class FieldKind<
 			TAnchor,
 			TChangeset
 		>,
-		public readonly changeHandler: FieldChangeHandler<any, TNodeKey, TEditor>,
+		public readonly changeHandler: FieldChangeHandler<TChangeset, TNodeKey, TEditor>,
 		private readonly allowsTreeSupersetOf: (
 			originalTypes: ReadonlySet<TreeSchemaIdentifier> | undefined,
 			superset: FieldSchema,
@@ -90,15 +91,10 @@ export class FieldKind<
 
 export type MergeCallback<TData> = (existingData: TData, newData: TData) => TData;
 
-export interface FieldAnchorSet<
-	TData = undefined,
-	TKey extends FieldNodeKey = FieldNodeKey,
-	TAnchor = unknown,
-	TChangeset = unknown,
-> {
-	clone(): FieldAnchorSet<TData, TKey, TAnchor, TChangeset>;
+export interface FieldAnchorSet<TKey, TAnchor, TChangeset, TData = undefined> {
+	clone(): FieldAnchorSet<TKey, TAnchor, TChangeset, TData>;
 	mergeIn(
-		set: FieldAnchorSet<TData, TKey, TAnchor, TChangeset>,
+		set: FieldAnchorSet<TKey, TAnchor, TChangeset, TData>,
 		mergeData: MergeCallback<TData>,
 	): void;
 	track(key: TKey, data: TData, mergeData: MergeCallback<TData>): TAnchor;
@@ -121,6 +117,14 @@ export enum RebaseDirection {
 	Backward,
 }
 
+export type GenericFieldKind = FieldKind<FieldChangeset, FieldNodeKey, FieldNodeAnchor>;
+export type GenericFieldAnchorSet = FieldAnchorSet<
+	FieldNodeKey,
+	FieldNodeAnchor,
+	FieldChangeset,
+	NodeChangeset
+>;
+
 /**
  * Policy from the app for interpreting the stored schema.
  * The app must ensure consistency for all users of the document.
@@ -134,7 +138,7 @@ export interface FullSchemaPolicy extends SchemaPolicy {
 	 * though older applications might be missing some,
 	 * and will be unable to process any changes that use those FieldKinds.
 	 */
-	readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>;
+	readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, GenericFieldKind>;
 }
 
 /**

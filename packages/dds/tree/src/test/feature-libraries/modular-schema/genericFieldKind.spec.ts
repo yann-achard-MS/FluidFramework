@@ -60,7 +60,7 @@ function nodeChangeFromValueChange(valueChange: ValueChangeset): NodeChangeset {
 
 function valueChangeFromNodeChange(nodeChange: NodeChangeset): ValueChangeset {
 	// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-	return nodeChange.fieldChanges!.get(fieldA)!.fieldChanges as unknown as ValueChangeset;
+	return nodeChange.fieldChanges!.get(fieldA)!.shallow as unknown as ValueChangeset;
 }
 
 const nodeChange0To1: NodeChangeset = nodeChangeFromValueChange(valueChange0To1);

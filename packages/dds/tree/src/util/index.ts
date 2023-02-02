@@ -57,6 +57,7 @@ export {
 	JsonCompatibleReadOnly,
 	makeArray,
 	Mutable,
+	Defined,
 	RecursiveReadonly,
 	unreachableCase,
 } from "./utils";

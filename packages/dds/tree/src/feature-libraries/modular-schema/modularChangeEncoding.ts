@@ -75,7 +75,7 @@ function encodeFieldChangesForJson(
 		const encodedChange = getChangeHandler(
 			fieldKinds,
 			fieldChange.fieldKind,
-		).encoder.encodeForJson(0, fieldChange.fieldChanges, (childChange) =>
+		).encoder.encodeForJson(0, fieldChange.shallow, (childChange) =>
 			encodeNodeChangesForJson(fieldKinds, childChange),
 		);
 
@@ -143,7 +143,7 @@ function decodeFieldChangesFromJson(
 
 		decodedFields.set(fieldKey, {
 			fieldKind: field.fieldKind,
-			fieldChanges: brand(fieldChangeset),
+			shallow: brand(fieldChangeset),
 		});
 	}
 

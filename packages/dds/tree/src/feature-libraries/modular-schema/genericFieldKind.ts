@@ -3,20 +3,17 @@
  * Licensed under the MIT License.
  */
 
-import { Delta, makeAnonChange, tagChange, TaggedChange } from "../../core";
-import { brand, JsonCompatibleReadOnly } from "../../util";
+import { Delta, TaggedChange } from "../../core";
+import { brand, fail, JsonCompatibleReadOnly } from "../../util";
+import { FieldChangeHandler, NodeChangeset, ChildIndex, Context } from "./fieldChangeHandler";
 import {
-	FieldChangeHandler,
-	NodeChangeset,
-	ToDelta,
-	NodeChangeEncoder,
-	NodeChangeDecoder,
-	NodeChangeComposer,
-	NodeChangeInverter,
-	NodeChangeRebaser,
-	IdAllocator,
-} from "./fieldChangeHandler";
-import { FieldKind, Multiplicity } from "./fieldKind";
+	FieldAnchorSet,
+	FieldAnchorSetEntry,
+	FieldKind,
+	MergeCallback,
+	Multiplicity,
+	RebaseDirection,
+} from "./fieldKind";
 
 /**
  * A field-kind-agnostic change to a single node within a field.
@@ -44,165 +41,95 @@ export interface EncodedGenericChange {
 /**
  * A field-agnostic set of changes to the elements of a field.
  */
-export type GenericChangeset = GenericChange[];
-
-/**
- * Encoded version of {@link GenericChangeset}
- */
-export type EncodedGenericChangeset = EncodedGenericChange[];
+export type GenericChangeset = 0;
 
 /**
  * {@link FieldChangeHandler} implementation for {@link GenericChangeset}.
  */
 export const genericChangeHandler: FieldChangeHandler<GenericChangeset> = {
 	rebaser: {
-		compose: (
-			changes: TaggedChange<GenericChangeset>[],
-			composeChildren: NodeChangeComposer,
-		): GenericChangeset => {
-			if (changes.length === 0) {
-				return [];
-			}
-			const composed: GenericChangeset = [];
-			for (const change of changes) {
-				let listIndex = 0;
-				for (const { index, nodeChange } of change.change) {
-					const taggedChange = tagChange(nodeChange, change.revision);
-					while (listIndex < composed.length && composed[listIndex].index < index) {
-						listIndex += 1;
-					}
-					const match: GenericChange | undefined = composed[listIndex];
-					if (match === undefined) {
-						composed.push({ index, nodeChange: composeChildren([taggedChange]) });
-					} else if (match.index > index) {
-						composed.splice(listIndex, 0, {
-							index,
-							nodeChange: composeChildren([taggedChange]),
-						});
-					} else {
-						composed.splice(listIndex, 1, {
-							index,
-							nodeChange: composeChildren([
-								// `match.nodeChange` was the result of a call to `composeChildren`,
-								// so it does not need a revision tag.
-								// See the contract of `FieldChangeHandler.compose`.
-								makeAnonChange(match.nodeChange),
-								taggedChange,
-							]),
-						});
-					}
-				}
-			}
-			return composed;
+		compose: (): GenericChangeset => {
+			fail("Should never be composed");
 		},
-		invert: (
-			{ change }: TaggedChange<GenericChangeset>,
-			invertChild: NodeChangeInverter,
-		): GenericChangeset => {
-			return change.map(
-				({ index, nodeChange }: GenericChange): GenericChange => ({
-					index,
-					nodeChange: invertChild(nodeChange),
-				}),
-			);
+		invert: (): GenericChangeset => {
+			fail("Should never be inverted");
 		},
-		rebase: (
-			change: GenericChangeset,
-			{ change: over }: TaggedChange<GenericChangeset>,
-			rebaseChild: NodeChangeRebaser,
-		): GenericChangeset => {
-			const rebased: GenericChangeset = [];
-			let iChange = 0;
-			let iOver = 0;
-			while (iChange < change.length && iOver < over.length) {
-				const a = change[iChange];
-				const b = over[iOver];
-				if (a.index === b.index) {
-					rebased.push({
-						index: a.index,
-						nodeChange: rebaseChild(a.nodeChange, b.nodeChange),
-					});
-					iChange += 1;
-					iOver += 1;
-				} else if (a.index < b.index) {
-					rebased.push(a);
-					iChange += 1;
-				} else {
-					iOver += 1;
-				}
-			}
-			rebased.push(...change.slice(iChange));
-			return rebased;
+		rebase: (): GenericChangeset => {
+			fail("Should never be rebased");
 		},
 	},
 	encoder: {
-		encodeForJson(
-			formatVersion: number,
-			change: GenericChangeset,
-			encodeChild: NodeChangeEncoder,
-		): JsonCompatibleReadOnly {
-			const encoded: JsonCompatibleReadOnly[] & EncodedGenericChangeset = change.map(
-				({ index, nodeChange }) => ({ index, nodeChange: encodeChild(nodeChange) }),
-			);
-			return encoded;
+		encodeChangeForJson: (): JsonCompatibleReadOnly => {
+			fail("Should never be encoded");
 		},
-		decodeJson: (
-			formatVersion: number,
-			change: JsonCompatibleReadOnly,
-			decodeChild: NodeChangeDecoder,
-		): GenericChangeset => {
-			const encoded = change as JsonCompatibleReadOnly[] & EncodedGenericChangeset;
-			return encoded.map(
-				({ index, nodeChange }: EncodedGenericChange): GenericChange => ({
-					index,
-					nodeChange: decodeChild(nodeChange),
-				}),
-			);
+		decodeChangeJson: (): GenericChangeset => {
+			fail("Should never be decoded");
 		},
+		encodeNodeKeyForJson: (formatVersion: number, key: number): JsonCompatibleReadOnly => key,
+		decodeNodeKeyJson: (formatVersion: number, key: JsonCompatibleReadOnly): number =>
+			key as number,
 	},
-	editor: {
-		buildChildChange(index, change): GenericChangeset {
-			return [{ index, nodeChange: change }];
-		},
+	editor: {},
+	getKey: (index: number): number => index,
+	rebaseKey: () => {
+		fail("Should never be rebased");
 	},
-	intoDelta: (change: GenericChangeset, deltaFromChild: ToDelta): Delta.FieldChanges => {
-		const beforeShallow: Delta.NestedChange[] = [];
-		for (const { index, nodeChange } of change) {
-			const childDelta = deltaFromChild(nodeChange, index);
-			if (childDelta) {
-				beforeShallow.push({ index, ...childDelta });
-			}
-		}
-		return { beforeShallow };
+	prebaseKey: () => {
+		fail("Should never be rebased");
 	},
+	keyToDeltaKey: (key: number): ChildIndex | undefined => ({
+		context: Context.Input,
+		index: key,
+	}),
+	intoDelta: (): Delta.MarkList => {
+		fail("Should never be converted to a delta");
+	},
+};
+
+export class GenericAnchorSet<TData>
+	implements FieldAnchorSet<TData, number, number, GenericChangeset>
+{
+	clone(): FieldAnchorSet<TData, number, number, 0> {
+		throw new Error("Method not implemented.");
+	}
+	mergeIn(set: FieldAnchorSet<TData, number, number, 0>, mergeData: MergeCallback<0>): void {
+		throw new Error("Method not implemented.");
+	}
+	track(key: TData, data: 0, mergeData: MergeCallback<0>): number {
+		throw new Error("Method not implemented.");
+	}
+	forget(anchor: number): void {
+		throw new Error("Method not implemented.");
+	}
+	lookup(key: TData): FieldAnchorSetEntry<0, TData, number> | undefined {
+		throw new Error("Method not implemented.");
+	}
+	locate(anchor: number): TData | undefined {
+		throw new Error("Method not implemented.");
+	}
+	getData(anchor: number): 0 {
+		throw new Error("Method not implemented.");
+	}
+	rebase(over: TaggedChange<number>, direction: RebaseDirection): void {
+		throw new Error("Method not implemented.");
+	}
+	entries(): IterableIterator<FieldAnchorSetEntry<0, TData, number>> {
+		throw new Error("Method not implemented.");
+	}
+}
+
+const anchorStoreFactory = <TData>(): GenericAnchorSet<TData> => {
+	return new GenericAnchorSet<TData>();
 };
 
 /**
  * {@link FieldKind} used to represent changes to elements of a field in a field-kind-agnostic format.
  */
-export const genericFieldKind: FieldKind = new FieldKind(
+export const genericFieldKind: FieldKind<GenericChangeset, number, number> = new FieldKind(
 	brand("ModularEditBuilder.Generic"),
 	Multiplicity.Sequence,
+	anchorStoreFactory,
 	genericChangeHandler,
 	(types, other) => false,
 	new Set(),
 );
-
-/**
- * Converts a {@link GenericChangeset} into a field-kind-specific `TChange`.
- * @param changeset - The generic changeset to convert.
- * @param target - The {@link FieldChangeHandler} for the `FieldKind` that the returned change should target.
- * @param composeChild - A delegate to compose {@link NodeChangeset}s.
- * @returns An equivalent changeset as represented by the `target` field-kind.
- */
-export function convertGenericChange<TChange>(
-	changeset: GenericChangeset,
-	target: FieldChangeHandler<TChange>,
-	composeChild: NodeChangeComposer,
-	genId: IdAllocator,
-): TChange {
-	const perIndex: TaggedChange<TChange>[] = changeset.map(({ index, nodeChange }) =>
-		makeAnonChange(target.editor.buildChildChange(index, nodeChange)),
-	);
-	return target.rebaser.compose(perIndex, composeChild, genId);
-}

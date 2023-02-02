@@ -5,7 +5,6 @@
 
 import { FieldKindIdentifier, Delta, FieldKey, Value, TaggedChange, RevisionTag } from "../../core";
 import { Brand, Invariant, JsonCompatibleReadOnly } from "../../util";
-import { ChildIndex } from "../deltaUtils";
 import { FieldAnchorSet } from "./fieldKind";
 
 /**
@@ -13,33 +12,41 @@ import { FieldAnchorSet } from "./fieldKind";
  * implement a unified ChangeFamily supporting documents with multiple field kinds.
  * @alpha
  */
-export interface FieldChangeHandler<
-	TChangeset,
-	TNodeKey extends FieldNodeKey = FieldNodeKey,
-	TEditor = unknown,
-> {
+export interface FieldChangeHandler<TChangeset, TNodeKey = number, TEditor = unknown> {
 	_typeCheck?: Invariant<TChangeset>;
 	rebaser: FieldChangeRebaser<TChangeset>;
 	encoder: FieldChangeEncoder<TChangeset, TNodeKey>;
 	editor: TEditor;
-	/**
-	 * Should return a negative integer if `lhs < rhs`, zero if `lhs === rhs`, a positive integer if `lhs > rhs`.
-	 */
-	// readonly keyCmp: (lhs: TNodeKey, rhs: TNodeKey) => number;
-	// getKeyChanges(change: TChangeset): KeyChanges<TNodeKeyRange>;
-	// isKeyInSpan(key: TNodeKey,span: TNodeKeyRange): boolean;
+	getKey(index: number): TNodeKey;
 	rebaseKey(key: TNodeKey, over: TChangeset): TNodeKey | undefined;
 	prebaseKey(key: TNodeKey, over: TChangeset): TNodeKey | undefined;
 	keyToDeltaKey(key: TNodeKey): ChildIndex | undefined;
-	intoDelta(change: TChangeset,
-		reviver: NodeReviver,
-	): Delta.FieldChanges;
+	intoDelta(change: TChangeset, reviver: NodeReviver): Delta.MarkList;
 }
 
-export interface KeyChanges<TNodeKeyRange> {
-	readonly dropped: readonly TNodeKeyRange[];
-	readonly added: readonly TNodeKeyRange[];
+/**
+ * @alpha
+ */
+export interface ChildIndex {
+	index: number;
+	context: Context;
 }
+
+/**
+ * @alpha
+ */
+export enum Context {
+	Input,
+	Output,
+}
+
+// /**
+//  * @alpha
+//  */
+// export interface KeyChanges<TNodeKeyRange> {
+// 	readonly dropped: readonly TNodeKeyRange[];
+// 	readonly added: readonly TNodeKeyRange[];
+// }
 
 /**
  * @alpha
@@ -82,7 +89,7 @@ export function referenceFreeFieldChangeRebaser<TChangeset>(data: {
 /**
  * @alpha
  */
-export interface FieldChangeEncoder<TChangeset> {
+export interface FieldChangeEncoder<TChangeset, TNodeKey> {
 	/**
 	 * Encodes `change` into a JSON compatible object.
 	 */
@@ -97,16 +104,18 @@ export interface FieldChangeEncoder<TChangeset> {
 	 * Encodes `key` into a JSON compatible object.
 	 */
 	encodeNodeKeyForJson(formatVersion: number, key: TNodeKey): JsonCompatibleReadOnly;
-
-/**
- * @alpha
- */
-export interface FieldEditor<TChangeset> {
 	/**
 	 * Decodes `key` from a JSON compatible object.
 	 */
 	decodeNodeKeyJson(formatVersion: number, key: JsonCompatibleReadOnly): TNodeKey;
 }
+
+// export interface FieldEditor<TChangeset> {
+// 	/**
+// 	 * Creates a changeset which represents the given `change` to the child at `childIndex` of this editor's field.
+// 	 */
+// 	buildChildChange(childIndex: number, change: NodeChangeset): TChangeset;
+// }
 
 /**
  * The `index` represents the index of the child node in the input context.
@@ -204,7 +213,6 @@ export type FieldChangeMap = Map<FieldKey, FieldChange>;
  */
 export interface FieldChange {
 	fieldKind: FieldKindIdentifier;
-
 	/**
 	 * If defined, `change` is part of the specified revision.
 	 * Undefined in the following cases:
@@ -213,13 +221,24 @@ export interface FieldChange {
 	 * C) `change` is part of an anonymous revision.
 	 */
 	revision?: RevisionTag;
-	fieldChanges: FieldChangeset;
-	readonly childChanges: FieldAnchorSet<NodeChangeset>;
+	shallow?: FieldChangeset;
+	readonly nested?: FieldAnchorSet<FieldNodeKey, FieldNodeAnchor, FieldChangeset, NodeChangeset>;
 }
+
+// export type TT = FieldChangeset<0> extends FieldChangeset<Defined> ? true : false;
+// const t: FieldChangeset = undefined;
 
 /**
  * @alpha
  */
 export type FieldChangeset = Brand<unknown, "FieldChangeset">;
-export type FieldNodeKey<TValue = number> = Brand<TValue, "FieldNodeKey">;
+
+/**
+ * @alpha
+ */
+export type FieldNodeKey = Brand<unknown, "FieldNodeKey">;
+
+/**
+ * @alpha
+ */
 export type FieldNodeAnchor = Brand<unknown, "FieldNodeAnchor">;

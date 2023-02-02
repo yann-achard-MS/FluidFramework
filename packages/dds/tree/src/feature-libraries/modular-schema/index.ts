@@ -11,7 +11,7 @@ export {
 	allowsFieldSuperset,
 	allowsTreeSuperset,
 } from "./comparison";
-export { FieldKind, FullSchemaPolicy, Multiplicity } from "./fieldKind";
+export { FieldKind, FieldAnchorSet, FullSchemaPolicy, Multiplicity } from "./fieldKind";
 export {
 	ChangesetLocalId,
 	IdAllocator,
@@ -21,13 +21,10 @@ export {
 	FieldChangeMap,
 	FieldChangeRebaser,
 	FieldChangeset,
+	FieldNodeKey,
+	FieldNodeAnchor,
 	FieldEditor,
 	ModularChangeset,
-	NodeChangeComposer,
-	NodeChangeDecoder,
-	NodeChangeEncoder,
-	NodeChangeInverter,
-	NodeChangeRebaser,
 	NodeChangeset,
 	NodeReviver,
 	referenceFreeFieldChangeRebaser,

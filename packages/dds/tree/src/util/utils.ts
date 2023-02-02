@@ -17,6 +17,9 @@ export type RecursiveReadonly<T> = {
  */
 export type Mutable<T> = { -readonly [P in keyof T]: T[P] };
 
+// eslint-disable-next-line @rushstack/no-new-null
+export type Defined<T = unknown> = T & (NonNullable<T> | null | number | symbol | boolean | string);
+
 export function clone<T>(original: T): T {
 	return structuredClone(original);
 }
