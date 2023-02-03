@@ -86,34 +86,32 @@ export const genericChangeHandler: FieldChangeHandler<GenericChangeset> = {
 	},
 };
 
-export class GenericAnchorSet<TData>
-	implements FieldAnchorSet<TData, number, number, GenericChangeset>
-{
-	clone(): FieldAnchorSet<TData, number, number, 0> {
+class GenericAnchorSet<TData> implements FieldAnchorSet<number, number, GenericChangeset, TData> {
+	clone(): FieldAnchorSet<number, number, 0, TData> {
 		throw new Error("Method not implemented.");
 	}
-	mergeIn(set: FieldAnchorSet<TData, number, number, 0>, mergeData: MergeCallback<0>): void {
+	mergeIn(set: FieldAnchorSet<number, number, 0, TData>, mergeData: MergeCallback<TData>): void {
 		throw new Error("Method not implemented.");
 	}
-	track(key: TData, data: 0, mergeData: MergeCallback<0>): number {
+	track(key: number, data: TData, mergeData: MergeCallback<TData>): number {
 		throw new Error("Method not implemented.");
 	}
 	forget(anchor: number): void {
 		throw new Error("Method not implemented.");
 	}
-	lookup(key: TData): FieldAnchorSetEntry<0, TData, number> | undefined {
+	lookup(key: number): FieldAnchorSetEntry<TData, number, number> | undefined {
 		throw new Error("Method not implemented.");
 	}
-	locate(anchor: number): TData | undefined {
+	locate(anchor: number): number | undefined {
 		throw new Error("Method not implemented.");
 	}
-	getData(anchor: number): 0 {
+	getData(anchor: number): TData {
 		throw new Error("Method not implemented.");
 	}
-	rebase(over: TaggedChange<number>, direction: RebaseDirection): void {
+	rebase(over: TaggedChange<0>, direction: RebaseDirection): void {
 		throw new Error("Method not implemented.");
 	}
-	entries(): IterableIterator<FieldAnchorSetEntry<0, TData, number>> {
+	entries(): IterableIterator<FieldAnchorSetEntry<TData, number, number>> {
 		throw new Error("Method not implemented.");
 	}
 }

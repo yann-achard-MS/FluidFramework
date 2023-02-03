@@ -56,10 +56,10 @@ export class FieldKind<TChangeset, TNodeKey, TAnchor, TEditor = unknown> {
 		public readonly identifier: FieldKindIdentifier,
 		public readonly multiplicity: Multiplicity,
 		public readonly anchorStoreFactory: <TData>() => FieldAnchorSet<
-			TData,
 			TNodeKey,
 			TAnchor,
-			TChangeset
+			TChangeset,
+			TData
 		>,
 		public readonly changeHandler: FieldChangeHandler<TChangeset, TNodeKey, TEditor>,
 		private readonly allowsTreeSupersetOf: (

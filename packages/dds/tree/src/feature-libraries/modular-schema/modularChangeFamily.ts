@@ -493,7 +493,7 @@ export function getFieldKind(
 	kind: FieldKindIdentifier,
 ): GenericFieldKind {
 	if (kind === genericFieldKind.identifier) {
-		return genericFieldKind;
+		return genericFieldKind as unknown as GenericFieldKind;
 	}
 	const fieldKind = fieldKinds.get(kind);
 	assert(fieldKind !== undefined, 0x3ad /* Unknown field kind */);
@@ -592,8 +592,10 @@ export class ModularEditBuilder
 
 function makeGenericNestedChange(index: number, nodeChange: NodeChangeset): FieldChange {
 	const nested = genericFieldKind.anchorStoreFactory<NodeChangeset>();
-	nested.track(genericFieldKind.changeHandler.getKey(index), nodeChange, () =>
-		fail("Unexpected merge of NodeChangeset"),
-	);
-	return { fieldKind: genericFieldKind.identifier, nested };
+	const key = genericFieldKind.changeHandler.getKey(index);
+	nested.track(key, nodeChange, () => fail("Unexpected merge of NodeChangeset"));
+	return {
+		fieldKind: genericFieldKind.identifier,
+		nested: nested as unknown as GenericFieldAnchorSet,
+	};
 }
