@@ -45,22 +45,37 @@ export interface EncodedGenericChange {
  */
 export type GenericChangeset = 0;
 
-export const baseAnchorSetEncoder = {
-	encodeAnchorSetForJson: <TData>(
-		formatVersion: number,
-		set: BaseAnchorSet<TData, unknown>,
-		dataEncoder: DataEncoder<TData>,
-	): JsonCompatibleReadOnly => {
-		return set.encodeForJson(formatVersion, dataEncoder);
-	},
+export function baseAnchorSetEncoder(factory: <TData>() => BaseAnchorSet<TData, unknown>) {
+	return {
+		encodeAnchorSetForJson: <TData>(
+			formatVersion: number,
+			set: BaseAnchorSet<TData, unknown>,
+			dataEncoder: DataEncoder<TData>,
+		): JsonCompatibleReadOnly => {
+			return set.encodeForJson(
+				formatVersion,
+				dataEncoder,
+			) as unknown as JsonCompatibleReadOnly;
+		},
 
-	decodeAnchorSetJson: <TData>(
-		formatVersion: number,
-		set: JsonCompatibleReadOnly,
-		dataDecoder: DataDecoder<TData>,
-	): BaseAnchorSet<TData, unknown> => {
-		return BaseAnchorSet.decodeJson<TData>(formatVersion, set, dataDecoder);
-	},
+		decodeAnchorSetJson: <TData>(
+			formatVersion: number,
+			encodedSet: JsonCompatibleReadOnly,
+			dataDecoder: DataDecoder<TData>,
+		): BaseAnchorSet<TData, unknown> => {
+			const newSet = factory<TData>();
+			newSet.loadJson(
+				formatVersion,
+				encodedSet as unknown as EncodedBaseAnchorSet,
+				dataDecoder,
+			);
+			return newSet;
+		},
+	};
+}
+
+export const genericAnchorSetFactory = <TData>(): GenericAnchorSet<TData> => {
+	return new GenericAnchorSet<TData>();
 };
 
 /**
@@ -77,7 +92,7 @@ export const genericChangeHandler: FieldChangeHandler<
 		rebase: (): GenericChangeset => 0,
 	},
 	encoder: {
-		...baseAnchorSetEncoder,
+		...baseAnchorSetEncoder(genericAnchorSetFactory),
 		encodeChangeForJson: (): JsonCompatibleReadOnly => 0,
 		decodeChangeJson: (): GenericChangeset => 0,
 	},
@@ -95,25 +110,38 @@ export type GenericAnchor = Brand<number, "GenericAnchor">;
 
 export type Entry<TData> = FieldAnchorSetEntry<TData, GenericNodeKey, GenericAnchor>;
 
+export interface EncodedBaseAnchorSet {
+	readonly anchorCounter: number;
+	readonly list: readonly Entry<JsonCompatibleReadOnly>[];
+}
+
 export abstract class BaseAnchorSet<TData, TChangeset>
 	implements FieldAnchorSet<GenericNodeKey, GenericAnchor, TChangeset, TData>
 {
 	private anchorCounter: number = 0;
 	private readonly list: Mutable<Entry<TData>>[] = [];
 
-	public static decodeJson<TData>(
+	public loadJson(
 		formatVersion: number,
-		set: JsonCompatibleReadOnly,
+		encodedSet: EncodedBaseAnchorSet,
 		dataDecoder: DataDecoder<TData>,
-	): BaseAnchorSet<TData, unknown> {
-		throw new Error("Method not implemented.");
+	): void {
+		this.anchorCounter = encodedSet.anchorCounter;
+		const entries: Mutable<Entry<TData>>[] = encodedSet.list.map((entry) => ({
+			...entry,
+			data: dataDecoder(entry.data),
+		}));
+		this.list.splice(0, this.list.length, ...entries);
 	}
 
 	public encodeForJson(
 		formatVersion: number,
 		dataEncoder: DataEncoder<TData>,
-	): JsonCompatibleReadOnly {
-		throw new Error("Method not implemented.");
+	): EncodedBaseAnchorSet {
+		return {
+			anchorCounter: this.anchorCounter,
+			list: this.list.map((entry) => ({ ...entry, data: dataEncoder(entry.data) })),
+		};
 	}
 
 	public mergeIn(set: BaseAnchorSet<TData, TChangeset>, mergeData: MergeCallback<TData>): void {
@@ -192,10 +220,6 @@ export class GenericAnchorSet<TData> extends BaseAnchorSet<TData, GenericChanges
 		// Nothing to rebase over
 	}
 }
-
-export const genericAnchorSetFactory = <TData>(): GenericAnchorSet<TData> => {
-	return new GenericAnchorSet<TData>();
-};
 
 /**
  * {@link FieldKind} used to represent changes to elements of a field in a field-kind-agnostic format.

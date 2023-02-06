@@ -90,7 +90,7 @@ function brandedFieldKind<
  * @sealed
  */
 export const unitEncoder: FieldChangeEncoder<0, GenericAnchorSet<unknown>> = {
-	...baseAnchorSetEncoder,
+	...baseAnchorSetEncoder(genericAnchorSetFactory),
 	encodeChangeForJson: (formatVersion: number, change: 0): JsonCompatibleReadOnly => 0,
 	decodeChangeJson: (formatVersion: number, change: JsonCompatibleReadOnly): 0 => 0,
 };
@@ -105,7 +105,7 @@ export function valueEncoder<T extends JsonCompatibleReadOnly>(): FieldChangeEnc
 	BaseAnchorSet<unknown, T>
 > {
 	return {
-		...baseAnchorSetEncoder,
+		...baseAnchorSetEncoder(genericAnchorSetFactory),
 		encodeChangeForJson: (formatVersion: number, change: T): JsonCompatibleReadOnly => change,
 		decodeChangeJson: (formatVersion: number, change: JsonCompatibleReadOnly): T => change as T,
 	};
@@ -370,6 +370,7 @@ export type NodeKey = Brand<number, "CellNodeKey">;
 export type Anchor = Brand<number, "CellAnchor">;
 
 export type Entry<TData> = FieldAnchorSetEntry<TData, NodeKey, Anchor>;
+export type EncodedEntry = FieldAnchorSetEntry<JsonCompatibleReadOnly, NodeKey, Anchor>;
 
 export class CellAnchorSet<TData, TChangeset>
 	implements FieldAnchorSet<NodeKey, Anchor, TChangeset, TData>
@@ -382,7 +383,10 @@ export class CellAnchorSet<TData, TChangeset>
 		formatVersion: number,
 		dataEncoder: DataEncoder<TData>,
 	): JsonCompatibleReadOnly {
-		throw new Error("Method not implemented.");
+		if (this.entry === undefined) {
+			return {};
+		}
+		return { entry: { ...this.entry, data: dataEncoder(this.entry.data) } };
 	}
 
 	public static decodeJson<TData, TChangeset>(
@@ -390,7 +394,12 @@ export class CellAnchorSet<TData, TChangeset>
 		set: JsonCompatibleReadOnly,
 		dataDecoder: DataDecoder<TData>,
 	): CellAnchorSet<TData, TChangeset> {
-		throw new Error("Method not implemented.");
+		const newSet = new CellAnchorSet<TData, TChangeset>();
+		const encodedSet = set as { entry?: EncodedEntry };
+		if (encodedSet.entry !== undefined) {
+			newSet.entry = { ...encodedSet.entry, data: dataDecoder(encodedSet.entry.data) };
+		}
+		return newSet;
 	}
 
 	public clone(): CellAnchorSet<TData, TChangeset> {
@@ -451,23 +460,23 @@ export class CellAnchorSet<TData, TChangeset>
 	}
 }
 
-export const cellAnchorSetEncoder = {
-	encodeAnchorSetForJson: <TData>(
-		formatVersion: number,
-		set: CellAnchorSet<TData, unknown>,
-		dataEncoder: DataEncoder<TData>,
-	): JsonCompatibleReadOnly => {
-		return set.encodeForJson(formatVersion, dataEncoder);
-	},
+// export const cellAnchorSetEncoder = {
+// 	encodeAnchorSetForJson: <TData>(
+// 		formatVersion: number,
+// 		set: CellAnchorSet<TData, unknown>,
+// 		dataEncoder: DataEncoder<TData>,
+// 	): JsonCompatibleReadOnly => {
+// 		return set.encodeForJson(formatVersion, dataEncoder);
+// 	},
 
-	decodeAnchorSetJson: <TData>(
-		formatVersion: number,
-		set: JsonCompatibleReadOnly,
-		dataDecoder: DataDecoder<TData>,
-	): GenericAnchorSet<TData> => {
-		return GenericAnchorSet.decodeJson<TData>(formatVersion, set, dataDecoder);
-	},
-};
+// 	decodeAnchorSetJson: <TData>(
+// 		formatVersion: number,
+// 		set: JsonCompatibleReadOnly,
+// 		dataDecoder: DataDecoder<TData>,
+// 	): GenericAnchorSet<TData> => {
+// 		return GenericAnchorSet.decodeJson<TData>(formatVersion, set, dataDecoder);
+// 	},
+// };
 
 export const anchorSetFactory = <TData, TChangeset>(): CellAnchorSet<TData, TChangeset> => {
 	return new CellAnchorSet<TData, TChangeset>();
