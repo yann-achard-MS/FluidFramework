@@ -703,7 +703,7 @@ describe("SequenceField - Compose", () => {
 	});
 });
 function tagggedChange(
-	reviveA: SF.Changeset<never>,
-): TaggedChange<SF.Changeset<import("../../../feature-libraries").NodeChangeset>> {
+	reviveA: SF.Changeset,
+): TaggedChange<SF.Changeset {
 	throw new Error("Function not implemented.");
 }

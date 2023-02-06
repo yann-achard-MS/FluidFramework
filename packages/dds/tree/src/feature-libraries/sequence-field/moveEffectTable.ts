@@ -20,15 +20,15 @@ import {
 } from "./format";
 import { getInputLength, getOutputLength, isSkipMark } from "./utils";
 
-export interface MoveEffectTable<T> {
-	srcEffects: NestedMap<RevisionTag | undefined, MoveId, MoveEffect<T>>;
-	dstEffects: NestedMap<RevisionTag | undefined, MoveId, MoveEffect<T>>;
+export interface MoveEffectTable {
+	srcEffects: NestedMap<RevisionTag | undefined, MoveId, MoveEffect>;
+	dstEffects: NestedMap<RevisionTag | undefined, MoveId, MoveEffect>;
 }
 
 /**
  * Changes to be applied to a move mark.
  */
-export interface MoveEffect<T> {
+export interface MoveEffect {
 	/**
 	 * The size of the mark after splitting. Only defined if child is defined.
 	 */
@@ -48,7 +48,7 @@ export interface MoveEffect<T> {
 	/**
 	 * If defined, this move mark should be replaced by `mark`.
 	 */
-	mark?: Mark<T>;
+	mark?: Mark;
 
 	/**
 	 * The ID of a mark which this mark is allowed to merge left into.
@@ -61,15 +61,9 @@ export interface MoveEffect<T> {
 	mergeRight?: MoveId;
 
 	/**
-	 * Node changes which should be applied to this mark.
-	 * If this mark already has node changes, `modifyAfter` should be composed as later changes.
-	 */
-	modifyAfter?: T;
-
-	/**
 	 * A mark which should be moved to the same position as this mark.
 	 */
-	movedMark?: Mark<T>;
+	movedMark?: Mark;
 
 	/**
 	 * Represents the new value for the `isSrcConflicted` or `isDstConflicted` field of this mark.
@@ -82,7 +76,7 @@ export interface MoveEffect<T> {
 	detacher?: RevisionTag;
 }
 
-export function newMoveEffectTable<T>(): MoveEffectTable<T> {
+export function newMoveEffectTable(): MoveEffectTable {
 	return {
 		srcEffects: new Map(),
 		dstEffects: new Map(),
@@ -94,10 +88,10 @@ export enum MoveEnd {
 	Dest,
 }
 
-function getTable<T>(
-	table: MoveEffectTable<T>,
+function getTable(
+	table: MoveEffectTable,
 	end: MoveEnd,
-): NestedMap<RevisionTag | undefined, MoveId, MoveEffect<T>> {
+): NestedMap<RevisionTag | undefined, MoveId, MoveEffect> {
 	return end === MoveEnd.Source ? table.srcEffects : table.dstEffects;
 }
 
@@ -112,21 +106,20 @@ export enum PairedMarkUpdate {
 	Reactivated,
 }
 
-export interface MovePartition<TNodeChange> {
+export interface MovePartition {
 	id: MoveId;
 
 	// Undefined means the partition is the same size as the input.
 	count?: number;
-	replaceWith?: Mark<TNodeChange>[];
-	modifyAfter?: TNodeChange;
+	replaceWith?: Mark[];
 	/**
 	 * When set, updates the mark's paired mark status.
 	 */
 	pairedMarkStatus?: PairedMarkUpdate;
 }
 
-export function splitMove<T>(
-	effects: MoveEffectTable<T>,
+export function splitMove(
+	effects: MoveEffectTable,
 	end: MoveEnd,
 	revision: RevisionTag | undefined,
 	id: MoveId,
@@ -145,13 +138,13 @@ export function splitMove<T>(
 	effect.count = count1;
 }
 
-export function getOrAddEffect<T>(
-	moveEffects: MoveEffectTable<T>,
+export function getOrAddEffect(
+	moveEffects: MoveEffectTable,
 	end: MoveEnd,
 	revision: RevisionTag | undefined,
 	id: MoveId,
 	resetMerges: boolean = false,
-): MoveEffect<T> {
+): MoveEffect {
 	const table = getTable(moveEffects, end);
 	const effect = getOrAddInNestedMap(table, revision, id, {});
 	if (resetMerges) {
@@ -160,18 +153,18 @@ export function getOrAddEffect<T>(
 	return effect;
 }
 
-export function getMoveEffect<T>(
-	moveEffects: MoveEffectTable<T>,
+export function getMoveEffect(
+	moveEffects: MoveEffectTable,
 	end: MoveEnd,
 	revision: RevisionTag | undefined,
 	id: MoveId,
-): MoveEffect<T> {
+): MoveEffect {
 	const table = getTable(moveEffects, end);
 	return getOrDefaultInNestedMap(table, revision, id, {});
 }
 
 export function clearMergeability(
-	moveEffects: MoveEffectTable<unknown>,
+	moveEffects: MoveEffectTable,
 	end: MoveEnd,
 	revision: RevisionTag | undefined,
 	id: MoveId,
@@ -188,7 +181,7 @@ export function clearMergeability(
 }
 
 export function makeMergeable(
-	moveEffects: MoveEffectTable<unknown>,
+	moveEffects: MoveEffectTable,
 	end: MoveEnd,
 	revision: RevisionTag | undefined,
 	leftId: MoveId,
@@ -198,9 +191,9 @@ export function makeMergeable(
 	getOrAddEffect(moveEffects, end, revision, rightId).mergeLeft = leftId;
 }
 
-export type MoveMark<T> = MoveOut<T> | MoveIn | ReturnFrom<T> | ReturnTo;
+export type MoveMark = MoveOut | MoveIn | ReturnFrom | ReturnTo;
 
-export function isMoveMark<T>(mark: Mark<T>): mark is MoveMark<T> {
+export function isMoveMark(mark: Mark): mark is MoveMark {
 	if (isSkipMark(mark)) {
 		return false;
 	}
@@ -218,13 +211,12 @@ export function isMoveMark<T>(mark: Mark<T>): mark is MoveMark<T> {
 function applyMoveEffectsToDest<T>(
 	mark: MoveIn | ReturnTo,
 	revision: RevisionTag | undefined,
-	effects: MoveEffectTable<T>,
+	effects: MoveEffectTable,
 	consumeEffect: boolean,
-): Mark<T>[] {
+): Mark[] {
 	const effect = getMoveEffect(effects, MoveEnd.Dest, mark.revision ?? revision, mark.id);
-	const result: Mark<T>[] = [];
+	const result: Mark[] = [];
 
-	assert(effect.modifyAfter === undefined, 0x544 /* Cannot modify move destination */);
 	if (effect.mark !== undefined) {
 		result.push(effect.mark);
 	} else {
@@ -253,7 +245,7 @@ function applyMoveEffectsToDest<T>(
 		);
 		assert(childEffect.count !== undefined, 0x545 /* Child effects should have size */);
 
-		const newMark: Mark<T> = {
+		const newMark: Mark = {
 			...mark,
 			id: effect.child,
 			count: childEffect.count,
@@ -279,32 +271,20 @@ function applyMoveEffectsToDest<T>(
 }
 
 function applyMoveEffectsToSource<T>(
-	mark: MoveOut<T> | ReturnFrom<T>,
+	mark: MoveOut | ReturnFrom,
 	revision: RevisionTag | undefined,
-	effects: MoveEffectTable<T>,
+	effects: MoveEffectTable,
 	consumeEffect: boolean,
 	composeChildren?: (a: T | undefined, b: T | undefined) => T | undefined,
-): Mark<T>[] {
+): Mark[] {
 	const effect = getOrAddEffect(effects, MoveEnd.Source, mark.revision ?? revision, mark.id);
-	const result: Mark<T>[] = [];
+	const result: Mark[] = [];
 
 	if (effect.mark !== undefined) {
 		result.push(effect.mark);
 	} else if (!effect.shouldRemove) {
 		const newMark = clone(mark);
 		newMark.count = effect.count ?? newMark.count;
-		if (effect.modifyAfter !== undefined) {
-			assert(
-				composeChildren !== undefined,
-				0x547 /* Must provide a change composer if modifying moves */,
-			);
-			const changes = composeChildren(newMark.changes, effect.modifyAfter);
-			if (changes !== undefined) {
-				newMark.changes = changes;
-			} else {
-				delete newMark.changes;
-			}
-		}
 		if (effect.pairedMarkStatus !== undefined) {
 			assert(
 				newMark.type === "ReturnFrom",
@@ -327,7 +307,7 @@ function applyMoveEffectsToSource<T>(
 			effect.child,
 		);
 		assert(childEffect.count !== undefined, 0x549 /* Child effects should have size */);
-		const newMark: MoveOut<T> | ReturnFrom<T> = {
+		const newMark: MoveOut | ReturnFrom = {
 			...mark,
 			id: effect.child,
 			count: childEffect.count,
@@ -348,30 +328,22 @@ function applyMoveEffectsToSource<T>(
 		delete effect.mark;
 		delete effect.count;
 		delete effect.child;
-		delete effect.modifyAfter;
 	}
 	return result;
 }
 
-export function applyMoveEffectsToMark<T>(
-	mark: Mark<T>,
+export function applyMoveEffectsToMark(
+	mark: Mark,
 	revision: RevisionTag | undefined,
-	effects: MoveEffectTable<T>,
+	effects: MoveEffectTable,
 	consumeEffect: boolean,
-	composeChildren?: (a: T | undefined, b: T | undefined) => T | undefined,
-): Mark<T>[] {
+): Mark[] {
 	if (isMoveMark(mark)) {
 		const type = mark.type;
 		switch (type) {
 			case "MoveOut":
 			case "ReturnFrom": {
-				return applyMoveEffectsToSource(
-					mark,
-					revision,
-					effects,
-					consumeEffect,
-					composeChildren,
-				);
+				return applyMoveEffectsToSource(mark, revision, effects, consumeEffect);
 			}
 			case "MoveIn":
 			case "ReturnTo": {
@@ -397,12 +369,12 @@ export function applyMoveEffectsToMark<T>(
  * @returns A pair of marks equivalent to the original `mark`
  * such that the first returned mark has input length `length`.
  */
-export function splitMarkOnInput<TMark extends InputSpanningMark<unknown>>(
+export function splitMarkOnInput<TMark extends InputSpanningMark>(
 	mark: TMark,
 	revision: RevisionTag | undefined,
 	length: number,
 	genId: IdAllocator,
-	moveEffects: MoveEffectTable<unknown>,
+	moveEffects: MoveEffectTable,
 	recordMoveEffect: boolean = false,
 ): [TMark, TMark] {
 	const markLength = getInputLength(mark);
@@ -418,8 +390,6 @@ export function splitMarkOnInput<TMark extends InputSpanningMark<unknown>>(
 	const markObj = mark as Exclude<TMark, Skip>;
 	const type = mark.type;
 	switch (type) {
-		case "Modify":
-			fail(`Unable to split ${type} mark of length 1`);
 		case "ReturnTo": {
 			const newId = genId();
 			splitMove(
@@ -484,7 +454,7 @@ export function splitMarkOnInput<TMark extends InputSpanningMark<unknown>>(
 			const mark1 = { ...markObj, count: length };
 			const mark2 = { ...markObj, id: newId, count: remainder };
 			if (mark.type === "ReturnFrom" && mark.detachIndex !== undefined) {
-				(mark2 as unknown as ReturnFrom<unknown>).detachIndex = mark.detachIndex + length;
+				(mark2 as unknown as ReturnFrom).detachIndex = mark.detachIndex + length;
 			}
 			return [mark1, mark2];
 		}
@@ -505,12 +475,12 @@ export function splitMarkOnInput<TMark extends InputSpanningMark<unknown>>(
  * @returns A pair of marks equivalent to the original `mark`
  * such that the first returned mark has output length `length`.
  */
-export function splitMarkOnOutput<TMark extends OutputSpanningMark<unknown>>(
+export function splitMarkOnOutput<TMark extends OutputSpanningMark>(
 	mark: TMark,
 	revision: RevisionTag | undefined,
 	length: number,
 	genId: IdAllocator,
-	moveEffects: MoveEffectTable<unknown>,
+	moveEffects: MoveEffectTable,
 	recordMoveEffect: boolean = false,
 	ignorePairing: boolean = false,
 ): [TMark, TMark] {
@@ -527,8 +497,6 @@ export function splitMarkOnOutput<TMark extends OutputSpanningMark<unknown>>(
 	const markObj = mark as Exclude<TMark, Skip>;
 	const type = markObj.type;
 	switch (type) {
-		case "Modify":
-			fail(`Unable to split ${type} mark of length 1`);
 		case "Insert":
 			return [
 				{ ...markObj, content: markObj.content.slice(0, length) },

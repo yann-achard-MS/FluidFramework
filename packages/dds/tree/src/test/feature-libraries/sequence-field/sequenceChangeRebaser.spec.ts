@@ -24,7 +24,7 @@ const tag2: RevisionTag = brand(42);
 const tag3: RevisionTag = brand(43);
 const tag4: RevisionTag = brand(44);
 
-const testChanges: [string, (index: number) => SF.Changeset<TestChange>][] = [
+const testChanges: [string, (index: number) => SF.Changeset][] = [
 	["SetValue", (i) => Change.modify(i, TestChange.mint([], 1))],
 	[
 		"MInsert",

@@ -535,7 +535,7 @@ describe("SequenceField - Rebase", () => {
 	});
 
 	it("return-from + conflicted return-to ↷ move-out ", () => {
-		const ret: SF.Changeset<never> = [
+		const ret: SF.Changeset = [
 			{
 				type: "ReturnTo",
 				count: 1,
@@ -555,7 +555,7 @@ describe("SequenceField - Rebase", () => {
 		];
 		const move = Change.move(0, 1, 20);
 		const actual = rebase(ret, move, tag3);
-		const expected: SF.Changeset<never> = [
+		const expected: SF.Changeset = [
 			{
 				type: "ReturnTo",
 				count: 1,
@@ -579,7 +579,7 @@ describe("SequenceField - Rebase", () => {
 		const revive = Change.revive(0, 1, tag1, 0);
 		const ret = Change.return(10, 1, 0, tag1);
 		const actual = rebase(ret, revive, tag2);
-		const expected: SF.Changeset<never> = [
+		const expected: SF.Changeset = [
 			{
 				type: "ReturnTo",
 				count: 1,
@@ -602,7 +602,7 @@ describe("SequenceField - Rebase", () => {
 	});
 
 	it("return ↷ return-from + conflicted return-to", () => {
-		const ret1: SF.Changeset<never> = [
+		const ret1: SF.Changeset = [
 			{
 				type: "ReturnFrom",
 				count: 1,

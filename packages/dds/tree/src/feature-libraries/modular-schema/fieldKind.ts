@@ -10,8 +10,8 @@ import {
 	SchemaPolicy,
 	fieldSchema,
 	SchemaData,
-	TaggedChange,
 } from "../../core";
+import { FieldAnchorSet } from "./anchorSet";
 import { isNeverField } from "./comparison";
 import {
 	FieldChangeHandler,
@@ -36,7 +36,12 @@ import {
  * @sealed
  * @alpha
  */
-export class FieldKind<TChangeset, TNodeKey, TAnchor, TEditor = unknown> {
+export class FieldKind<
+	TChangeset = unknown,
+	TNodeKey = unknown,
+	TAnchor = unknown,
+	TEditor = unknown,
+> {
 	/**
 	 * @param identifier - Globally scoped identifier.
 	 * @param multiplicity - bound on the number of children that fields of this kind may have.
@@ -61,7 +66,7 @@ export class FieldKind<TChangeset, TNodeKey, TAnchor, TEditor = unknown> {
 			TChangeset,
 			TData
 		>,
-		public readonly changeHandler: FieldChangeHandler<TChangeset, TNodeKey, TEditor>,
+		public readonly changeHandler: FieldChangeHandler<TChangeset, TNodeKey, TAnchor, TEditor>,
 		private readonly allowsTreeSupersetOf: (
 			originalTypes: ReadonlySet<TreeSchemaIdentifier> | undefined,
 			superset: FieldSchema,
@@ -89,36 +94,9 @@ export class FieldKind<TChangeset, TNodeKey, TAnchor, TEditor = unknown> {
 	}
 }
 
-export type MergeCallback<TData> = (existingData: TData, newData: TData) => TData;
-
-export interface FieldAnchorSet<TKey, TAnchor, TChangeset, TData = undefined> {
-	clone(): FieldAnchorSet<TKey, TAnchor, TChangeset, TData>;
-	mergeIn(
-		set: FieldAnchorSet<TKey, TAnchor, TChangeset, TData>,
-		mergeData: MergeCallback<TData>,
-	): void;
-	track(key: TKey, data: TData, mergeData: MergeCallback<TData>): TAnchor;
-	forget(anchor: TAnchor): void;
-	lookup(key: TKey): FieldAnchorSetEntry<TData, TKey, TAnchor> | undefined;
-	locate(anchor: TAnchor): TKey | undefined;
-	getData(anchor: TAnchor): TData;
-	rebase(over: TaggedChange<TChangeset>, direction: RebaseDirection): void;
-	entries(): IterableIterator<FieldAnchorSetEntry<TData, TKey, TAnchor>>;
-}
-
-export interface FieldAnchorSetEntry<TData, TKey, TAnchor> {
-	readonly key: TKey;
-	readonly anchor: TAnchor;
-	readonly data: TData;
-}
-
-export enum RebaseDirection {
-	Forward,
-	Backward,
-}
-
-export type GenericFieldKind = FieldKind<FieldChangeset, FieldNodeKey, FieldNodeAnchor>;
-export type GenericFieldAnchorSet = FieldAnchorSet<
+export type BrandedFieldKind = FieldKind<FieldChangeset, FieldNodeKey, FieldNodeAnchor>;
+export type BrandedFieldKindMap = ReadonlyMap<FieldKindIdentifier, BrandedFieldKind>;
+export type BrandedFieldAnchorSet = FieldAnchorSet<
 	FieldNodeKey,
 	FieldNodeAnchor,
 	FieldChangeset,
@@ -138,7 +116,7 @@ export interface FullSchemaPolicy extends SchemaPolicy {
 	 * though older applications might be missing some,
 	 * and will be unable to process any changes that use those FieldKinds.
 	 */
-	readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, GenericFieldKind>;
+	readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>;
 }
 
 /**

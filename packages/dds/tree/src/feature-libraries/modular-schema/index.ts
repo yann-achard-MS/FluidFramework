@@ -11,31 +11,39 @@ export {
 	allowsFieldSuperset,
 	allowsTreeSuperset,
 } from "./comparison";
-export { FieldKind, FieldAnchorSet, FullSchemaPolicy, Multiplicity } from "./fieldKind";
+export { FieldKind, FullSchemaPolicy, Multiplicity } from "./fieldKind";
+export { RebaseDirection, FieldAnchorSetEntry, MergeCallback, FieldAnchorSet } from "./anchorSet";
 export {
 	ChangesetLocalId,
 	IdAllocator,
 	FieldChange,
 	FieldChangeEncoder,
+	DataEncoder,
+	DataDecoder,
 	FieldChangeHandler,
 	FieldChangeMap,
 	FieldChangeRebaser,
 	FieldChangeset,
 	FieldNodeKey,
 	FieldNodeAnchor,
-	FieldEditor,
 	ModularChangeset,
 	NodeChangeset,
 	NodeReviver,
 	referenceFreeFieldChangeRebaser,
 	ToDelta,
+	Context,
+	ChildIndex,
 	ValueChange,
 } from "./fieldChangeHandler";
 export {
-	convertGenericChange,
 	EncodedGenericChange,
-	EncodedGenericChangeset,
+	BaseAnchorSet,
+	GenericAnchorSet,
+	baseAnchorSetEncoder,
+	genericAnchorSetFactory,
 	GenericChange,
+	GenericNodeKey,
+	GenericAnchor,
 	genericChangeHandler,
 	GenericChangeset,
 	genericFieldKind,

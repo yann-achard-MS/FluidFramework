@@ -12,7 +12,7 @@ import { idAllocatorFromMaxId } from "./utils";
 const type: TreeSchemaIdentifier = brand("Node");
 const tag: RevisionTag = brand(42);
 
-export type TestChangeset = SF.Changeset<TestChange>;
+export type TestChangeset = SF.Changeset;
 
 export const cases: {
 	no_change: TestChangeset;
@@ -45,7 +45,7 @@ function createInsertChangeset(
 	index: number,
 	size: number,
 	startingValue: number = 0,
-): SF.Changeset<never> {
+): SF.Changeset {
 	const content = [];
 	while (content.length < size) {
 		content.push({ type, value: startingValue + content.length });
@@ -53,7 +53,7 @@ function createInsertChangeset(
 	return SF.sequenceFieldEditor.insert(index, content.map(singleTextCursor));
 }
 
-function createDeleteChangeset(startIndex: number, size: number): SF.Changeset<never> {
+function createDeleteChangeset(startIndex: number, size: number): SF.Changeset {
 	return SF.sequenceFieldEditor.delete(startIndex, size);
 }
 
@@ -65,7 +65,7 @@ function createReviveChangeset(
 	conflictsWith?: RevisionTag,
 	linage?: SF.LineageEvent[],
 	lastDetachedBy?: RevisionTag,
-): SF.Changeset<never> {
+): SF.Changeset {
 	const markList = SF.sequenceFieldEditor.revive(startIndex, count, detachedBy, detachIndex);
 	const mark = markList[markList.length - 1] as SF.Reattach;
 	if (conflictsWith !== undefined) {
@@ -87,7 +87,7 @@ function createIntentionalReviveChangeset(
 	detachIndex?: number,
 	conflictsWith?: RevisionTag,
 	linage?: SF.LineageEvent[],
-): SF.Changeset<never> {
+): SF.Changeset {
 	const markList = SF.sequenceFieldEditor.revive(
 		startIndex,
 		count,
@@ -105,11 +105,7 @@ function createIntentionalReviveChangeset(
 	return markList;
 }
 
-function createMoveChangeset(
-	sourceIndex: number,
-	count: number,
-	destIndex: number,
-): SF.Changeset<never> {
+function createMoveChangeset(sourceIndex: number, count: number, destIndex: number): SF.Changeset {
 	return SF.sequenceFieldEditor.move(sourceIndex, count, destIndex);
 }
 
@@ -119,14 +115,11 @@ function createReturnChangeset(
 	destIndex: number,
 	detachedBy: RevisionTag,
 	detachIndex?: number,
-): SF.Changeset<never> {
+): SF.Changeset {
 	return SF.sequenceFieldEditor.return(sourceIndex, count, destIndex, detachedBy, detachIndex);
 }
 
-function createModifyChangeset<TNodeChange>(
-	index: number,
-	change: TNodeChange,
-): SF.Changeset<TNodeChange> {
+function createModifyChangeset(index: number, change: TNodeChange): SF.Changeset {
 	return SF.sequenceFieldEditor.buildChildChange(index, change);
 }
 

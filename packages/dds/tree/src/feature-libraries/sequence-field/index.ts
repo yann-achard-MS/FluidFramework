@@ -10,7 +10,6 @@ export {
 	Delete,
 	Detach,
 	Effects,
-	HasChanges,
 	HasMoveId,
 	HasPlaceFields,
 	HasRevisionTag,
@@ -18,10 +17,8 @@ export {
 	Insert,
 	Mark,
 	MarkList,
-	Modify,
 	MoveIn,
 	MoveOut,
-	NodeChangeType,
 	NodeCount,
 	MoveId,
 	ObjectMark,
@@ -43,24 +40,23 @@ export {
 	Conflicted,
 	CanConflict,
 } from "./format";
+export { SequenceAnchorSet, anchorSetFactory } from "./sequenceFieldAnchorSet";
 export {
 	SequenceFieldChangeHandler,
 	sequenceFieldChangeHandler,
 } from "./sequenceFieldChangeHandler";
 export { SequenceChangeRebaser, sequenceFieldChangeRebaser } from "./sequenceFieldChangeRebaser";
 export {
-	decodeJson,
-	encodeForJson,
-	NodeChangeDecoder,
-	NodeChangeEncoder,
+	decodeChangeJson as decodeJson,
+	encodeChangeForJson as encodeForJson,
 	sequenceFieldChangeEncoder,
 } from "./sequenceFieldChangeEncoder";
-export { sequenceFieldToDelta, ToDelta } from "./sequenceFieldToDelta";
+export { sequenceFieldToDelta } from "./sequenceFieldToDelta";
 export { SequenceFieldEditor, sequenceFieldEditor } from "./sequenceFieldEditor";
 export { MarkListFactory } from "./markListFactory";
-export { NodeChangeRebaser, rebase } from "./rebase";
-export { invert, NodeChangeInverter } from "./invert";
-export { compose, NodeChangeComposer } from "./compose";
+export { rebase } from "./rebase";
+export { invert } from "./invert";
+export { compose } from "./compose";
 export {
 	areComposable,
 	areRebasable,

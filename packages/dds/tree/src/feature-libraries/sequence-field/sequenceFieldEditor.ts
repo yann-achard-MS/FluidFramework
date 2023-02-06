@@ -5,21 +5,20 @@
 
 import { jsonableTreeFromCursor } from "../treeTextCursor";
 import { ITreeCursor, RevisionTag } from "../../core";
-import { FieldEditor } from "../modular-schema";
 import { brand } from "../../util";
-import { Changeset, Mark, MoveId, NodeChangeType, Reattach } from "./format";
+import { Changeset, Mark, MoveId, Reattach } from "./format";
 import { MarkListFactory } from "./markListFactory";
 
-export interface SequenceFieldEditor extends FieldEditor<Changeset> {
-	insert(index: number, cursor: ITreeCursor | ITreeCursor[]): Changeset<never>;
-	delete(index: number, count: number): Changeset<never>;
+export interface SequenceFieldEditor {
+	insert(index: number, cursor: ITreeCursor | ITreeCursor[]): Changeset;
+	delete(index: number, count: number): Changeset;
 	revive(
 		index: number,
 		count: number,
 		detachedBy: RevisionTag,
 		detachIndex: number,
 		isIntention?: true,
-	): Changeset<never>;
+	): Changeset;
 
 	/**
 	 *
@@ -27,29 +26,25 @@ export interface SequenceFieldEditor extends FieldEditor<Changeset> {
 	 * @param count - The number of nodes to move
 	 * @param destIndex - The index the nodes should be moved to, interpreted after removing the moving nodes
 	 */
-	move(sourceIndex: number, count: number, destIndex: number): Changeset<never>;
+	move(sourceIndex: number, count: number, destIndex: number): Changeset;
 	return(
 		sourceIndex: number,
 		count: number,
 		destIndex: number,
 		detachedBy: RevisionTag,
 		detachIndex: number,
-	): Changeset<never>;
+	): Changeset;
 }
 
 export const sequenceFieldEditor = {
-	buildChildChange: <TNodeChange = NodeChangeType>(
-		index: number,
-		change: TNodeChange,
-	): Changeset<TNodeChange> => markAtIndex(index, { type: "Modify", changes: change }),
-	insert: (index: number, cursors: ITreeCursor | ITreeCursor[]): Changeset<never> =>
+	insert: (index: number, cursors: ITreeCursor | ITreeCursor[]): Changeset =>
 		markAtIndex(index, {
 			type: "Insert",
 			content: Array.isArray(cursors)
 				? cursors.map(jsonableTreeFromCursor)
 				: [jsonableTreeFromCursor(cursors)],
 		}),
-	delete: (index: number, count: number): Changeset<never> =>
+	delete: (index: number, count: number): Changeset =>
 		count === 0 ? [] : markAtIndex(index, { type: "Delete", count }),
 	revive: (
 		index: number,
@@ -57,8 +52,8 @@ export const sequenceFieldEditor = {
 		detachedBy: RevisionTag,
 		detachIndex?: number,
 		isIntention?: true,
-	): Changeset<never> => {
-		const mark: Reattach<never> = {
+	): Changeset => {
+		const mark: Reattach = {
 			type: "Revive",
 			count,
 			detachedBy,
@@ -71,25 +66,25 @@ export const sequenceFieldEditor = {
 		}
 		return count === 0 ? [] : markAtIndex(index, mark);
 	},
-	move(sourceIndex: number, count: number, destIndex: number): Changeset<never> {
+	move(sourceIndex: number, count: number, destIndex: number): Changeset {
 		if (count === 0 || sourceIndex === destIndex) {
 			// TODO: Should we allow creating a move which has no observable effect?
 			return [];
 		}
 
-		const moveOut: Mark<never> = {
+		const moveOut: Mark = {
 			type: "MoveOut",
 			id: brand(0),
 			count,
 		};
 
-		const moveIn: Mark<never> = {
+		const moveIn: Mark = {
 			type: "MoveIn",
 			id: brand(0),
 			count,
 		};
 
-		const factory = new MarkListFactory<never>();
+		const factory = new MarkListFactory();
 		if (sourceIndex < destIndex) {
 			factory.pushOffset(sourceIndex);
 			factory.pushContent(moveOut);
@@ -110,20 +105,20 @@ export const sequenceFieldEditor = {
 		destIndex: number,
 		detachedBy: RevisionTag,
 		detachIndex?: number,
-	): Changeset<never> {
+	): Changeset {
 		if (count === 0) {
 			return [];
 		}
 
 		const id = brand<MoveId>(0);
-		const returnFrom: Mark<never> = {
+		const returnFrom: Mark = {
 			type: "ReturnFrom",
 			id,
 			count,
 			detachedBy,
 		};
 
-		const returnTo: Mark<never> = {
+		const returnTo: Mark = {
 			type: "ReturnTo",
 			id,
 			count,
@@ -133,7 +128,7 @@ export const sequenceFieldEditor = {
 			detachIndex: detachIndex ?? destIndex,
 		};
 
-		const factory = new MarkListFactory<never>();
+		const factory = new MarkListFactory();
 		if (sourceIndex < destIndex) {
 			factory.pushOffset(sourceIndex);
 			factory.pushContent(returnFrom);
@@ -149,6 +144,6 @@ export const sequenceFieldEditor = {
 	},
 };
 
-function markAtIndex<TNodeChange>(index: number, mark: Mark<TNodeChange>): Changeset<TNodeChange> {
+function markAtIndex(index: number, mark: Mark): Changeset {
 	return index === 0 ? [mark] : [index, mark];
 }

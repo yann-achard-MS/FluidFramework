@@ -21,7 +21,7 @@ const tag: RevisionTag = brand(41);
 const tag2: RevisionTag = brand(42);
 const tag3: RevisionTag = brand(43);
 
-function shallowInvert(change: SF.Changeset<unknown>): SF.Changeset<unknown> {
+function shallowInvert(change: SF.Changeset {
 	deepFreeze(change);
 	return SF.invert(tagChange(change, tag), () =>
 		assert.fail("Unexpected call to child inverter"),

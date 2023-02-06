@@ -10,13 +10,10 @@ import { IdAllocator } from "../modular-schema";
 import {
 	Attach,
 	Detach,
-	HasChanges,
-	HasRevisionTag,
 	HasTiebreakPolicy,
 	Insert,
 	LineageEvent,
 	Mark,
-	Modify,
 	MoveIn,
 	NewAttach,
 	MoveOut,
@@ -48,66 +45,48 @@ import {
 	splitMove,
 } from "./moveEffectTable";
 
-export function isModify<TNodeChange>(mark: Mark<TNodeChange>): mark is Modify<TNodeChange> {
-	return isObjMark(mark) && mark.type === "Modify";
-}
-
-export function isNewAttach<TNodeChange>(mark: Mark<TNodeChange>): mark is NewAttach<TNodeChange> {
+export function isNewAttach(mark: Mark): mark is NewAttach {
 	return isObjMark(mark) && (mark.type === "Insert" || mark.type === "MoveIn");
 }
 
-export function isAttach<TNodeChange>(mark: Mark<TNodeChange>): mark is Attach<TNodeChange> {
+export function isAttach(mark: Mark): mark is Attach {
 	return isNewAttach(mark) || isReattach(mark);
 }
 
-export function isAttachInGap<TNodeChange>(mark: Mark<TNodeChange>): mark is Attach<TNodeChange> {
+export function isAttachInGap(mark: Mark): mark is Attach {
 	return isNewAttach(mark) || isActiveReattach(mark) || isBlockedReattach(mark);
 }
 
-export function isReattach<TNodeChange>(mark: Mark<TNodeChange>): mark is Reattach<TNodeChange> {
+export function isReattach(mark: Mark): mark is Reattach {
 	return isObjMark(mark) && (mark.type === "Revive" || mark.type === "ReturnTo");
 }
 
-export function isActiveReattach<TNodeChange>(
-	mark: Mark<TNodeChange>,
-): mark is Reattach<TNodeChange> & { conflictsWith?: undefined } {
+export function isActiveReattach(mark: Mark): mark is Reattach & { conflictsWith?: undefined } {
 	// No need to check Reattach.lastDeletedBy because it can only be set if the mark is conflicted
 	return isReattach(mark) && !isConflicted(mark);
 }
 
-export function isActiveDetach<TNodeChange>(
-	mark: Mark<TNodeChange>,
-): mark is Detach<TNodeChange> & { conflictsWith?: undefined } {
+export function isActiveDetach(mark: Mark): mark is Detach & { conflictsWith?: undefined } {
 	return isDetachMark(mark) && !isConflicted(mark);
 }
 
-export function isConflictedReattach<TNodeChange>(
-	mark: Mark<TNodeChange>,
-): mark is Reattach<TNodeChange> & Conflicted {
+export function isConflictedReattach(mark: Mark): mark is Reattach & Conflicted {
 	return isReattach(mark) && isConflicted(mark);
 }
 
-export function isConflictedDetach<TNodeChange>(
-	mark: Mark<TNodeChange>,
-): mark is Detach<TNodeChange> & Conflicted {
+export function isConflictedDetach(mark: Mark): mark is Detach & Conflicted {
 	return isDetachMark(mark) && isConflicted(mark);
 }
 
-export function isSkipLikeReattach<TNodeChange>(
-	mark: Mark<TNodeChange>,
-): mark is SkipLikeReattach<TNodeChange> {
+export function isSkipLikeReattach(mark: Mark): mark is SkipLikeReattach {
 	return isConflictedReattach(mark) && mark.lastDetachedBy === undefined;
 }
 
-export function isSkipLikeDetach<TNodeChange>(
-	mark: Mark<TNodeChange>,
-): mark is SkipLikeDetach<TNodeChange> {
+export function isSkipLikeDetach(mark: Mark): mark is SkipLikeDetach {
 	return isDetachMark(mark) && mark.type !== "Delete" && mark.isDstConflicted === true;
 }
 
-export function isBlockedReattach<TNodeChange>(
-	mark: Mark<TNodeChange>,
-): mark is Reattach<TNodeChange> & Conflicted {
+export function isBlockedReattach(mark: Mark): mark is Reattach & Conflicted {
 	return isConflictedReattach(mark) && mark.lastDetachedBy !== undefined;
 }
 
@@ -165,7 +144,7 @@ function areSameLineage(lineage1: LineageEvent[], lineage2: LineageEvent[]): boo
  * will be treated the same as if the matching mark were active.
  * @returns The number of nodes within the output context of the mark.
  */
-export function getOutputLength(mark: Mark<unknown>, ignorePairing: boolean = false): number {
+export function getOutputLength(mark: Mark, ignorePairing: boolean = false): number {
 	if (isSkipMark(mark)) {
 		return mark;
 	}
@@ -178,8 +157,6 @@ export function getOutputLength(mark: Mark<unknown>, ignorePairing: boolean = fa
 			return mark.count;
 		case "Insert":
 			return mark.content.length;
-		case "Modify":
-			return 1;
 		case "ReturnFrom":
 			return mark.isDstConflicted && !ignorePairing ? mark.count : 0;
 		case "Delete":
@@ -194,7 +171,7 @@ export function getOutputLength(mark: Mark<unknown>, ignorePairing: boolean = fa
  * @param mark - The mark to get the length of.
  * @returns The number of nodes within the input context of the mark.
  */
-export function getInputLength(mark: Mark<unknown>): number {
+export function getInputLength(mark: Mark): number {
 	if (isSkipMark(mark)) {
 		return mark;
 	}
@@ -207,20 +184,18 @@ export function getInputLength(mark: Mark<unknown>): number {
 		case "MoveOut":
 		case "ReturnFrom":
 			return isConflicted(mark) ? 0 : mark.count;
-		case "Modify":
-			return 1;
 		default:
 			unreachableCase(type);
 	}
 }
 
 export function isNetZeroNodeCountChange<T>(
-	mark: Mark<T>,
-): mark is Skip | Modify<T> | SkipLikeDetach<T> | SkipLikeReattach<T> {
-	return isSkipMark(mark) || isModify(mark) || isSkipLikeDetach(mark) || isSkipLikeReattach(mark);
+	mark: Mark,
+): mark is Skip | SkipLikeDetach | SkipLikeReattach {
+	return isSkipMark(mark) || isSkipLikeDetach(mark) || isSkipLikeReattach(mark);
 }
 
-export function isSkipMark(mark: Mark<unknown>): mark is Skip {
+export function isSkipMark(mark: Mark): mark is Skip {
 	return typeof mark === "number";
 }
 
@@ -242,11 +217,11 @@ export function getOffsetAtRevision(
 }
 
 export function dequeueRelatedReattaches<T>(
-	newMarks: MarkQueue<T>,
-	baseMarks: MarkQueue<T>,
+	newMarks: MarkQueue,
+	baseMarks: MarkQueue,
 ): {
-	newMark?: Reattach<T>;
-	baseMark?: Reattach<T>;
+	newMark?: Reattach;
+	baseMark?: Reattach;
 } {
 	const newMark = newMarks.peek();
 	const baseMark = baseMarks.peek();
@@ -263,45 +238,43 @@ export function dequeueRelatedReattaches<T>(
 	if (newMark.detachIndex === baseMark.detachIndex) {
 		if (newMarkLength < baseMarkLength) {
 			return {
-				baseMark: baseMarks.dequeueOutput(newMarkLength) as Reattach<T>,
-				newMark: newMarks.dequeue() as Reattach<T>,
+				baseMark: baseMarks.dequeueOutput(newMarkLength) as Reattach,
+				newMark: newMarks.dequeue() as Reattach,
 			};
 		} else if (newMarkLength > baseMarkLength) {
 			return {
-				baseMark: baseMarks.dequeue() as Reattach<T>,
-				newMark: newMarks.dequeueOutput(baseMarkLength, true) as Reattach<T>,
+				baseMark: baseMarks.dequeue() as Reattach,
+				newMark: newMarks.dequeueOutput(baseMarkLength, true) as Reattach,
 			};
 		} else {
 			return {
-				baseMark: baseMarks.dequeue() as Reattach<T>,
-				newMark: newMarks.dequeue() as Reattach<T>,
+				baseMark: baseMarks.dequeue() as Reattach,
+				newMark: newMarks.dequeue() as Reattach,
 			};
 		}
 	} else if (newMark.detachIndex < baseMark.detachIndex) {
 		if (newMark.detachIndex + newMarkLength <= baseMark.detachIndex) {
-			return { newMark: newMarks.dequeue() as Reattach<T> };
+			return { newMark: newMarks.dequeue() as Reattach };
 		}
 		return {
 			newMark: newMarks.dequeueOutput(
 				baseMark.detachIndex - newMark.detachIndex,
 				true,
-			) as Reattach<T>,
+			) as Reattach,
 		};
 	} else {
 		if (baseMark.detachIndex + baseMarkLength <= newMark.detachIndex) {
-			return { baseMark: baseMarks.dequeue() as Reattach<T> };
+			return { baseMark: baseMarks.dequeue() as Reattach };
 		}
 		return {
 			baseMark: baseMarks.dequeueOutput(
 				newMark.detachIndex - baseMark.detachIndex,
-			) as Reattach<T>,
+			) as Reattach,
 		};
 	}
 }
 
-export function isDetachMark<TNodeChange>(
-	mark: Mark<TNodeChange> | undefined,
-): mark is Detach<TNodeChange> {
+export function isDetachMark(mark: Mark | undefined): mark is Detach {
 	if (isObjMark(mark)) {
 		const type = mark.type;
 		return type === "Delete" || type === "MoveOut" || type === "ReturnFrom";
@@ -309,32 +282,20 @@ export function isDetachMark<TNodeChange>(
 	return false;
 }
 
-export function isObjMark<TNodeChange>(
-	mark: Mark<TNodeChange> | undefined,
-): mark is ObjectMark<TNodeChange> {
+export function isObjMark(mark: Mark | undefined): mark is ObjectMark {
 	return typeof mark === "object";
 }
 
-export function isInputSpanningMark<TNodeChange>(
-	mark: Mark<TNodeChange>,
-): mark is InputSpanningMark<TNodeChange> {
+export function isInputSpanningMark(mark: Mark): mark is InputSpanningMark {
 	return (
 		isSkipMark(mark) ||
-		mark.type === "Modify" ||
 		(isDetachMark(mark) && !isConflicted(mark)) ||
 		(isConflictedReattach(mark) && !isBlockedReattach(mark))
 	);
 }
 
-export function isOutputSpanningMark<TNodeChange>(
-	mark: Mark<TNodeChange>,
-): mark is OutputSpanningMark<TNodeChange> {
-	return (
-		isSkipMark(mark) ||
-		mark.type === "Modify" ||
-		isNewAttach(mark) ||
-		(isReattach(mark) && !isBlockedReattach(mark))
-	);
+export function isOutputSpanningMark(mark: Mark): mark is OutputSpanningMark {
+	return isSkipMark(mark) || isNewAttach(mark) || (isReattach(mark) && !isBlockedReattach(mark));
 }
 
 /**
@@ -348,24 +309,13 @@ export function tryExtendMark(
 	lhs: ObjectMark,
 	rhs: Readonly<ObjectMark>,
 	revision: RevisionTag | undefined,
-	moveEffects: MoveEffectTable<unknown> | undefined,
+	moveEffects: MoveEffectTable | undefined,
 	recordMerges: boolean,
 ): boolean {
 	if (rhs.type !== lhs.type) {
 		return false;
 	}
 	const type = rhs.type;
-	if (type !== "Modify" && rhs.revision !== (lhs as HasRevisionTag).revision) {
-		return false;
-	}
-
-	if (
-		(type !== "MoveIn" && type !== "ReturnTo" && rhs.changes !== undefined) ||
-		(lhs as Modify | HasChanges).changes !== undefined
-	) {
-		return false;
-	}
-
 	switch (type) {
 		case "Insert": {
 			const lhsInsert = lhs as Insert;
@@ -436,10 +386,10 @@ export function tryExtendMark(
 
 function tryMergeMoves(
 	end: MoveEnd,
-	left: MoveMark<unknown>,
-	right: MoveMark<unknown>,
+	left: MoveMark,
+	right: MoveMark,
 	revision: RevisionTag | undefined,
-	moveEffects: MoveEffectTable<unknown>,
+	moveEffects: MoveEffectTable,
 	recordMerges: boolean,
 ): boolean {
 	if (left.conflictsWith !== right.conflictsWith) {
@@ -519,7 +469,7 @@ export class DetachedNodeTracker {
 	 * @param change - The change that is being applied. Not mutated.
 	 * Must be applicable (i.e., `isApplicable(change)` must be true).
 	 */
-	public apply(change: TaggedChange<Changeset<unknown>>): void {
+	public apply(change: TaggedChange<Changeset>): void {
 		let index = 0;
 		for (const mark of change.change) {
 			const inputLength: number = getInputLength(mark);
@@ -583,7 +533,7 @@ export class DetachedNodeTracker {
 	 * @returns false iff `change`'s description of detached nodes is inconsistent with that of changes applied
 	 * earlier. Returns true otherwise.
 	 */
-	public isApplicable(change: Changeset<unknown>): boolean {
+	public isApplicable(change: Changeset): boolean {
 		for (const mark of change) {
 			if (isActiveReattach(mark)) {
 				const rev = mark.detachedBy ?? fail("Unable to track detached nodes");
@@ -613,12 +563,9 @@ export class DetachedNodeTracker {
 	 * @returns A change equivalent to `change` that refers to detached nodes using the revision that last detached
 	 * them. May reuse parts of the input `change` structure.
 	 */
-	public update<T>(
-		change: TaggedChange<Changeset<T>>,
-		genId: IdAllocator,
-	): TaggedChange<Changeset<T>> {
-		const moveEffects = newMoveEffectTable<T>();
-		const factory = new MarkListFactory<T>(change.revision, moveEffects);
+	public update(change: TaggedChange<Changeset>, genId: IdAllocator): TaggedChange<Changeset> {
+		const moveEffects = newMoveEffectTable();
+		const factory = new MarkListFactory(change.revision, moveEffects);
 		const iter = new StackyIterator(change.change);
 		while (!iter.done) {
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -631,7 +578,7 @@ export class DetachedNodeTracker {
 			}
 			const cloned = clone(mark);
 			if (isReattach(cloned)) {
-				let remainder: Reattach<T> = cloned;
+				let remainder: Reattach = cloned;
 				for (let i = 1; i < cloned.count; ++i) {
 					const [head, tail] = splitMarkOnOutput(
 						remainder,
@@ -655,7 +602,7 @@ export class DetachedNodeTracker {
 
 		// We may need to apply the effects of updateMoveSrcDetacher for some marks if those were located
 		// before their corresponding detach mark.
-		const factory2 = new MarkListFactory<T>(change.revision, moveEffects);
+		const factory2 = new MarkListFactory(change.revision, moveEffects);
 		for (const mark of factory.list) {
 			const splitMarks = applyMoveEffectsToMark(mark, change.revision, moveEffects, true);
 			factory2.push(...splitMarks);
@@ -667,9 +614,9 @@ export class DetachedNodeTracker {
 	}
 
 	private updateMark(
-		mark: Reattach<unknown>,
+		mark: Reattach,
 		revision: RevisionTag | undefined,
-		moveEffects: MoveEffectTable<unknown>,
+		moveEffects: MoveEffectTable,
 	): void {
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 		const original = { rev: mark.detachedBy!, index: mark.detachIndex };
@@ -703,7 +650,7 @@ export class DetachedNodeTracker {
  * @returns false iff `branch`'s description of detached nodes is inconsistent with that of `target`.
  * Returns true otherwise.
  */
-export function areRebasable(branch: Changeset<unknown>, target: Changeset<unknown>): boolean {
+export function areRebasable(branch: Changeset, target: Changeset): boolean {
 	const indexToReattach: Map<number, string[]> = new Map();
 	const reattachToIndex: Map<string, number> = new Map();
 	let index = 0;
@@ -773,7 +720,7 @@ export function areRebasable(branch: Changeset<unknown>, target: Changeset<unkno
  * @returns false iff the changesets in `changes` are inconsistent/incompatible in their description of detached nodes.
  * Returns true otherwise.
  */
-export function areComposable(changes: TaggedChange<Changeset<unknown>>[]): boolean {
+export function areComposable(changes: TaggedChange<Changeset>[]): boolean {
 	const tracker = new DetachedNodeTracker();
 	for (const change of changes) {
 		if (!tracker.isApplicable(change.change)) {

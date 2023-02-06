@@ -49,7 +49,7 @@ export function toDelta(change: TestChangeset): Delta.FieldChanges {
 	return SF.sequenceFieldToDelta(change, TestChange.toDelta, fakeRepair);
 }
 
-export function getMaxId(...changes: SF.Changeset<unknown>[]): ChangesetLocalId | undefined {
+export function getMaxId(...changes: SF.Changeset[]): ChangesetLocalId | undefined {
 	let max: ChangesetLocalId | undefined;
 	for (const change of changes) {
 		for (const mark of change) {
@@ -63,16 +63,16 @@ export function getMaxId(...changes: SF.Changeset<unknown>[]): ChangesetLocalId 
 }
 
 export function getMaxIdTagged(
-	changes: TaggedChange<SF.Changeset<unknown>>[],
+	changes: TaggedChange<SF.Changeset[],
 ): ChangesetLocalId | undefined {
 	return getMaxId(...changes.map((c) => c.change));
 }
 
-export function continuingAllocator(changes: TaggedChange<SF.Changeset<unknown>>[]): IdAllocator {
+export function continuingAllocator(changes: TaggedChange<SF.Changeset[]): IdAllocator {
 	return idAllocatorFromMaxId(getMaxIdTagged(changes));
 }
 
-export function normalizeMoveIds(change: SF.Changeset<unknown>): void {
+export function normalizeMoveIds(change: SF.Changeset): void {
 	let nextId = 0;
 	const mappings = new Map<SF.MoveId, SF.MoveId>();
 	for (const mark of change) {

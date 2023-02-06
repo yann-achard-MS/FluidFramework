@@ -4,48 +4,37 @@
  */
 
 import { JsonableTree, RevisionTag } from "../../core";
-import { ChangesetLocalId, NodeChangeset } from "../modular-schema";
+import { ChangesetLocalId } from "../modular-schema";
 
-export type NodeChangeType = NodeChangeset;
-export type Changeset<TNodeChange = NodeChangeType> = MarkList<TNodeChange>;
+export type Changeset = MarkList;
 
-export type MarkList<TNodeChange = NodeChangeType, TMark = Mark<TNodeChange>> = TMark[];
+export type MarkList<TMark = Mark> = TMark[];
 
-export type Mark<TNodeChange = NodeChangeType> =
-	| InputSpanningMark<TNodeChange>
-	| OutputSpanningMark<TNodeChange>;
+export type Mark = InputSpanningMark | OutputSpanningMark;
 
-export type ObjectMark<TNodeChange = NodeChangeType> = Exclude<Mark<TNodeChange>, Skip>;
+export type ObjectMark = Exclude<Mark, Skip>;
 
 /**
  * A mark that spans one or more cells.
  * The spanned cells may be populated (e.g., "Delete") or not (e.g., "Revive").
  */
-export type CellSpanningMark<TNodeChange> = Exclude<Mark<TNodeChange>, NewAttach<TNodeChange>>;
+export type CellSpanningMark = Exclude<Mark, NewAttach>;
 
 /**
  * A mark that spans one or more nodes in the input context of its changeset.
  */
-export type InputSpanningMark<TNodeChange> =
-	| Skip
-	| Detach<TNodeChange>
-	| Modify<TNodeChange>
-	| SkipLikeReattach<TNodeChange>;
+export type InputSpanningMark = Skip | Detach | SkipLikeReattach;
 
 /**
  * A mark that spans one or more nodes in the output context of its changeset.
  */
-export type OutputSpanningMark<TNodeChange> =
-	| Skip
-	| NewAttach<TNodeChange>
-	| Modify<TNodeChange>
-	| Reattach<TNodeChange>;
+export type OutputSpanningMark = Skip | NewAttach | Reattach;
 
 /**
  * A Reattach whose target nodes are already reattached and have not been detached by some other change.
  * Such a Reattach has no effect when applied and is therefore akin to a Skip mark.
  */
-export type SkipLikeReattach<TNodeChange> = Reattach<TNodeChange> &
+export type SkipLikeReattach = Reattach &
 	Conflicted & {
 		lastDeletedBy?: never;
 	};
@@ -54,7 +43,7 @@ export type SkipLikeReattach<TNodeChange> = Reattach<TNodeChange> &
  * A Detach with a conflicted destination.
  * Such a Detach has no effect when applied and is therefore akin to a Skip mark.
  */
-export type SkipLikeDetach<TNodeChange> = (MoveOut<TNodeChange> | ReturnFrom<TNodeChange>) & {
+export type SkipLikeDetach = (MoveOut | ReturnFrom) & {
 	isDstConflicted: true;
 };
 
@@ -66,15 +55,6 @@ export interface Conflicted {
 }
 
 export type CanConflict = Partial<Conflicted>;
-
-export interface Modify<TNodeChange = NodeChangeType> {
-	type: "Modify";
-	changes: TNodeChange;
-}
-
-export interface HasChanges<TNodeChange = NodeChangeType> {
-	changes?: TNodeChange;
-}
 
 export interface HasPlaceFields {
 	/**
@@ -121,10 +101,7 @@ export interface LineageEvent {
 	readonly offset: number;
 }
 
-export interface Insert<TNodeChange = NodeChangeType>
-	extends HasTiebreakPolicy,
-		HasRevisionTag,
-		HasChanges<TNodeChange> {
+export interface Insert extends HasTiebreakPolicy, HasRevisionTag {
 	type: "Insert";
 	content: ProtoNode[];
 }
@@ -145,30 +122,20 @@ export interface MoveIn extends HasMoveId, HasPlaceFields, HasRevisionTag, CanCo
 /**
  * An attach mark that allocates new cells.
  */
-export type NewAttach<TNodeChange = NodeChangeType> = Insert<TNodeChange> | MoveIn;
+export type NewAttach = Insert | MoveIn;
 
-export type Attach<TNodeChange = NodeChangeType> = NewAttach<TNodeChange> | Reattach<TNodeChange>;
+export type Attach = NewAttach | Reattach;
 
-export type Detach<TNodeChange = NodeChangeType> =
-	| Delete<TNodeChange>
-	| MoveOut<TNodeChange>
-	| ReturnFrom<TNodeChange>;
+export type Detach = Delete | MoveOut | ReturnFrom;
 
-export type Reattach<TNodeChange = NodeChangeType> = Revive<TNodeChange> | ReturnTo;
+export type Reattach = Revive | ReturnTo;
 
-export interface Delete<TNodeChange = NodeChangeType>
-	extends HasRevisionTag,
-		HasChanges<TNodeChange>,
-		CanConflict {
+export interface Delete extends HasRevisionTag, CanConflict {
 	type: "Delete";
 	count: NodeCount;
 }
 
-export interface MoveOut<TNodeChange = NodeChangeType>
-	extends HasRevisionTag,
-		HasMoveId,
-		HasChanges<TNodeChange>,
-		CanConflict {
+export interface MoveOut extends HasRevisionTag, HasMoveId, CanConflict {
 	type: "MoveOut";
 	count: NodeCount;
 	/**
@@ -214,11 +181,7 @@ export interface HasReattachFields extends HasPlaceFields {
 	lastDetachedBy?: RevisionTag;
 }
 
-export interface Revive<TNodeChange = NodeChangeType>
-	extends HasReattachFields,
-		HasRevisionTag,
-		HasChanges<TNodeChange>,
-		CanConflict {
+export interface Revive extends HasReattachFields, HasRevisionTag, CanConflict {
 	type: "Revive";
 	count: NodeCount;
 }
@@ -233,11 +196,7 @@ export interface ReturnTo extends HasReattachFields, HasRevisionTag, HasMoveId, 
 	isSrcConflicted?: true;
 }
 
-export interface ReturnFrom<TNodeChange = NodeChangeType>
-	extends HasRevisionTag,
-		HasMoveId,
-		HasChanges<TNodeChange>,
-		CanConflict {
+export interface ReturnFrom extends HasRevisionTag, HasMoveId, CanConflict {
 	type: "ReturnFrom";
 	count: NodeCount;
 	/**

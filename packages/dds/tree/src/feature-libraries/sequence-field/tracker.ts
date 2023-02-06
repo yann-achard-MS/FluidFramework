@@ -18,7 +18,7 @@ export class IndexTracker {
 	private inputIndex: number = 0;
 	private readonly contributions: { rev: RevisionTag; netLength: number }[] = [];
 
-	public advance(mark: Mark<unknown>): void {
+	public advance(mark: Mark): void {
 		const inLength = getInputLength(mark);
 		const outLength = getOutputLength(mark);
 		this.inputIndex += inLength;
@@ -66,7 +66,7 @@ export class IndexTracker {
 export class GapTracker {
 	private readonly map: Map<RevisionTag, number> = new Map();
 
-	public advance(mark: Mark<unknown>): void {
+	public advance(mark: Mark): void {
 		if (isNetZeroNodeCountChange(mark)) {
 			this.map.clear();
 		} else {

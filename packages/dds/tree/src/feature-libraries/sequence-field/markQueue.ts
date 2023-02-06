@@ -15,17 +15,16 @@ import {
 } from "./moveEffectTable";
 import { isBlockedReattach, isInputSpanningMark, isOutputSpanningMark } from "./utils";
 
-export class MarkQueue<T> {
-	private readonly stack: Mark<T>[] = [];
+export class MarkQueue {
+	private readonly stack: Mark[] = [];
 	private index = 0;
 
 	public constructor(
-		private readonly list: readonly Mark<T>[],
+		private readonly list: readonly Mark[],
 		public readonly revision: RevisionTag | undefined,
-		private readonly moveEffects: MoveEffectTable<T>,
+		private readonly moveEffects: MoveEffectTable,
 		private readonly consumeEffects: boolean,
 		private readonly genId: IdAllocator,
-		private readonly composeChanges?: (a: T | undefined, b: T | undefined) => T | undefined,
 	) {
 		this.list = list;
 	}
@@ -34,13 +33,13 @@ export class MarkQueue<T> {
 		return this.peek() === undefined;
 	}
 
-	public dequeue(): Mark<T> {
+	public dequeue(): Mark {
 		const output = this.tryDequeue();
 		assert(output !== undefined, 0x4e2 /* Unexpected end of mark queue */);
 		return output;
 	}
 
-	public tryDequeue(): Mark<T> | undefined {
+	public tryDequeue(): Mark | undefined {
 		if (this.stack.length > 0) {
 			return this.stack.pop();
 		} else if (this.index < this.list.length) {
@@ -54,7 +53,6 @@ export class MarkQueue<T> {
 				this.revision,
 				this.moveEffects,
 				this.consumeEffects,
-				this.composeChanges,
 			);
 
 			if (splitMarks.length === 0) {
@@ -74,7 +72,7 @@ export class MarkQueue<T> {
 	 * The caller must verify that the next mark (as returned by peek) is longer than this length.
 	 * @param length - The length to dequeue, measured in the input context.
 	 */
-	public dequeueInput(length: number): InputSpanningMark<T> {
+	public dequeueInput(length: number): InputSpanningMark {
 		const mark = this.dequeue();
 		assert(isInputSpanningMark(mark), 0x4e3 /* Can only split sized marks on input */);
 		const [mark1, mark2] = splitMarkOnInput(
@@ -95,7 +93,7 @@ export class MarkQueue<T> {
 	 * @param length - The length to dequeue, measured in the output context.
 	 * @param includeBlockedCells - If true, blocked marks that target empty cells will note be treated as 0-length.
 	 */
-	public dequeueOutput(length: number, includeBlockedCells: boolean = false): Mark<T> {
+	public dequeueOutput(length: number, includeBlockedCells: boolean = false): Mark {
 		const mark = this.dequeue();
 		assert(
 			isOutputSpanningMark(mark) || (includeBlockedCells && isBlockedReattach(mark)),
@@ -113,7 +111,7 @@ export class MarkQueue<T> {
 		return mark1;
 	}
 
-	public peek(): Mark<T> | undefined {
+	public peek(): Mark | undefined {
 		const mark = this.tryDequeue();
 		if (mark !== undefined) {
 			this.stack.push(mark);

@@ -30,7 +30,7 @@ import { forbidden, optional, sequence, value as valueFieldKind } from "./defaul
 
 export type DefaultChangeset = ModularChangeset;
 
-const defaultFieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind> = new Map(
+const defaultFieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind<any>> = new Map(
 	[valueFieldKind, optional, sequence, forbidden].map((f) => [f.identifier, f]),
 );
 

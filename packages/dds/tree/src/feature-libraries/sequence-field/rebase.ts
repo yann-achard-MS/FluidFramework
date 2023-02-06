@@ -12,7 +12,6 @@ import {
 	getOutputLength,
 	isAttach,
 	isDetachMark,
-	isModify,
 	isConflicted,
 	isConflictedReattach,
 	isReattach,
@@ -68,43 +67,36 @@ import { MarkQueue } from "./markQueue";
  * - Support for moves is not implemented.
  * - Support for slices is not implemented.
  */
-export function rebase<TNodeChange>(
-	change: Changeset<TNodeChange>,
-	base: TaggedChange<Changeset<TNodeChange>>,
-	rebaseChild: NodeChangeRebaser<TNodeChange>,
+export function rebase(
+	change: Changeset,
+	base: TaggedChange<Changeset>,
 	genId: IdAllocator,
-): Changeset<TNodeChange> {
-	return rebaseMarkList(change, base.change, base.revision, rebaseChild, genId);
+): Changeset {
+	return rebaseMarkList(change, base.change, base.revision, genId);
 }
 
-export type NodeChangeRebaser<TNodeChange> = (
-	change: TNodeChange,
-	baseChange: TNodeChange,
-) => TNodeChange;
-
-function rebaseMarkList<TNodeChange>(
-	currMarkList: MarkList<TNodeChange>,
-	baseMarkList: MarkList<TNodeChange>,
+function rebaseMarkList(
+	currMarkList: MarkList,
+	baseMarkList: MarkList,
 	baseRevision: RevisionTag | undefined,
-	rebaseChild: NodeChangeRebaser<TNodeChange>,
 	genId: IdAllocator,
-): MarkList<TNodeChange> {
-	const moveEffects = newMoveEffectTable<TNodeChange>();
-	const factory = new MarkListFactory<TNodeChange>(undefined, moveEffects, true);
+): MarkList {
+	const moveEffects = newMoveEffectTable();
+	const factory = new MarkListFactory(undefined, moveEffects, true);
 	const queue = new RebaseQueue(baseRevision, baseMarkList, currMarkList, genId, moveEffects);
 
 	// Each attach mark in `currMarkList` should have a lineage event added for `baseRevision` if a node adjacent to
 	// the attach position was detached by `baseMarkList`.
 	// At the time we process an attach we don't know whether the following node will be detached, so we record attach
 	// marks which should have their lineage updated if we encounter a detach.
-	const lineageRequests: LineageRequest<TNodeChange>[] = [];
+	const lineageRequests: LineageRequest[] = [];
 	let baseDetachOffset = 0;
 	// The index of (i.e., number of nodes to the left of) the base mark in the input context of the base change.
 	// This assumes the base changeset is not composite (and asserts if it is).
 	let baseInputIndex = 0;
 	while (!queue.isEmpty()) {
 		const { baseMark, newMark: currMark } = queue.pop();
-		if (isObjMark(baseMark) && baseMark.type !== "Modify" && baseMark.revision !== undefined) {
+		if (isObjMark(baseMark) && baseMark.revision !== undefined) {
 			// TODO support rebasing over composite changeset
 			assert(
 				baseMark.revision === baseRevision,
@@ -154,7 +146,6 @@ function rebaseMarkList<TNodeChange>(
 				baseMark,
 				baseRevision,
 				baseInputIndex,
-				rebaseChild,
 				moveEffects,
 			);
 			factory.push(rebasedMark);
@@ -183,15 +174,15 @@ function rebaseMarkList<TNodeChange>(
 
 class RebaseQueue<T> {
 	private reattachOffset: number = 0;
-	private readonly baseMarks: MarkQueue<T>;
-	private readonly newMarks: MarkQueue<T>;
+	private readonly baseMarks: MarkQueue;
+	private readonly newMarks: MarkQueue;
 
 	public constructor(
 		baseRevision: RevisionTag | undefined,
-		baseMarks: Changeset<T>,
-		newMarks: Changeset<T>,
+		baseMarks: Changeset,
+		newMarks: Changeset,
 		genId: IdAllocator,
-		moveEffects: MoveEffectTable<T>,
+		moveEffects: MoveEffectTable,
 	) {
 		this.baseMarks = new MarkQueue(baseMarks, baseRevision, moveEffects, false, genId);
 		this.newMarks = new MarkQueue(newMarks, undefined, moveEffects, true, genId);
@@ -369,18 +360,17 @@ class RebaseQueue<T> {
  * If `baseMark` and `newMark` are both defined, then they are `SizedMark`s covering the same range of nodes.
  */
 interface RebaseMarks<T> {
-	baseMark?: Mark<T>;
-	newMark?: Mark<T>;
+	baseMark?: Mark;
+	newMark?: Mark;
 }
 
-function rebaseMark<TNodeChange>(
-	currMark: CellSpanningMark<TNodeChange>,
-	baseMark: CellSpanningMark<TNodeChange>,
+function rebaseMark(
+	currMark: CellSpanningMark,
+	baseMark: CellSpanningMark,
 	baseRevision: RevisionTag | undefined,
 	baseInputOffset: number,
-	rebaseChild: NodeChangeRebaser<TNodeChange>,
-	moveEffects: MoveEffectTable<TNodeChange>,
-): CellSpanningMark<TNodeChange> {
+	moveEffects: MoveEffectTable,
+): CellSpanningMark {
 	if (isSkipMark(baseMark) || isSkipLikeReattach(baseMark) || isSkipLikeDetach(baseMark)) {
 		return clone(currMark);
 	}
@@ -396,7 +386,7 @@ function rebaseMark<TNodeChange>(
 				// See skipped test: Revive ↷ [Revive, undo(Revive)] => Revive
 				if (currMark.isIntention || currMark.conflictsWith === baseMarkRevision) {
 					const reattach = {
-						...(clone(currMark) as Reattach<TNodeChange>),
+						...(clone(currMark) as Reattach),
 						// Update the characterization of the deleted content
 						detachedBy: baseMarkRevision,
 						detachIndex: baseInputOffset,
@@ -447,7 +437,7 @@ function rebaseMark<TNodeChange>(
 						0x4fa /* Invalid reattach mark overlap */,
 					);
 					// The nodes that currMark aims to detach are being reattached by baseMark
-					const newCurrMark = clone(currMark) as ReturnFrom<TNodeChange>;
+					const newCurrMark = clone(currMark) as ReturnFrom;
 					delete newCurrMark.conflictsWith;
 					delete newCurrMark.detachIndex;
 					getOrAddEffect(
@@ -505,15 +495,6 @@ function rebaseMark<TNodeChange>(
 				default:
 					unreachableCase(currMarkType);
 			}
-		}
-		case "Modify": {
-			if (isModify(currMark)) {
-				return {
-					...clone(currMark),
-					changes: rebaseChild(currMark.changes, baseMark.changes),
-				};
-			}
-			return clone(currMark);
 		}
 		case "MoveOut":
 		case "ReturnFrom": {
@@ -582,15 +563,15 @@ function rebaseMark<TNodeChange>(
 	}
 }
 
-function applyMoveEffects<TNodeChange>(
+function applyMoveEffects(
 	baseRevision: RevisionTag | undefined,
-	baseMarks: MarkList<TNodeChange>,
-	rebasedMarks: MarkList<TNodeChange>,
-	moveEffects: MoveEffectTable<TNodeChange>,
-): Changeset<TNodeChange> {
+	baseMarks: MarkList,
+	rebasedMarks: MarkList,
+	moveEffects: MoveEffectTable,
+): Changeset {
 	// Is it correct to use ComposeQueue here?
 	// If we used a special AmendRebaseQueue, we could ignore any base marks which don't have associated move-ins
-	const queue = new ComposeQueue<TNodeChange>(
+	const queue = new ComposeQueue(
 		baseRevision,
 		baseMarks,
 		undefined,
@@ -598,7 +579,7 @@ function applyMoveEffects<TNodeChange>(
 		() => fail("Should not generate new IDs when applying move effects"),
 		moveEffects,
 	);
-	const factory = new MarkListFactory<TNodeChange>(undefined, moveEffects);
+	const factory = new MarkListFactory(undefined, moveEffects);
 
 	while (!queue.isEmpty()) {
 		const { baseMark, newMark } = queue.pop();
@@ -623,17 +604,17 @@ function applyMoveEffects<TNodeChange>(
 
 	// We may have discovered new mergeable marks while applying move effects, as we may have moved a MoveOut next to another MoveOut.
 	// A second pass through MarkListFactory will handle any remaining merges.
-	const factory2 = new MarkListFactory<TNodeChange>(undefined, moveEffects);
+	const factory2 = new MarkListFactory(undefined, moveEffects);
 	for (const mark of factory.list) {
 		factory2.push(mark);
 	}
 	return factory2.list;
 }
 
-function handleCurrAttach<T>(
-	currMark: Attach<T>,
-	factory: MarkListFactory<T>,
-	lineageRequests: LineageRequest<T>[],
+function handleCurrAttach(
+	currMark: Attach,
+	factory: MarkListFactory,
+	lineageRequests: LineageRequest[],
 	offset: number,
 	baseRevision: RevisionTag | undefined,
 ) {
@@ -651,7 +632,7 @@ function handleCurrAttach<T>(
 	lineageRequests.push({ mark: rebasedMark, offset });
 }
 
-function isAttachAfterBaseAttach<T>(currMark: Attach<T>, baseMark: Attach<T>): boolean {
+function isAttachAfterBaseAttach(currMark: Attach, baseMark: Attach): boolean {
 	const lineageCmp = compareLineages(currMark.lineage, baseMark.lineage);
 	if (lineageCmp < 0) {
 		return false;
@@ -697,12 +678,12 @@ function compareLineages(
 	return 0;
 }
 
-interface LineageRequest<T> {
-	mark: Attach<T>;
+interface LineageRequest {
+	mark: Attach;
 	offset: number;
 }
 
-function updateLineage<T>(requests: LineageRequest<T>[], revision: RevisionTag) {
+function updateLineage<T>(requests: LineageRequest[], revision: RevisionTag) {
 	for (const request of requests) {
 		const mark = request.mark;
 		if (mark.lineage === undefined) {
@@ -713,7 +694,7 @@ function updateLineage<T>(requests: LineageRequest<T>[], revision: RevisionTag) 
 	}
 }
 
-function tryRemoveLineageEvent<T>(mark: Attach<T>, revisionToRemove: RevisionTag) {
+function tryRemoveLineageEvent<T>(mark: Attach, revisionToRemove: RevisionTag) {
 	if (mark.lineage === undefined) {
 		return;
 	}
@@ -732,7 +713,7 @@ function tryRemoveLineageEvent<T>(mark: Attach<T>, revisionToRemove: RevisionTag
  *
  * Only valid in the context of a rebase (i.e., both marks have the same input context).
  */
-function areRelatedReattaches<T>(baseMark: Reattach<T>, newMark: Reattach<T>): boolean {
+function areRelatedReattaches<T>(baseMark: Reattach, newMark: Reattach): boolean {
 	return (
 		baseMark.detachedBy !== undefined &&
 		(baseMark.detachedBy === newMark.detachedBy ||
@@ -746,8 +727,8 @@ function areRelatedReattaches<T>(baseMark: Reattach<T>, newMark: Reattach<T>): b
  * The target cells may or may not overlap depending on detach index information.
  */
 function isBaseAttachRelatedToConflictedDetach<T>(
-	baseMark: NewAttach<T> | Reattach<T>,
-	newMark: Detach<T> & Conflicted,
+	baseMark: NewAttach | Reattach,
+	newMark: Detach & Conflicted,
 	baseRevision: RevisionTag | undefined,
 ): boolean {
 	return (

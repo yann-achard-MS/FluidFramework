@@ -15,18 +15,18 @@ import { isObjMark, isSkipMark, tryExtendMark } from "./utils";
  * - Merges runs of offsets together
  * - Merges marks together
  */
-export class MarkListFactory<TNodeChange> {
+export class MarkListFactory {
 	private offset = 0;
-	public readonly list: MarkList<TNodeChange> = [];
+	public readonly list: MarkList = [];
 
 	public constructor(
 		// TODO: Is there a usage of MarkListFactory where we need a non-undefined revision?
 		private readonly revision?: RevisionTag | undefined,
-		private readonly moveEffects?: MoveEffectTable<TNodeChange>,
+		private readonly moveEffects?: MoveEffectTable,
 		private readonly recordMerges: boolean = false,
 	) {}
 
-	public push(...marks: Mark<TNodeChange>[]): void {
+	public push(...marks: Mark[]): void {
 		for (const item of marks) {
 			if (isSkipMark(item)) {
 				this.pushOffset(item);
@@ -40,7 +40,7 @@ export class MarkListFactory<TNodeChange> {
 		this.offset += offset;
 	}
 
-	public pushContent(mark: ObjectMark<TNodeChange>): void {
+	public pushContent(mark: ObjectMark): void {
 		if (this.offset > 0) {
 			this.list.push(this.offset);
 			this.offset = 0;

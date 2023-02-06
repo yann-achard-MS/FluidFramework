@@ -3,9 +3,8 @@
  * Licensed under the MIT License.
  */
 
-import { assert, IsoBuffer } from "@fluidframework/common-utils";
+import { assert } from "@fluidframework/common-utils";
 import {
-	ChangeEncoder,
 	FieldKindIdentifier,
 	Delta,
 	JsonableTree,
@@ -13,39 +12,46 @@ import {
 	TaggedChange,
 	RevisionTag,
 	ITreeCursorSynchronous,
-	tagChange,
 	TreeSchemaIdentifier,
 	FieldSchema,
 } from "../core";
-import { brand, fail, JsonCompatible, JsonCompatibleReadOnly, Mutable } from "../util";
+import { Brand, brand, fail, JsonCompatibleReadOnly, Mutable } from "../util";
 import { singleTextCursor, jsonableTreeFromCursor } from "./treeTextCursor";
 import {
 	FieldKind,
 	Multiplicity,
 	allowsTreeSchemaIdentifierSuperset,
-	ToDelta,
 	FieldChangeRebaser,
 	FieldChangeHandler,
-	NodeChangeset,
 	FieldChangeEncoder,
-	FieldEditor,
 	referenceFreeFieldChangeRebaser,
 	NodeReviver,
-	FieldChangeset,
-	FieldNodeKey,
 	FieldAnchorSet,
-	FieldNodeAnchor,
+	ChildIndex,
+	Context,
+	FieldAnchorSetEntry,
+	MergeCallback,
+	RebaseDirection,
+	GenericNodeKey,
+	GenericAnchor,
+	genericAnchorSetFactory,
+	genericChangeHandler,
+	GenericAnchorSet,
+	baseAnchorSetEncoder,
+	DataDecoder,
+	DataEncoder,
+	BaseAnchorSet,
 } from "./modular-schema";
-import { sequenceFieldChangeHandler, SequenceFieldEditor } from "./sequence-field";
+import * as SequenceField from "./sequence-field";
 
 type BrandedFieldKind<
 	TName extends string,
 	TMultiplicity extends Multiplicity,
-	TChangeset extends FieldChangeset = FieldChangeset,
-	TEditor extends FieldEditor<TChangeset> = FieldEditor<TChangeset>,
-	TNodeKey extends FieldNodeKey = FieldNodeKey,
-	TAnchor extends FieldNodeAnchor = FieldNodeAnchor,
-> = FieldKind<TChangeset, TEditor, TNodeKey, TAnchor> & {
+	TChangeset,
+	TEditor = unknown,
+	TNodeKey = number,
+	TAnchor = number,
+> = FieldKind<TChangeset, TNodeKey, TAnchor, TEditor> & {
 	identifier: TName & FieldKindIdentifier;
 	multiplicity: TMultiplicity;
 };
@@ -53,22 +59,22 @@ type BrandedFieldKind<
 function brandedFieldKind<
 	TName extends string,
 	TMultiplicity extends Multiplicity,
-	TChangeset extends FieldChangeset = FieldChangeset,
-	TEditor extends FieldEditor<TChangeset> = FieldEditor<TChangeset>,
-	TNodeKey extends FieldNodeKey = FieldNodeKey,
-	TAnchor extends FieldNodeAnchor = FieldNodeAnchor,
+	TChangeset,
+	TEditor,
+	TNodeKey,
+	TAnchor,
 >(
 	identifier: TName,
 	multiplicity: TMultiplicity,
-	anchorStoreFactory: <TData>() => FieldAnchorSet<TData, TNodeKey, TAnchor, TChangeset>,
-	changeHandler: FieldChangeHandler<any, any, TEditor>,
+	anchorStoreFactory: <TData>() => FieldAnchorSet<TNodeKey, TAnchor, TChangeset, TData>,
+	changeHandler: FieldChangeHandler<any, TNodeKey, TAnchor, TEditor>,
 	allowsTreeSupersetOf: (
 		originalTypes: ReadonlySet<TreeSchemaIdentifier> | undefined,
 		superset: FieldSchema,
 	) => boolean,
 	handlesEditsFrom: ReadonlySet<FieldKindIdentifier>,
 ): BrandedFieldKind<TName, TMultiplicity, TChangeset, TEditor, TNodeKey, TAnchor> {
-	return new FieldKind<TChangeset, TEditor, TNodeKey, TAnchor>(
+	return new FieldKind<TChangeset, TNodeKey, TAnchor, TEditor>(
 		brand(identifier),
 		multiplicity,
 		anchorStoreFactory,
@@ -83,37 +89,26 @@ function brandedFieldKind<
  *
  * @sealed
  */
-export class UnitEncoder extends ChangeEncoder<0> {
-	public encodeForJson(formatVersion: number, change: 0): JsonCompatible {
-		return 0;
-	}
-
-	public encodeBinary(formatVersion: number, change: 0): IsoBuffer {
-		return IsoBuffer.from("");
-	}
-
-	public decodeJson(formatVersion: number, change: JsonCompatible): 0 {
-		return 0;
-	}
-
-	public decodeBinary(formatVersion: number, change: IsoBuffer): 0 {
-		return 0;
-	}
-}
+export const unitEncoder: FieldChangeEncoder<0, GenericAnchorSet<unknown>> = {
+	...baseAnchorSetEncoder,
+	encodeChangeForJson: (formatVersion: number, change: 0): JsonCompatibleReadOnly => 0,
+	decodeChangeJson: (formatVersion: number, change: JsonCompatibleReadOnly): 0 => 0,
+};
 
 /**
  * Encoder for changesets which are just a json compatible value.
  *
  * @sealed
  */
-export class ValueEncoder<T extends JsonCompatibleReadOnly> extends ChangeEncoder<T> {
-	public encodeForJson(formatVersion: number, change: T): JsonCompatibleReadOnly {
-		return change;
-	}
-
-	public decodeJson(formatVersion: number, change: JsonCompatibleReadOnly): T {
-		return change as T;
-	}
+export function valueEncoder<T extends JsonCompatibleReadOnly>(): FieldChangeEncoder<
+	T,
+	BaseAnchorSet<unknown, T>
+> {
+	return {
+		...baseAnchorSetEncoder,
+		encodeChangeForJson: (formatVersion: number, change: T): JsonCompatibleReadOnly => change,
+		decodeChangeJson: (formatVersion: number, change: JsonCompatibleReadOnly): T => change as T,
+	};
 }
 
 /**
@@ -126,6 +121,27 @@ function commutativeRebaser<TChange>(data: {
 	const rebase = (change: TChange, _over: TChange) => change;
 	return referenceFreeFieldChangeRebaser({ ...data, rebase });
 }
+
+/**
+ * ChangeHandler that does not support any changes.
+ *
+ * TODO: Due to floating point precision compose is not quite associative.
+ * This may violate our requirements.
+ * This could be fixed by making this integer only
+ * and handling values past Number.MAX_SAFE_INTEGER (ex: via an arbitrarily large integer library)
+ * or via modular arithmetic.
+ */
+export const counterHandle: FieldChangeHandler<number, GenericNodeKey> = {
+	rebaser: commutativeRebaser({
+		compose: (changes: number[]) => changes.reduce((a, b) => a + b, 0),
+		invert: (change: number) => -change,
+	}),
+	encoder: valueEncoder(),
+	editor: {},
+	getKey: genericChangeHandler.getKey.bind(genericChangeHandler),
+	keyToDeltaKey: genericChangeHandler.keyToDeltaKey.bind(genericChangeHandler),
+	intoDelta: (change: number): Delta.MarkList => [],
+};
 
 /**
  * Picks the last value written.
@@ -191,61 +207,15 @@ export const noChangeHandler: FieldChangeHandler<0> = {
 		invert: (changes: 0) => 0,
 		rebase: (change: 0, over: 0) => 0,
 	}),
-	encoder: new UnitEncoder(),
-	editor: { buildChildChange: (index, change) => fail("Child changes not supported") },
-	intoDelta: (change: 0): Delta.FieldChanges => ({}),
-};
-
-/**
- * ChangeHandler that does not support any changes.
- *
- * TODO: Due to floating point precision compose is not quite associative.
- * This may violate our requirements.
- * This could be fixed by making this integer only
- * and handling values past Number.MAX_SAFE_INTEGER (ex: via an arbitrarily large integer library)
- * or via modular arithmetic.
- */
-export const counterHandle: FieldChangeHandler<number> = {
-	rebaser: commutativeRebaser({
-		compose: (changes: number[]) => changes.reduce((a, b) => a + b, 0),
-		invert: (change: number) => -change,
+	encoder: unitEncoder,
+	editor: {},
+	getKey: (index: number): number => index,
+	keyToDeltaKey: (key: number): ChildIndex | undefined => ({
+		context: Context.Input,
+		index: key,
 	}),
-	encoder: new ValueEncoder<number>(),
-	editor: { buildChildChange: (index, change) => fail("Child changes not supported") },
-	intoDelta: (change: number): Delta.FieldChanges => ({
-		beforeShallow: [{ index: 0, setValue: change }],
-	}),
+	intoDelta: (change: 0): Delta.MarkList => [],
 };
-
-/**
- * Field kind for counters.
- * Stores a single value which corresponds to number which can be added to.
- *
- * This is an example of a few interesting things:
- *
- * - A field kind with some constraints on what can be under it type wise.
- * Other possible examples which would do this include sets, maps (for their keys),
- * or any domain specific specialized kinds.
- *
- * - A field kind with commutative edits.
- *
- * TODO:
- * What should the subtrees under this look like?
- * How does it prevent / interact with direct edits to the subtree (ex: set value)?
- * How should it use its type set?
- * How should it handle lack of associative addition due to precision and overflow?
- */
-export const counter: BrandedFieldKind<
-	"Counter",
-	Multiplicity.Value,
-	FieldEditor<number>
-> = brandedFieldKind(
-	"Counter",
-	Multiplicity.Value,
-	counterHandle,
-	(types, other) => other.kind === counter.identifier,
-	new Set(),
-);
 
 export type NodeUpdate =
 	| { set: JsonableTree }
@@ -261,30 +231,17 @@ export type NodeUpdate =
 
 export interface ValueChangeset {
 	value?: NodeUpdate;
-	changes?: NodeChangeset;
 }
 
 const valueRebaser: FieldChangeRebaser<ValueChangeset> = {
-	compose: (
-		changes: TaggedChange<ValueChangeset>[],
-		composeChildren: NodeChangeComposer,
-	): ValueChangeset => {
+	compose: (changes: TaggedChange<ValueChangeset>[]): ValueChangeset => {
 		if (changes.length === 0) {
 			return {};
 		}
 		let newValue: NodeUpdate | undefined;
-		const childChanges: TaggedChange<NodeChangeset>[] = [];
-		for (const { change, revision } of changes) {
+		for (const { change } of changes) {
 			if (change.value !== undefined) {
 				newValue = change.value;
-
-				// The previous changes applied to a different value, so we discard them.
-				// TODO: Consider if we should represent muted changes
-				childChanges.length = 0;
-			}
-
-			if (change.changes !== undefined) {
-				childChanges.push(tagChange(change.changes, revision));
 			}
 		}
 
@@ -293,82 +250,81 @@ const valueRebaser: FieldChangeRebaser<ValueChangeset> = {
 			composed.value = newValue;
 		}
 
-		if (childChanges.length > 0) {
-			composed.changes = composeChildren(childChanges);
-		}
-
 		return composed;
 	},
 
-	invert: (
-		{ revision, change }: TaggedChange<ValueChangeset>,
-		invertChild: NodeChangeInverter,
-	): ValueChangeset => {
+	invert: ({ revision, change }: TaggedChange<ValueChangeset>): ValueChangeset => {
 		const inverse: ValueChangeset = {};
-		if (change.changes !== undefined) {
-			inverse.changes = invertChild(change.changes);
-		}
 		if (change.value !== undefined) {
 			inverse.value = { revert: revision };
 		}
 		return inverse;
 	},
 
-	rebase: (
-		change: ValueChangeset,
-		over: TaggedChange<ValueChangeset>,
-		rebaseChild: NodeChangeRebaser,
-	): ValueChangeset => {
-		if (change.changes === undefined || over.change.changes === undefined) {
-			return change;
-		}
-		return { ...change, changes: rebaseChild(change.changes, over.change.changes) };
+	rebase: (change: ValueChangeset, over: TaggedChange<ValueChangeset>): ValueChangeset => {
+		return change;
 	},
 };
 
 interface EncodedValueChangeset {
 	value?: NodeUpdate;
-	changes?: JsonCompatibleReadOnly;
 }
 
-const valueFieldEncoder: FieldChangeEncoder<ValueChangeset> = {
-	encodeForJson: (
-		formatVersion: number,
-		change: ValueChangeset,
-		encodeChild: NodeChangeEncoder,
-	) => {
+interface ChangeCodec<
+	TChangeset,
+	TAnchorSet extends FieldAnchorSet<any, any, TChangeset, unknown>,
+> {
+	encodeChangeForJson: FieldChangeEncoder<TChangeset, TAnchorSet>["encodeChangeForJson"];
+	decodeChangeJson: FieldChangeEncoder<TChangeset, TAnchorSet>["decodeChangeJson"];
+}
+function singleCellFieldEncoder<TChangeset>(
+	changeCodec: ChangeCodec<TChangeset, CellAnchorSet<unknown, TChangeset>>,
+): FieldChangeEncoder<TChangeset, CellAnchorSet<unknown, TChangeset>> {
+	return {
+		...changeCodec,
+		encodeAnchorSetForJson: <TData>(
+			formatVersion: number,
+			set: CellAnchorSet<TData, TChangeset>,
+			dataEncoder: DataEncoder<TData>,
+		): JsonCompatibleReadOnly => {
+			return set.encodeForJson(formatVersion, dataEncoder);
+		},
+
+		decodeAnchorSetJson: <TData>(
+			formatVersion: number,
+			set: JsonCompatibleReadOnly,
+			dataDecoder: DataDecoder<TData>,
+		): CellAnchorSet<TData, TChangeset> => {
+			return CellAnchorSet.decodeJson<TData, TChangeset>(formatVersion, set, dataDecoder);
+		},
+	};
+}
+
+const valueFieldEncoder: FieldChangeEncoder<
+	ValueChangeset,
+	CellAnchorSet<unknown, ValueChangeset>
+> = singleCellFieldEncoder({
+	encodeChangeForJson: (formatVersion: number, change: ValueChangeset) => {
 		const encoded: EncodedValueChangeset & JsonCompatibleReadOnly = {};
 		if (change.value !== undefined) {
 			encoded.value = change.value;
 		}
 
-		if (change.changes !== undefined) {
-			encoded.changes = encodeChild(change.changes);
-		}
-
 		return encoded;
 	},
 
-	decodeJson: (
-		formatVersion: number,
-		change: JsonCompatibleReadOnly,
-		decodeChild: NodeChangeDecoder,
-	) => {
+	decodeChangeJson: (formatVersion: number, change: JsonCompatibleReadOnly) => {
 		const encoded = change as EncodedValueChangeset;
 		const decoded: ValueChangeset = {};
 		if (encoded.value !== undefined) {
 			decoded.value = encoded.value;
 		}
 
-		if (encoded.changes !== undefined) {
-			decoded.changes = decodeChild(encoded.changes);
-		}
-
 		return decoded;
 	},
-};
+});
 
-export interface ValueFieldEditor extends FieldEditor<ValueChangeset> {
+export interface ValueFieldEditor {
 	/**
 	 * Creates a change which replaces the current value of the field with `newValue`.
 	 */
@@ -376,21 +332,19 @@ export interface ValueFieldEditor extends FieldEditor<ValueChangeset> {
 }
 
 const valueFieldEditor: ValueFieldEditor = {
-	buildChildChange: (index, change) => {
-		assert(index === 0, 0x3b6 /* Value fields only support a single child node */);
-		return { changes: change };
-	},
-
 	set: (newValue: ITreeCursor) => ({ value: { set: jsonableTreeFromCursor(newValue) } }),
 };
 
-const valueChangeHandler: FieldChangeHandler<ValueChangeset, ValueFieldEditor> = {
+const valueChangeHandler: FieldChangeHandler<ValueChangeset, NodeKey, Anchor, ValueFieldEditor> = {
 	rebaser: valueRebaser,
 	encoder: valueFieldEncoder,
 	editor: valueFieldEditor,
-
-	intoDelta: (change: ValueChangeset, deltaFromChild: ToDelta, reviver: NodeReviver) => {
-		const fieldChanges: Mutable<Delta.FieldChanges> = {};
+	getKey: (index: number): NodeKey => brand(0),
+	keyToDeltaKey: (key: NodeKey): ChildIndex | undefined => ({
+		context: Context.Input,
+		index: 0,
+	}),
+	intoDelta: (change: ValueChangeset, reviver: NodeReviver) => {
 		if (change.value !== undefined) {
 			let newValue: ITreeCursorSynchronous;
 			if ("revert" in change.value) {
@@ -400,7 +354,7 @@ const valueChangeHandler: FieldChangeHandler<ValueChangeset, ValueFieldEditor> =
 			} else {
 				newValue = singleTextCursor(change.value.set);
 			}
-			fieldChanges.shallow = [
+			return [
 				{ type: Delta.MarkType.Delete, count: 1 },
 				{
 					type: Delta.MarkType.Insert,
@@ -408,31 +362,146 @@ const valueChangeHandler: FieldChangeHandler<ValueChangeset, ValueFieldEditor> =
 				},
 			];
 		}
-		if (change.changes !== undefined) {
-			const modify = deltaFromChild(change.changes, 0);
-			if (modify) {
-				fieldChanges.afterShallow = [{ ...modify, index: 0 }];
-			}
-		}
-		return fieldChanges;
+		return [];
 	},
+};
+
+export type NodeKey = Brand<number, "CellNodeKey">;
+export type Anchor = Brand<number, "CellAnchor">;
+
+export type Entry<TData> = FieldAnchorSetEntry<TData, NodeKey, Anchor>;
+
+export class CellAnchorSet<TData, TChangeset>
+	implements FieldAnchorSet<NodeKey, Anchor, TChangeset, TData>
+{
+	// TODO: the changeset should be able to represent changes to both the subtree present before
+	// the change and the subtree present after the change (any changes in between).
+	private entry?: Mutable<Entry<TData>>;
+
+	public encodeForJson(
+		formatVersion: number,
+		dataEncoder: DataEncoder<TData>,
+	): JsonCompatibleReadOnly {
+		throw new Error("Method not implemented.");
+	}
+
+	public static decodeJson<TData, TChangeset>(
+		formatVersion: number,
+		set: JsonCompatibleReadOnly,
+		dataDecoder: DataDecoder<TData>,
+	): CellAnchorSet<TData, TChangeset> {
+		throw new Error("Method not implemented.");
+	}
+
+	public clone(): CellAnchorSet<TData, TChangeset> {
+		const set = new CellAnchorSet<TData, TChangeset>();
+		set.mergeIn(this, () => fail("Unexpected merge in empty anchor set"));
+		return set;
+	}
+
+	public mergeIn(set: CellAnchorSet<TData, TChangeset>, mergeData: MergeCallback<TData>): void {
+		for (const { key, anchor, data } of set.entries()) {
+			this.add(key, data, mergeData, anchor);
+		}
+	}
+
+	public track(key: NodeKey, data: TData, mergeData: MergeCallback<TData>): Anchor {
+		return this.add(key, data, mergeData);
+	}
+
+	private add(
+		key: NodeKey,
+		data: TData,
+		mergeData: MergeCallback<TData>,
+		existingAnchor?: Anchor,
+	): Anchor {
+		if (this.entry === undefined) {
+			const anchor: Anchor = existingAnchor ?? brand(0);
+			this.entry = { key, anchor, data };
+			return anchor;
+		} else {
+			this.entry.data = mergeData(this.entry.data, data);
+			return this.entry.anchor;
+		}
+	}
+
+	public forget(anchor: Anchor): void {
+		assert(this.entry?.anchor === anchor, "Cannot forget unknown anchor");
+		this.entry = undefined;
+	}
+
+	public lookup(key: NodeKey): Entry<TData> | undefined {
+		throw new Error("Method not implemented.");
+	}
+
+	public locate(anchor: Anchor): Entry<TData> {
+		throw new Error("Method not implemented.");
+	}
+
+	public getData(anchor: Anchor): TData {
+		throw new Error("Method not implemented.");
+	}
+
+	public rebase(over: TaggedChange<TChangeset>, direction: RebaseDirection): void {
+		// Nothing to rebase over
+	}
+
+	public entries(): IterableIterator<Entry<TData>> {
+		return (this.entry === undefined ? [] : [this.entry]).values();
+	}
+}
+
+export const cellAnchorSetEncoder = {
+	encodeAnchorSetForJson: <TData>(
+		formatVersion: number,
+		set: CellAnchorSet<TData, unknown>,
+		dataEncoder: DataEncoder<TData>,
+	): JsonCompatibleReadOnly => {
+		return set.encodeForJson(formatVersion, dataEncoder);
+	},
+
+	decodeAnchorSetJson: <TData>(
+		formatVersion: number,
+		set: JsonCompatibleReadOnly,
+		dataDecoder: DataDecoder<TData>,
+	): GenericAnchorSet<TData> => {
+		return GenericAnchorSet.decodeJson<TData>(formatVersion, set, dataDecoder);
+	},
+};
+
+export const anchorSetFactory = <TData, TChangeset>(): CellAnchorSet<TData, TChangeset> => {
+	return new CellAnchorSet<TData, TChangeset>();
 };
 
 /**
  * Exactly one item.
  */
-export const value: BrandedFieldKind<"Value", Multiplicity.Value, ValueFieldEditor> =
-	brandedFieldKind(
-		"Value",
-		Multiplicity.Value,
-		valueChangeHandler,
-		(types, other) =>
-			(other.kind === sequence.identifier ||
-				other.kind === value.identifier ||
-				other.kind === optional.identifier) &&
-			allowsTreeSchemaIdentifierSuperset(types, other.types),
-		new Set(),
-	);
+export const value: BrandedFieldKind<
+	"Value",
+	Multiplicity.Value,
+	ValueChangeset,
+	ValueFieldEditor,
+	NodeKey,
+	Anchor
+> = brandedFieldKind<
+	"Value",
+	Multiplicity.Value,
+	ValueChangeset,
+	ValueFieldEditor,
+	NodeKey,
+	Anchor
+>(
+	"Value",
+	Multiplicity.Value,
+	anchorSetFactory,
+	valueChangeHandler,
+	(types, other) =>
+		(other.kind === sequence.identifier ||
+			other.kind === value.identifier ||
+			other.kind === optional.identifier) &&
+		allowsTreeSchemaIdentifierSuperset(types, other.types),
+	new Set(),
+);
 
 export interface OptionalFieldChange {
 	/**
@@ -451,21 +520,12 @@ export interface OptionalChangeset {
 	 * If defined, specifies the new content for the field.
 	 */
 	fieldChange?: OptionalFieldChange;
-
-	/**
-	 * Changes to the node which will be in the field after this changeset is applied.
-	 */
-	childChange?: NodeChangeset;
 }
 
 const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
-	compose: (
-		changes: TaggedChange<OptionalChangeset>[],
-		composeChild: NodeChangeComposer,
-	): OptionalChangeset => {
+	compose: (changes: TaggedChange<OptionalChangeset>[]): OptionalChangeset => {
 		let fieldChange: OptionalFieldChange | undefined;
-		const childChanges: TaggedChange<NodeChangeset>[] = [];
-		for (const { change, revision } of changes) {
+		for (const { change } of changes) {
 			if (change.fieldChange !== undefined) {
 				if (fieldChange === undefined) {
 					fieldChange = { wasEmpty: change.fieldChange.wasEmpty };
@@ -476,13 +536,6 @@ const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
 				} else {
 					delete fieldChange.newContent;
 				}
-
-				// The previous changes applied to a different value, so we discard them.
-				// TODO: Represent muted changes
-				childChanges.length = 0;
-			}
-			if (change.childChange !== undefined) {
-				childChanges.push(tagChange(change.childChange, revision));
 			}
 		}
 
@@ -491,17 +544,10 @@ const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
 			composed.fieldChange = fieldChange;
 		}
 
-		if (childChanges.length > 0) {
-			composed.childChange = composeChild(childChanges);
-		}
-
 		return composed;
 	},
 
-	invert: (
-		{ revision, change }: TaggedChange<OptionalChangeset>,
-		invertChild: NodeChangeInverter,
-	): OptionalChangeset => {
+	invert: ({ revision, change }: TaggedChange<OptionalChangeset>): OptionalChangeset => {
 		const inverse: OptionalChangeset = {};
 
 		const fieldChange = change.fieldChange;
@@ -512,17 +558,12 @@ const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
 			}
 		}
 
-		if (change.childChange !== undefined) {
-			inverse.childChange = invertChild(change.childChange);
-		}
-
 		return inverse;
 	},
 
 	rebase: (
 		change: OptionalChangeset,
 		overTagged: TaggedChange<OptionalChangeset>,
-		rebaseChild: NodeChangeRebaser,
 	): OptionalChangeset => {
 		const over = overTagged.change;
 		if (change.fieldChange !== undefined) {
@@ -539,23 +580,11 @@ const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
 			return change;
 		}
 
-		if (change.childChange !== undefined) {
-			if (over.fieldChange !== undefined) {
-				// The node the child changes applied to no longer exists so we drop the changes.
-				// TODO: Represent muted changes
-				return {};
-			}
-
-			if (over.childChange !== undefined) {
-				return { childChange: rebaseChild(change.childChange, over.childChange) };
-			}
-		}
-
 		return change;
 	},
 };
 
-export interface OptionalFieldEditor extends FieldEditor<OptionalChangeset> {
+export interface OptionalFieldEditor {
 	/**
 	 * Creates a change which replaces the field with `newContent`
 	 * @param newContent - the new content for the field
@@ -576,11 +605,6 @@ const optionalFieldEditor: OptionalFieldEditor = {
 			wasEmpty,
 		},
 	}),
-
-	buildChildChange: (index: number, childChange: NodeChangeset): OptionalChangeset => {
-		assert(index === 0, 0x404 /* Optional fields only support a single child node */);
-		return { childChange };
-	},
 };
 
 interface EncodedOptionalChangeset {
@@ -588,111 +612,94 @@ interface EncodedOptionalChangeset {
 	childChange?: JsonCompatibleReadOnly;
 }
 
-const optionalFieldEncoder: FieldChangeEncoder<OptionalChangeset> = {
-	encodeForJson: (
-		formatVersion: number,
-		change: OptionalChangeset,
-		encodeChild: NodeChangeEncoder,
-	) => {
+const optionalFieldEncoder: FieldChangeEncoder<
+	OptionalChangeset,
+	CellAnchorSet<unknown, OptionalChangeset>
+> = singleCellFieldEncoder({
+	encodeChangeForJson: (formatVersion: number, change: OptionalChangeset) => {
 		const encoded: EncodedOptionalChangeset & JsonCompatibleReadOnly = {};
 		if (change.fieldChange !== undefined) {
 			encoded.fieldChange = change.fieldChange;
 		}
 
-		if (change.childChange !== undefined) {
-			encoded.childChange = encodeChild(change.childChange);
-		}
-
 		return encoded;
 	},
 
-	decodeJson: (
-		formatVersion: number,
-		change: JsonCompatibleReadOnly,
-		decodeChild: NodeChangeDecoder,
-	) => {
+	decodeChangeJson: (formatVersion: number, change: JsonCompatibleReadOnly) => {
 		const encoded = change as EncodedOptionalChangeset;
 		const decoded: OptionalChangeset = {};
 		if (encoded.fieldChange !== undefined) {
 			decoded.fieldChange = encoded.fieldChange;
 		}
 
-		if (encoded.childChange !== undefined) {
-			decoded.childChange = decodeChild(encoded.childChange);
-		}
-
 		return decoded;
 	},
-};
+});
 
 /**
  * 0 or 1 items.
  */
-export const optional: FieldKind<OptionalFieldEditor> = new FieldKind(
-	brand("Optional"),
-	Multiplicity.Optional,
-	{
-		rebaser: optionalChangeRebaser,
-		encoder: optionalFieldEncoder,
-		editor: optionalFieldEditor,
-
-		intoDelta: (change: OptionalChangeset, deltaFromChild: ToDelta, reviver: NodeReviver) => {
-			const fieldChanges: Mutable<Delta.FieldChanges> = {};
-			const update = change.fieldChange?.newContent;
-			const shallow = [];
-			if (change.fieldChange !== undefined && !change.fieldChange.wasEmpty) {
-				shallow.push({ type: Delta.MarkType.Delete, count: 1 });
-			}
-			if (update !== undefined) {
-				if ("set" in update) {
-					shallow.push({
-						type: Delta.MarkType.Insert,
-						content: [singleTextCursor(update.set)],
-					});
-				} else {
-					const revision = update.revert;
-					assert(
-						revision !== undefined,
-						0x478 /* Unable to revert to undefined revision */,
-					);
-					const content = reviver(revision, 0, 1);
-					shallow.push({
-						type: Delta.MarkType.Insert,
-						content,
-					});
+export const optional: FieldKind<OptionalChangeset, NodeKey, Anchor, OptionalFieldEditor> =
+	new FieldKind<OptionalChangeset, NodeKey, Anchor, OptionalFieldEditor>(
+		brand("Optional"),
+		Multiplicity.Optional,
+		anchorSetFactory,
+		{
+			rebaser: optionalChangeRebaser,
+			encoder: optionalFieldEncoder,
+			editor: optionalFieldEditor,
+			getKey: (index: number): NodeKey => brand(0),
+			keyToDeltaKey: (key: NodeKey): ChildIndex | undefined => ({
+				context: Context.Input,
+				index: 0,
+			}),
+			intoDelta: (change: OptionalChangeset, reviver: NodeReviver) => {
+				const update = change.fieldChange?.newContent;
+				const shallow = [];
+				if (change.fieldChange !== undefined && !change.fieldChange.wasEmpty) {
+					shallow.push({ type: Delta.MarkType.Delete, count: 1 });
 				}
-			}
-			if (shallow.length > 0) {
-				fieldChanges.shallow = shallow;
-			}
-			if (change.childChange !== undefined) {
-				const childDelta = deltaFromChild(change.childChange, 0);
-				if (childDelta) {
-					// TODO: the changeset should be able to represent changes to both the subtree present before
-					// the change and the subtree present after the change.
-					if (update === undefined) {
-						fieldChanges.beforeShallow = [{ index: 0, ...childDelta }];
+				if (update !== undefined) {
+					if ("set" in update) {
+						shallow.push({
+							type: Delta.MarkType.Insert,
+							content: [singleTextCursor(update.set)],
+						});
 					} else {
-						fieldChanges.afterShallow = [{ index: 0, ...childDelta }];
+						const revision = update.revert;
+						assert(
+							revision !== undefined,
+							0x478 /* Unable to revert to undefined revision */,
+						);
+						const content = reviver(revision, 0, 1);
+						shallow.push({
+							type: Delta.MarkType.Insert,
+							content,
+						});
 					}
 				}
-			}
-			return fieldChanges;
+				return shallow;
+			},
 		},
-	},
-	(types, other) =>
-		(other.kind === sequence.identifier || other.kind === optional.identifier) &&
-		allowsTreeSchemaIdentifierSuperset(types, other.types),
-	new Set([value.identifier]),
-);
+		(types, other) =>
+			(other.kind === sequence.identifier || other.kind === optional.identifier) &&
+			allowsTreeSchemaIdentifierSuperset(types, other.types),
+		new Set([value.identifier]),
+	);
 
 /**
  * 0 or more items.
  */
-export const sequence: FieldKind<SequenceFieldEditor> = new FieldKind(
+export const sequence: FieldKind<
+	SequenceField.Changeset,
+	GenericNodeKey,
+	GenericAnchor,
+	SequenceField.SequenceFieldEditor
+> = new FieldKind(
 	brand("Sequence"),
 	Multiplicity.Sequence,
-	sequenceFieldChangeHandler,
+	SequenceField.anchorSetFactory,
+	SequenceField.sequenceFieldChangeHandler,
 	(types, other) =>
 		other.kind === sequence.identifier &&
 		allowsTreeSchemaIdentifierSuperset(types, other.types),
@@ -731,6 +738,7 @@ export const sequence: FieldKind<SequenceFieldEditor> = new FieldKind(
 export const forbidden = brandedFieldKind(
 	"Forbidden",
 	Multiplicity.Forbidden,
+	genericAnchorSetFactory,
 	noChangeHandler,
 	// All multiplicities other than Value support empty.
 	(types, other) => fieldKinds.get(other.kind)?.multiplicity !== Multiplicity.Value,
@@ -740,6 +748,6 @@ export const forbidden = brandedFieldKind(
 /**
  * Default field kinds by identifier
  */
-export const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind> = new Map(
-	[value, optional, sequence, forbidden, counter].map((s) => [s.identifier, s]),
+export const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind<any>> = new Map(
+	[value, optional, sequence, forbidden].map((s) => [s.identifier, s]),
 );

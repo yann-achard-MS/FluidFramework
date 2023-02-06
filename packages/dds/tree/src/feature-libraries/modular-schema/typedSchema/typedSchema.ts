@@ -84,7 +84,7 @@ export function typedTreeSchema<T extends TypedTreeSchemaBuilder>(
  * typescript type to allow for deriving schema aware APIs.
  */
 export function typedFieldSchema<
-	TKind extends FieldKind,
+	TKind extends FieldKind<any>,
 	TTypes extends undefined | readonly (string | Named<string>)[],
 >(
 	kind: TKind,

@@ -31,6 +31,7 @@ import {
 	Mutable,
 } from "../../util";
 import { dummyRepairDataStore } from "../fakeRepairDataStore";
+import { RebaseDirection } from "./anchorSet";
 import {
 	FieldChangeHandler,
 	FieldChangeMap,
@@ -43,8 +44,9 @@ import {
 	IdAllocator,
 	Context,
 	FieldNodeKey,
+	FieldNodeAnchor,
 } from "./fieldChangeHandler";
-import { FieldKind, GenericFieldAnchorSet, GenericFieldKind, RebaseDirection } from "./fieldKind";
+import { FieldKind, BrandedFieldAnchorSet, BrandedFieldKind } from "./fieldKind";
 import { genericFieldKind } from "./genericFieldKind";
 import { decodeJsonFormat0, encodeForJsonFormat0 } from "./modularChangeEncoding";
 
@@ -59,12 +61,10 @@ export class ModularChangeFamily
 	implements ChangeFamily<ModularEditBuilder, ModularChangeset>, ChangeRebaser<ModularChangeset>
 {
 	readonly encoder: ChangeEncoder<ModularChangeset>;
-	readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, GenericFieldKind>;
+	readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, BrandedFieldKind>;
 
-	constructor(
-		fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind<unknown, unknown, unknown>>,
-	) {
-		this.fieldKinds = fieldKinds as ReadonlyMap<FieldKindIdentifier, GenericFieldKind>;
+	constructor(fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>) {
+		this.fieldKinds = fieldKinds as ReadonlyMap<FieldKindIdentifier, BrandedFieldKind>;
 		this.encoder = new ModularChangeEncoder(this.fieldKinds);
 	}
 
@@ -128,7 +128,7 @@ export class ModularChangeFamily
 
 				let hasNestedChanges = false;
 				const childChanges =
-					fieldKind.anchorStoreFactory<NodeChangeset>() as unknown as GenericFieldAnchorSet;
+					fieldKind.anchorStoreFactory<NodeChangeset>() as unknown as BrandedFieldAnchorSet;
 				for (let i = changesForField.length - 1; i >= 0; --i) {
 					const iThFieldChanges = changesForField[i];
 					if (iThFieldChanges.nested !== undefined) {
@@ -489,11 +489,11 @@ export class ModularChangeFamily
 }
 
 export function getFieldKind(
-	fieldKinds: ReadonlyMap<FieldKindIdentifier, GenericFieldKind>,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, BrandedFieldKind>,
 	kind: FieldKindIdentifier,
-): GenericFieldKind {
+): BrandedFieldKind {
 	if (kind === genericFieldKind.identifier) {
-		return genericFieldKind as unknown as GenericFieldKind;
+		return genericFieldKind as unknown as BrandedFieldKind;
 	}
 	const fieldKind = fieldKinds.get(kind);
 	assert(fieldKind !== undefined, 0x3ad /* Unknown field kind */);
@@ -501,9 +501,9 @@ export function getFieldKind(
 }
 
 export function getChangeHandler(
-	fieldKinds: ReadonlyMap<FieldKindIdentifier, GenericFieldKind>,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, BrandedFieldKind>,
 	kind: FieldKindIdentifier,
-): FieldChangeHandler<FieldChangeset, FieldNodeKey> {
+): FieldChangeHandler<FieldChangeset, FieldNodeKey, FieldNodeAnchor> {
 	return getFieldKind(fieldKinds, kind).changeHandler;
 }
 
@@ -516,7 +516,7 @@ function makeModularChangeset(changes: FieldChangeMap, maxId: number): ModularCh
 }
 
 class ModularChangeEncoder extends ChangeEncoder<ModularChangeset> {
-	constructor(private readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, GenericFieldKind>) {
+	constructor(private readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, BrandedFieldKind>) {
 		super();
 	}
 
@@ -596,6 +596,6 @@ function makeGenericNestedChange(index: number, nodeChange: NodeChangeset): Fiel
 	nested.track(key, nodeChange, () => fail("Unexpected merge of NodeChangeset"));
 	return {
 		fieldKind: genericFieldKind.identifier,
-		nested: nested as unknown as GenericFieldAnchorSet,
+		nested: nested as unknown as BrandedFieldAnchorSet,
 	};
 }
