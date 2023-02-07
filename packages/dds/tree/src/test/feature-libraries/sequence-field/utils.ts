@@ -5,18 +5,13 @@
 
 import { ChangesetLocalId, IdAllocator, SequenceField as SF } from "../../../feature-libraries";
 import { Delta, TaggedChange, makeAnonChange, tagChange } from "../../../core";
-import { TestChange } from "../../testChange";
-import { assertFieldChangesEqual, deepFreeze, fakeRepair } from "../../utils";
+import { assertMarkListEqual, deepFreeze, fakeRepair } from "../../utils";
 import { brand } from "../../../util";
 import { TestChangeset } from "./testEdits";
 
 export function composeAnonChanges(changes: TestChangeset[]): TestChangeset {
 	const taggedChanges = changes.map(makeAnonChange);
-	return SF.sequenceFieldChangeRebaser.compose(
-		taggedChanges,
-		TestChange.compose,
-		continuingAllocator(taggedChanges),
-	);
+	return SF.sequenceFieldChangeRebaser.compose(taggedChanges, continuingAllocator(taggedChanges));
 }
 
 export function rebaseTagged(
@@ -32,7 +27,6 @@ export function rebaseTagged(
 			SF.rebase(
 				currChange.change,
 				baseChange,
-				TestChange.rebase,
 				idAllocatorFromMaxId(getMaxId(currChange.change, baseChange.change)),
 			),
 			change.revision,
@@ -42,11 +36,11 @@ export function rebaseTagged(
 }
 
 export function checkDeltaEquality(actual: TestChangeset, expected: TestChangeset) {
-	assertFieldChangesEqual(toDelta(actual), toDelta(expected));
+	assertMarkListEqual(toDelta(actual), toDelta(expected));
 }
 
-export function toDelta(change: TestChangeset): Delta.FieldChanges {
-	return SF.sequenceFieldToDelta(change, TestChange.toDelta, fakeRepair);
+export function toDelta(change: TestChangeset): Delta.MarkList {
+	return SF.sequenceFieldToDelta(change, fakeRepair);
 }
 
 export function getMaxId(...changes: SF.Changeset[]): ChangesetLocalId | undefined {
@@ -63,12 +57,12 @@ export function getMaxId(...changes: SF.Changeset[]): ChangesetLocalId | undefin
 }
 
 export function getMaxIdTagged(
-	changes: TaggedChange<SF.Changeset[],
+	changes: TaggedChange<SF.Changeset>[],
 ): ChangesetLocalId | undefined {
 	return getMaxId(...changes.map((c) => c.change));
 }
 
-export function continuingAllocator(changes: TaggedChange<SF.Changeset[]): IdAllocator {
+export function continuingAllocator(changes: TaggedChange<SF.Changeset>[]): IdAllocator {
 	return idAllocatorFromMaxId(getMaxIdTagged(changes));
 }
 

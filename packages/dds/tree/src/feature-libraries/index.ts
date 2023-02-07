@@ -81,6 +81,10 @@ export {
 	GenericChangeset,
 	genericFieldKind,
 	NodeReviver,
+	baseChangeHandlerKeyFunctions,
+	genericAnchorSetFactory,
+	BaseAnchorSet,
+	singleCellAnchorSetFactory,
 } from "./modular-schema";
 
 // Split this up into separate import and export for compatibility with API-Extractor.

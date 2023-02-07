@@ -5,7 +5,7 @@
 
 import { strict as assert } from "assert";
 import { jsonString } from "../../../domains";
-import { NodeChangeset, SequenceField as SF, singleTextCursor } from "../../../feature-libraries";
+import { SequenceField as SF, singleTextCursor } from "../../../feature-libraries";
 import { deepFreeze } from "../../utils";
 
 const nodeX = { type: jsonString.name, value: "X" };
@@ -14,14 +14,6 @@ const content = [singleTextCursor(nodeX), singleTextCursor(nodeY)];
 deepFreeze(content);
 
 describe("SequenceField - Editor", () => {
-	it("child change", () => {
-		const childChange: NodeChangeset = { valueChange: { value: 1 } };
-		deepFreeze(childChange);
-		const actual = SF.sequenceFieldEditor.buildChildChange(42, childChange);
-		const expected: SF.Changeset = [42, { type: "Modify", changes: childChange }];
-		assert.deepEqual(actual, expected);
-	});
-
 	it("insert one node", () => {
 		const actual = SF.sequenceFieldEditor.insert(42, content[0]);
 		const expected: SF.Changeset = [42, { type: "Insert", content: [nodeX] }];

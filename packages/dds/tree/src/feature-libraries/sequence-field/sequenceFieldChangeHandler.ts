@@ -4,9 +4,9 @@
  */
 
 import {
+	baseChangeHandlerKeyFunctions,
 	FieldChangeHandler,
 	GenericAnchor,
-	genericChangeHandler,
 	GenericNodeKey,
 } from "../modular-schema";
 import { Changeset } from "./format";
@@ -23,10 +23,9 @@ export type SequenceFieldChangeHandler = FieldChangeHandler<
 >;
 
 export const sequenceFieldChangeHandler: SequenceFieldChangeHandler = {
+	...baseChangeHandlerKeyFunctions,
 	rebaser: sequenceFieldChangeRebaser,
 	encoder: sequenceFieldChangeEncoder,
 	editor: sequenceFieldEditor,
-	getKey: genericChangeHandler.getKey.bind(genericChangeHandler),
-	keyToDeltaKey: genericChangeHandler.keyToDeltaKey.bind(genericChangeHandler),
 	intoDelta: sequenceFieldToDelta,
 };

@@ -5,9 +5,7 @@
 
 import { SequenceField as SF, singleTextCursor } from "../../../feature-libraries";
 import { brand } from "../../../util";
-import { RevisionTag, TreeSchemaIdentifier, makeAnonChange } from "../../../core";
-import { TestChange } from "../../testChange";
-import { idAllocatorFromMaxId } from "./utils";
+import { RevisionTag, TreeSchemaIdentifier } from "../../../core";
 
 const type: TreeSchemaIdentifier = brand("Node");
 const tag: RevisionTag = brand(42);
@@ -17,8 +15,6 @@ export type TestChangeset = SF.Changeset;
 export const cases: {
 	no_change: TestChangeset;
 	insert: TestChangeset;
-	modify: TestChangeset;
-	modify_insert: TestChangeset;
 	delete: TestChangeset;
 	revive: TestChangeset;
 	move: TestChangeset;
@@ -26,15 +22,6 @@ export const cases: {
 } = {
 	no_change: [],
 	insert: createInsertChangeset(1, 2, 1),
-	modify: SF.sequenceFieldEditor.buildChildChange(0, TestChange.mint([], 1)),
-	modify_insert: SF.sequenceFieldChangeRebaser.compose(
-		[
-			makeAnonChange(createInsertChangeset(1, 1, 1)),
-			makeAnonChange(createModifyChangeset(1, TestChange.mint([], 2))),
-		],
-		TestChange.compose,
-		idAllocatorFromMaxId(),
-	),
 	delete: createDeleteChangeset(1, 3),
 	revive: createReviveChangeset(2, 2, tag, 0),
 	move: createMoveChangeset(1, 2, 2),
@@ -119,10 +106,6 @@ function createReturnChangeset(
 	return SF.sequenceFieldEditor.return(sourceIndex, count, destIndex, detachedBy, detachIndex);
 }
 
-function createModifyChangeset(index: number, change: TNodeChange): SF.Changeset {
-	return SF.sequenceFieldEditor.buildChildChange(index, change);
-}
-
 export const ChangeMaker = {
 	insert: createInsertChangeset,
 	delete: createDeleteChangeset,
@@ -130,5 +113,4 @@ export const ChangeMaker = {
 	intentionalRevive: createIntentionalReviveChangeset,
 	move: createMoveChangeset,
 	return: createReturnChangeset,
-	modify: createModifyChangeset,
 };

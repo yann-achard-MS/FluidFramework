@@ -40,6 +40,7 @@ export {
 	BaseAnchorSet,
 	GenericAnchorSet,
 	baseAnchorSetEncoder,
+	baseChangeHandlerKeyFunctions,
 	genericAnchorSetFactory,
 	GenericChange,
 	GenericNodeKey,
@@ -48,6 +49,13 @@ export {
 	GenericChangeset,
 	genericFieldKind,
 } from "./genericFieldKind";
+export {
+	singleCellAnchorSetFactory,
+	SingleCellAnchorSet,
+	SingleCellKey,
+	SingleCellAnchor,
+	singleCellKeyFunctions,
+} from "./singleCellUtils";
 export { ModularChangeFamily, ModularEditBuilder } from "./modularChangeFamily";
 export { typedTreeSchema, typedFieldSchema } from "./typedSchema";
 export { FieldTypeView, TreeViewSchema, ViewSchemaCollection, ViewSchema } from "./view";

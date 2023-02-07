@@ -5,19 +5,21 @@
 
 import { strict as assert } from "assert";
 import {
-	FieldChangeEncoder,
 	FieldChangeHandler,
 	FieldChangeRebaser,
 	FieldKind,
 	Multiplicity,
 	ModularChangeFamily,
 	FieldKinds,
-	FieldEditor,
 	NodeChangeset,
 	genericFieldKind,
 	FieldChange,
 	ModularChangeset,
 	ChangesetLocalId,
+	baseChangeHandlerKeyFunctions,
+	genericAnchorSetFactory,
+	BaseAnchorSet,
+	singleCellAnchorSetFactory,
 } from "../../../feature-libraries";
 import {
 	RepairDataStore,
@@ -31,60 +33,40 @@ import {
 	FieldKey,
 	UpPath,
 } from "../../../core";
-import { brand, fail, JsonCompatibleReadOnly } from "../../../util";
+import { brand, JsonCompatibleReadOnly } from "../../../util";
 import { assertDeltaEqual, deepFreeze } from "../../utils";
+import { singleJsonCursor } from "../../../domains";
 
 type ValueChangeset = FieldKinds.ReplaceOp<number>;
 
 const valueHandler: FieldChangeHandler<ValueChangeset> = {
+	...baseChangeHandlerKeyFunctions,
 	rebaser: FieldKinds.replaceRebaser(),
-	encoder: new FieldKinds.ValueEncoder<ValueChangeset & JsonCompatibleReadOnly>(),
-	editor: { buildChildChange: (index, change) => fail("Child changes not supported") },
-
-	intoDelta: (change, deltaFromChild): Delta.FieldChanges =>
-		change === 0 ? {} : { beforeShallow: [{ index: 0, setValue: change.new }] },
+	encoder: FieldKinds.valueEncoder<ValueChangeset & JsonCompatibleReadOnly>(),
+	editor: {},
+	intoDelta: (change): Delta.MarkList =>
+		change === 0
+			? []
+			: [
+					{ type: Delta.MarkType.Delete, count: 1 },
+					{ type: Delta.MarkType.Insert, content: [singleJsonCursor(change.new)] },
+			  ],
 };
 
-const valueField = new FieldKind(
+const valueField = new FieldKind<ValueChangeset>(
 	brand("Value"),
 	Multiplicity.Value,
+	singleCellAnchorSetFactory,
 	valueHandler,
 	(a, b) => false,
 	new Set(),
 );
 
-const singleNodeEncoder: FieldChangeEncoder<NodeChangeset> = {
-	encodeForJson: (formatVersion, change, encodeChild) => encodeChild(change),
-	decodeJson: (formatVersion, change, decodeChild) => decodeChild(change),
-};
-
-const singleNodeRebaser: FieldChangeRebaser<NodeChangeset> = {
-	compose: (changes, composeChild) => composeChild(changes),
-	invert: (change, invertChild) => invertChild(change.change),
-	rebase: (change, base, rebaseChild) => rebaseChild(change, base.change),
-};
-
-const singleNodeEditor: FieldEditor<NodeChangeset> = {
-	buildChildChange: (index: number, change: NodeChangeset): NodeChangeset => {
-		assert(index === 0, "This field kind only supports one node in its field");
-		return change;
-	},
-};
-
-const singleNodeHandler: FieldChangeHandler<NodeChangeset> = {
-	rebaser: singleNodeRebaser,
-	encoder: singleNodeEncoder,
-	editor: singleNodeEditor,
-	intoDelta: (change, deltaFromChild): Delta.FieldChanges => {
-		const childDelta = deltaFromChild(change, 0);
-		return childDelta !== undefined ? { beforeShallow: [{ index: 0, ...childDelta }] } : {};
-	},
-};
-
 const singleNodeField = new FieldKind(
 	brand("SingleNode"),
 	Multiplicity.Value,
-	singleNodeHandler,
+	genericAnchorSetFactory,
+	FieldKinds.noChangeHandler,
 	(a, b) => false,
 	new Set(),
 );
@@ -92,16 +74,17 @@ const singleNodeField = new FieldKind(
 type IdChangeset = ChangesetLocalId;
 
 const idFieldRebaser: FieldChangeRebaser<IdChangeset> = {
-	compose: (changes, composeChild, genId): IdChangeset => genId(),
-	invert: (change, invertChild, genId): IdChangeset => genId(),
-	rebase: (change, over, rebaseChild, genId): IdChangeset => genId(),
+	compose: (changes, genId): IdChangeset => genId(),
+	invert: (change, genId): IdChangeset => genId(),
+	rebase: (change, over, genId): IdChangeset => genId(),
 };
 
 const idFieldHandler: FieldChangeHandler<IdChangeset> = {
+	...baseChangeHandlerKeyFunctions,
 	rebaser: idFieldRebaser,
-	encoder: new FieldKinds.ValueEncoder<IdChangeset & JsonCompatibleReadOnly>(),
-	editor: { buildChildChange: (index, change) => fail("Child changes not supported") },
-	intoDelta: (change, deltaFromChild) => ({}),
+	encoder: FieldKinds.valueEncoder<IdChangeset & JsonCompatibleReadOnly>(),
+	editor: {},
+	intoDelta: () => [],
 };
 
 /**
@@ -110,6 +93,7 @@ const idFieldHandler: FieldChangeHandler<IdChangeset> = {
 const idField = new FieldKind(
 	brand("Id"),
 	Multiplicity.Value,
+	genericAnchorSetFactory as <TData>() => BaseAnchorSet<TData, IdChangeset>,
 	idFieldHandler,
 	(a, b) => false,
 	new Set(),
@@ -121,7 +105,7 @@ const noRepair: RepairDataStore = {
 	getValue: () => assert.fail(),
 };
 
-const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind> = new Map(
+const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind<any>> = new Map(
 	[singleNodeField, valueField, idField].map((field) => [field.identifier, field]),
 );
 
@@ -139,7 +123,7 @@ const valueChange2: ValueChangeset = { old: 1, new: 2 };
 
 const nodeChange1a: NodeChangeset = {
 	fieldChanges: new Map([
-		[fieldA, { fieldKind: valueField.identifier, change: brand(valueChange1a) }],
+		[fieldA, { fieldKind: valueField.identifier, nested:  }],
 	]),
 };
 

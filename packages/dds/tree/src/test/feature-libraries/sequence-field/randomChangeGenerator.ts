@@ -9,9 +9,8 @@ import { singleTextCursor, SequenceField as SF, NodeChangeset } from "../../../f
 import { jsonNumber } from "../../../domains";
 
 enum Operation {
-	EditChild = 0,
-	Delete = 1,
-	Insert = 2,
+	Delete = 0,
+	Insert = 1,
 }
 
 /**
@@ -26,13 +25,8 @@ export function generateRandomChange(
 ): SF.Changeset {
 	const random = makeRandom(seed);
 	const builder = SF.sequenceFieldEditor;
-	const operation = random.integer(Operation.EditChild, Operation.Insert) as Operation;
+	const operation = random.integer(Operation.Delete, Operation.Insert) as Operation;
 	switch (operation) {
-		case Operation.EditChild:
-			return builder.buildChildChange(
-				random.integer(0, maxIndex),
-				childChangeGenerator(random.integer(0, Number.MAX_SAFE_INTEGER)),
-			);
 		case Operation.Insert:
 			return builder.insert(
 				random.integer(0, maxIndex),

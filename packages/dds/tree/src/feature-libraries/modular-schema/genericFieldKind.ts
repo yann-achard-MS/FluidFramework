@@ -74,6 +74,14 @@ export function baseAnchorSetEncoder(factory: <TData>() => BaseAnchorSet<TData, 
 	};
 }
 
+export const baseChangeHandlerKeyFunctions = {
+	getKey: (index: number): GenericNodeKey => brand(index),
+	keyToDeltaKey: (key: GenericNodeKey): ChildIndex | undefined => ({
+		context: Context.Input,
+		index: key,
+	}),
+};
+
 export const genericAnchorSetFactory = <TData>(): GenericAnchorSet<TData> => {
 	return new GenericAnchorSet<TData>();
 };
@@ -97,11 +105,7 @@ export const genericChangeHandler: FieldChangeHandler<
 		decodeChangeJson: (): GenericChangeset => 0,
 	},
 	editor: {},
-	getKey: (index: number): GenericNodeKey => brand(index),
-	keyToDeltaKey: (key: GenericNodeKey): ChildIndex | undefined => ({
-		context: Context.Input,
-		index: key,
-	}),
+	...baseChangeHandlerKeyFunctions,
 	intoDelta: (): Delta.MarkList => [],
 };
 

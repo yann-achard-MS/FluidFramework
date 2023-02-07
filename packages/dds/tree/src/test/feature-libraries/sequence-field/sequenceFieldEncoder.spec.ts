@@ -9,29 +9,30 @@ import { TestChange, TestChangeEncoder } from "../../testChange";
 import { deepFreeze } from "../../utils";
 import { ChangeMaker as Change, TestChangeset } from "./testEdits";
 
+const encoder = SF.sequenceFieldChangeEncoder;
+
 describe("SequenceField - Encoder", () => {
-	it("with child change", () => {
-		const change: TestChangeset = Change.modify(1, TestChange.mint([], 1));
-		deepFreeze(change);
+	it("AnchorSet", () => {
+		const original = SF.anchorSetFactory<TestChange>();
+		original.track(SF.sequenceFieldChangeHandler.getKey(42), TestChange.mint([], 1), () =>
+			assert.fail(),
+		);
+		deepFreeze(original);
 		const childEncoder = new TestChangeEncoder();
 		const encoded = JSON.stringify(
-			SF.encodeForJson(0, change, (c) => childEncoder.encodeForJson(0, c)),
+			encoder.encodeAnchorSetForJson(0, original, (c) => childEncoder.encodeForJson(0, c)),
 		);
-		const decoded = SF.decodeChangeJson(0, JSON.parse(encoded), (c) =>
+		const decoded = encoder.decodeAnchorSetJson(0, JSON.parse(encoded), (c) =>
 			childEncoder.decodeJson(0, c),
 		);
-		assert.deepEqual(decoded, change);
+		assert.deepEqual(decoded, original);
 	});
 
-	it("without child change", () => {
+	it("Change", () => {
 		const change: TestChangeset = Change.delete(2, 2);
 		deepFreeze(change);
-		const encoded = JSON.stringify(
-			SF.encodeForJson(0, change, () => assert.fail("Child encoder should not be called")),
-		);
-		const decoded = SF.decodeChangeJson(0, JSON.parse(encoded), () =>
-			assert.fail("Child decoder should not be called"),
-		);
+		const encoded = JSON.stringify(encoder.encodeChangeForJson(0, change));
+		const decoded = encoder.decodeChangeJson(0, JSON.parse(encoded));
 		assert.deepEqual(decoded, change);
 	});
 });
