@@ -41,6 +41,7 @@ export {
 	GenericAnchorSet,
 	baseAnchorSetEncoder,
 	baseChangeHandlerKeyFunctions,
+	noRebaseAnchorSetFactoryFactory,
 	genericAnchorSetFactory,
 	GenericChange,
 	GenericNodeKey,

@@ -83,6 +83,7 @@ export {
 	NodeReviver,
 	baseChangeHandlerKeyFunctions,
 	genericAnchorSetFactory,
+	noRebaseAnchorSetFactoryFactory,
 	BaseAnchorSet,
 	singleCellAnchorSetFactory,
 	SingleCellAnchorSet,

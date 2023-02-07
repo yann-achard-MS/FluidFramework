@@ -27,10 +27,7 @@ import {
 	referenceFreeFieldChangeRebaser,
 	NodeReviver,
 	FieldAnchorSet,
-	ChildIndex,
-	Context,
 	GenericNodeKey,
-	GenericAnchor,
 	genericAnchorSetFactory,
 	GenericAnchorSet,
 	baseAnchorSetEncoder,
@@ -49,41 +46,29 @@ import * as SequenceField from "./sequence-field";
 type BrandedFieldKind<
 	TName extends string,
 	TMultiplicity extends Multiplicity,
-	TChangeset,
 	TEditor = unknown,
-	TNodeKey = number,
-	TAnchor = number,
-> = FieldKind<TChangeset, TNodeKey, TAnchor, TEditor> & {
+> = FieldKind<TEditor> & {
 	identifier: TName & FieldKindIdentifier;
 	multiplicity: TMultiplicity;
 };
 
-function brandedFieldKind<
-	TName extends string,
-	TMultiplicity extends Multiplicity,
-	TChangeset,
-	TEditor,
-	TNodeKey,
-	TAnchor,
->(
+function brandedFieldKind<TName extends string, TMultiplicity extends Multiplicity, TEditor>(
 	identifier: TName,
 	multiplicity: TMultiplicity,
-	anchorStoreFactory: <TData>() => FieldAnchorSet<TNodeKey, TAnchor, TChangeset, TData>,
-	changeHandler: FieldChangeHandler<any, TNodeKey, TAnchor, TEditor>,
+	changeHandler: FieldChangeHandler<any, unknown, unknown, TEditor>,
 	allowsTreeSupersetOf: (
 		originalTypes: ReadonlySet<TreeSchemaIdentifier> | undefined,
 		superset: FieldSchema,
 	) => boolean,
 	handlesEditsFrom: ReadonlySet<FieldKindIdentifier>,
-): BrandedFieldKind<TName, TMultiplicity, TChangeset, TEditor, TNodeKey, TAnchor> {
-	return new FieldKind<TChangeset, TNodeKey, TAnchor, TEditor>(
+): BrandedFieldKind<TName, TMultiplicity, TEditor> {
+	return new FieldKind<TEditor>(
 		brand(identifier),
 		multiplicity,
-		anchorStoreFactory,
 		changeHandler,
 		allowsTreeSupersetOf,
 		handlesEditsFrom,
-	) as BrandedFieldKind<TName, TMultiplicity, TChangeset, TEditor, TNodeKey, TAnchor>;
+	) as BrandedFieldKind<TName, TMultiplicity, TEditor>;
 }
 
 /**
@@ -136,6 +121,7 @@ function commutativeRebaser<TChange>(data: {
  */
 export const counterHandle: FieldChangeHandler<number, GenericNodeKey> = {
 	...baseChangeHandlerKeyFunctions,
+	anchorSetFactory: genericAnchorSetFactory,
 	rebaser: commutativeRebaser({
 		compose: (changes: number[]) => changes.reduce((a, b) => a + b, 0),
 		invert: (change: number) => -change,
@@ -205,6 +191,7 @@ export function replaceRebaser<T>(): FieldChangeRebaser<ReplaceOp<T>> {
  */
 export const noChangeHandler: FieldChangeHandler<0> = {
 	...baseChangeHandlerKeyFunctions,
+	anchorSetFactory: genericAnchorSetFactory,
 	rebaser: referenceFreeFieldChangeRebaser({
 		compose: (changes: 0[]) => 0,
 		invert: (changes: 0) => 0,
@@ -344,6 +331,7 @@ const valueChangeHandler: FieldChangeHandler<
 	ValueFieldEditor
 > = {
 	...singleCellKeyFunctions,
+	anchorSetFactory: singleCellAnchorSetFactory,
 	rebaser: valueRebaser,
 	encoder: valueFieldEncoder,
 	editor: valueFieldEditor,
@@ -372,32 +360,18 @@ const valueChangeHandler: FieldChangeHandler<
 /**
  * Exactly one item.
  */
-export const value: BrandedFieldKind<
-	"Value",
-	Multiplicity.Value,
-	ValueChangeset,
-	ValueFieldEditor,
-	SingleCellKey,
-	SingleCellAnchor
-> = brandedFieldKind<
-	"Value",
-	Multiplicity.Value,
-	ValueChangeset,
-	ValueFieldEditor,
-	SingleCellKey,
-	SingleCellAnchor
->(
-	"Value",
-	Multiplicity.Value,
-	singleCellAnchorSetFactory,
-	valueChangeHandler,
-	(types, other) =>
-		(other.kind === sequence.identifier ||
-			other.kind === value.identifier ||
-			other.kind === optional.identifier) &&
-		allowsTreeSchemaIdentifierSuperset(types, other.types),
-	new Set(),
-);
+export const value: BrandedFieldKind<"Value", Multiplicity.Value, ValueFieldEditor> =
+	brandedFieldKind<"Value", Multiplicity.Value, ValueFieldEditor>(
+		"Value",
+		Multiplicity.Value,
+		valueChangeHandler,
+		(types, other) =>
+			(other.kind === sequence.identifier ||
+				other.kind === value.identifier ||
+				other.kind === optional.identifier) &&
+			allowsTreeSchemaIdentifierSuperset(types, other.types),
+		new Set(),
+	);
 
 export interface OptionalFieldChange {
 	/**
@@ -535,24 +509,15 @@ const optionalFieldEncoder: FieldChangeEncoder<
 /**
  * 0 or 1 items.
  */
-export const optional: FieldKind<
-	OptionalChangeset,
-	SingleCellKey,
-	SingleCellAnchor,
-	OptionalFieldEditor
-> = new FieldKind<OptionalChangeset, SingleCellKey, SingleCellAnchor, OptionalFieldEditor>(
+export const optional: FieldKind<OptionalFieldEditor> = new FieldKind<OptionalFieldEditor>(
 	brand("Optional"),
 	Multiplicity.Optional,
-	singleCellAnchorSetFactory,
 	{
+		...singleCellKeyFunctions,
+		anchorSetFactory: singleCellAnchorSetFactory,
 		rebaser: optionalChangeRebaser,
 		encoder: optionalFieldEncoder,
 		editor: optionalFieldEditor,
-		getKey: (index: number): SingleCellKey => brand(0),
-		keyToDeltaKey: (key: SingleCellKey): ChildIndex | undefined => ({
-			context: Context.Input,
-			index: 0,
-		}),
 		intoDelta: (change: OptionalChangeset, reviver: NodeReviver) => {
 			const update = change.fieldChange?.newContent;
 			const shallow = [];
@@ -590,15 +555,9 @@ export const optional: FieldKind<
 /**
  * 0 or more items.
  */
-export const sequence: FieldKind<
-	SequenceField.Changeset,
-	GenericNodeKey,
-	GenericAnchor,
-	SequenceField.SequenceFieldEditor
-> = new FieldKind(
+export const sequence: FieldKind<SequenceField.SequenceFieldEditor> = new FieldKind(
 	brand("Sequence"),
 	Multiplicity.Sequence,
-	SequenceField.anchorSetFactory,
 	SequenceField.sequenceFieldChangeHandler,
 	(types, other) =>
 		other.kind === sequence.identifier &&
@@ -638,7 +597,6 @@ export const sequence: FieldKind<
 export const forbidden = brandedFieldKind(
 	"Forbidden",
 	Multiplicity.Forbidden,
-	genericAnchorSetFactory,
 	noChangeHandler,
 	// All multiplicities other than Value support empty.
 	(types, other) => fieldKinds.get(other.kind)?.multiplicity !== Multiplicity.Value,

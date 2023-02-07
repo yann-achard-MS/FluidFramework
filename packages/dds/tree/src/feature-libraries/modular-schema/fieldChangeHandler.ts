@@ -29,6 +29,7 @@ export interface FieldChangeHandler<
 	rebaser: FieldChangeRebaser<TChangeset>;
 	encoder: FieldChangeEncoder<TChangeset, TAnchorSet>;
 	editor: TEditor;
+	readonly anchorSetFactory: <TData>() => FieldAnchorSet<TNodeKey, TAnchor, TChangeset, TData>;
 	getKey(index: number): TNodeKey;
 	keyToDeltaKey(key: TNodeKey): ChildIndex | undefined;
 	intoDelta(change: TChangeset, reviver: NodeReviver): Delta.MarkList;

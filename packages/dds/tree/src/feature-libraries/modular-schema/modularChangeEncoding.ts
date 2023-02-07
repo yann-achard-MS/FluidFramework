@@ -21,7 +21,7 @@ import {
 	NodeChangeset,
 	ValueChange,
 } from "./fieldChangeHandler";
-import { BrandedFieldKindMap } from "./fieldKind";
+import { FieldKind } from "./fieldKind";
 import { getChangeHandler } from "./modularChangeFamily";
 
 /**
@@ -62,7 +62,7 @@ interface EncodedFieldChange {
 }
 
 export function encodeForJsonFormat0(
-	fieldKinds: BrandedFieldKindMap,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>,
 	change: ModularChangeset,
 ): EncodedModularChangeset & JsonCompatibleReadOnly {
 	return {
@@ -72,7 +72,7 @@ export function encodeForJsonFormat0(
 }
 
 function encodeFieldChangesForJson(
-	fieldKinds: BrandedFieldKindMap,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>,
 	change: FieldChangeMap,
 ): EncodedFieldChangeMap & JsonCompatibleReadOnly {
 	const encodedFields: EncodedFieldChangeMap & JsonCompatibleReadOnly = [];
@@ -110,7 +110,7 @@ function encodeFieldChangesForJson(
 }
 
 function encodeNodeChangesForJson(
-	fieldKinds: BrandedFieldKindMap,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>,
 	change: NodeChangeset,
 ): EncodedNodeChangeset & JsonCompatibleReadOnly {
 	const encodedChange: EncodedNodeChangeset & JsonCompatibleReadOnly = {};
@@ -127,7 +127,7 @@ function encodeNodeChangesForJson(
 }
 
 export function decodeJsonFormat0(
-	fieldKinds: BrandedFieldKindMap,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>,
 	change: JsonCompatibleReadOnly,
 ): ModularChangeset {
 	const encodedChange = change as unknown as EncodedModularChangeset;
@@ -141,7 +141,7 @@ export function decodeJsonFormat0(
 }
 
 function decodeFieldChangesFromJson(
-	fieldKinds: BrandedFieldKindMap,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>,
 	encodedChange: EncodedFieldChangeMap,
 ): FieldChangeMap {
 	const decodedFields: FieldChangeMap = new Map();
@@ -176,7 +176,7 @@ function decodeFieldChangesFromJson(
 }
 
 function decodeNodeChangesetFromJson(
-	fieldKinds: BrandedFieldKindMap,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>,
 	change: JsonCompatibleReadOnly,
 ): NodeChangeset {
 	const encodedChange = change as EncodedNodeChangeset;

@@ -90,7 +90,7 @@ describe("Value field changesets", () => {
 	it("can encode anchors in JSON", () => {
 		const version = 0;
 		const childEncoder = new TestChangeEncoder();
-		const original = FieldKinds.value.anchorStoreFactory<TestChange>();
+		const original = FieldKinds.value.changeHandler.anchorSetFactory<TestChange>();
 		original.track(fieldHandler.getKey(0), TestChange.mint([], 1));
 		const encoded = JSON.stringify(
 			fieldHandler.encoder.encodeAnchorSetForJson(version, original, (data) =>
@@ -209,7 +209,7 @@ describe("Optional field changesets", () => {
 	it("can encode anchors in JSON", () => {
 		const version = 0;
 		const childEncoder = new TestChangeEncoder();
-		const original = FieldKinds.optional.anchorStoreFactory<TestChange>();
+		const original = FieldKinds.optional.changeHandler.anchorSetFactory<TestChange>();
 		original.track(fieldHandler.getKey(0), TestChange.mint([], 1));
 		const encoded = JSON.stringify(
 			fieldHandler.encoder.encodeAnchorSetForJson(version, original, (data) =>

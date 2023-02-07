@@ -14,6 +14,7 @@ import { sequenceFieldChangeRebaser } from "./sequenceFieldChangeRebaser";
 import { sequenceFieldChangeEncoder } from "./sequenceFieldChangeEncoder";
 import { SequenceFieldEditor, sequenceFieldEditor } from "./sequenceFieldEditor";
 import { sequenceFieldToDelta } from "./sequenceFieldToDelta";
+import { anchorSetFactory } from "./sequenceFieldAnchorSet";
 
 export type SequenceFieldChangeHandler = FieldChangeHandler<
 	Changeset,
@@ -24,6 +25,7 @@ export type SequenceFieldChangeHandler = FieldChangeHandler<
 
 export const sequenceFieldChangeHandler: SequenceFieldChangeHandler = {
 	...baseChangeHandlerKeyFunctions,
+	anchorSetFactory,
 	rebaser: sequenceFieldChangeRebaser,
 	encoder: sequenceFieldChangeEncoder,
 	editor: sequenceFieldEditor,

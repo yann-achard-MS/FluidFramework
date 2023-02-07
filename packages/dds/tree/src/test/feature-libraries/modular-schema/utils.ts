@@ -19,6 +19,7 @@ export type ValueChangeset = FieldKinds.ReplaceOp<number>;
 
 export const valueHandler: FieldChangeHandler<ValueChangeset> = {
 	...baseChangeHandlerKeyFunctions,
+	anchorSetFactory: singleCellAnchorSetFactory,
 	rebaser: FieldKinds.replaceRebaser(),
 	encoder: FieldKinds.valueEncoder<ValueChangeset & JsonCompatibleReadOnly>(),
 	editor: {},
@@ -31,10 +32,9 @@ export const valueHandler: FieldChangeHandler<ValueChangeset> = {
 			  ],
 };
 
-export const valueField = new FieldKind<ValueChangeset>(
+export const valueField = new FieldKind(
 	brand("Value"),
 	Multiplicity.Value,
-	singleCellAnchorSetFactory,
 	valueHandler,
 	(a, b) => false,
 	new Set(),

@@ -134,7 +134,7 @@ export function getFieldSchema(
 	return schema.localFields.get(field) ?? schema.extraLocalFields;
 }
 
-export function getFieldKind(fieldSchema: FieldSchema): FieldKind<unknown, unknown, unknown> {
+export function getFieldKind(fieldSchema: FieldSchema): FieldKind {
 	// TODO:
 	// This module currently is assuming use of defaultFieldKinds.
 	// The field kinds should instead come from a view schema registry thats provided somewhere.

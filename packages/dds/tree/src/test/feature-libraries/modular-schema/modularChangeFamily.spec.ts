@@ -17,12 +17,10 @@ import {
 	ModularChangeset,
 	ChangesetLocalId,
 	baseChangeHandlerKeyFunctions,
-	genericAnchorSetFactory,
-	BaseAnchorSet,
-	singleCellAnchorSetFactory,
 	SingleCellAnchorSet,
 	BrandedFieldAnchorSet,
 	GenericAnchorSet,
+	noRebaseAnchorSetFactoryFactory,
 } from "../../../feature-libraries";
 import {
 	RepairDataStore,
@@ -40,10 +38,9 @@ import { brand, JsonCompatibleReadOnly } from "../../../util";
 import { assertDeltaEqual, deepFreeze } from "../../utils";
 import { ValueChangeset, valueField } from "./utils";
 
-const singleNodeField = new FieldKind<0>(
+const singleNodeField = new FieldKind(
 	brand("SingleNode"),
 	Multiplicity.Value,
-	singleCellAnchorSetFactory,
 	FieldKinds.noChangeHandler,
 	(a, b) => false,
 	new Set(),
@@ -59,6 +56,7 @@ const idFieldRebaser: FieldChangeRebaser<IdChangeset> = {
 
 const idFieldHandler: FieldChangeHandler<IdChangeset> = {
 	...baseChangeHandlerKeyFunctions,
+	anchorSetFactory: noRebaseAnchorSetFactoryFactory<IdChangeset>(),
 	rebaser: idFieldRebaser,
 	encoder: FieldKinds.valueEncoder<IdChangeset & JsonCompatibleReadOnly>(),
 	editor: {},
@@ -71,7 +69,6 @@ const idFieldHandler: FieldChangeHandler<IdChangeset> = {
 const idField = new FieldKind(
 	brand("Id"),
 	Multiplicity.Value,
-	genericAnchorSetFactory as <TData>() => BaseAnchorSet<TData, IdChangeset>,
 	idFieldHandler,
 	(a, b) => false,
 	new Set(),

@@ -452,7 +452,7 @@ export class NodeProxyTarget extends ProxyTarget<Anchor> {
 		return this.cursor.fieldIndex;
 	}
 
-	public lookupFieldKind(field: FieldKey): FieldKind<unknown, unknown, unknown> {
+	public lookupFieldKind(field: FieldKey): FieldKind {
 		return getFieldKind(this.getFieldSchema(field));
 	}
 

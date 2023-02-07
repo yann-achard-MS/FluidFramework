@@ -86,6 +86,12 @@ export const genericAnchorSetFactory = <TData>(): GenericAnchorSet<TData> => {
 	return new GenericAnchorSet<TData>();
 };
 
+export function noRebaseAnchorSetFactoryFactory<TChangeset>() {
+	return <TData>(): BaseAnchorSet<TData, TChangeset> => {
+		return genericAnchorSetFactory() as unknown as BaseAnchorSet<TData, TChangeset>;
+	};
+}
+
 /**
  * {@link FieldChangeHandler} implementation for {@link GenericChangeset}.
  */
@@ -94,6 +100,7 @@ export const genericChangeHandler: FieldChangeHandler<
 	GenericNodeKey,
 	GenericAnchor
 > = {
+	anchorSetFactory: genericAnchorSetFactory,
 	rebaser: {
 		compose: (): GenericChangeset => 0,
 		invert: (): GenericChangeset => 0,
@@ -243,12 +250,10 @@ export class GenericAnchorSet<TData> extends BaseAnchorSet<TData, GenericChanges
 /**
  * {@link FieldKind} used to represent changes to elements of a field in a field-kind-agnostic format.
  */
-export const genericFieldKind: FieldKind<GenericChangeset, GenericNodeKey, GenericAnchor> =
-	new FieldKind(
-		brand("ModularEditBuilder.Generic"),
-		Multiplicity.Sequence,
-		genericAnchorSetFactory,
-		genericChangeHandler,
-		(types, other) => false,
-		new Set(),
-	);
+export const genericFieldKind: FieldKind = new FieldKind(
+	brand("ModularEditBuilder.Generic"),
+	Multiplicity.Sequence,
+	genericChangeHandler,
+	(types, other) => false,
+	new Set(),
+);

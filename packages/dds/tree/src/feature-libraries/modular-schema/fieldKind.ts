@@ -36,12 +36,7 @@ import {
  * @sealed
  * @alpha
  */
-export class FieldKind<
-	TChangeset = unknown,
-	TNodeKey = unknown,
-	TAnchor = unknown,
-	TEditor = unknown,
-> {
+export class FieldKind<TEditor = unknown> {
 	/**
 	 * @param identifier - Globally scoped identifier.
 	 * @param multiplicity - bound on the number of children that fields of this kind may have.
@@ -60,13 +55,7 @@ export class FieldKind<
 	public constructor(
 		public readonly identifier: FieldKindIdentifier,
 		public readonly multiplicity: Multiplicity,
-		public readonly anchorStoreFactory: <TData>() => FieldAnchorSet<
-			TNodeKey,
-			TAnchor,
-			TChangeset,
-			TData
-		>,
-		public readonly changeHandler: FieldChangeHandler<TChangeset, TNodeKey, TAnchor, TEditor>,
+		public readonly changeHandler: FieldChangeHandler<any, any, any, TEditor>,
 		private readonly allowsTreeSupersetOf: (
 			originalTypes: ReadonlySet<TreeSchemaIdentifier> | undefined,
 			superset: FieldSchema,
@@ -94,8 +83,6 @@ export class FieldKind<
 	}
 }
 
-export type BrandedFieldKind = FieldKind<FieldChangeset, FieldNodeKey, FieldNodeAnchor>;
-export type BrandedFieldKindMap = ReadonlyMap<FieldKindIdentifier, BrandedFieldKind>;
 export type BrandedFieldAnchorSet = FieldAnchorSet<
 	FieldNodeKey,
 	FieldNodeAnchor,
