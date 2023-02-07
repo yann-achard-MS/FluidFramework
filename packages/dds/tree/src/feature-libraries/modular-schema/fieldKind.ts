@@ -16,7 +16,6 @@ import { isNeverField } from "./comparison";
 import {
 	FieldChangeHandler,
 	FieldChangeset,
-	FieldNodeAnchor,
 	FieldNodeKey,
 	NodeChangeset,
 } from "./fieldChangeHandler";
@@ -55,7 +54,7 @@ export class FieldKind<TEditor = unknown> {
 	public constructor(
 		public readonly identifier: FieldKindIdentifier,
 		public readonly multiplicity: Multiplicity,
-		public readonly changeHandler: FieldChangeHandler<any, any, any, TEditor>,
+		public readonly changeHandler: FieldChangeHandler<any, any, TEditor>,
 		private readonly allowsTreeSupersetOf: (
 			originalTypes: ReadonlySet<TreeSchemaIdentifier> | undefined,
 			superset: FieldSchema,
@@ -83,12 +82,7 @@ export class FieldKind<TEditor = unknown> {
 	}
 }
 
-export type BrandedFieldAnchorSet = FieldAnchorSet<
-	FieldNodeKey,
-	FieldNodeAnchor,
-	FieldChangeset,
-	NodeChangeset
->;
+export type BrandedFieldAnchorSet = FieldAnchorSet<FieldNodeKey, FieldChangeset, NodeChangeset>;
 
 /**
  * Policy from the app for interpreting the stored schema.

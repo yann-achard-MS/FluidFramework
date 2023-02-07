@@ -90,7 +90,6 @@ export {
 	BrandedFieldAnchorSet,
 	GenericAnchorSet,
 	SingleCellKey,
-	SingleCellAnchor,
 	SingleCellChangeCodec,
 	singleCellFieldEncoder,
 	singleCellKeyFunctions,

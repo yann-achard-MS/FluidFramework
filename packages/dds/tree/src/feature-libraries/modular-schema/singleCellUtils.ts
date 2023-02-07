@@ -26,7 +26,7 @@ import {
  */
 export interface SingleCellChangeCodec<
 	TChangeset,
-	TAnchorSet extends FieldAnchorSet<any, any, TChangeset, unknown>,
+	TAnchorSet extends FieldAnchorSet<any, TChangeset, unknown>,
 > {
 	encodeChangeForJson: FieldChangeEncoder<TChangeset, TAnchorSet>["encodeChangeForJson"];
 	decodeChangeJson: FieldChangeEncoder<TChangeset, TAnchorSet>["decodeChangeJson"];
@@ -63,20 +63,15 @@ export function singleCellFieldEncoder<TChangeset>(
 }
 
 export type SingleCellKey = Brand<number, "SingleCellKey">;
-export type SingleCellAnchor = Brand<number, "SingleCellAnchor">;
 
-export type SingleCellEntry<TData> = FieldAnchorSetEntry<TData, SingleCellKey, SingleCellAnchor>;
-export type SingleCellEncodedEntry = FieldAnchorSetEntry<
-	JsonCompatibleReadOnly,
-	SingleCellKey,
-	SingleCellAnchor
->;
+export type SingleCellEntry<TData> = FieldAnchorSetEntry<TData, SingleCellKey>;
+export type SingleCellEncodedEntry = FieldAnchorSetEntry<JsonCompatibleReadOnly, SingleCellKey>;
 
 /**
  * @alpha
  */
 export class SingleCellAnchorSet<TData, TChangeset>
-	implements FieldAnchorSet<SingleCellKey, SingleCellAnchor, TChangeset, TData>
+	implements FieldAnchorSet<SingleCellKey, TChangeset, TData>
 {
 	// TODO: the changeset should be able to represent changes to both the subtree present before
 	// the change and the subtree present after the change (any changes in between).
@@ -127,50 +122,30 @@ export class SingleCellAnchorSet<TData, TChangeset>
 		set: SingleCellAnchorSet<TData, TChangeset>,
 		mergeData?: MergeCallback<TData>,
 	): void {
-		for (const { key, anchor, data } of set.entries()) {
-			this.add(key, data, mergeData, anchor);
+		for (const { key, data } of set.entries()) {
+			this.add(key, data, mergeData);
 		}
 	}
 
-	public track(
-		key: SingleCellKey,
-		data: TData,
-		mergeData?: MergeCallback<TData>,
-	): SingleCellAnchor {
-		return this.add(key, data, mergeData);
+	public track(key: SingleCellKey, data: TData, mergeData?: MergeCallback<TData>): void {
+		this.add(key, data, mergeData);
 	}
 
-	private add(
-		key: SingleCellKey,
-		data: TData,
-		mergeData?: MergeCallback<TData>,
-		existingAnchor?: SingleCellAnchor,
-	): SingleCellAnchor {
+	private add(key: SingleCellKey, data: TData, mergeData?: MergeCallback<TData>): void {
 		if (this.entry === undefined) {
-			const anchor: SingleCellAnchor = existingAnchor ?? brand(0);
-			this.entry = { key, anchor, data };
-			return anchor;
+			this.entry = { key, data };
 		} else {
 			assert(mergeData !== undefined, "No data merging delegate provided");
 			this.entry.data = mergeData(this.entry.data, data);
-			return this.entry.anchor;
 		}
 	}
 
-	public forget(anchor: SingleCellAnchor): void {
-		assert(this.entry?.anchor === anchor, "Cannot forget unknown anchor");
+	public forget(key: SingleCellKey): void {
+		assert(this.entry?.key === key, "Cannot forget unknown key");
 		this.entry = undefined;
 	}
 
 	public lookup(key: SingleCellKey): SingleCellEntry<TData> | undefined {
-		throw new Error("Method not implemented.");
-	}
-
-	public locate(anchor: SingleCellAnchor): SingleCellEntry<TData> {
-		throw new Error("Method not implemented.");
-	}
-
-	public getData(anchor: SingleCellAnchor): TData {
 		throw new Error("Method not implemented.");
 	}
 

@@ -34,7 +34,6 @@ import {
 	baseChangeHandlerKeyFunctions,
 	singleCellAnchorSetFactory,
 	SingleCellAnchorSet,
-	SingleCellAnchor,
 	SingleCellKey,
 	singleCellKeyFunctions,
 	singleCellFieldEncoder,
@@ -53,7 +52,7 @@ type BrandedFieldKind<
 function brandedFieldKind<TName extends string, TMultiplicity extends Multiplicity, TEditor>(
 	identifier: TName,
 	multiplicity: TMultiplicity,
-	changeHandler: FieldChangeHandler<any, unknown, unknown, TEditor>,
+	changeHandler: FieldChangeHandler<any, unknown, TEditor>,
 	allowsTreeSupersetOf: (
 		originalTypes: ReadonlySet<TreeSchemaIdentifier> | undefined,
 		superset: FieldSchema,
@@ -292,7 +291,6 @@ const valueFieldEditor: ValueFieldEditor = {
 const valueChangeHandler: FieldChangeHandler<
 	ValueChangeset,
 	SingleCellKey,
-	SingleCellAnchor,
 	ValueFieldEditor
 > = {
 	...singleCellKeyFunctions,

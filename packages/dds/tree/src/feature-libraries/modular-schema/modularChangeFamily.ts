@@ -37,7 +37,6 @@ import {
 	IdAllocator,
 	Context,
 	FieldNodeKey,
-	FieldNodeAnchor,
 } from "./fieldChangeHandler";
 import { FieldKind, BrandedFieldAnchorSet } from "./fieldKind";
 import { genericFieldKind } from "./genericFieldKind";
@@ -495,11 +494,7 @@ export function getFieldKind(
 	return fieldKind;
 }
 
-export type BrandedChangeHandler = FieldChangeHandler<
-	FieldChangeset,
-	FieldNodeKey,
-	FieldNodeAnchor
->;
+export type BrandedChangeHandler = FieldChangeHandler<FieldChangeset, FieldNodeKey>;
 
 export function getChangeHandler(
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>,

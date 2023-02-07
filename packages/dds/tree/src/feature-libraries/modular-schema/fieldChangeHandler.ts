@@ -16,11 +16,9 @@ import { BrandedFieldAnchorSet } from "./fieldKind";
 export interface FieldChangeHandler<
 	TChangeset,
 	TNodeKey = number,
-	TAnchor = number,
 	TEditor = unknown,
-	TAnchorSet extends FieldAnchorSet<TNodeKey, TAnchor, TChangeset, unknown> = FieldAnchorSet<
+	TAnchorSet extends FieldAnchorSet<TNodeKey, TChangeset, unknown> = FieldAnchorSet<
 		TNodeKey,
-		TAnchor,
 		TChangeset,
 		unknown
 	>,
@@ -29,7 +27,7 @@ export interface FieldChangeHandler<
 	rebaser: FieldChangeRebaser<TChangeset>;
 	encoder: FieldChangeEncoder<TChangeset, TAnchorSet>;
 	editor: TEditor;
-	readonly anchorSetFactory: <TData>() => FieldAnchorSet<TNodeKey, TAnchor, TChangeset, TData>;
+	readonly anchorSetFactory: <TData>() => FieldAnchorSet<TNodeKey, TChangeset, TData>;
 	getKey(index: number): TNodeKey;
 	keyToDeltaKey(key: TNodeKey): ChildIndex | undefined;
 	intoDelta(change: TChangeset, reviver: NodeReviver): Delta.MarkList;
@@ -112,7 +110,7 @@ export type DataDecoder<TData> = (data: JsonCompatibleReadOnly) => TData;
  */
 export interface FieldChangeEncoder<
 	TChangeset,
-	TAnchorSet extends FieldAnchorSet<any, any, TChangeset, unknown>,
+	TAnchorSet extends FieldAnchorSet<any, TChangeset, unknown>,
 > {
 	/**
 	 * Encodes `change` into a JSON compatible object.
@@ -126,7 +124,7 @@ export interface FieldChangeEncoder<
 
 	encodeAnchorSetForJson<TData>(
 		formatVersion: number,
-		set: TAnchorSet & FieldAnchorSet<any, any, TChangeset, TData>,
+		set: TAnchorSet & FieldAnchorSet<any, TChangeset, TData>,
 		dataEncoder: DataEncoder<TData>,
 	): JsonCompatibleReadOnly;
 
@@ -134,7 +132,7 @@ export interface FieldChangeEncoder<
 		formatVersion: number,
 		set: JsonCompatibleReadOnly,
 		dataDecoder: DataDecoder<TData>,
-	): TAnchorSet & FieldAnchorSet<any, any, TChangeset, TData>;
+	): TAnchorSet & FieldAnchorSet<any, TChangeset, TData>;
 }
 
 // export interface FieldEditor<TChangeset> {
@@ -264,8 +262,3 @@ export type FieldChangeset = Brand<unknown, "FieldChangeset">;
  * @alpha
  */
 export type FieldNodeKey = Brand<unknown, "FieldNodeKey">;
-
-/**
- * @alpha
- */
-export type FieldNodeAnchor = Brand<unknown, "FieldNodeAnchor">;

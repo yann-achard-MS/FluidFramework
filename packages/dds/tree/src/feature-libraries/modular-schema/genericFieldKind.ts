@@ -101,11 +101,7 @@ export function noRebaseAnchorSetFactoryFactory<TChangeset>() {
 /**
  * {@link FieldChangeHandler} implementation for {@link GenericChangeset}.
  */
-export const genericChangeHandler: FieldChangeHandler<
-	GenericChangeset,
-	GenericNodeKey,
-	GenericAnchor
-> = {
+export const genericChangeHandler: FieldChangeHandler<GenericChangeset, GenericNodeKey> = {
 	anchorSetFactory: genericAnchorSetFactory,
 	rebaser: {
 		compose: (): GenericChangeset => 0,
@@ -123,19 +119,16 @@ export const genericChangeHandler: FieldChangeHandler<
 };
 
 export type GenericNodeKey = Brand<number, "GenericNodeKey">;
-export type GenericAnchor = Brand<number, "GenericAnchor">;
 
-export type Entry<TData> = FieldAnchorSetEntry<TData, GenericNodeKey, GenericAnchor>;
+export type Entry<TData> = FieldAnchorSetEntry<TData, GenericNodeKey>;
 
 export interface EncodedBaseAnchorSet {
-	readonly anchorCounter: number;
 	readonly list: readonly Entry<JsonCompatibleReadOnly>[];
 }
 
 export abstract class BaseAnchorSet<TData, TChangeset>
-	implements FieldAnchorSet<GenericNodeKey, GenericAnchor, TChangeset, TData>
+	implements FieldAnchorSet<GenericNodeKey, TChangeset, TData>
 {
-	private anchorCounter: number = 0;
 	private readonly list: Mutable<Entry<TData>>[] = [];
 
 	public loadJson(
@@ -143,7 +136,6 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 		encodedSet: EncodedBaseAnchorSet,
 		dataDecoder: DataDecoder<TData>,
 	): void {
-		this.anchorCounter = encodedSet.anchorCounter;
 		const entries: Mutable<Entry<TData>>[] = encodedSet.list.map((entry) => ({
 			...entry,
 			data: dataDecoder(entry.data),
@@ -156,7 +148,6 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 		dataEncoder: DataEncoder<TData>,
 	): EncodedBaseAnchorSet {
 		return {
-			anchorCounter: this.anchorCounter,
 			list: this.list.map((entry) => ({ ...entry, data: dataEncoder(entry.data) })),
 		};
 	}
@@ -169,18 +160,13 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 
 	public mergeIn(set: BaseAnchorSet<TData, TChangeset>, mergeData?: MergeCallback<TData>): void {
 		let index = 0;
-		for (const { key, anchor, data } of set.list) {
-			const added = this.add(key, data, mergeData, index, anchor);
-			index = added.index;
+		for (const { key, data } of set.list) {
+			index = this.add(key, data, mergeData, index);
 		}
 	}
 
-	public track(
-		key: GenericNodeKey,
-		data: TData,
-		mergeData?: MergeCallback<TData>,
-	): GenericAnchor {
-		return this.add(key, data, mergeData).anchor;
+	public track(key: GenericNodeKey, data: TData, mergeData?: MergeCallback<TData>): void {
+		this.add(key, data, mergeData);
 	}
 
 	private add(
@@ -188,19 +174,16 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 		data: TData,
 		mergeData?: MergeCallback<TData>,
 		minIndex: number = 0,
-		existingAnchor?: GenericAnchor,
-	): { index: number; anchor: GenericAnchor } {
+	): number {
 		const index = this.findIndexForKey(key, minIndex);
 		const match = this.list[index];
 		if (match === undefined || match.key > key) {
-			const anchor: GenericAnchor = existingAnchor ?? brand(this.anchorCounter++);
-			this.list.splice(index, 0, { key, anchor, data });
-			return { index, anchor };
+			this.list.splice(index, 0, { key, data });
 		} else {
 			assert(mergeData !== undefined, "No data merging delegate provided");
 			match.data = mergeData(match.data, data);
-			return { index, anchor: match.anchor };
 		}
+		return index;
 	}
 
 	private findIndexForKey(key: GenericNodeKey, minIndex: number = 0): number {
@@ -211,24 +194,15 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 		return index;
 	}
 
-	public forget(anchor: GenericAnchor): void {
-		const index = this.list.findIndex((entry) => entry.anchor === anchor);
-		assert(index !== -1, "Cannot forget unknown anchor");
+	public forget(key: GenericNodeKey): void {
+		const index = this.list.findIndex((entry) => entry.key === key);
+		assert(index !== -1, "Cannot forget unknown key");
 		this.list.splice(index, 1);
 	}
 
 	public lookup(key: GenericNodeKey): Entry<TData> | undefined {
 		throw new Error("Method not implemented.");
 	}
-
-	public locate(anchor: GenericAnchor): Entry<TData> {
-		throw new Error("Method not implemented.");
-	}
-
-	public getData(anchor: GenericAnchor): TData {
-		throw new Error("Method not implemented.");
-	}
-
 	public entries(): IterableIterator<Entry<TData>> {
 		return this.list.values();
 	}

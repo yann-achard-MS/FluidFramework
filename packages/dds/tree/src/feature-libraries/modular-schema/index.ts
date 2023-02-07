@@ -25,7 +25,6 @@ export {
 	FieldChangeRebaser,
 	FieldChangeset,
 	FieldNodeKey,
-	FieldNodeAnchor,
 	ModularChangeset,
 	NodeChangeset,
 	NodeReviver,
@@ -45,7 +44,6 @@ export {
 	genericAnchorSetFactory,
 	GenericChange,
 	GenericNodeKey,
-	GenericAnchor,
 	genericChangeHandler,
 	GenericChangeset,
 	genericFieldKind,
@@ -56,7 +54,6 @@ export {
 	singleCellAnchorSetFactory,
 	SingleCellAnchorSet,
 	SingleCellKey,
-	SingleCellAnchor,
 	singleCellKeyFunctions,
 } from "./singleCellUtils";
 export { ModularChangeFamily, ModularEditBuilder } from "./modularChangeFamily";

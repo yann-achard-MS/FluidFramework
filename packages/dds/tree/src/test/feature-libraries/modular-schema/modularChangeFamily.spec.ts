@@ -22,7 +22,6 @@ import {
 	GenericAnchorSet,
 	noRebaseAnchorSetFactoryFactory,
 	SingleCellKey,
-	SingleCellAnchor,
 	singleCellAnchorSetFactory,
 	singleCellFieldEncoder,
 	singleCellKeyFunctions,
@@ -43,7 +42,7 @@ import { brand, JsonCompatibleReadOnly } from "../../../util";
 import { assertDeltaEqual, deepFreeze, noRepair } from "../../utils";
 import { ValueChangeset, valueField } from "./utils";
 
-const singleNodeHandler: FieldChangeHandler<0, SingleCellKey, SingleCellAnchor> = {
+const singleNodeHandler: FieldChangeHandler<0, SingleCellKey> = {
 	...FieldKinds.noChangeHandler,
 	...singleCellKeyFunctions,
 	encoder: singleCellFieldEncoder({

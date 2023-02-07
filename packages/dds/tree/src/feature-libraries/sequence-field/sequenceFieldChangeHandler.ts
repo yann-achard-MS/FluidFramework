@@ -6,7 +6,6 @@
 import {
 	baseChangeHandlerKeyFunctions,
 	FieldChangeHandler,
-	GenericAnchor,
 	GenericNodeKey,
 } from "../modular-schema";
 import { Changeset } from "./format";
@@ -19,7 +18,6 @@ import { anchorSetFactory } from "./sequenceFieldAnchorSet";
 export type SequenceFieldChangeHandler = FieldChangeHandler<
 	Changeset,
 	GenericNodeKey,
-	GenericAnchor,
 	SequenceFieldEditor
 >;
 
