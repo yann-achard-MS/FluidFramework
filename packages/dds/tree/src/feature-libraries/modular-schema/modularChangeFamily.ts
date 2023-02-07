@@ -22,14 +22,7 @@ import {
 	tagChange,
 	makeAnonChange,
 } from "../../core";
-import {
-	brand,
-	clone,
-	fail,
-	getOrAddEmptyToMap,
-	JsonCompatibleReadOnly,
-	Mutable,
-} from "../../util";
+import { brand, clone, getOrAddEmptyToMap, JsonCompatibleReadOnly, Mutable } from "../../util";
 import { dummyRepairDataStore } from "../fakeRepairDataStore";
 import { RebaseDirection } from "./anchorSet";
 import {
@@ -593,7 +586,7 @@ export class ModularEditBuilder
 function makeGenericNestedChange(index: number, nodeChange: NodeChangeset): FieldChange {
 	const nested = genericFieldKind.anchorStoreFactory<NodeChangeset>();
 	const key = genericFieldKind.changeHandler.getKey(index);
-	nested.track(key, nodeChange, () => fail("Unexpected merge of NodeChangeset"));
+	nested.track(key, nodeChange);
 	return {
 		fieldKind: genericFieldKind.identifier,
 		nested: nested as unknown as BrandedFieldAnchorSet,

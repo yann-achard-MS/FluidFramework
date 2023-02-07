@@ -39,7 +39,7 @@ export interface TypedTreeSchemaBuilder {
  */
 export interface TypedFieldSchemaTypeBuilder {
 	readonly types?: readonly (string | Named<string>)[];
-	readonly kind: FieldKind;
+	readonly kind: FieldKind<any>;
 }
 
 const empty = [] as const;

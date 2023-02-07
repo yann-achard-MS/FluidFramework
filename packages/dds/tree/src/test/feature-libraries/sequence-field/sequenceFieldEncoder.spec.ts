@@ -14,9 +14,7 @@ const encoder = SF.sequenceFieldChangeEncoder;
 describe("SequenceField - Encoder", () => {
 	it("AnchorSet", () => {
 		const original = SF.anchorSetFactory<TestChange>();
-		original.track(SF.sequenceFieldChangeHandler.getKey(42), TestChange.mint([], 1), () =>
-			assert.fail(),
-		);
+		original.track(SF.sequenceFieldChangeHandler.getKey(42), TestChange.mint([], 1));
 		deepFreeze(original);
 		const childEncoder = new TestChangeEncoder();
 		const encoded = JSON.stringify(

@@ -110,13 +110,13 @@ export class SingleCellAnchorSet<TData, TChangeset>
 
 	public clone(): SingleCellAnchorSet<TData, TChangeset> {
 		const set = new SingleCellAnchorSet<TData, TChangeset>();
-		set.mergeIn(this, () => fail("Unexpected merge in empty anchor set"));
+		set.mergeIn(this);
 		return set;
 	}
 
 	public mergeIn(
 		set: SingleCellAnchorSet<TData, TChangeset>,
-		mergeData: MergeCallback<TData>,
+		mergeData?: MergeCallback<TData>,
 	): void {
 		for (const { key, anchor, data } of set.entries()) {
 			this.add(key, data, mergeData, anchor);
@@ -126,7 +126,7 @@ export class SingleCellAnchorSet<TData, TChangeset>
 	public track(
 		key: SingleCellKey,
 		data: TData,
-		mergeData: MergeCallback<TData>,
+		mergeData?: MergeCallback<TData>,
 	): SingleCellAnchor {
 		return this.add(key, data, mergeData);
 	}
@@ -134,7 +134,7 @@ export class SingleCellAnchorSet<TData, TChangeset>
 	private add(
 		key: SingleCellKey,
 		data: TData,
-		mergeData: MergeCallback<TData>,
+		mergeData?: MergeCallback<TData>,
 		existingAnchor?: SingleCellAnchor,
 	): SingleCellAnchor {
 		if (this.entry === undefined) {
@@ -142,6 +142,7 @@ export class SingleCellAnchorSet<TData, TChangeset>
 			this.entry = { key, anchor, data };
 			return anchor;
 		} else {
+			assert(mergeData !== undefined, "No data merging delegate provided");
 			this.entry.data = mergeData(this.entry.data, data);
 			return this.entry.anchor;
 		}

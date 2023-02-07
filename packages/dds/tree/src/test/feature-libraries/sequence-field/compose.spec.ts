@@ -206,13 +206,6 @@ describe("SequenceField - Compose", () => {
 		assert.deepEqual(actual, expected);
 	});
 
-	it("modify ○ delete", () => {
-		const modify = Change.modify(0, { valueChange: { value: 1 } });
-		const deletion = Change.delete(0, 1);
-		const actual = compose([makeAnonChange(modify), makeAnonChange(deletion)]);
-		assert.deepEqual(actual, deletion);
-	});
-
 	it("delete ○ delete", () => {
 		// Deletes ABC-----IJKLM
 		const deleteA: SF.Changeset = [

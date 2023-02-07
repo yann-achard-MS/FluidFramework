@@ -3,7 +3,6 @@
  * Licensed under the MIT License.
  */
 
-import { fail } from "../../util";
 import { TaggedChange } from "../../core";
 import { BaseAnchorSet, RebaseDirection } from "../modular-schema";
 import { Changeset } from "./format";
@@ -11,7 +10,7 @@ import { Changeset } from "./format";
 export class SequenceAnchorSet<TData = unknown> extends BaseAnchorSet<TData, Changeset> {
 	public clone(): SequenceAnchorSet<TData> {
 		const set = new SequenceAnchorSet<TData>();
-		set.mergeIn(this, () => fail("Unexpected merge in empty anchor set"));
+		set.mergeIn(this);
 		return set;
 	}
 

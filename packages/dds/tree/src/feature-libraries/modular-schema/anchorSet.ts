@@ -11,9 +11,9 @@ export interface FieldAnchorSet<TKey, TAnchor, TChangeset, TData = undefined> {
 	clone(): FieldAnchorSet<TKey, TAnchor, TChangeset, TData>;
 	mergeIn(
 		set: FieldAnchorSet<TKey, TAnchor, TChangeset, TData>,
-		mergeData: MergeCallback<TData>,
+		mergeData?: MergeCallback<TData>,
 	): void;
-	track(key: TKey, data: TData, mergeData: MergeCallback<TData>): TAnchor;
+	track(key: TKey, data: TData, mergeData?: MergeCallback<TData>): TAnchor;
 	forget(anchor: TAnchor): void;
 	lookup(key: TKey): FieldAnchorSetEntry<TData, TKey, TAnchor> | undefined;
 	locate(anchor: TAnchor): FieldAnchorSetEntry<TData, TKey, TAnchor>;

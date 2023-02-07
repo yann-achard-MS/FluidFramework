@@ -5,7 +5,7 @@
 
 import { assert } from "@fluidframework/common-utils";
 import { Delta, TaggedChange } from "../../core";
-import { Brand, brand, fail, JsonCompatibleReadOnly, Mutable } from "../../util";
+import { Brand, brand, JsonCompatibleReadOnly, Mutable } from "../../util";
 import { FieldAnchorSet, FieldAnchorSetEntry, MergeCallback, RebaseDirection } from "./anchorSet";
 import {
 	FieldChangeHandler,
@@ -148,7 +148,7 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 		};
 	}
 
-	public mergeIn(set: BaseAnchorSet<TData, TChangeset>, mergeData: MergeCallback<TData>): void {
+	public mergeIn(set: BaseAnchorSet<TData, TChangeset>, mergeData?: MergeCallback<TData>): void {
 		let index = 0;
 		for (const { key, anchor, data } of set.list) {
 			const added = this.add(key, data, mergeData, index, anchor);
@@ -156,14 +156,18 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 		}
 	}
 
-	public track(key: GenericNodeKey, data: TData, mergeData: MergeCallback<TData>): GenericAnchor {
+	public track(
+		key: GenericNodeKey,
+		data: TData,
+		mergeData?: MergeCallback<TData>,
+	): GenericAnchor {
 		return this.add(key, data, mergeData).anchor;
 	}
 
 	private add(
 		key: GenericNodeKey,
 		data: TData,
-		mergeData: MergeCallback<TData>,
+		mergeData?: MergeCallback<TData>,
 		minIndex: number = 0,
 		existingAnchor?: GenericAnchor,
 	): { index: number; anchor: GenericAnchor } {
@@ -174,6 +178,7 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 			this.list.splice(index, 0, { key, anchor, data });
 			return { index, anchor };
 		} else {
+			assert(mergeData !== undefined, "No data merging delegate provided");
 			match.data = mergeData(match.data, data);
 			return { index, anchor: match.anchor };
 		}
@@ -217,17 +222,16 @@ export class GenericAnchorSet<TData> extends BaseAnchorSet<TData, GenericChanges
 	public static fromData<TData>(
 		entries: readonly { readonly key: GenericNodeKey; readonly data: TData }[],
 	): GenericAnchorSet<TData> {
-		const merge = () => fail("Unexpected merge on empty set");
 		const set = new GenericAnchorSet<TData>();
 		for (const { key, data } of entries) {
-			set.track(key, data, merge);
+			set.track(key, data);
 		}
 		return set;
 	}
 
 	public clone(): GenericAnchorSet<TData> {
 		const set = new GenericAnchorSet<TData>();
-		set.mergeIn(this, () => fail("Unexpected merge in empty anchor set"));
+		set.mergeIn(this);
 		return set;
 	}
 
