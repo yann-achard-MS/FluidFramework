@@ -6,7 +6,13 @@
 import { assert } from "@fluidframework/common-utils";
 import { Delta, TaggedChange } from "../../core";
 import { Brand, brand, JsonCompatibleReadOnly, Mutable } from "../../util";
-import { FieldAnchorSet, FieldAnchorSetEntry, MergeCallback, RebaseDirection } from "./anchorSet";
+import {
+	FieldAnchorSet,
+	FieldAnchorSetEntry,
+	MergeCallback,
+	RebaseDirection,
+	UpdateCallback,
+} from "./anchorSet";
 import {
 	FieldChangeHandler,
 	NodeChangeset,
@@ -153,6 +159,12 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 			anchorCounter: this.anchorCounter,
 			list: this.list.map((entry) => ({ ...entry, data: dataEncoder(entry.data) })),
 		};
+	}
+
+	public update(func: UpdateCallback<TData>): void {
+		for (const entry of this.list) {
+			entry.data = func(entry.data);
+		}
 	}
 
 	public mergeIn(set: BaseAnchorSet<TData, TChangeset>, mergeData?: MergeCallback<TData>): void {

@@ -51,6 +51,8 @@ export {
 	genericFieldKind,
 } from "./genericFieldKind";
 export {
+	SingleCellChangeCodec,
+	singleCellFieldEncoder,
 	singleCellAnchorSetFactory,
 	SingleCellAnchorSet,
 	SingleCellKey,

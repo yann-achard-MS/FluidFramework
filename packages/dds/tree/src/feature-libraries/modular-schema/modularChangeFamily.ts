@@ -210,11 +210,13 @@ export class ModularChangeFamily
 				fieldKind: fieldChange.fieldKind,
 			};
 
+			const handler = getChangeHandler(this.fieldKinds, fieldChange.fieldKind);
+
 			if (fieldChange.shallow !== undefined) {
-				const invertedChange = getChangeHandler(
-					this.fieldKinds,
-					fieldChange.fieldKind,
-				).rebaser.invert({ revision, change: fieldChange.shallow }, genId);
+				const invertedChange = handler.rebaser.invert(
+					{ revision, change: fieldChange.shallow },
+					genId,
+				);
 				invertedFieldChange.shallow = brand(invertedChange);
 			}
 
@@ -226,9 +228,9 @@ export class ModularChangeFamily
 						RebaseDirection.Forward,
 					);
 				}
-				for (const { data } of childChanges.entries()) {
-					this.invertNodeChange({ revision, change: data }, genId);
-				}
+				childChanges.update((data) =>
+					this.invertNodeChange({ revision, change: data }, genId),
+				);
 				invertedFieldChange.nested = childChanges;
 			}
 
@@ -563,7 +565,16 @@ export class ModularEditBuilder
 		change: FieldChangeset,
 		maxId: ChangesetLocalId = brand(-1),
 	): void {
-		let fieldChangeMap: FieldChangeMap = new Map([[field, { fieldKind, shallow: change }]]);
+		this.submitFieldChange(path, field, { fieldKind, shallow: change }, maxId);
+	}
+
+	private submitFieldChange(
+		path: UpPath | undefined,
+		field: FieldKey,
+		change: FieldChange,
+		maxId: ChangesetLocalId = brand(-1),
+	): void {
+		let fieldChangeMap: FieldChangeMap = new Map([[field, change]]);
 
 		let remainingPath = path;
 		while (remainingPath !== undefined) {
@@ -580,12 +591,7 @@ export class ModularEditBuilder
 		const valueChange: ValueChange = value === undefined ? {} : { value };
 		const nodeChange: NodeChangeset = { valueChange };
 		const fieldChange = makeGenericNestedChange(path.parentIndex, nodeChange);
-		this.submitChange(
-			path.parent,
-			path.parentField,
-			genericFieldKind.identifier,
-			brand(fieldChange),
-		);
+		this.submitFieldChange(path.parent, path.parentField, fieldChange);
 	}
 }
 

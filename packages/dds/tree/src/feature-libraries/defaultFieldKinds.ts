@@ -26,13 +26,10 @@ import {
 	FieldChangeEncoder,
 	referenceFreeFieldChangeRebaser,
 	NodeReviver,
-	FieldAnchorSet,
 	GenericNodeKey,
 	genericAnchorSetFactory,
 	GenericAnchorSet,
 	baseAnchorSetEncoder,
-	DataDecoder,
-	DataEncoder,
 	BaseAnchorSet,
 	baseChangeHandlerKeyFunctions,
 	singleCellAnchorSetFactory,
@@ -40,6 +37,7 @@ import {
 	SingleCellAnchor,
 	SingleCellKey,
 	singleCellKeyFunctions,
+	singleCellFieldEncoder,
 } from "./modular-schema";
 import * as SequenceField from "./sequence-field";
 
@@ -188,6 +186,7 @@ export function replaceRebaser<T>(): FieldChangeRebaser<ReplaceOp<T>> {
 
 /**
  * ChangeHandler that only handles no-op / identity changes.
+ * @alpha
  */
 export const noChangeHandler: FieldChangeHandler<0> = {
 	...baseChangeHandlerKeyFunctions,
@@ -253,40 +252,6 @@ const valueRebaser: FieldChangeRebaser<ValueChangeset> = {
 
 interface EncodedValueChangeset {
 	value?: NodeUpdate;
-}
-
-interface ChangeCodec<
-	TChangeset,
-	TAnchorSet extends FieldAnchorSet<any, any, TChangeset, unknown>,
-> {
-	encodeChangeForJson: FieldChangeEncoder<TChangeset, TAnchorSet>["encodeChangeForJson"];
-	decodeChangeJson: FieldChangeEncoder<TChangeset, TAnchorSet>["decodeChangeJson"];
-}
-function singleCellFieldEncoder<TChangeset>(
-	changeCodec: ChangeCodec<TChangeset, SingleCellAnchorSet<unknown, TChangeset>>,
-): FieldChangeEncoder<TChangeset, SingleCellAnchorSet<unknown, TChangeset>> {
-	return {
-		...changeCodec,
-		encodeAnchorSetForJson: <TData>(
-			formatVersion: number,
-			set: SingleCellAnchorSet<TData, TChangeset>,
-			dataEncoder: DataEncoder<TData>,
-		): JsonCompatibleReadOnly => {
-			return set.encodeForJson(formatVersion, dataEncoder);
-		},
-
-		decodeAnchorSetJson: <TData>(
-			formatVersion: number,
-			set: JsonCompatibleReadOnly,
-			dataDecoder: DataDecoder<TData>,
-		): SingleCellAnchorSet<TData, TChangeset> => {
-			return SingleCellAnchorSet.decodeJson<TData, TChangeset>(
-				formatVersion,
-				set,
-				dataDecoder,
-			);
-		},
-	};
 }
 
 const valueFieldEncoder: FieldChangeEncoder<

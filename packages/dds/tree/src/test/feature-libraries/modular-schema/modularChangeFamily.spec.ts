@@ -21,6 +21,11 @@ import {
 	BrandedFieldAnchorSet,
 	GenericAnchorSet,
 	noRebaseAnchorSetFactoryFactory,
+	SingleCellKey,
+	SingleCellAnchor,
+	singleCellAnchorSetFactory,
+	singleCellFieldEncoder,
+	singleCellKeyFunctions,
 } from "../../../feature-libraries";
 import {
 	RepairDataStore,
@@ -35,13 +40,22 @@ import {
 	UpPath,
 } from "../../../core";
 import { brand, JsonCompatibleReadOnly } from "../../../util";
-import { assertDeltaEqual, deepFreeze } from "../../utils";
+import { assertDeltaEqual, deepFreeze, noRepair } from "../../utils";
 import { ValueChangeset, valueField } from "./utils";
+
+const singleNodeHandler: FieldChangeHandler<0, SingleCellKey, SingleCellAnchor> = {
+	...FieldKinds.noChangeHandler,
+	...singleCellKeyFunctions,
+	encoder: singleCellFieldEncoder({
+		...FieldKinds.noChangeHandler.encoder,
+	}),
+	anchorSetFactory: singleCellAnchorSetFactory,
+};
 
 const singleNodeField = new FieldKind(
 	brand("SingleNode"),
 	Multiplicity.Value,
-	FieldKinds.noChangeHandler,
+	singleNodeHandler,
 	(a, b) => false,
 	new Set(),
 );
@@ -73,12 +87,6 @@ const idField = new FieldKind(
 	(a, b) => false,
 	new Set(),
 );
-
-const noRepair: RepairDataStore = {
-	capture: () => {},
-	getNodes: () => assert.fail(),
-	getValue: () => assert.fail(),
-};
 
 const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind<any>> = new Map(
 	[singleNodeField, valueField, idField].map((field) => [field.identifier, field]),
@@ -135,7 +143,7 @@ const nodeChanges2: NodeChangeset = {
 
 const rootChange1a: ModularChangeset = {
 	changes: new Map([
-		[fieldA, nestedValueChange(nodeChange1a)],
+		[fieldA, nestedSingleNodeChange(nodeChange1a)],
 		[
 			fieldB,
 			{
@@ -443,7 +451,8 @@ describe("ModularChangeFamily", () => {
 				]),
 			};
 
-			assert.deepEqual(family.invert(makeAnonChange(rootChange1a)), expectedInverse);
+			const actual = family.invert(makeAnonChange(rootChange1a));
+			assert.deepEqual(actual, expectedInverse);
 		});
 
 		it("generic", () => {
@@ -454,7 +463,8 @@ describe("ModularChangeFamily", () => {
 				]),
 			};
 
-			assert.deepEqual(family.invert(makeAnonChange(rootChange1aGeneric)), expectedInverse);
+			const actual = family.invert(makeAnonChange(rootChange1aGeneric));
+			assert.deepEqual(actual, expectedInverse);
 		});
 
 		it("generate IDs", () => {
@@ -546,20 +556,21 @@ describe("ModularChangeFamily", () => {
 	describe("intoDelta", () => {
 		it("fieldChanges", () => {
 			const innerFieldADelta: Delta.FieldChanges = {
-				beforeShallow: [{ index: 0, setValue: 1 }],
+				shallow: valueField.changeHandler.intoDelta(valueChange1a, noRepair),
 			};
 			const outerFieldADelta: Delta.FieldChanges = {
 				beforeShallow: [{ index: 0, fields: new Map([[fieldA, innerFieldADelta]]) }],
 			};
 			const fieldBDelta: Delta.FieldChanges = {
-				beforeShallow: [{ index: 0, setValue: 2 }],
+				shallow: valueField.changeHandler.intoDelta(valueChange2, noRepair),
 			};
 			const expectedDelta: Delta.Root = new Map([
 				[fieldA, outerFieldADelta],
 				[fieldB, fieldBDelta],
 			]);
 
-			assertDeltaEqual(family.intoDelta(rootChange1a), expectedDelta);
+			const actual = family.intoDelta(rootChange1a);
+			assertDeltaEqual(actual, expectedDelta);
 		});
 
 		it("value overwrite", () => {
@@ -638,10 +649,7 @@ describe("ModularChangeFamily", () => {
 });
 
 function nestedValueChange(nodeChange: NodeChangeset): FieldChange {
-	return {
-		fieldKind: valueField.identifier,
-		nested: SingleCellAnchorSet.fromData(nodeChange) as unknown as BrandedFieldAnchorSet,
-	};
+	return nestedGenericChange(0, nodeChange);
 }
 
 function nestedSingleNodeChange(nodeChange: NodeChangeset): FieldChange {

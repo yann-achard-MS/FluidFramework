@@ -7,16 +7,19 @@ import { assert } from "@fluidframework/common-utils";
 import { TaggedChange } from "../../core";
 import { Brand, brand, fail, JsonCompatibleReadOnly, Mutable } from "../../util";
 import {
-	FieldChangeEncoder,
 	FieldAnchorSet,
 	FieldAnchorSetEntry,
 	MergeCallback,
 	RebaseDirection,
-	DataDecoder,
+	UpdateCallback,
+} from "./anchorSet";
+import {
+	FieldChangeEncoder,
 	DataEncoder,
+	DataDecoder,
 	ChildIndex,
 	Context,
-} from ".";
+} from "./fieldChangeHandler";
 
 /**
  * @alpha
@@ -112,6 +115,12 @@ export class SingleCellAnchorSet<TData, TChangeset>
 		const set = new SingleCellAnchorSet<TData, TChangeset>();
 		set.mergeIn(this);
 		return set;
+	}
+
+	public update(func: UpdateCallback<TData>): void {
+		if (this.entry !== undefined) {
+			this.entry.data = func(this.entry.data);
+		}
 	}
 
 	public mergeIn(

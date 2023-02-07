@@ -6,9 +6,11 @@
 import { TaggedChange } from "../../core";
 
 export type MergeCallback<TData> = (existingData: TData, newData: TData) => TData;
+export type UpdateCallback<TData> = (data: TData) => TData;
 
 export interface FieldAnchorSet<TKey, TAnchor, TChangeset, TData = undefined> {
 	clone(): FieldAnchorSet<TKey, TAnchor, TChangeset, TData>;
+	update(func: UpdateCallback<TData>): void;
 	mergeIn(
 		set: FieldAnchorSet<TKey, TAnchor, TChangeset, TData>,
 		mergeData?: MergeCallback<TData>,

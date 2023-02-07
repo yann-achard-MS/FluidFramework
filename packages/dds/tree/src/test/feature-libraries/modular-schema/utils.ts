@@ -9,7 +9,7 @@ import {
 	Multiplicity,
 	FieldKinds,
 	baseChangeHandlerKeyFunctions,
-	singleCellAnchorSetFactory,
+	noRebaseAnchorSetFactoryFactory,
 } from "../../../feature-libraries";
 import { Delta } from "../../../core";
 import { brand, JsonCompatibleReadOnly } from "../../../util";
@@ -19,7 +19,7 @@ export type ValueChangeset = FieldKinds.ReplaceOp<number>;
 
 export const valueHandler: FieldChangeHandler<ValueChangeset> = {
 	...baseChangeHandlerKeyFunctions,
-	anchorSetFactory: singleCellAnchorSetFactory,
+	anchorSetFactory: noRebaseAnchorSetFactoryFactory<ValueChangeset>(),
 	rebaser: FieldKinds.replaceRebaser(),
 	encoder: FieldKinds.valueEncoder<ValueChangeset & JsonCompatibleReadOnly>(),
 	editor: {},
