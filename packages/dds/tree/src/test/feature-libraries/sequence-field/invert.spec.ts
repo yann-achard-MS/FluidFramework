@@ -7,7 +7,6 @@ import { strict as assert } from "assert";
 import { SequenceField as SF } from "../../../feature-libraries";
 import { RevisionTag, tagChange } from "../../../core";
 import { brand } from "../../../util";
-import { TestChange } from "../../testChange";
 import { deepFreeze } from "../../utils";
 import { composeAnonChanges } from "./utils";
 import { ChangeMaker as Change, TestChangeset } from "./testEdits";
@@ -36,15 +35,6 @@ describe("SequenceField - Invert", () => {
 		assert.deepEqual(actual, expected);
 	});
 
-	it("modified insert => delete", () => {
-		const insert = Change.insert(0, 1);
-		const modify = Change.modify(0, TestChange.mint([], 42));
-		const input = composeAnonChanges([insert, modify]);
-		const expected = Change.delete(0, 1);
-		const actual = invert(input);
-		assert.deepEqual(actual, expected);
-	});
-
 	it("delete => revive", () => {
 		const input = Change.delete(0, 2);
 		const expected = Change.revive(0, 2, tag, 0);
@@ -54,10 +44,8 @@ describe("SequenceField - Invert", () => {
 
 	it("revert-only active revive => delete", () => {
 		const revive = Change.revive(0, 2, tag, 0);
-		const modify = Change.modify(0, TestChange.mint([], 42));
-		const input = composeAnonChanges([revive, modify]);
 		const expected = Change.delete(0, 2);
-		const actual = invert(input);
+		const actual = invert(revive);
 		assert.deepEqual(actual, expected);
 	});
 

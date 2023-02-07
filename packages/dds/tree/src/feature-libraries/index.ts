@@ -85,6 +85,9 @@ export {
 	genericAnchorSetFactory,
 	BaseAnchorSet,
 	singleCellAnchorSetFactory,
+	SingleCellAnchorSet,
+	BrandedFieldAnchorSet,
+	GenericAnchorSet,
 } from "./modular-schema";
 
 // Split this up into separate import and export for compatibility with API-Extractor.

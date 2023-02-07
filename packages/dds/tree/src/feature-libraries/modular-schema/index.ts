@@ -11,7 +11,7 @@ export {
 	allowsFieldSuperset,
 	allowsTreeSuperset,
 } from "./comparison";
-export { FieldKind, FullSchemaPolicy, Multiplicity } from "./fieldKind";
+export { FieldKind, FullSchemaPolicy, Multiplicity, BrandedFieldAnchorSet } from "./fieldKind";
 export { RebaseDirection, FieldAnchorSetEntry, MergeCallback, FieldAnchorSet } from "./anchorSet";
 export {
 	ChangesetLocalId,

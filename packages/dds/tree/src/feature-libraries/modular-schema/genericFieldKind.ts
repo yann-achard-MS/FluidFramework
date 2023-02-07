@@ -214,6 +214,17 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 }
 
 export class GenericAnchorSet<TData> extends BaseAnchorSet<TData, GenericChangeset> {
+	public static fromData<TData>(
+		entries: readonly { readonly key: GenericNodeKey; readonly data: TData }[],
+	): GenericAnchorSet<TData> {
+		const merge = () => fail("Unexpected merge on empty set");
+		const set = new GenericAnchorSet<TData>();
+		for (const { key, data } of entries) {
+			set.track(key, data, merge);
+		}
+		return set;
+	}
+
 	public clone(): GenericAnchorSet<TData> {
 		const set = new GenericAnchorSet<TData>();
 		set.mergeIn(this, () => fail("Unexpected merge in empty anchor set"));

@@ -79,6 +79,12 @@ export class SingleCellAnchorSet<TData, TChangeset>
 	// the change and the subtree present after the change (any changes in between).
 	private entry?: Mutable<SingleCellEntry<TData>>;
 
+	public static fromData<TData>(data: TData): SingleCellAnchorSet<TData, never> {
+		const set = new SingleCellAnchorSet<TData, never>();
+		set.add(brand(0), data, () => fail("Unexpected merge on empty set"));
+		return set;
+	}
+
 	public encodeForJson(
 		formatVersion: number,
 		dataEncoder: DataEncoder<TData>,

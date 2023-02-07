@@ -20,6 +20,9 @@ import {
 	genericAnchorSetFactory,
 	BaseAnchorSet,
 	singleCellAnchorSetFactory,
+	SingleCellAnchorSet,
+	BrandedFieldAnchorSet,
+	GenericAnchorSet,
 } from "../../../feature-libraries";
 import {
 	RepairDataStore,
@@ -35,37 +38,12 @@ import {
 } from "../../../core";
 import { brand, JsonCompatibleReadOnly } from "../../../util";
 import { assertDeltaEqual, deepFreeze } from "../../utils";
-import { singleJsonCursor } from "../../../domains";
+import { ValueChangeset, valueField } from "./utils";
 
-type ValueChangeset = FieldKinds.ReplaceOp<number>;
-
-const valueHandler: FieldChangeHandler<ValueChangeset> = {
-	...baseChangeHandlerKeyFunctions,
-	rebaser: FieldKinds.replaceRebaser(),
-	encoder: FieldKinds.valueEncoder<ValueChangeset & JsonCompatibleReadOnly>(),
-	editor: {},
-	intoDelta: (change): Delta.MarkList =>
-		change === 0
-			? []
-			: [
-					{ type: Delta.MarkType.Delete, count: 1 },
-					{ type: Delta.MarkType.Insert, content: [singleJsonCursor(change.new)] },
-			  ],
-};
-
-const valueField = new FieldKind<ValueChangeset>(
-	brand("Value"),
-	Multiplicity.Value,
-	singleCellAnchorSetFactory,
-	valueHandler,
-	(a, b) => false,
-	new Set(),
-);
-
-const singleNodeField = new FieldKind(
+const singleNodeField = new FieldKind<0>(
 	brand("SingleNode"),
 	Multiplicity.Value,
-	genericAnchorSetFactory,
+	singleCellAnchorSetFactory,
 	FieldKinds.noChangeHandler,
 	(a, b) => false,
 	new Set(),
@@ -123,24 +101,17 @@ const valueChange2: ValueChangeset = { old: 1, new: 2 };
 
 const nodeChange1a: NodeChangeset = {
 	fieldChanges: new Map([
-		[fieldA, { fieldKind: valueField.identifier, nested:  }],
+		[fieldA, { fieldKind: valueField.identifier, shallow: brand(valueChange1a) }],
 	]),
 };
-
 const nodeChanges1b: NodeChangeset = {
 	fieldChanges: new Map([
-		[
-			fieldA,
-			{
-				fieldKind: valueField.identifier,
-				change: brand(valueChange1b),
-			},
-		],
+		[fieldA, nestedValueChange(nodeChange1a)],
 		[
 			fieldB,
 			{
 				fieldKind: valueField.identifier,
-				change: brand(valueChange1a),
+				shallow: brand(valueChange1a),
 			},
 		],
 	]),
@@ -152,14 +123,14 @@ const nodeChanges2: NodeChangeset = {
 			fieldA,
 			{
 				fieldKind: valueField.identifier,
-				change: brand(valueChange2),
+				shallow: brand(valueChange2),
 			},
 		],
 		[
 			fieldB,
 			{
 				fieldKind: valueField.identifier,
-				change: brand(valueChange1a),
+				shallow: brand(valueChange1a),
 			},
 		],
 	]),
@@ -167,18 +138,12 @@ const nodeChanges2: NodeChangeset = {
 
 const rootChange1a: ModularChangeset = {
 	changes: new Map([
-		[
-			fieldA,
-			{
-				fieldKind: singleNodeField.identifier,
-				change: brand(nodeChange1a),
-			},
-		],
+		[fieldA, nestedValueChange(nodeChange1a)],
 		[
 			fieldB,
 			{
 				fieldKind: valueField.identifier,
-				change: brand(valueChange2),
+				shallow: brand(valueChange2),
 			},
 		],
 	]),
@@ -186,109 +151,41 @@ const rootChange1a: ModularChangeset = {
 
 const rootChange1aGeneric: ModularChangeset = {
 	changes: new Map([
-		[
-			fieldA,
-			{
-				fieldKind: genericFieldKind.identifier,
-				change: brand(
-					genericFieldKind.changeHandler.editor.buildChildChange(0, nodeChange1a),
-				),
-			},
-		],
+		[fieldA, nestedGenericChange(0, nodeChange1a)],
 		[
 			fieldB,
 			{
 				fieldKind: valueField.identifier,
-				change: brand(valueChange2),
+				shallow: brand(valueChange2),
 			},
 		],
 	]),
 };
 
 const rootChange1b: ModularChangeset = {
-	changes: new Map([
-		[
-			fieldA,
-			{
-				fieldKind: singleNodeField.identifier,
-				change: brand(nodeChanges1b),
-			},
-		],
-	]),
+	changes: new Map([[fieldA, nestedSingleNodeChange(nodeChanges1b)]]),
 };
 
 const rootChange1bGeneric: ModularChangeset = {
-	changes: new Map([
-		[
-			fieldA,
-			{
-				fieldKind: genericFieldKind.identifier,
-				change: brand(
-					genericFieldKind.changeHandler.editor.buildChildChange(0, nodeChanges1b),
-				),
-			},
-		],
-	]),
+	changes: new Map([[fieldA, nestedGenericChange(0, nodeChanges1b)]]),
 };
 
 const rootChange2: ModularChangeset = {
-	changes: new Map([
-		[
-			fieldA,
-			{
-				fieldKind: singleNodeField.identifier,
-				change: brand(nodeChanges2),
-			},
-		],
-	]),
+	changes: new Map([[fieldA, nestedSingleNodeChange(nodeChanges2)]]),
 };
 
 const rootChange2Generic: ModularChangeset = {
-	changes: new Map([
-		[
-			fieldA,
-			{
-				fieldKind: genericFieldKind.identifier,
-				change: brand(
-					genericFieldKind.changeHandler.editor.buildChildChange(0, nodeChanges2),
-				),
-			},
-		],
-	]),
+	changes: new Map([[fieldA, nestedGenericChange(0, nodeChanges2)]]),
 };
 
 const testValue = "Test Value";
 const nodeValueOverwrite: ModularChangeset = {
-	changes: new Map([
-		[
-			fieldA,
-			{
-				fieldKind: genericFieldKind.identifier,
-				change: brand(
-					genericFieldKind.changeHandler.editor.buildChildChange(0, {
-						valueChange: { value: testValue },
-					}),
-				),
-			},
-		],
-	]),
+	changes: new Map([[fieldA, nestedGenericChange(0, { valueChange: { value: testValue } })]]),
 };
 
 const detachedBy: RevisionTag = brand(42);
 const nodeValueRevert: ModularChangeset = {
-	changes: new Map([
-		[
-			fieldA,
-			{
-				fieldKind: genericFieldKind.identifier,
-				change: brand(
-					genericFieldKind.changeHandler.editor.buildChildChange(0, {
-						valueChange: { revert: detachedBy },
-					}),
-				),
-			},
-		],
-	]),
+	changes: new Map([[fieldA, nestedGenericChange(0, { valueChange: { revert: detachedBy } })]]),
 };
 
 describe("ModularChangeFamily", () => {
@@ -301,14 +198,14 @@ describe("ModularChangeFamily", () => {
 					fieldA,
 					{
 						fieldKind: valueField.identifier,
-						change: brand(composedValues),
+						shallow: brand(composedValues),
 					},
 				],
 				[
 					fieldB,
 					{
 						fieldKind: valueField.identifier,
-						change: brand(valueChange1a),
+						shallow: brand(valueChange1a),
 					},
 				],
 			]),
@@ -317,18 +214,12 @@ describe("ModularChangeFamily", () => {
 		it("compose specific ○ specific", () => {
 			const expectedCompose: ModularChangeset = {
 				changes: new Map([
-					[
-						fieldA,
-						{
-							fieldKind: singleNodeField.identifier,
-							change: brand(composedNodeChange),
-						},
-					],
+					[fieldA, nestedSingleNodeChange(composedNodeChange)],
 					[
 						fieldB,
 						{
 							fieldKind: valueField.identifier,
-							change: brand(valueChange2),
+							shallow: brand(valueChange2),
 						},
 					],
 				]),
@@ -342,18 +233,12 @@ describe("ModularChangeFamily", () => {
 		it("compose specific ○ generic", () => {
 			const expectedCompose: ModularChangeset = {
 				changes: new Map([
-					[
-						fieldA,
-						{
-							fieldKind: singleNodeField.identifier,
-							change: brand(composedNodeChange),
-						},
-					],
+					[fieldA, nestedSingleNodeChange(composedNodeChange)],
 					[
 						fieldB,
 						{
 							fieldKind: valueField.identifier,
-							change: brand(valueChange2),
+							shallow: brand(valueChange2),
 						},
 					],
 				]),
@@ -367,18 +252,12 @@ describe("ModularChangeFamily", () => {
 		it("compose generic ○ specific", () => {
 			const expectedCompose: ModularChangeset = {
 				changes: new Map([
-					[
-						fieldA,
-						{
-							fieldKind: singleNodeField.identifier,
-							change: brand(composedNodeChange),
-						},
-					],
+					[fieldA, nestedSingleNodeChange(composedNodeChange)],
 					[
 						fieldB,
 						{
 							fieldKind: valueField.identifier,
-							change: brand(valueChange2),
+							shallow: brand(valueChange2),
 						},
 					],
 				]),
@@ -392,23 +271,12 @@ describe("ModularChangeFamily", () => {
 		it("compose generic ○ generic", () => {
 			const expectedCompose: ModularChangeset = {
 				changes: new Map([
-					[
-						fieldA,
-						{
-							fieldKind: genericFieldKind.identifier,
-							change: brand(
-								genericFieldKind.changeHandler.editor.buildChildChange(
-									0,
-									composedNodeChange,
-								),
-							),
-						},
-					],
+					[fieldA, nestedGenericChange(0, composedNodeChange)],
 					[
 						fieldB,
 						{
 							fieldKind: valueField.identifier,
-							change: brand(valueChange2),
+							shallow: brand(valueChange2),
 						},
 					],
 				]),
@@ -454,7 +322,7 @@ describe("ModularChangeFamily", () => {
 						fieldA,
 						{
 							fieldKind: valueField.identifier,
-							change: brand(valueChange2),
+							shallow: brand(valueChange2),
 						},
 					],
 				]),
@@ -485,7 +353,7 @@ describe("ModularChangeFamily", () => {
 						{
 							revision: change2.revision,
 							fieldKind: valueField.identifier,
-							change: brand(valueChange2),
+							shallow: brand(valueChange2),
 						},
 					],
 				]),
@@ -498,16 +366,10 @@ describe("ModularChangeFamily", () => {
 						{
 							revision: change1.revision,
 							fieldKind: valueField.identifier,
-							change: brand(valueChange1a),
+							shallow: brand(valueChange1a),
 						},
 					],
-					[
-						fieldB,
-						{
-							fieldKind: singleNodeField.identifier,
-							change: brand(expectedNodeChange),
-						},
-					],
+					[fieldB, nestedSingleNodeChange(expectedNodeChange)],
 				]),
 			};
 
@@ -519,19 +381,29 @@ describe("ModularChangeFamily", () => {
 			const id1: ChangesetLocalId = brand(1);
 			const change1: ModularChangeset = {
 				maxId: id0,
-				changes: new Map([[fieldA, { fieldKind: idField.identifier, change: brand(id0) }]]),
+				changes: new Map([
+					[fieldA, { fieldKind: idField.identifier, shallow: brand(id0) }],
+				]),
 			};
 
 			const change2: ModularChangeset = {
 				maxId: id0,
-				changes: new Map([[fieldB, { fieldKind: idField.identifier, change: brand(id0) }]]),
+				changes: new Map([
+					[fieldB, { fieldKind: idField.identifier, shallow: brand(id0) }],
+				]),
 			};
 
 			const expected1: ModularChangeset = {
 				maxId: id0,
 				changes: new Map([
-					[fieldA, { fieldKind: idField.identifier, revision: tag1, change: brand(id0) }],
-					[fieldB, { fieldKind: idField.identifier, revision: tag2, change: brand(id0) }],
+					[
+						fieldA,
+						{ fieldKind: idField.identifier, revision: tag1, shallow: brand(id0) },
+					],
+					[
+						fieldB,
+						{ fieldKind: idField.identifier, revision: tag2, shallow: brand(id0) },
+					],
 				]),
 			};
 
@@ -540,7 +412,9 @@ describe("ModularChangeFamily", () => {
 
 			const expected2: ModularChangeset = {
 				maxId: id1,
-				changes: new Map([[fieldA, { fieldKind: idField.identifier, change: brand(id1) }]]),
+				changes: new Map([
+					[fieldA, { fieldKind: idField.identifier, shallow: brand(id1) }],
+				]),
 			};
 
 			const composed2 = family.compose([tagChange(change1, tag1), tagChange(change1, tag2)]);
@@ -558,7 +432,7 @@ describe("ModularChangeFamily", () => {
 					fieldA,
 					{
 						fieldKind: valueField.identifier,
-						change: brand(valueInverse1),
+						shallow: brand(valueInverse1),
 					},
 				],
 			]),
@@ -567,8 +441,8 @@ describe("ModularChangeFamily", () => {
 		it("specific", () => {
 			const expectedInverse: ModularChangeset = {
 				changes: new Map([
-					[fieldA, { fieldKind: singleNodeField.identifier, change: brand(nodeInverse) }],
-					[fieldB, { fieldKind: valueField.identifier, change: brand(valueInverse2) }],
+					[fieldA, nestedSingleNodeChange(nodeInverse)],
+					[fieldB, { fieldKind: valueField.identifier, shallow: brand(valueInverse2) }],
 				]),
 			};
 
@@ -576,17 +450,10 @@ describe("ModularChangeFamily", () => {
 		});
 
 		it("generic", () => {
-			const fieldChange = genericFieldKind.changeHandler.editor.buildChildChange(
-				0,
-				nodeInverse,
-			);
 			const expectedInverse: ModularChangeset = {
 				changes: new Map([
-					[
-						fieldA,
-						{ fieldKind: genericFieldKind.identifier, change: brand(fieldChange) },
-					],
-					[fieldB, { fieldKind: valueField.identifier, change: brand(valueInverse2) }],
+					[fieldA, nestedGenericChange(0, nodeInverse)],
+					[fieldB, { fieldKind: valueField.identifier, shallow: brand(valueInverse2) }],
 				]),
 			};
 
@@ -601,16 +468,16 @@ describe("ModularChangeFamily", () => {
 			const change: ModularChangeset = {
 				maxId: id1,
 				changes: new Map([
-					[fieldA, { fieldKind: idField.identifier, change: brand(id0) }],
-					[fieldB, { fieldKind: idField.identifier, change: brand(id1) }],
+					[fieldA, { fieldKind: idField.identifier, shallow: brand(id0) }],
+					[fieldB, { fieldKind: idField.identifier, shallow: brand(id1) }],
 				]),
 			};
 
 			const expected: ModularChangeset = {
 				maxId: id3,
 				changes: new Map([
-					[fieldA, { fieldKind: idField.identifier, change: brand(id2) }],
-					[fieldB, { fieldKind: idField.identifier, change: brand(id3) }],
+					[fieldA, { fieldKind: idField.identifier, shallow: brand(id2) }],
+					[fieldB, { fieldKind: idField.identifier, shallow: brand(id3) }],
 				]),
 			};
 
@@ -655,21 +522,23 @@ describe("ModularChangeFamily", () => {
 			const change: ModularChangeset = {
 				maxId: id1,
 				changes: new Map([
-					[fieldA, { fieldKind: idField.identifier, change: brand(id0) }],
-					[fieldB, { fieldKind: idField.identifier, change: brand(id1) }],
+					[fieldA, { fieldKind: idField.identifier, shallow: brand(id0) }],
+					[fieldB, { fieldKind: idField.identifier, shallow: brand(id1) }],
 				]),
 			};
 
 			const base: ModularChangeset = {
 				maxId: id0,
-				changes: new Map([[fieldA, { fieldKind: idField.identifier, change: brand(id0) }]]),
+				changes: new Map([
+					[fieldA, { fieldKind: idField.identifier, shallow: brand(id0) }],
+				]),
 			};
 
 			const expected: ModularChangeset = {
 				maxId: id2,
 				changes: new Map([
-					[fieldA, { fieldKind: idField.identifier, change: brand(id2) }],
-					[fieldB, { fieldKind: idField.identifier, change: brand(id1) }],
+					[fieldA, { fieldKind: idField.identifier, shallow: brand(id2) }],
+					[fieldB, { fieldKind: idField.identifier, shallow: brand(id1) }],
 				]),
 			};
 
@@ -746,15 +615,12 @@ describe("ModularChangeFamily", () => {
 		const changes = editor.getChanges();
 		const nodeChange: NodeChangeset = {
 			fieldChanges: new Map([
-				[fieldB, { fieldKind: valueField.identifier, change: brand(valueChange1a) }],
+				[fieldB, { fieldKind: valueField.identifier, shallow: brand(valueChange1a) }],
 			]),
 		};
 
-		const fieldChange = genericFieldKind.changeHandler.editor.buildChildChange(0, nodeChange);
 		const expectedChange: ModularChangeset = {
-			changes: new Map([
-				[fieldA, { fieldKind: genericFieldKind.identifier, change: brand(fieldChange) }],
-			]),
+			changes: new Map([[fieldA, nestedGenericChange(0, nodeChange)]]),
 		};
 
 		assert.deepEqual(changes, [expectedChange]);
@@ -773,3 +639,26 @@ describe("ModularChangeFamily", () => {
 		assert.deepEqual(changes, [nodeValueOverwrite]);
 	});
 });
+
+function nestedValueChange(nodeChange: NodeChangeset): FieldChange {
+	return {
+		fieldKind: valueField.identifier,
+		nested: SingleCellAnchorSet.fromData(nodeChange) as unknown as BrandedFieldAnchorSet,
+	};
+}
+
+function nestedSingleNodeChange(nodeChange: NodeChangeset): FieldChange {
+	return {
+		fieldKind: singleNodeField.identifier,
+		nested: SingleCellAnchorSet.fromData(nodeChange) as unknown as BrandedFieldAnchorSet,
+	};
+}
+
+function nestedGenericChange(index: number, nodeChange: NodeChangeset): FieldChange {
+	return {
+		fieldKind: genericFieldKind.identifier,
+		nested: GenericAnchorSet.fromData([
+			{ key: genericFieldKind.changeHandler.getKey(index), data: nodeChange },
+		]) as unknown as BrandedFieldAnchorSet,
+	};
+}
