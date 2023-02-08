@@ -26,7 +26,8 @@ export const valueHandler: FieldChangeHandler<ValueChangeset> = {
 	intoDelta: (change): Delta.MarkList =>
 		change === 0
 			? []
-			: [
+			: // Using these Delta marks to represent the value replacement
+			  [
 					{ type: Delta.MarkType.Delete, count: 1 },
 					{ type: Delta.MarkType.Insert, content: [singleJsonCursor(change.new)] },
 			  ],

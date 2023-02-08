@@ -9,6 +9,7 @@ import { Brand, brand, JsonCompatibleReadOnly, Mutable } from "../../util";
 import {
 	FieldAnchorSet,
 	FieldAnchorSetEntry,
+	MapCallback,
 	MergeCallback,
 	RebaseDirection,
 	UpdateCallback,
@@ -152,10 +153,16 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 		};
 	}
 
-	public update(func: UpdateCallback<TData>): void {
+	public updateAll(func: UpdateCallback<TData, GenericNodeKey>): void {
 		for (const entry of this.list) {
-			entry.data = func(entry.data);
+			entry.data = func(entry.data, entry.key);
 		}
+	}
+
+	public map<TOut>(func: MapCallback<TData, TOut>): BaseAnchorSet<TOut, TChangeset> {
+		const set = this.clone() as BaseAnchorSet<TData | TOut, TChangeset>;
+		set.updateAll(func as MapCallback<TData | TOut, TOut>);
+		return set as BaseAnchorSet<TOut, TChangeset>;
 	}
 
 	public mergeIn(set: BaseAnchorSet<TData, TChangeset>, mergeData?: MergeCallback<TData>): void {
@@ -201,8 +208,14 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 	}
 
 	public lookup(key: GenericNodeKey): Entry<TData> | undefined {
-		throw new Error("Method not implemented.");
+		const index = this.findIndexForKey(key);
+		const entry: Entry<TData> | undefined = this.list[index];
+		if (entry === undefined || entry.key !== key) {
+			return undefined;
+		}
+		return entry;
 	}
+
 	public entries(): IterableIterator<Entry<TData>> {
 		return this.list.values();
 	}

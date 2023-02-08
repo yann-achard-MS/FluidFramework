@@ -39,7 +39,7 @@ import {
 	FieldNodeKey,
 } from "./fieldChangeHandler";
 import { FieldKind, BrandedFieldAnchorSet } from "./fieldKind";
-import { genericFieldKind } from "./genericFieldKind";
+import { GenericAnchorSet, genericFieldKind } from "./genericFieldKind";
 import { decodeJsonFormat0, encodeForJsonFormat0 } from "./modularChangeEncoding";
 
 /**
@@ -64,6 +64,52 @@ export class ModularChangeFamily
 		return this;
 	}
 
+	/**
+	 * Produces an equivalent list of `FieldChange`s that all target the same {@link FieldKind}.
+	 * @param changes - The list of `FieldChange`s that need to be normalized.
+	 * @returns An object that contains both the equivalent list of `FieldChange`s that all
+	 * target the same {@link FieldKind}, and the `FieldKind` that they target.
+	 * The returned `FieldChange`s may be a shallow copy of the input `FieldChange`s.
+	 */
+	private normalizeFieldChanges(changes: readonly FieldChange[]): {
+		fieldKind: FieldKind;
+		fieldChanges: readonly FieldChange[];
+	} {
+		// TODO: Handle the case where changes have conflicting field kinds
+		const nonGenericChange = changes.find(
+			(change) => change.fieldKind !== genericFieldKind.identifier,
+		);
+		if (nonGenericChange === undefined) {
+			// All the changes are generic
+			return { fieldKind: genericFieldKind, fieldChanges: changes };
+		}
+		const kind = nonGenericChange.fieldKind;
+		const fieldKind = getFieldKind(this.fieldKinds, kind);
+		const handler = fieldKind.changeHandler;
+		const normalizedChanges = changes.map((change): FieldChange => {
+			if (change.fieldKind === genericFieldKind.identifier) {
+				const normalized: Mutable<FieldChange> = { fieldKind: kind };
+				// The cast is based on the `fieldKind` check above
+				const nestedGenericChanges = change.nested as
+					| GenericAnchorSet<NodeChangeset>
+					| undefined;
+				if (nestedGenericChanges !== undefined) {
+					const set = handler.anchorSetFactory<NodeChangeset>();
+					for (const { key, data } of nestedGenericChanges.entries()) {
+						set.track(handler.getKey(key), data);
+					}
+					normalized.nested = set;
+				}
+				if (change.revision !== undefined) {
+					normalized.revision = change.revision;
+				}
+				return normalized;
+			}
+			return change;
+		});
+		return { fieldKind, fieldChanges: normalizedChanges };
+	}
+
 	compose(changes: TaggedChange<ModularChangeset>[]): ModularChangeset {
 		let maxId = changes.reduce((max, change) => Math.max(change.change.maxId ?? -1, max), -1);
 		const genId: IdAllocator = () => brand(++maxId);
@@ -79,7 +125,7 @@ export class ModularChangeFamily
 		changes: TaggedChange<FieldChangeMap>[],
 		genId: IdAllocator,
 	): FieldChangeMap {
-		const fieldChanges = new Map<FieldKey, FieldChange[]>();
+		const fieldMap = new Map<FieldKey, FieldChange[]>();
 		for (const change of changes) {
 			for (const [fieldKey, fieldChange] of change.change) {
 				const fieldChangeToCompose =
@@ -90,28 +136,31 @@ export class ModularChangeFamily
 								revision: change.revision,
 						  };
 
-				getOrAddEmptyToMap(fieldChanges, fieldKey).push(fieldChangeToCompose);
+				getOrAddEmptyToMap(fieldMap, fieldKey).push(fieldChangeToCompose);
 			}
 		}
 
 		const composedFields: FieldChangeMap = new Map();
-		for (const [fieldKey, changesForField] of fieldChanges) {
+		for (const [fieldKey, mixedFieldChanges] of fieldMap) {
 			let composedField: Mutable<FieldChange>;
-			if (changesForField.length === 1) {
-				composedField = changesForField[0];
+			if (mixedFieldChanges.length === 1) {
+				composedField = mixedFieldChanges[0];
 			} else {
-				const fieldKindId = changesForField[0].fieldKind;
-				composedField = { fieldKind: fieldKindId };
+				const { fieldKind, fieldChanges } = this.normalizeFieldChanges(mixedFieldChanges);
+				assert(
+					fieldChanges.length === fieldChanges.length,
+					0x4a8 /* Number of changes should be constant when normalizing */,
+				);
+				composedField = { fieldKind: fieldKind.identifier };
 
 				const taggedChangesets: TaggedChange<FieldChangeset>[] = [];
-				for (const fieldChange of changesForField) {
-					assert(fieldChange.fieldKind === fieldKindId, "Inconsistent field kind");
+				for (const fieldChange of fieldChanges) {
 					if (fieldChange.shallow !== undefined) {
 						taggedChangesets.push(tagChange(fieldChange.shallow, fieldChange.revision));
 					}
 				}
 
-				const changeHandler = getFieldKind(this.fieldKinds, fieldKindId).changeHandler;
+				const changeHandler = fieldKind.changeHandler;
 				const rebaser = changeHandler.rebaser;
 				if (taggedChangesets.length > 0) {
 					const composedChange = rebaser.compose(taggedChangesets, genId);
@@ -119,22 +168,19 @@ export class ModularChangeFamily
 				}
 
 				let hasNestedChanges = false;
-				const childChanges =
-					changeHandler.anchorSetFactory<NodeChangeset>() as unknown as BrandedFieldAnchorSet;
-				for (let i = changesForField.length - 1; i >= 0; --i) {
-					const iThFieldChanges = changesForField[i];
+				const childChanges = changeHandler.anchorSetFactory<TaggedChange<NodeChangeset>>();
+				for (let i = fieldChanges.length - 1; i >= 0; --i) {
+					const iThFieldChanges = fieldChanges[i];
 					if (iThFieldChanges.nested !== undefined) {
 						hasNestedChanges = true;
 						childChanges.mergeIn(
-							iThFieldChanges.nested,
-							(existing: NodeChangeset, added: NodeChangeset) =>
-								this.composeNodeChanges(
-									[
-										makeAnonChange(existing),
-										tagChange(added, iThFieldChanges.revision),
-									],
-									genId,
-								),
+							iThFieldChanges.nested.map((change) =>
+								tagChange(change, iThFieldChanges.revision),
+							),
+							(
+								existing: TaggedChange<NodeChangeset>,
+								added: TaggedChange<NodeChangeset>,
+							) => makeAnonChange(this.composeNodeChanges([added, existing], genId)),
 						);
 					}
 					if (i > 0 && iThFieldChanges.shallow !== undefined) {
@@ -146,7 +192,7 @@ export class ModularChangeFamily
 				}
 
 				if (hasNestedChanges) {
-					composedField.nested = childChanges;
+					composedField.nested = childChanges.map((tagged) => tagged.change);
 				}
 			}
 
@@ -227,7 +273,7 @@ export class ModularChangeFamily
 						RebaseDirection.Forward,
 					);
 				}
-				childChanges.update((data) =>
+				childChanges.updateAll((data) =>
 					this.invertNodeChange({ revision, change: data }, genId),
 				);
 				invertedFieldChange.nested = childChanges;
@@ -288,7 +334,11 @@ export class ModularChangeFamily
 			if (baseChanges === undefined) {
 				rebasedFields.set(field, fieldChange);
 			} else {
-				const fieldKind = getFieldKind(this.fieldKinds, fieldChange.fieldKind);
+				const {
+					fieldKind,
+					fieldChanges: [normalFieldChange, normalBaseFieldChange],
+				} = this.normalizeFieldChanges([fieldChange, baseChanges]);
+
 				const rebaser = fieldKind.changeHandler.rebaser;
 				const rebasedFieldChange: Mutable<FieldChange> = {
 					fieldKind: fieldKind.identifier,
@@ -296,33 +346,35 @@ export class ModularChangeFamily
 
 				let taggedBaseChanges;
 				const { revision } = fieldChange.revision !== undefined ? fieldChange : over;
-				if (fieldChange.shallow !== undefined) {
-					if (baseChanges.shallow !== undefined) {
-						taggedBaseChanges = tagChange(baseChanges.shallow, revision);
+				if (normalFieldChange.shallow !== undefined) {
+					if (normalBaseFieldChange.shallow !== undefined) {
+						taggedBaseChanges = tagChange(normalBaseFieldChange.shallow, revision);
 						const rebasedField = rebaser.rebase(
-							fieldChange.shallow,
+							normalFieldChange.shallow,
 							taggedBaseChanges,
 							genId,
 						);
 						rebasedFieldChange.shallow = brand(rebasedField);
 					} else {
-						rebasedFieldChange.shallow = fieldChange.shallow;
+						rebasedFieldChange.shallow = normalFieldChange.shallow;
 					}
 				}
 
-				if (fieldChange.nested !== undefined) {
-					const childChanges = fieldChange.nested.clone();
-					if (baseChanges.nested !== undefined) {
-						for (const { key, data } of childChanges.entries()) {
-							const baseChildChanges = baseChanges.nested.lookup(key);
+				if (normalFieldChange.nested !== undefined) {
+					const childChanges = normalFieldChange.nested.clone();
+					if (normalBaseFieldChange.nested !== undefined) {
+						const nestedBaseChanges = normalBaseFieldChange.nested;
+						childChanges.updateAll((data, key) => {
+							const baseChildChanges = nestedBaseChanges.lookup(key);
 							if (baseChildChanges !== undefined) {
-								this.rebaseNodeChange(
+								return this.rebaseNodeChange(
 									data,
 									{ revision, change: baseChildChanges.data },
 									genId,
 								);
 							}
-						}
+							return data;
+						});
 					}
 					if (taggedBaseChanges !== undefined) {
 						childChanges.rebase(taggedBaseChanges, RebaseDirection.Forward);

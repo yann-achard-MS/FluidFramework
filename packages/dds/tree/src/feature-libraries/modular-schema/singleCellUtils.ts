@@ -9,6 +9,7 @@ import { Brand, brand, fail, JsonCompatibleReadOnly, Mutable } from "../../util"
 import {
 	FieldAnchorSet,
 	FieldAnchorSetEntry,
+	MapCallback,
 	MergeCallback,
 	RebaseDirection,
 	UpdateCallback,
@@ -112,10 +113,16 @@ export class SingleCellAnchorSet<TData, TChangeset>
 		return set;
 	}
 
-	public update(func: UpdateCallback<TData>): void {
+	public updateAll(func: UpdateCallback<TData, SingleCellKey>): void {
 		if (this.entry !== undefined) {
-			this.entry.data = func(this.entry.data);
+			this.entry.data = func(this.entry.data, this.entry.key);
 		}
+	}
+
+	public map<TOut>(func: MapCallback<TData, TOut>): SingleCellAnchorSet<TOut, TChangeset> {
+		const set = this.clone() as SingleCellAnchorSet<TData | TOut, TChangeset>;
+		set.updateAll(func as MapCallback<TData | TOut, TOut>);
+		return set as SingleCellAnchorSet<TOut, TChangeset>;
 	}
 
 	public mergeIn(
@@ -146,7 +153,11 @@ export class SingleCellAnchorSet<TData, TChangeset>
 	}
 
 	public lookup(key: SingleCellKey): SingleCellEntry<TData> | undefined {
-		throw new Error("Method not implemented.");
+		if (this.entry === undefined) {
+			return undefined;
+		}
+		assert(this.entry.key === key, "TODO: deal with more complex keys");
+		return this.entry;
 	}
 
 	public rebase(over: TaggedChange<TChangeset>, direction: RebaseDirection): void {

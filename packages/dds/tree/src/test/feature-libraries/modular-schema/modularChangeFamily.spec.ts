@@ -110,7 +110,13 @@ const nodeChange1a: NodeChangeset = {
 };
 const nodeChanges1b: NodeChangeset = {
 	fieldChanges: new Map([
-		[fieldA, nestedValueChange(nodeChange1a)],
+		[
+			fieldA,
+			{
+				fieldKind: valueField.identifier,
+				shallow: brand(valueChange1b),
+			},
+		],
 		[
 			fieldB,
 			{
@@ -228,10 +234,11 @@ describe("ModularChangeFamily", () => {
 					],
 				]),
 			};
-			assert.deepEqual(
-				family.compose([makeAnonChange(rootChange1a), makeAnonChange(rootChange2)]),
-				expectedCompose,
-			);
+			const actual = family.compose([
+				makeAnonChange(rootChange1a),
+				makeAnonChange(rootChange2),
+			]);
+			assert.deepEqual(actual, expectedCompose);
 		});
 
 		it("compose specific ○ generic", () => {
@@ -247,10 +254,11 @@ describe("ModularChangeFamily", () => {
 					],
 				]),
 			};
-			assert.deepEqual(
-				family.compose([makeAnonChange(rootChange1a), makeAnonChange(rootChange2Generic)]),
-				expectedCompose,
-			);
+			const actual = family.compose([
+				makeAnonChange(rootChange1a),
+				makeAnonChange(rootChange2Generic),
+			]);
+			assert.deepEqual(actual, expectedCompose);
 		});
 
 		it("compose generic ○ specific", () => {
@@ -266,10 +274,11 @@ describe("ModularChangeFamily", () => {
 					],
 				]),
 			};
-			assert.deepEqual(
-				family.compose([makeAnonChange(rootChange1aGeneric), makeAnonChange(rootChange2)]),
-				expectedCompose,
-			);
+			const actual = family.compose([
+				makeAnonChange(rootChange1aGeneric),
+				makeAnonChange(rootChange2),
+			]);
+			assert.deepEqual(actual, expectedCompose);
 		});
 
 		it("compose generic ○ generic", () => {
@@ -305,10 +314,7 @@ describe("ModularChangeFamily", () => {
 				valueChange: { value: value1 },
 			};
 
-			const change1B: FieldChange = {
-				fieldKind: singleNodeField.identifier,
-				shallow: brand(nodeChange1),
-			};
+			const change1B: FieldChange = nestedSingleNodeChange(nodeChange1);
 
 			const change1: TaggedChange<ModularChangeset> = tagChange(
 				{
@@ -332,17 +338,14 @@ describe("ModularChangeFamily", () => {
 				]),
 			};
 
-			const change2B: FieldChange = {
-				fieldKind: singleNodeField.identifier,
-				shallow: brand(nodeChange2),
-			};
+			const change2B: FieldChange = nestedSingleNodeChange(nodeChange2);
 
 			deepFreeze(change2B);
 			const change2: TaggedChange<ModularChangeset> = tagChange(
 				{
 					changes: new Map([[fieldB, change2B]]),
 				},
-				brand(2),
+				tag2,
 			);
 
 			deepFreeze(change1);
@@ -487,37 +490,30 @@ describe("ModularChangeFamily", () => {
 				]),
 			};
 
-			assert.deepEqual(family.invert(makeAnonChange(change)), expected);
+			const actual = family.invert(makeAnonChange(change));
+			assert.deepEqual(actual, expected);
 		});
 	});
 
 	describe("rebase", () => {
 		it("rebase specific ↷ specific", () => {
-			assert.deepEqual(
-				family.rebase(rootChange1b, makeAnonChange(rootChange1a)),
-				rootChange2,
-			);
+			const actual = family.rebase(rootChange1b, makeAnonChange(rootChange1a));
+			assert.deepEqual(actual, rootChange2);
 		});
 
 		it("rebase specific ↷ generic", () => {
-			assert.deepEqual(
-				family.rebase(rootChange1b, makeAnonChange(rootChange1aGeneric)),
-				rootChange2,
-			);
+			const actual = family.rebase(rootChange1b, makeAnonChange(rootChange1aGeneric));
+			assert.deepEqual(actual, rootChange2);
 		});
 
 		it("rebase generic ↷ specific", () => {
-			assert.deepEqual(
-				family.rebase(rootChange1bGeneric, makeAnonChange(rootChange1a)),
-				rootChange2,
-			);
+			const actual = family.rebase(rootChange1bGeneric, makeAnonChange(rootChange1a));
+			assert.deepEqual(actual, rootChange2);
 		});
 
 		it("rebase generic ↷ generic", () => {
-			assert.deepEqual(
-				family.rebase(rootChange1bGeneric, makeAnonChange(rootChange1aGeneric)),
-				rootChange2Generic,
-			);
+			const actual = family.rebase(rootChange1bGeneric, makeAnonChange(rootChange1aGeneric));
+			assert.deepEqual(actual, rootChange2Generic);
 		});
 
 		it("generate IDs", () => {

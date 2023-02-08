@@ -6,11 +6,14 @@
 import { TaggedChange } from "../../core";
 
 export type MergeCallback<TData> = (existingData: TData, newData: TData) => TData;
-export type UpdateCallback<TData> = (data: TData) => TData;
+export type UpdateCallback<TData, TKey> = (data: TData, key: TKey) => TData;
+export type MapCallback<TIn, TOut> = (data: TIn) => TOut;
 
 export interface FieldAnchorSet<TKey, TChangeset, TData = undefined> {
 	clone(): FieldAnchorSet<TKey, TChangeset, TData>;
-	update(func: UpdateCallback<TData>): void;
+	// update(key: TKey, func: UpdateCallback<TData, TKey>): void;
+	map<TOut>(func: MapCallback<TData, TOut>): FieldAnchorSet<TKey, TChangeset, TOut>;
+	updateAll(func: UpdateCallback<TData, TKey>): void;
 	mergeIn(set: FieldAnchorSet<TKey, TChangeset, TData>, mergeData?: MergeCallback<TData>): void;
 	track(key: TKey, data: TData, mergeData?: MergeCallback<TData>): void;
 	forget(key: TKey): void;
