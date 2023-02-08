@@ -15,7 +15,7 @@ import {
 	BaseNodeKey,
 	RebaseDirection,
 } from "../../../feature-libraries";
-import { Delta, TaggedChange } from "../../../core";
+import { Delta, makeAnonChange, TaggedChange } from "../../../core";
 import { brand, JsonCompatibleReadOnly, makeArray } from "../../../util";
 import { singleJsonCursor } from "../../../domains";
 
@@ -68,6 +68,13 @@ export class AddDelAnchorSet<TData> extends BaseAnchorSet<TData, AddDelChangeset
 	}
 
 	public rebase(over: TaggedChange<AddDelChangeset>, direction: RebaseDirection): void {
+		if (direction === RebaseDirection.Backward) {
+			return this.rebase(
+				makeAnonChange(addDelRebaser.invert(over.change)),
+				RebaseDirection.Forward,
+			);
+		}
+		// The keys only refer to nodes in the input context
 		let iEntry = 0;
 		const { del, add } = over.change;
 		const net = add - del;
@@ -81,27 +88,29 @@ export class AddDelAnchorSet<TData> extends BaseAnchorSet<TData, AddDelChangeset
 	}
 }
 
+const addDelRebaser = {
+	compose: (changes: AddDelChangeset[]): AddDelChangeset => {
+		let add = 0;
+		let del = 0;
+		for (const change of changes) {
+			const cancelledAdds = Math.min(add, change.del);
+			add -= cancelledAdds;
+			del += change.del - cancelledAdds;
+			add += change.add;
+		}
+		return { add, del };
+	},
+	invert: (change: AddDelChangeset) => ({ add: change.del, del: change.add }),
+	rebase: (change: AddDelChangeset, over: AddDelChangeset) => ({
+		add: change.add,
+		del: change.del - Math.min(change.del, over.del),
+	}),
+};
+
 export const addDelHandler: FieldChangeHandler<AddDelChangeset> = {
 	...baseChangeHandlerKeyFunctions,
 	anchorSetFactory: <TData>() => new AddDelAnchorSet<TData>(),
-	rebaser: referenceFreeFieldChangeRebaser({
-		compose: (changes: AddDelChangeset[]): AddDelChangeset => {
-			let add = 0;
-			let del = 0;
-			for (const change of changes) {
-				const cancelledAdds = Math.min(add, change.del);
-				add -= cancelledAdds;
-				del += change.del - cancelledAdds;
-				add += change.add;
-			}
-			return { add, del };
-		},
-		invert: (change: AddDelChangeset) => ({ add: change.del, del: change.add }),
-		rebase: (change: AddDelChangeset, over: AddDelChangeset) => ({
-			add: change.add,
-			del: change.del - Math.min(change.del, over.del),
-		}),
-	}),
+	rebaser: referenceFreeFieldChangeRebaser(addDelRebaser),
 	encoder: FieldKinds.valueEncoder<AddDelChangeset & JsonCompatibleReadOnly>(),
 	editor: {},
 	intoDelta: (change): Delta.MarkList => {

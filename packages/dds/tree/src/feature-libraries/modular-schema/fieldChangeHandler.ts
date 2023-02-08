@@ -239,12 +239,12 @@ export type FieldChangeMap = Map<FieldKey, FieldChange>;
 export interface FieldChange {
 	fieldKind: FieldKindIdentifier;
 	/**
-	 * If defined, `shallow` and `nested` changes are part of the specified revision.
+	 * If defined, `shallow` changes are part of the specified revision.
 	 * Undefined in the following cases:
-	 * A) A revision is specified on an ancestor of this `FieldChange`, in which case `shallow` and `nested` changes
+	 * A) A revision is specified on an ancestor of this `FieldChange`, in which case `shallow` changes
 	 * are part of that revision.
-	 * B) `shallow` and/or `nested` are composed of multiple revisions.
-	 * C) `shallow` and/or `nested` are part of an anonymous revision.
+	 * B) `shallow` changes are composed of multiple revisions.
+	 * C) `shallow` changes are part of an anonymous revision.
 	 */
 	revision?: RevisionTag;
 	shallow?: FieldChangeset;

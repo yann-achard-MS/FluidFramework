@@ -104,12 +104,35 @@ const valueChange1a: ValueChangeset = { old: 0, new: 1 };
 const valueChange1b: ValueChangeset = { old: 0, new: 2 };
 const valueChange2: ValueChangeset = { old: 1, new: 2 };
 
+const valueInverse1: ValueChangeset = { old: 1, new: 0 };
+const valueInverse2: ValueChangeset = { old: 2, new: 1 };
+
+const nodeInverse: NodeChangeset = {
+	fieldChanges: new Map([
+		[
+			fieldA,
+			{
+				fieldKind: valueField.identifier,
+				shallow: brand(valueInverse1),
+			},
+		],
+	]),
+};
+
 const valueChangeFieldA: FieldChangeMap = new Map([
 	[fieldA, { fieldKind: valueField.identifier, shallow: brand(valueChange1a) }],
 ]);
 
+const inverseValueChangeFieldA: FieldChangeMap = new Map([
+	[fieldA, { fieldKind: valueField.identifier, shallow: brand(valueInverse1) }],
+]);
+
 const nodeChange1a: NodeChangeset = {
 	fieldChanges: valueChangeFieldA,
+};
+
+const inverseNodeChange1a: NodeChangeset = {
+	fieldChanges: inverseValueChangeFieldA,
 };
 
 const nodeChanges1b: NodeChangeset = {
@@ -210,7 +233,7 @@ function addDelShallowChange(count: number): ModularChangeset {
 }
 
 describe("ModularChangeFamily", () => {
-	describe("compose", () => {
+	describe("compose changes", () => {
 		const composedValues: ValueChangeset = { old: 0, new: 2 };
 
 		const composedNodeChange: NodeChangeset = {
@@ -440,22 +463,132 @@ describe("ModularChangeFamily", () => {
 		});
 	});
 
-	describe("invert", () => {
-		const valueInverse1: ValueChangeset = { old: 1, new: 0 };
-		const valueInverse2: ValueChangeset = { old: 2, new: 1 };
+	describe("compose anchors", () => {
+		it("value anchor ○ value change", () => {
+			const fst: ModularChangeset = {
+				changes: new Map([[fieldA, nestedValueChange(nodeChange1a)]]),
+			};
+			const snd: ModularChangeset = {
+				changes: new Map([
+					[fieldA, { fieldKind: valueField.identifier, shallow: brand(valueChange1a) }],
+				]),
+			};
 
-		const nodeInverse: NodeChangeset = {
-			fieldChanges: new Map([
-				[
-					fieldA,
-					{
-						fieldKind: valueField.identifier,
-						shallow: brand(valueInverse1),
-					},
-				],
-			]),
-		};
+			const expected: ModularChangeset = {
+				changes: new Map([
+					[
+						fieldA,
+						{
+							...nestedValueChange(nodeChange1a),
+							shallow: brand(valueChange1a),
+							revision: tag2,
+						},
+					],
+				]),
+			};
 
+			const actual = family.compose([tagChange(fst, tag1), tagChange(snd, tag2)]);
+			assert.deepEqual(actual, expected);
+		});
+
+		it("value change ○ value anchor", () => {
+			const fst: ModularChangeset = {
+				changes: new Map([
+					[fieldA, { fieldKind: valueField.identifier, shallow: brand(valueChange1a) }],
+				]),
+			};
+			const snd: ModularChangeset = {
+				changes: new Map([[fieldA, nestedValueChange(nodeChange1a)]]),
+			};
+
+			const expected: ModularChangeset = {
+				changes: new Map([
+					[
+						fieldA,
+						{
+							...nestedValueChange(nodeChange1a),
+							shallow: brand(valueChange1a),
+							revision: tag1,
+						},
+					],
+				]),
+			};
+
+			const actual = family.compose([tagChange(fst, tag1), tagChange(snd, tag2)]);
+			assert.deepEqual(actual, expected);
+		});
+
+		it("AddDel anchor ○ AddDel change => anchor preserved", () => {
+			const fst: ModularChangeset = {
+				changes: new Map([[fieldA, nestedAddDelChange(0, nodeChange1a)]]),
+			};
+			const snd: ModularChangeset = addDelShallowChange(-1);
+
+			const expected: ModularChangeset = {
+				changes: new Map([
+					[
+						fieldA,
+						{
+							...nestedAddDelChange(0, nodeChange1a),
+							shallow: brand({ add: 0, del: 1 }),
+							revision: tag2,
+						},
+					],
+				]),
+			};
+
+			const actual = family.compose([tagChange(fst, tag1), tagChange(snd, tag2)]);
+			assert.deepEqual(actual, expected);
+		});
+
+		it("AddDel change ○ AddDel anchor => anchor loss", () => {
+			const fst: ModularChangeset = addDelShallowChange(1);
+			const snd: ModularChangeset = {
+				changes: new Map([[fieldA, nestedAddDelChange(0, nodeChange1a)]]),
+			};
+
+			const expected: ModularChangeset = {
+				changes: new Map([
+					[
+						fieldA,
+						{
+							fieldKind: addDelField.identifier,
+							shallow: brand({ add: 1, del: 0 }),
+							revision: tag1,
+						},
+					],
+				]),
+			};
+
+			const actual = family.compose([tagChange(fst, tag1), tagChange(snd, tag2)]);
+			assert.deepEqual(actual, expected);
+		});
+
+		it("AddDel change ○ AddDel anchor => anchor shift", () => {
+			const fst: ModularChangeset = addDelShallowChange(1);
+			const snd: ModularChangeset = {
+				changes: new Map([[fieldA, nestedAddDelChange(1, nodeChange1a)]]),
+			};
+
+			const expected: ModularChangeset = {
+				changes: new Map([
+					[
+						fieldA,
+						{
+							...nestedAddDelChange(0, nodeChange1a),
+							shallow: brand({ add: 1, del: 0 }),
+							revision: tag1,
+						},
+					],
+				]),
+			};
+
+			const actual = family.compose([tagChange(fst, tag1), tagChange(snd, tag2)]);
+			assert.deepEqual(actual, expected);
+		});
+	});
+
+	describe("invert changes", () => {
 		it("specific", () => {
 			const expectedInverse: ModularChangeset = {
 				changes: new Map([
@@ -502,6 +635,60 @@ describe("ModularChangeFamily", () => {
 			};
 
 			const actual = family.invert(makeAnonChange(change));
+			assert.deepEqual(actual, expected);
+		});
+	});
+
+	describe("invert anchors", () => {
+		it("value change anchor", () => {
+			const input: ModularChangeset = {
+				changes: new Map([[fieldA, nestedValueChange(nodeChange1a)]]),
+			};
+			const expected: ModularChangeset = {
+				changes: new Map([[fieldA, nestedValueChange(inverseNodeChange1a)]]),
+			};
+
+			const actual = family.invert(makeAnonChange(input));
+			assert.deepEqual(actual, expected);
+		});
+
+		it("AddDel change anchor", () => {
+			const input: ModularChangeset = {
+				changes: new Map([
+					[
+						fieldA,
+						{
+							...nestedAddDelChange(2, nodeChange1a),
+							shallow: brand({ add: 1, del: 0 }),
+						},
+					],
+				]),
+			};
+			const expected: ModularChangeset = {
+				changes: new Map([
+					[
+						fieldA,
+						{
+							...nestedAddDelChange(3, inverseNodeChange1a),
+							shallow: brand({ add: 0, del: 1 }),
+						},
+					],
+				]),
+			};
+
+			const actual = family.invert(makeAnonChange(input));
+			assert.deepEqual(actual, expected);
+		});
+
+		it("generic anchor", () => {
+			const input: ModularChangeset = {
+				changes: new Map([[fieldA, nestedGenericChange(0, nodeChange1a)]]),
+			};
+			const expected: ModularChangeset = {
+				changes: new Map([[fieldA, nestedGenericChange(0, inverseNodeChange1a)]]),
+			};
+
+			const actual = family.invert(makeAnonChange(input));
 			assert.deepEqual(actual, expected);
 		});
 	});

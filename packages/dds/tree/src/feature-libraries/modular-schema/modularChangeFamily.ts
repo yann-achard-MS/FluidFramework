@@ -165,12 +165,21 @@ export class ModularChangeFamily
 				if (taggedChangesets.length > 0) {
 					const composedChange = rebaser.compose(taggedChangesets, genId);
 					composedField.shallow = brand(composedChange);
+					if (taggedChangesets.length === 1) {
+						composedField.revision = taggedChangesets[0].revision;
+					}
 				}
 
 				let hasNestedChanges = false;
 				const childChanges = changeHandler.anchorSetFactory<TaggedChange<NodeChangeset>>();
 				for (let i = fieldChanges.length - 1; i >= 0; --i) {
 					const iThFieldChanges = fieldChanges[i];
+					if (iThFieldChanges.shallow !== undefined) {
+						childChanges.rebase(
+							tagChange(iThFieldChanges.shallow, iThFieldChanges.revision),
+							RebaseDirection.Backward,
+						);
+					}
 					if (iThFieldChanges.nested !== undefined) {
 						hasNestedChanges = true;
 						childChanges.mergeIn(
@@ -183,15 +192,9 @@ export class ModularChangeFamily
 							) => makeAnonChange(this.composeNodeChanges([added, existing], genId)),
 						);
 					}
-					if (i > 0 && iThFieldChanges.shallow !== undefined) {
-						childChanges.rebase(
-							tagChange(iThFieldChanges.shallow, iThFieldChanges.revision),
-							RebaseDirection.Backward,
-						);
-					}
 				}
 
-				if (hasNestedChanges) {
+				if (hasNestedChanges && childChanges.count() > 0) {
 					composedField.nested = childChanges.map((tagged) => tagged.change);
 				}
 			}
@@ -249,11 +252,14 @@ export class ModularChangeFamily
 		const invertedFields: FieldChangeMap = new Map();
 
 		for (const [field, fieldChange] of changes.change) {
-			const { revision } = fieldChange.revision !== undefined ? fieldChange : changes;
-
 			const invertedFieldChange: Mutable<FieldChange> = {
 				fieldKind: fieldChange.fieldKind,
 			};
+
+			const { revision } = fieldChange.revision !== undefined ? fieldChange : changes;
+			if (revision !== undefined) {
+				invertedFieldChange.revision = revision;
+			}
 
 			const handler = getChangeHandler(this.fieldKinds, fieldChange.fieldKind);
 
@@ -345,6 +351,10 @@ export class ModularChangeFamily
 				};
 
 				const { revision } = fieldChange.revision !== undefined ? fieldChange : over;
+				if (revision !== undefined) {
+					rebasedFieldChange.revision = revision;
+				}
+
 				const taggedBaseChanges =
 					normalBaseFieldChange.shallow !== undefined
 						? tagChange(normalBaseFieldChange.shallow, revision)
@@ -383,6 +393,8 @@ export class ModularChangeFamily
 						if (childChanges.count() > 0) {
 							rebasedFieldChange.nested = childChanges;
 						}
+					} else {
+						rebasedFieldChange.nested = childChanges;
 					}
 				}
 
