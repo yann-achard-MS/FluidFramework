@@ -29,6 +29,7 @@ import {
 	SkipLikeReattach,
 	OutputSpanningMark,
 	SkipLikeDetach,
+	HasRevisionTag,
 } from "./format";
 import { MarkListFactory } from "./markListFactory";
 import { MarkQueue } from "./markQueue";
@@ -315,6 +316,11 @@ export function tryExtendMark(
 	if (rhs.type !== lhs.type) {
 		return false;
 	}
+
+	if (rhs.revision !== (lhs as HasRevisionTag).revision) {
+		return false;
+	}
+
 	const type = rhs.type;
 	switch (type) {
 		case "Insert": {

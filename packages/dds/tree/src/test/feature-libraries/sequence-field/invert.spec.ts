@@ -104,12 +104,25 @@ describe("SequenceField - Invert", () => {
 	});
 
 	it("intentional conflicted revive => skip", () => {
-		const input = composeAnonChanges([
-			Change.delete(0, 1),
-			Change.intentionalRevive(0, 2, tag, 0, tag2),
-			Change.delete(2, 1),
-		]);
-		const expected = composeAnonChanges([Change.revive(0, 1, tag), Change.revive(2, 1, tag)]);
+		const input: TestChangeset = [
+			{
+				type: "Delete",
+				count: 1,
+			},
+			{
+				type: "Revive",
+				count: 2,
+				detachedBy: tag,
+				detachIndex: 0,
+				conflictsWith: tag2,
+				isIntention: true,
+			},
+			{
+				type: "Delete",
+				count: 1,
+			},
+		];
+		const expected = composeAnonChanges([Change.revive(0, 1, tag), Change.revive(3, 1, tag)]);
 		const actual = invert(input);
 		assert.deepEqual(actual, expected);
 	});

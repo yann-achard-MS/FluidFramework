@@ -141,7 +141,7 @@ function composeMarks(
 						newMark.revision ?? newRev,
 						newMark.id,
 						true,
-					);
+					).mark = baseMark;
 					return 0;
 				case "Revive": {
 					assert(
