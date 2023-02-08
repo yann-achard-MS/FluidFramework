@@ -82,8 +82,8 @@ export function baseAnchorSetEncoder(factory: <TData>() => BaseAnchorSet<TData, 
 }
 
 export const baseChangeHandlerKeyFunctions = {
-	getKey: (index: number): GenericNodeKey => brand(index),
-	keyToDeltaKey: (key: GenericNodeKey): ChildIndex | undefined => ({
+	getKey: (index: number): BaseNodeKey => brand(index),
+	keyToDeltaKey: (key: BaseNodeKey): ChildIndex | undefined => ({
 		context: Context.Input,
 		index: key,
 	}),
@@ -102,7 +102,7 @@ export function noRebaseAnchorSetFactoryFactory<TChangeset>() {
 /**
  * {@link FieldChangeHandler} implementation for {@link GenericChangeset}.
  */
-export const genericChangeHandler: FieldChangeHandler<GenericChangeset, GenericNodeKey> = {
+export const genericChangeHandler: FieldChangeHandler<GenericChangeset, BaseNodeKey> = {
 	anchorSetFactory: genericAnchorSetFactory,
 	rebaser: {
 		compose: (): GenericChangeset => 0,
@@ -119,18 +119,18 @@ export const genericChangeHandler: FieldChangeHandler<GenericChangeset, GenericN
 	intoDelta: (): Delta.MarkList => [],
 };
 
-export type GenericNodeKey = Brand<number, "GenericNodeKey">;
+export type BaseNodeKey = Brand<number, "BaseNodeKey">;
 
-export type Entry<TData> = FieldAnchorSetEntry<TData, GenericNodeKey>;
+export type Entry<TData> = FieldAnchorSetEntry<TData, BaseNodeKey>;
 
 export interface EncodedBaseAnchorSet {
 	readonly list: readonly Entry<JsonCompatibleReadOnly>[];
 }
 
 export abstract class BaseAnchorSet<TData, TChangeset>
-	implements FieldAnchorSet<GenericNodeKey, TChangeset, TData>
+	implements FieldAnchorSet<BaseNodeKey, TChangeset, TData>
 {
-	private readonly list: Mutable<Entry<TData>>[] = [];
+	protected readonly list: Mutable<Entry<TData>>[] = [];
 
 	public loadJson(
 		formatVersion: number,
@@ -153,7 +153,11 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 		};
 	}
 
-	public updateAll(func: UpdateCallback<TData, GenericNodeKey>): void {
+	public count(): number {
+		return this.list.length;
+	}
+
+	public updateAll(func: UpdateCallback<TData, BaseNodeKey>): void {
 		for (const entry of this.list) {
 			entry.data = func(entry.data, entry.key);
 		}
@@ -172,12 +176,12 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 		}
 	}
 
-	public track(key: GenericNodeKey, data: TData, mergeData?: MergeCallback<TData>): void {
+	public track(key: BaseNodeKey, data: TData, mergeData?: MergeCallback<TData>): void {
 		this.add(key, data, mergeData);
 	}
 
 	private add(
-		key: GenericNodeKey,
+		key: BaseNodeKey,
 		data: TData,
 		mergeData?: MergeCallback<TData>,
 		minIndex: number = 0,
@@ -193,7 +197,7 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 		return index;
 	}
 
-	private findIndexForKey(key: GenericNodeKey, minIndex: number = 0): number {
+	private findIndexForKey(key: BaseNodeKey, minIndex: number = 0): number {
 		let index = minIndex;
 		while (index < this.list.length && this.list[index].key < key) {
 			index += 1;
@@ -201,13 +205,13 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 		return index;
 	}
 
-	public forget(key: GenericNodeKey): void {
+	public forget(key: BaseNodeKey): void {
 		const index = this.list.findIndex((entry) => entry.key === key);
 		assert(index !== -1, "Cannot forget unknown key");
 		this.list.splice(index, 1);
 	}
 
-	public lookup(key: GenericNodeKey): Entry<TData> | undefined {
+	public lookup(key: BaseNodeKey): Entry<TData> | undefined {
 		const index = this.findIndexForKey(key);
 		const entry: Entry<TData> | undefined = this.list[index];
 		if (entry === undefined || entry.key !== key) {
@@ -226,7 +230,7 @@ export abstract class BaseAnchorSet<TData, TChangeset>
 
 export class GenericAnchorSet<TData> extends BaseAnchorSet<TData, GenericChangeset> {
 	public static fromData<TData>(
-		entries: readonly { readonly key: GenericNodeKey; readonly data: TData }[],
+		entries: readonly { readonly key: BaseNodeKey; readonly data: TData }[],
 	): GenericAnchorSet<TData> {
 		const set = new GenericAnchorSet<TData>();
 		for (const { key, data } of entries) {

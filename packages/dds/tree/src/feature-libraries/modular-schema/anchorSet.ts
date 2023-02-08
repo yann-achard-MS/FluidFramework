@@ -10,6 +10,7 @@ export type UpdateCallback<TData, TKey> = (data: TData, key: TKey) => TData;
 export type MapCallback<TIn, TOut> = (data: TIn) => TOut;
 
 export interface FieldAnchorSet<TKey, TChangeset, TData = undefined> {
+	count(): number;
 	clone(): FieldAnchorSet<TKey, TChangeset, TData>;
 	// update(key: TKey, func: UpdateCallback<TData, TKey>): void;
 	map<TOut>(func: MapCallback<TData, TOut>): FieldAnchorSet<TKey, TChangeset, TOut>;

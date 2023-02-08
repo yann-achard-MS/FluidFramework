@@ -26,7 +26,7 @@ import {
 	FieldChangeEncoder,
 	referenceFreeFieldChangeRebaser,
 	NodeReviver,
-	GenericNodeKey,
+	BaseNodeKey,
 	genericAnchorSetFactory,
 	GenericAnchorSet,
 	baseAnchorSetEncoder,
@@ -116,7 +116,7 @@ function commutativeRebaser<TChange>(data: {
  * and handling values past Number.MAX_SAFE_INTEGER (ex: via an arbitrarily large integer library)
  * or via modular arithmetic.
  */
-export const counterHandle: FieldChangeHandler<number, GenericNodeKey> = {
+export const counterHandle: FieldChangeHandler<number, BaseNodeKey> = {
 	...baseChangeHandlerKeyFunctions,
 	anchorSetFactory: genericAnchorSetFactory,
 	rebaser: commutativeRebaser({
@@ -288,11 +288,7 @@ const valueFieldEditor: ValueFieldEditor = {
 	set: (newValue: ITreeCursor) => ({ value: { set: jsonableTreeFromCursor(newValue) } }),
 };
 
-const valueChangeHandler: FieldChangeHandler<
-	ValueChangeset,
-	SingleCellKey,
-	ValueFieldEditor
-> = {
+const valueChangeHandler: FieldChangeHandler<ValueChangeset, SingleCellKey, ValueFieldEditor> = {
 	...singleCellKeyFunctions,
 	anchorSetFactory: singleCellAnchorSetFactory,
 	rebaser: valueRebaser,

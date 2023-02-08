@@ -344,11 +344,13 @@ export class ModularChangeFamily
 					fieldKind: fieldKind.identifier,
 				};
 
-				let taggedBaseChanges;
 				const { revision } = fieldChange.revision !== undefined ? fieldChange : over;
+				const taggedBaseChanges =
+					normalBaseFieldChange.shallow !== undefined
+						? tagChange(normalBaseFieldChange.shallow, revision)
+						: undefined;
 				if (normalFieldChange.shallow !== undefined) {
-					if (normalBaseFieldChange.shallow !== undefined) {
-						taggedBaseChanges = tagChange(normalBaseFieldChange.shallow, revision);
+					if (taggedBaseChanges !== undefined) {
 						const rebasedField = rebaser.rebase(
 							normalFieldChange.shallow,
 							taggedBaseChanges,
@@ -378,11 +380,18 @@ export class ModularChangeFamily
 					}
 					if (taggedBaseChanges !== undefined) {
 						childChanges.rebase(taggedBaseChanges, RebaseDirection.Forward);
+						if (childChanges.count() > 0) {
+							rebasedFieldChange.nested = childChanges;
+						}
 					}
-					rebasedFieldChange.nested = childChanges;
 				}
 
-				rebasedFields.set(field, rebasedFieldChange);
+				if (
+					rebasedFieldChange.shallow !== undefined ||
+					rebasedFieldChange.nested !== undefined
+				) {
+					rebasedFields.set(field, rebasedFieldChange);
+				}
 			}
 		}
 

@@ -85,6 +85,8 @@ export {
 	genericAnchorSetFactory,
 	noRebaseAnchorSetFactoryFactory,
 	BaseAnchorSet,
+	BaseNodeKey,
+	RebaseDirection,
 	singleCellAnchorSetFactory,
 	SingleCellAnchorSet,
 	BrandedFieldAnchorSet,
@@ -92,6 +94,7 @@ export {
 	SingleCellKey,
 	SingleCellChangeCodec,
 	singleCellFieldEncoder,
+	referenceFreeFieldChangeRebaser,
 	singleCellKeyFunctions,
 } from "./modular-schema";
 

@@ -25,6 +25,7 @@ import {
 	singleCellAnchorSetFactory,
 	singleCellFieldEncoder,
 	singleCellKeyFunctions,
+	FieldChangeMap,
 } from "../../../feature-libraries";
 import {
 	RepairDataStore,
@@ -40,7 +41,7 @@ import {
 } from "../../../core";
 import { brand, JsonCompatibleReadOnly } from "../../../util";
 import { assertDeltaEqual, deepFreeze, noRepair } from "../../utils";
-import { ValueChangeset, valueField } from "./utils";
+import { AddDelAnchorSet, AddDelChangeset, addDelField, ValueChangeset, valueField } from "./utils";
 
 const singleNodeHandler: FieldChangeHandler<0, SingleCellKey> = {
 	...FieldKinds.noChangeHandler,
@@ -88,7 +89,7 @@ const idField = new FieldKind(
 );
 
 const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind<any>> = new Map(
-	[singleNodeField, valueField, idField].map((field) => [field.identifier, field]),
+	[singleNodeField, valueField, addDelField, idField].map((field) => [field.identifier, field]),
 );
 
 const family = new ModularChangeFamily(fieldKinds);
@@ -103,11 +104,14 @@ const valueChange1a: ValueChangeset = { old: 0, new: 1 };
 const valueChange1b: ValueChangeset = { old: 0, new: 2 };
 const valueChange2: ValueChangeset = { old: 1, new: 2 };
 
+const valueChangeFieldA: FieldChangeMap = new Map([
+	[fieldA, { fieldKind: valueField.identifier, shallow: brand(valueChange1a) }],
+]);
+
 const nodeChange1a: NodeChangeset = {
-	fieldChanges: new Map([
-		[fieldA, { fieldKind: valueField.identifier, shallow: brand(valueChange1a) }],
-	]),
+	fieldChanges: valueChangeFieldA,
 };
+
 const nodeChanges1b: NodeChangeset = {
 	fieldChanges: new Map([
 		[
@@ -197,6 +201,13 @@ const detachedBy: RevisionTag = brand(42);
 const nodeValueRevert: ModularChangeset = {
 	changes: new Map([[fieldA, nestedGenericChange(0, { valueChange: { revert: detachedBy } })]]),
 };
+
+function addDelShallowChange(count: number): ModularChangeset {
+	const change: AddDelChangeset = count >= 0 ? { add: count, del: 0 } : { add: 0, del: -count };
+	return {
+		changes: new Map([[fieldA, { fieldKind: addDelField.identifier, shallow: brand(change) }]]),
+	};
+}
 
 describe("ModularChangeFamily", () => {
 	describe("compose", () => {
@@ -495,7 +506,7 @@ describe("ModularChangeFamily", () => {
 		});
 	});
 
-	describe("rebase", () => {
+	describe("rebase changes", () => {
 		it("rebase specific ↷ specific", () => {
 			const actual = family.rebase(rootChange1b, makeAnonChange(rootChange1a));
 			assert.deepEqual(actual, rootChange2);
@@ -545,6 +556,70 @@ describe("ModularChangeFamily", () => {
 			};
 
 			assert.deepEqual(family.rebase(change, makeAnonChange(base)), expected);
+		});
+	});
+
+	describe("rebase anchors", () => {
+		it("rebase specific ↷ value change => no shift", () => {
+			const actual = family.rebase(
+				rootChange1b,
+				makeAnonChange({ changes: valueChangeFieldA }),
+			);
+			assert.deepEqual(actual, rootChange1b);
+		});
+
+		it("rebase generic ↷ value change => no shift", () => {
+			const actual = family.rebase(
+				rootChange1bGeneric,
+				makeAnonChange({ changes: valueChangeFieldA }),
+			);
+
+			// The anchor gets converted into the field-specific representation
+			const expected: ModularChangeset = {
+				changes: new Map([[fieldA, nestedValueChange(nodeChanges1b)]]),
+			};
+			assert.deepEqual(actual, expected);
+		});
+
+		it("rebase specific ↷ AddDel change => anchor loss", () => {
+			const specific: ModularChangeset = {
+				changes: new Map([[fieldA, nestedAddDelChange(0, nodeChanges1b)]]),
+			};
+
+			const actual = family.rebase(specific, makeAnonChange(addDelShallowChange(-1)));
+			assert.deepEqual(actual, { changes: new Map() });
+		});
+
+		it("rebase generic ↷ AddDel change => anchor loss", () => {
+			const actual = family.rebase(
+				rootChange1bGeneric,
+				makeAnonChange(addDelShallowChange(-1)),
+			);
+			assert.deepEqual(actual, { changes: new Map() });
+		});
+
+		it("rebase specific ↷ AddDel change => anchor shift", () => {
+			const specific: ModularChangeset = {
+				changes: new Map([[fieldA, nestedAddDelChange(2, nodeChanges1b)]]),
+			};
+
+			const actual = family.rebase(specific, makeAnonChange(addDelShallowChange(3)));
+			const expected: ModularChangeset = {
+				changes: new Map([[fieldA, nestedAddDelChange(5, nodeChanges1b)]]),
+			};
+			assert.deepEqual(actual, expected);
+		});
+
+		it("rebase generic ↷ AddDel change => anchor shift", () => {
+			const generic: ModularChangeset = {
+				changes: new Map([[fieldA, nestedGenericChange(2, nodeChanges1b)]]),
+			};
+			const actual = family.rebase(generic, makeAnonChange(addDelShallowChange(3)));
+			// The anchor gets converted into the field-specific representation
+			const expected: ModularChangeset = {
+				changes: new Map([[fieldA, nestedAddDelChange(5, nodeChanges1b)]]),
+			};
+			assert.deepEqual(actual, expected);
 		});
 	});
 
@@ -647,6 +722,22 @@ function nestedSingleNodeChange(nodeChange: NodeChangeset): FieldChange {
 	return {
 		fieldKind: singleNodeField.identifier,
 		nested: SingleCellAnchorSet.fromData(nodeChange) as unknown as BrandedFieldAnchorSet,
+	};
+}
+
+function nestedValueChange(nodeChange: NodeChangeset): FieldChange {
+	return {
+		fieldKind: valueField.identifier,
+		nested: nestedGenericChange(0, nodeChange).nested,
+	};
+}
+
+function nestedAddDelChange(index: number, nodeChange: NodeChangeset): FieldChange {
+	return {
+		fieldKind: addDelField.identifier,
+		nested: AddDelAnchorSet.fromData([
+			{ key: addDelField.changeHandler.getKey(index), data: nodeChange },
+		]) as unknown as BrandedFieldAnchorSet,
 	};
 }
 

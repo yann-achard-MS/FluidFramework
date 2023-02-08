@@ -113,6 +113,10 @@ export class SingleCellAnchorSet<TData, TChangeset>
 		return set;
 	}
 
+	public count(): number {
+		return this.entry === undefined ? 0 : 1;
+	}
+
 	public updateAll(func: UpdateCallback<TData, SingleCellKey>): void {
 		if (this.entry !== undefined) {
 			this.entry.data = func(this.entry.data, this.entry.key);

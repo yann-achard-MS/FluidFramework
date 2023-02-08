@@ -3,11 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import {
-	baseChangeHandlerKeyFunctions,
-	FieldChangeHandler,
-	GenericNodeKey,
-} from "../modular-schema";
+import { baseChangeHandlerKeyFunctions, FieldChangeHandler, BaseNodeKey } from "../modular-schema";
 import { Changeset } from "./format";
 import { sequenceFieldChangeRebaser } from "./sequenceFieldChangeRebaser";
 import { sequenceFieldChangeEncoder } from "./sequenceFieldChangeEncoder";
@@ -17,7 +13,7 @@ import { anchorSetFactory } from "./sequenceFieldAnchorSet";
 
 export type SequenceFieldChangeHandler = FieldChangeHandler<
 	Changeset,
-	GenericNodeKey,
+	BaseNodeKey,
 	SequenceFieldEditor
 >;
 

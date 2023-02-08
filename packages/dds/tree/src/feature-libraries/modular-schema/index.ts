@@ -43,7 +43,7 @@ export {
 	noRebaseAnchorSetFactoryFactory,
 	genericAnchorSetFactory,
 	GenericChange,
-	GenericNodeKey,
+	BaseNodeKey,
 	genericChangeHandler,
 	GenericChangeset,
 	genericFieldKind,
