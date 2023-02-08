@@ -643,10 +643,6 @@ describe("ModularChangeFamily", () => {
 	});
 });
 
-function nestedValueChange(nodeChange: NodeChangeset): FieldChange {
-	return nestedGenericChange(0, nodeChange);
-}
-
 function nestedSingleNodeChange(nodeChange: NodeChangeset): FieldChange {
 	return {
 		fieldKind: singleNodeField.identifier,
