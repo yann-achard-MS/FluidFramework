@@ -98,16 +98,6 @@ export function referenceFreeFieldChangeRebaser<TChangeset>(data: {
 /**
  * @alpha
  */
-export type DataEncoder<TData> = (data: TData) => JsonCompatibleReadOnly;
-
-/**
- * @alpha
- */
-export type DataDecoder<TData> = (data: JsonCompatibleReadOnly) => TData;
-
-/**
- * @alpha
- */
 export interface FieldChangeEncoder<
 	TChangeset,
 	TAnchorSet extends FieldAnchorSet<any, TChangeset, unknown>,
