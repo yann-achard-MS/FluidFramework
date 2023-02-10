@@ -21,42 +21,6 @@ export enum RebaseDirection {
 	Backward,
 }
 
-export interface FieldAnchorSet<TKey, TChangeset, TData = undefined> {
-	count(): number;
-	clone(): FieldAnchorSet<TKey, TChangeset, TData>;
-	map<TOut>(func: MapCallback<TData, TOut>): FieldAnchorSet<TKey, TChangeset, TOut>;
-	updateAll(func: UpdateCallback<TData, TKey>): void;
-	mergeIn(set: FieldAnchorSet<TKey, TChangeset, TData>, mergeData?: MergeCallback<TData>): void;
-	track(key: TKey, data: TData, mergeData?: MergeCallback<TData>): void;
-	forget(key: TKey): void;
-	lookup(key: TKey): FieldAnchorSetEntry<TData, TKey> | undefined;
-	rebase(over: TaggedChange<TChangeset>, direction: RebaseDirection): void;
-	entries(): IterableIterator<FieldAnchorSetEntry<TData, TKey>>;
-}
-
-// Global dictionary that maps concerns implementation URIs to their concrete type over A
-interface AnchorSetImplementations<A> {}
-
-// Set of URIs for the implementations registered in the global dictionary
-export type AnchorSetURIs = keyof AnchorSetImplementations<any>;
-
-// Retrieves the concrete AnchorSet type given its URI and its type parameter
-export type AnchorSetImpl<URI extends AnchorSetURIs, TData = unknown> = URI extends AnchorSetURIs
-	? AnchorSetImplementations<TData>[URI]["set"]
-	: never;
-
-// Retrieves the concrete Key type given its URI and its type parameter
-export type AnchorSetKey<URI extends AnchorSetURIs, TData = unknown> = URI extends AnchorSetURIs
-	? AnchorSetImplementations<TData>[URI]["key"]
-	: never;
-
-// Retrieves the concrete Changeset type given its URI and its type parameter
-export type AnchorSetChange<URI extends AnchorSetURIs, TData = unknown> = URI extends AnchorSetURIs
-	? AnchorSetImplementations<TData>[URI]["change"]
-	: never;
-
-// --- AnchorSet HKT
-
 /**
  * @alpha
  */
@@ -68,57 +32,125 @@ export type DataEncoder<TData> = (data: TData) => JsonCompatibleReadOnly;
 export type DataDecoder<TData> = (data: JsonCompatibleReadOnly) => TData;
 
 /**
+ * Global registry that maps implementation URIs to their concrete types.
+ * @param TData - The type of data stored in individual anchors.
+ *
  * @alpha
  */
-export interface FieldAnchorSetOps<TSetURI extends AnchorSetURIs> {
-	readonly opsURI: TSetURI;
+interface AnchorSetOpRegistry<TData> {}
 
+/**
+ * Set of URIs for the registered concrete implementations of {@link FieldAnchorSetOps}.
+ */
+type AnchorSetOpsURIs = keyof AnchorSetOpRegistry<any>;
+
+/**
+ * The aspects that make up an {@link FieldAnchorSetOps} implementation.
+ *
+ * This interface is purely used for describing the concrete type of {@link FieldAnchorSetOps} implementations in a
+ * standardized manner. No objects of this type are instantiated.
+ *
+ * @alpha
+ */
+export interface AnchorSetAspects<TShape = unknown, TKey = unknown, TChangeset = unknown> {
+	shape: TShape;
+	key: TKey;
+	changeset: TChangeset;
+}
+
+/**
+ * Retrieves the concrete type for an aspect of a {@link FieldAnchorSetOps} implementation.
+ */
+type AnchorSetOpsAspectImpl<
+	URI extends AnchorSetOpsURIs,
+	TAspect extends keyof AnchorSetAspects,
+	TData = unknown,
+> = URI extends AnchorSetOpsURIs ? AnchorSetOpRegistry<TData>[URI][TAspect] : never;
+
+/**
+ * Retrieves the concrete shape type of a {@link FieldAnchorSetOps} implementation.
+ */
+export type AnchorSetShape<URI extends AnchorSetOpsURIs, TData = unknown> = AnchorSetOpsAspectImpl<
+	URI,
+	"shape",
+	TData
+>;
+
+/**
+ * Retrieves the concrete key type of a {@link FieldAnchorSetOps} implementation.
+ */
+export type AnchorSetKey<URI extends AnchorSetOpsURIs, TData = unknown> = AnchorSetOpsAspectImpl<
+	URI,
+	"key",
+	TData
+>;
+
+/**
+ * Retrieves the concrete changeset type of a {@link FieldAnchorSetOps} implementation.
+ */
+export type AnchorSetChange<URI extends AnchorSetOpsURIs, TData = unknown> = AnchorSetOpsAspectImpl<
+	URI,
+	"changeset",
+	TData
+>;
+
+/**
+ * The set of operations required on a given field's anchor set.
+ *
+ * @param TOpsURI - The type of the URI of the {@link FieldAnchorSetOps} implementation.
+ *
+ * @alpha
+ */
+export interface FieldAnchorSetOps<TOpsURI extends AnchorSetOpsURIs> {
 	readonly encode: <TData>(
-		set: AnchorSetImpl<TSetURI, TData>,
+		set: AnchorSetShape<TOpsURI, TData>,
 		dataEncoder: DataEncoder<TData>,
 	) => JsonCompatibleReadOnly;
 
 	readonly decode: <TData>(
 		encodedSet: JsonCompatibleReadOnly,
 		dataDecoder: DataDecoder<TData>,
-	) => AnchorSetImpl<TSetURI, TData>;
+	) => AnchorSetShape<TOpsURI, TData>;
 
-	readonly factory: <TData>() => AnchorSetImpl<TSetURI, TData>;
+	readonly factory: <TData>() => AnchorSetShape<TOpsURI, TData>;
 
-	readonly clone: <TData>(set: AnchorSetImpl<TSetURI, TData>) => AnchorSetImpl<TSetURI, TData>;
+	readonly clone: <TData>(set: AnchorSetShape<TOpsURI, TData>) => AnchorSetShape<TOpsURI, TData>;
 
-	readonly map: <A, B>(
-		fa: AnchorSetImpl<TSetURI, A>,
-		f: MapCallback<A, B>,
-	) => AnchorSetImpl<TSetURI, B>;
+	readonly map: <TIn, TOut>(
+		fa: AnchorSetShape<TOpsURI, TIn>,
+		f: MapCallback<TIn, TOut>,
+	) => AnchorSetShape<TOpsURI, TOut>;
 
 	readonly track: <TData>(
-		set: AnchorSetImpl<TSetURI, TData>,
-		key: AnchorSetKey<TSetURI, TData>,
+		set: AnchorSetShape<TOpsURI, TData>,
+		key: AnchorSetKey<TOpsURI, TData>,
 		data: TData,
 		mergeData?: MergeCallback<TData>,
 	) => void;
 
 	readonly rebase: (
-		set: AnchorSetImpl<TSetURI>,
-		over: TaggedChange<AnchorSetChange<TSetURI>>,
+		set: AnchorSetShape<TOpsURI>,
+		over: TaggedChange<AnchorSetChange<TOpsURI>>,
 		direction: RebaseDirection,
 	) => void;
 
-	readonly forget: (set: AnchorSetImpl<TSetURI>, key: AnchorSetKey<TSetURI>) => void;
+	readonly forget: (set: AnchorSetShape<TOpsURI>, key: AnchorSetKey<TOpsURI>) => void;
 
 	readonly lookup: <TData>(
-		set: AnchorSetImpl<TSetURI, TData>,
-		key: AnchorSetKey<TSetURI>,
-	) => FieldAnchorSetEntry<TData, AnchorSetKey<TSetURI>> | undefined;
+		set: AnchorSetShape<TOpsURI, TData>,
+		key: AnchorSetKey<TOpsURI>,
+	) => FieldAnchorSetEntry<TData, AnchorSetKey<TOpsURI>> | undefined;
 }
 
-// --- Default Implementation of ops
+// --- Default Implementations no matter the shape, key, or changeset
 
-function defaultCloneFromMap<TSetURI extends AnchorSetURIs>(
+/**
+ * @returns a implementation of {@link FieldAnchorSetOps.clone}.
+ */
+export function defaultCloneFromMap<TSetURI extends AnchorSetOpsURIs>(
 	map: FieldAnchorSetOps<TSetURI>["map"],
 ) {
-	return <TData>(set: AnchorSetImpl<TSetURI, TData>): AnchorSetImpl<TSetURI, TData> =>
+	return <TData>(set: AnchorSetShape<TSetURI, TData>): AnchorSetShape<TSetURI, TData> =>
 		map(set, (data) => data);
 }
 
@@ -201,11 +233,8 @@ const unarySetOps = {
 
 export type UnaryKey = Brand<0, "UnaryKey">;
 
-interface UnaryAnchorSetTypes<A, TChange> {
-	set: UnaryFieldAnchorSet<A>;
-	key: UnaryKey;
-	change: TChange;
-}
+interface UnaryAnchorSetTypes<A, TChange>
+	extends AnchorSetAspects<UnaryFieldAnchorSet<A>, UnaryKey, TChange> {}
 
 // --- AnchorSet Unary NoRebase Impl
 
@@ -213,14 +242,13 @@ interface UnaryAnchorSetTypes<A, TChange> {
 export const UnaryNoRebaseURI = "NoRebaseUnaryAnchorSet";
 
 const unarySetNoRebaseOps: FieldAnchorSetOps<typeof UnaryNoRebaseURI> = {
-	opsURI: UnaryNoRebaseURI,
 	rebase: () => {},
 	...unarySetOps,
 };
 
 // Registers UnaryFieldAnchorSet as the concrete implementation of the concern AnchorSet
-interface AnchorSetImplementations<A> {
-	[UnaryNoRebaseURI]: UnaryAnchorSetTypes<A, 0>;
+interface AnchorSetOpRegistry<TData> {
+	[UnaryNoRebaseURI]: UnaryAnchorSetTypes<TData, 0>;
 }
 
 // --- AnchorSet Sequence Impl
@@ -333,9 +361,9 @@ const seqSetOps = {
 export type SequenceKey = Brand<number, "UnaryKey">;
 
 interface SequenceSetTypes<TData, TChange> {
-	set: SequenceFieldAnchorSet<TData>;
+	shape: SequenceFieldAnchorSet<TData>;
 	key: SequenceKey;
-	change: TChange;
+	changeset: TChange;
 }
 
 // --- AnchorSet Sequence NoRebase Impl
@@ -345,20 +373,19 @@ export const SequenceNoChange = "NoRebaseSequenceAnchorSet";
 
 // Implementation of the AnchorSet concern for SequenceFieldAnchorSet
 const seqSetNoRebaseOps: FieldAnchorSetOps<typeof SequenceNoChange> = {
-	opsURI: SequenceNoChange,
 	rebase: () => {},
 	...seqSetOps,
 };
 
 // Registers SequenceFieldAnchorSet as the concrete implementation of the concern AnchorSet
-interface AnchorSetImplementations<A> {
-	[SequenceNoChange]: SequenceSetTypes<A, 0>;
+interface AnchorSetOpRegistry<TData> {
+	[SequenceNoChange]: SequenceSetTypes<TData, 0>;
 }
 
 // --- Usage by MCF
 
-function use<TSet extends AnchorSetURIs>(
-	set: AnchorSetImpl<TSet, string>,
+function use<TSet extends AnchorSetOpsURIs>(
+	set: AnchorSetShape<TSet, string>,
 	ops: FieldAnchorSetOps<TSet>,
 ) {
 	const s2 = ops.map(set, (s: string) => 42);
