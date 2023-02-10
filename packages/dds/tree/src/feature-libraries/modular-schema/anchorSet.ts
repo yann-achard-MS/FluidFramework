@@ -71,7 +71,7 @@ export type DataDecoder<TData> = (data: JsonCompatibleReadOnly) => TData;
  * @alpha
  */
 export interface FieldAnchorSetOps<TSetURI extends AnchorSetURIs> {
-	readonly URI: TSetURI;
+	readonly opsURI: TSetURI;
 
 	readonly encode: <TData>(
 		set: AnchorSetImpl<TSetURI, TData>,
@@ -112,8 +112,6 @@ export interface FieldAnchorSetOps<TSetURI extends AnchorSetURIs> {
 		key: AnchorSetKey<TSetURI>,
 	) => FieldAnchorSetEntry<TData, AnchorSetKey<TSetURI>> | undefined;
 }
-
-type CoreOps = Omit<FieldAnchorSetOps<any>, "URI" | "rebase">;
 
 // --- Default Implementation of ops
 
@@ -190,7 +188,7 @@ function unaryDecode<TData>(
 }
 
 // Implementation of the AnchorSet concern for UnaryFieldAnchorSet
-const unarySetOps: CoreOps = {
+const unarySetOps = {
 	factory: <A>(): UnaryFieldAnchorSet<A> => ({}),
 	encode: unaryEncode,
 	decode: unaryDecode,
@@ -215,7 +213,7 @@ interface UnaryAnchorSetTypes<A, TChange> {
 export const UnaryNoRebaseURI = "NoRebaseUnaryAnchorSet";
 
 const unarySetNoRebaseOps: FieldAnchorSetOps<typeof UnaryNoRebaseURI> = {
-	URI: UnaryNoRebaseURI,
+	opsURI: UnaryNoRebaseURI,
 	rebase: () => {},
 	...unarySetOps,
 };
@@ -298,28 +296,30 @@ function sequenceLookup<TData>(
 }
 
 function sequenceEncode<TData>(
-	set: UnaryFieldAnchorSet<TData>,
+	set: SequenceFieldAnchorSet<TData>,
 	dataEncoder: DataEncoder<TData>,
 ): JsonCompatibleReadOnly {
-	if (set.entry === undefined) {
-		return {};
-	}
-	return { entry: dataEncoder(set.entry) };
+	return {
+		list: set.list.map((entry) => ({ ...entry, data: dataEncoder(entry.data) })),
+	};
 }
 
 function sequenceDecode<TData>(
 	set: JsonCompatibleReadOnly,
 	dataDecoder: DataDecoder<TData>,
-): UnaryFieldAnchorSet<TData> {
-	const encodedSet = set as { entry?: JsonCompatibleReadOnly };
-	if (encodedSet.entry !== undefined) {
-		return { entry: dataDecoder(encodedSet.entry) };
-	}
-	return {};
+): SequenceFieldAnchorSet<TData> {
+	const encodedSet = set as unknown as {
+		readonly list: readonly Entry<JsonCompatibleReadOnly>[];
+	};
+	const list: Mutable<Entry<TData>>[] = encodedSet.list.map((entry) => ({
+		...entry,
+		data: dataDecoder(entry.data),
+	}));
+	return { list };
 }
 
 // Implementation of the AnchorSet concern for SequenceFieldAnchorSet
-const seqSetOps: CoreOps = {
+const seqSetOps = {
 	factory: <A>(): SequenceFieldAnchorSet<A> => ({ list: [] }),
 	encode: sequenceEncode,
 	decode: sequenceDecode,
@@ -345,7 +345,7 @@ export const SequenceNoChange = "NoRebaseSequenceAnchorSet";
 
 // Implementation of the AnchorSet concern for SequenceFieldAnchorSet
 const seqSetNoRebaseOps: FieldAnchorSetOps<typeof SequenceNoChange> = {
-	URI: SequenceNoChange,
+	opsURI: SequenceNoChange,
 	rebase: () => {},
 	...seqSetOps,
 };
