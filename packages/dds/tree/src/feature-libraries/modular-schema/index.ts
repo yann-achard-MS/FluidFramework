@@ -12,14 +12,22 @@ export {
 	allowsTreeSuperset,
 } from "./comparison";
 export { FieldKind, FullSchemaPolicy, Multiplicity, BrandedFieldAnchorSet } from "./fieldKind";
-export { RebaseDirection, FieldAnchorSetEntry, MergeCallback, FieldAnchorSet } from "./anchorSet";
+export {
+	RebaseDirection,
+	FieldAnchorSetEntry,
+	MergeCallback,
+	FieldAnchorSetOps,
+	defaultCloneFromMap,
+	AnchorSetShape,
+	AnchorSetOpsURIs,
+} from "./anchorSet";
+export { SequenceSetTypes, sequenceFieldAnchorSetOps } from "./sequenceShapedFieldAnchorSet";
+export { SlotAnchorSetTypes, slotFieldAnchorSetOps } from "./slotShapedFieldAnchorSet";
 export {
 	ChangesetLocalId,
 	IdAllocator,
 	FieldChange,
 	FieldChangeEncoder,
-	DataEncoder,
-	DataDecoder,
 	FieldChangeHandler,
 	FieldChangeMap,
 	FieldChangeRebaser,
