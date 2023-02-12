@@ -5,43 +5,39 @@
 
 import {
 	FieldAnchorSetOps,
-	defaultCloneFromMap,
 	AnchorSetShape,
 	AnchorSetOpsURIs,
-	SequenceSetTypes,
+	SequenceAnchorSetTypes,
 	sequenceFieldAnchorSetOps,
 	SlotAnchorSetTypes,
 	slotFieldAnchorSetOps,
 } from "../../../feature-libraries";
 
-// URI for the NoRebaseSlotAnchorSet implementation
-const NoChangeSlotAnchorSet = "NoChangeSlotAnchorSet";
+const NoChangeSlotAnchorSetURI = "NoChangeSlotAnchorSetURI";
 
 // Registers NoRebaseSlotAnchorSet as a concrete implementation of the FieldAnchorSetOps concern
 declare module "../../../feature-libraries/modular-schema/anchorSet" {
 	interface AnchorSetOpRegistry<TData> {
-		[NoChangeSlotAnchorSet]: SlotAnchorSetTypes<TData, 0>;
+		[NoChangeSlotAnchorSetURI]: SlotAnchorSetTypes<TData, 0>;
 	}
 }
 
-const noChangeSlotFieldAnchorSetOps: FieldAnchorSetOps<typeof NoChangeSlotAnchorSet> = {
+const noChangeSlotFieldAnchorSetOps: FieldAnchorSetOps<typeof NoChangeSlotAnchorSetURI> = {
 	rebase: () => {},
-	clone: defaultCloneFromMap<typeof NoChangeSlotAnchorSet>(slotFieldAnchorSetOps.map),
 	...slotFieldAnchorSetOps,
 };
 
-// URI for the NoChangeSequenceAnchorSet implementation
-const NoChangeSequenceAnchorSet = "NoChangeSequenceAnchorSet";
+const NoChangeSequenceAnchorSetURI = "NoChangeSequenceAnchorSetURI";
 
 // Registers SequenceFieldAnchorSet as the concrete implementation of the concern AnchorSet
 declare module "../../../feature-libraries/modular-schema/anchorSet" {
 	interface AnchorSetOpRegistry<TData> {
-		[NoChangeSequenceAnchorSet]: SequenceSetTypes<TData, 0>;
+		[NoChangeSequenceAnchorSetURI]: SequenceAnchorSetTypes<TData, 0>;
 	}
 }
 
 // Implementation of the AnchorSet concern for SequenceFieldAnchorSet
-const noChangeSequenceAnchorSetOps: FieldAnchorSetOps<typeof NoChangeSequenceAnchorSet> = {
+const noChangeSequenceAnchorSetOps: FieldAnchorSetOps<typeof NoChangeSequenceAnchorSetURI> = {
 	rebase: () => {},
 	...sequenceFieldAnchorSetOps,
 };

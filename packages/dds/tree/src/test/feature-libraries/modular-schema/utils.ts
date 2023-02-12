@@ -9,11 +9,11 @@ import {
 	Multiplicity,
 	FieldKinds,
 	defaultKeyFunctions,
-	noRebaseAnchorSetFactoryFactory,
 	referenceFreeFieldChangeRebaser,
-	BaseAnchorSet,
-	BaseNodeKey,
 	RebaseDirection,
+	sequenceFieldAnchorSetOps,
+	SequenceAnchorSetTypes,
+	SequenceFieldAnchorSet,
 } from "../../../feature-libraries";
 import { Delta, makeAnonChange, TaggedChange } from "../../../core";
 import { brand, JsonCompatibleReadOnly, makeArray } from "../../../util";
@@ -21,9 +21,22 @@ import { singleJsonCursor } from "../../../domains";
 
 export type ValueChangeset = FieldKinds.ReplaceOp<number>;
 
-export const valueHandler: FieldChangeHandler<ValueChangeset> = {
+export const ValueAnchorSetURI = "ValueAnchorSetURI";
+export type ValueAnchorSetURI = typeof ValueAnchorSetURI;
+
+// Registers the types used by the value anchor set.
+declare module "../../../feature-libraries/modular-schema/anchorSet" {
+	interface AnchorSetOpRegistry<TData> {
+		[ValueAnchorSetURI]: SequenceAnchorSetTypes<TData, ValueChangeset>;
+	}
+}
+
+export const valueHandler: FieldChangeHandler<ValueAnchorSetURI> = {
 	...defaultKeyFunctions,
-	anchorSetFactory: noRebaseAnchorSetFactoryFactory<ValueChangeset>(),
+	anchorSetOps: {
+		rebase: () => {},
+		...sequenceFieldAnchorSetOps,
+	},
 	rebaser: FieldKinds.replaceRebaser(),
 	encoder: FieldKinds.valueEncoder<ValueChangeset & JsonCompatibleReadOnly>(),
 	editor: {},
@@ -50,44 +63,6 @@ export interface AddDelChangeset {
 	del: number;
 }
 
-export class AddDelAnchorSet<TData> extends BaseAnchorSet<TData, AddDelChangeset> {
-	public static fromData<TData>(
-		entries: readonly { readonly key: BaseNodeKey; readonly data: TData }[],
-	): AddDelAnchorSet<TData> {
-		const set = new AddDelAnchorSet<TData>();
-		for (const { key, data } of entries) {
-			set.track(key, data);
-		}
-		return set;
-	}
-
-	public clone(): AddDelAnchorSet<TData> {
-		const set = new AddDelAnchorSet<TData>();
-		set.mergeIn(this);
-		return set;
-	}
-
-	public rebase(over: TaggedChange<AddDelChangeset>, direction: RebaseDirection): void {
-		if (direction === RebaseDirection.Backward) {
-			return this.rebase(
-				makeAnonChange(addDelRebaser.invert(over.change)),
-				RebaseDirection.Forward,
-			);
-		}
-		// The keys only refer to nodes in the input context
-		let iEntry = 0;
-		const { del, add } = over.change;
-		const net = add - del;
-		while (iEntry < this.list.length && this.list[iEntry].key < del) {
-			iEntry += 1;
-		}
-		this.list.splice(0, iEntry);
-		for (const entry of this.list) {
-			entry.key = brand(entry.key + net);
-		}
-	}
-}
-
 const addDelRebaser = {
 	compose: (changes: AddDelChangeset[]): AddDelChangeset => {
 		let add = 0;
@@ -107,9 +82,47 @@ const addDelRebaser = {
 	}),
 };
 
-export const addDelHandler: FieldChangeHandler<AddDelChangeset> = {
+function rebaseAnchorSet(
+	set: SequenceFieldAnchorSet,
+	over: TaggedChange<AddDelChangeset>,
+	direction: RebaseDirection,
+): void {
+	if (direction === RebaseDirection.Backward) {
+		return rebaseAnchorSet(
+			set,
+			makeAnonChange(addDelRebaser.invert(over.change)),
+			RebaseDirection.Forward,
+		);
+	}
+	// The keys only refer to nodes in the input context
+	let iEntry = 0;
+	const { del, add } = over.change;
+	const net = add - del;
+	while (iEntry < set.list.length && set.list[iEntry].key < del) {
+		iEntry += 1;
+	}
+	set.list.splice(0, iEntry);
+	for (const entry of set.list) {
+		entry.key = brand(entry.key + net);
+	}
+}
+
+export const AddDelAnchorSetURI = "AddDelAnchorSetURI";
+export type AddDelAnchorSetURI = typeof AddDelAnchorSetURI;
+
+// Registers the types used by the value anchor set.
+declare module "../../../feature-libraries/modular-schema/anchorSet" {
+	interface AnchorSetOpRegistry<TData> {
+		[AddDelAnchorSetURI]: SequenceAnchorSetTypes<TData, AddDelChangeset>;
+	}
+}
+
+export const addDelHandler: FieldChangeHandler<AddDelAnchorSetURI> = {
 	...defaultKeyFunctions,
-	anchorSetFactory: <TData>() => new AddDelAnchorSet<TData>(),
+	anchorSetOps: {
+		...sequenceFieldAnchorSetOps,
+		rebase: rebaseAnchorSet,
+	},
 	rebaser: referenceFreeFieldChangeRebaser(addDelRebaser),
 	encoder: FieldKinds.valueEncoder<AddDelChangeset & JsonCompatibleReadOnly>(),
 	editor: {},

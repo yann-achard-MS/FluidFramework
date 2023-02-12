@@ -21,7 +21,11 @@ export {
 	AnchorSetContainer as AnchorSetShape,
 	AnchorSetOpsURIs,
 } from "./anchorSet";
-export { SequenceAnchorSetTypes, sequenceFieldAnchorSetOps } from "./sequenceShapedFieldAnchorSet";
+export {
+	SequenceFieldAnchorSet,
+	SequenceAnchorSetTypes,
+	sequenceFieldAnchorSetOps,
+} from "./sequenceShapedFieldAnchorSet";
 export { SlotAnchorSetTypes, slotFieldAnchorSetOps } from "./slotShapedFieldAnchorSet";
 export {
 	ChangesetLocalId,
