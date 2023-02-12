@@ -4,12 +4,10 @@
  */
 
 import { JsonCompatibleReadOnly } from "../../util";
-import { baseAnchorSetEncoder, FieldChangeEncoder } from "../modular-schema";
+import { FieldChangeEncoder } from "../modular-schema";
 import { Changeset } from "./format";
-import { anchorSetFactory, SequenceAnchorSet } from "./sequenceFieldAnchorSet";
 
-export const sequenceFieldChangeEncoder: FieldChangeEncoder<Changeset, SequenceAnchorSet> = {
-	...baseAnchorSetEncoder(anchorSetFactory),
+export const sequenceFieldChangeEncoder: FieldChangeEncoder<Changeset> = {
 	encodeChangeForJson,
 	decodeChangeJson,
 };

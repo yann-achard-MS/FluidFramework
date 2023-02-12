@@ -12,6 +12,7 @@ import {
 	FieldAnchorSetEntry,
 	MapCallback,
 	MergeCallback,
+	UpdateCallback,
 } from "./anchorSet";
 
 /**
@@ -31,12 +32,17 @@ export interface SequenceFieldAnchorSet<A = unknown> {
  */
 export const sequenceFieldAnchorSetOps = {
 	factory: <TData>(): SequenceFieldAnchorSet<TData> => ({ list: [] }),
+	clone,
 	encode,
 	decode,
+	count,
 	map,
+	updateAll,
+	mergeIn,
 	track,
 	forget,
 	lookup,
+	entries,
 };
 
 /**
@@ -48,14 +54,31 @@ export type SequenceKey = Brand<number, "UnaryKey">;
  * Helper type function to describe the concrete aspect types of a {@link FieldAnchorSetOps} implementation
  * that relies on {@link sequenceFieldAnchorSetOps}.
  */
-export interface SequenceSetTypes<TData, TChange>
+export interface SequenceAnchorSetTypes<TData, TChange>
 	extends AnchorSetAspects<SequenceFieldAnchorSet<TData>, SequenceKey, TChange> {}
 
 function map<TIn, TOut>(
-	barSet: SequenceFieldAnchorSet<TIn>,
+	set: SequenceFieldAnchorSet<TIn>,
 	f: MapCallback<TIn, TOut>,
 ): SequenceFieldAnchorSet<TOut> {
-	return { list: barSet.list.map(({ key, data }) => ({ key, data: f(data) })) };
+	return { list: set.list.map(({ key, data }) => ({ key, data: f(data) })) };
+}
+
+function clone<TData>(set: SequenceFieldAnchorSet<TData>): SequenceFieldAnchorSet<TData> {
+	return { list: set.list.map((entry) => ({ ...entry })) };
+}
+
+function updateAll<TData>(
+	set: SequenceFieldAnchorSet<TData>,
+	f: UpdateCallback<TData, SequenceKey>,
+): void {
+	for (const entry of set.list) {
+		entry.data = f(entry.data, entry.key);
+	}
+}
+
+function count(set: SequenceFieldAnchorSet): number {
+	return set.list.length;
 }
 
 function track<TData>(
@@ -65,6 +88,17 @@ function track<TData>(
 	mergeData?: MergeCallback<TData>,
 ): void {
 	add(set, key, data, mergeData);
+}
+
+function mergeIn<TData>(
+	set: SequenceFieldAnchorSet<TData>,
+	added: SequenceFieldAnchorSet<TData>,
+	mergeData?: MergeCallback<TData>,
+): void {
+	let index = 0;
+	for (const { key, data } of added.list) {
+		index = add(set, key, data, mergeData, index);
+	}
 }
 
 function add<TData>(
@@ -115,7 +149,14 @@ function lookup<TData>(
 	return entry;
 }
 
+function entries<TData>(
+	set: SequenceFieldAnchorSet<TData>,
+): IterableIterator<FieldAnchorSetEntry<TData, SequenceKey>> {
+	return set.list.values();
+}
+
 function encode<TData>(
+	formatVersion: number,
 	set: SequenceFieldAnchorSet<TData>,
 	dataEncoder: DataEncoder<TData>,
 ): JsonCompatibleReadOnly {
@@ -125,6 +166,7 @@ function encode<TData>(
 }
 
 function decode<TData>(
+	formatVersion: number,
 	set: JsonCompatibleReadOnly,
 	dataDecoder: DataDecoder<TData>,
 ): SequenceFieldAnchorSet<TData> {

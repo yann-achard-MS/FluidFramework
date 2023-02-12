@@ -26,17 +26,15 @@ import {
 	FieldChangeEncoder,
 	referenceFreeFieldChangeRebaser,
 	NodeReviver,
-	BaseNodeKey,
-	genericAnchorSetFactory,
-	GenericAnchorSet,
-	baseAnchorSetEncoder,
-	BaseAnchorSet,
-	baseChangeHandlerKeyFunctions,
-	singleCellAnchorSetFactory,
-	SingleCellAnchorSet,
-	SingleCellKey,
+	defaultKeyFunctions,
 	singleCellKeyFunctions,
-	singleCellFieldEncoder,
+	SequenceAnchorSetTypes,
+	FieldAnchorSetOps,
+	sequenceFieldAnchorSetOps,
+	genericAnchorSetOps,
+	GenericAnchorSetURI,
+	SlotAnchorSetTypes,
+	slotFieldAnchorSetOps,
 } from "./modular-schema";
 import * as SequenceField from "./sequence-field";
 
@@ -52,7 +50,7 @@ type BrandedFieldKind<
 function brandedFieldKind<TName extends string, TMultiplicity extends Multiplicity, TEditor>(
 	identifier: TName,
 	multiplicity: TMultiplicity,
-	changeHandler: FieldChangeHandler<any, unknown, TEditor>,
+	changeHandler: FieldChangeHandler<any, TEditor>,
 	allowsTreeSupersetOf: (
 		originalTypes: ReadonlySet<TreeSchemaIdentifier> | undefined,
 		superset: FieldSchema,
@@ -74,8 +72,7 @@ function brandedFieldKind<TName extends string, TMultiplicity extends Multiplici
  * @alpha
  * @sealed
  */
-export const unitEncoder: FieldChangeEncoder<0, GenericAnchorSet<unknown>> = {
-	...baseAnchorSetEncoder(genericAnchorSetFactory),
+export const unitEncoder: FieldChangeEncoder<0> = {
 	encodeChangeForJson: (formatVersion: number, change: 0): JsonCompatibleReadOnly => 0,
 	decodeChangeJson: (formatVersion: number, change: JsonCompatibleReadOnly): 0 => 0,
 };
@@ -85,12 +82,8 @@ export const unitEncoder: FieldChangeEncoder<0, GenericAnchorSet<unknown>> = {
  *
  * @sealed
  */
-export function valueEncoder<T extends JsonCompatibleReadOnly>(): FieldChangeEncoder<
-	T,
-	BaseAnchorSet<unknown, T>
-> {
+export function valueEncoder<T extends JsonCompatibleReadOnly>(): FieldChangeEncoder<T> {
 	return {
-		...baseAnchorSetEncoder(genericAnchorSetFactory),
 		encodeChangeForJson: (formatVersion: number, change: T): JsonCompatibleReadOnly => change,
 		decodeChangeJson: (formatVersion: number, change: JsonCompatibleReadOnly): T => change as T,
 	};
@@ -107,6 +100,21 @@ function commutativeRebaser<TChange>(data: {
 	return referenceFreeFieldChangeRebaser({ ...data, rebase });
 }
 
+export const CounterAnchorSet = "CounterAnchorSet";
+export type CounterAnchorSet = typeof CounterAnchorSet;
+
+// Registers the types used by the counter field anchor set.
+declare module "./modular-schema/anchorSet" {
+	interface AnchorSetOpRegistry<TData> {
+		[CounterAnchorSet]: SequenceAnchorSetTypes<TData, number>;
+	}
+}
+
+export const counterAnchorSetOps: FieldAnchorSetOps<typeof CounterAnchorSet> = {
+	rebase: () => {},
+	...sequenceFieldAnchorSetOps,
+};
+
 /**
  * ChangeHandler that does not support any changes.
  *
@@ -116,9 +124,9 @@ function commutativeRebaser<TChange>(data: {
  * and handling values past Number.MAX_SAFE_INTEGER (ex: via an arbitrarily large integer library)
  * or via modular arithmetic.
  */
-export const counterHandle: FieldChangeHandler<number, BaseNodeKey> = {
-	...baseChangeHandlerKeyFunctions,
-	anchorSetFactory: genericAnchorSetFactory,
+export const counterHandle: FieldChangeHandler<CounterAnchorSet> = {
+	...defaultKeyFunctions,
+	anchorSetOps: counterAnchorSetOps,
 	rebaser: commutativeRebaser({
 		compose: (changes: number[]) => changes.reduce((a, b) => a + b, 0),
 		invert: (change: number) => -change,
@@ -187,9 +195,9 @@ export function replaceRebaser<T>(): FieldChangeRebaser<ReplaceOp<T>> {
  * ChangeHandler that only handles no-op / identity changes.
  * @alpha
  */
-export const noChangeHandler: FieldChangeHandler<0> = {
-	...baseChangeHandlerKeyFunctions,
-	anchorSetFactory: genericAnchorSetFactory,
+export const noChangeHandler: FieldChangeHandler<GenericAnchorSetURI> = {
+	...defaultKeyFunctions,
+	anchorSetOps: genericAnchorSetOps,
 	rebaser: referenceFreeFieldChangeRebaser({
 		compose: (changes: 0[]) => 0,
 		invert: (changes: 0) => 0,
@@ -253,10 +261,7 @@ interface EncodedValueChangeset {
 	value?: NodeUpdate;
 }
 
-const valueFieldEncoder: FieldChangeEncoder<
-	ValueChangeset,
-	SingleCellAnchorSet<unknown, ValueChangeset>
-> = singleCellFieldEncoder({
+const valueFieldEncoder: FieldChangeEncoder<ValueChangeset> = {
 	encodeChangeForJson: (formatVersion: number, change: ValueChangeset) => {
 		const encoded: EncodedValueChangeset & JsonCompatibleReadOnly = {};
 		if (change.value !== undefined) {
@@ -275,7 +280,7 @@ const valueFieldEncoder: FieldChangeEncoder<
 
 		return decoded;
 	},
-});
+};
 
 export interface ValueFieldEditor {
 	/**
@@ -288,9 +293,22 @@ const valueFieldEditor: ValueFieldEditor = {
 	set: (newValue: ITreeCursor) => ({ value: { set: jsonableTreeFromCursor(newValue) } }),
 };
 
-const valueChangeHandler: FieldChangeHandler<ValueChangeset, SingleCellKey, ValueFieldEditor> = {
+export const ValueFieldAnchorSetURI = "ValueFieldAnchorSetURI";
+export type ValueFieldAnchorSetURI = typeof ValueFieldAnchorSetURI;
+
+// Registers the types used by the value field anchor set.
+declare module "./modular-schema/anchorSet" {
+	interface AnchorSetOpRegistry<TData> {
+		[ValueFieldAnchorSetURI]: SlotAnchorSetTypes<TData, ValueChangeset>;
+	}
+}
+
+const valueChangeHandler: FieldChangeHandler<ValueFieldAnchorSetURI, ValueFieldEditor> = {
 	...singleCellKeyFunctions,
-	anchorSetFactory: singleCellAnchorSetFactory,
+	anchorSetOps: {
+		rebase: () => {},
+		...slotFieldAnchorSetOps,
+	},
 	rebaser: valueRebaser,
 	encoder: valueFieldEncoder,
 	editor: valueFieldEditor,
@@ -441,10 +459,7 @@ interface EncodedOptionalChangeset {
 	childChange?: JsonCompatibleReadOnly;
 }
 
-const optionalFieldEncoder: FieldChangeEncoder<
-	OptionalChangeset,
-	SingleCellAnchorSet<unknown, OptionalChangeset>
-> = singleCellFieldEncoder({
+const optionalFieldEncoder: FieldChangeEncoder<OptionalChangeset> = {
 	encodeChangeForJson: (formatVersion: number, change: OptionalChangeset) => {
 		const encoded: EncodedOptionalChangeset & JsonCompatibleReadOnly = {};
 		if (change.fieldChange !== undefined) {
@@ -463,17 +478,33 @@ const optionalFieldEncoder: FieldChangeEncoder<
 
 		return decoded;
 	},
-});
+};
+
+export const OptionalFieldAnchorSetURI = "OptionalFieldAnchorSetURI";
+export type OptionalFieldAnchorSetURI = typeof OptionalFieldAnchorSetURI;
+
+// Registers the types used by the value field anchor set.
+declare module "./modular-schema/anchorSet" {
+	interface AnchorSetOpRegistry<TData> {
+		[OptionalFieldAnchorSetURI]: SlotAnchorSetTypes<TData, OptionalChangeset>;
+	}
+}
 
 /**
  * 0 or 1 items.
  */
-export const optional: FieldKind<OptionalFieldEditor> = new FieldKind<OptionalFieldEditor>(
+export const optional: FieldKind<OptionalFieldEditor, OptionalFieldAnchorSetURI> = new FieldKind<
+	OptionalFieldEditor,
+	OptionalFieldAnchorSetURI
+>(
 	brand("Optional"),
 	Multiplicity.Optional,
 	{
 		...singleCellKeyFunctions,
-		anchorSetFactory: singleCellAnchorSetFactory,
+		anchorSetOps: {
+			rebase: () => {},
+			...slotFieldAnchorSetOps,
+		},
 		rebaser: optionalChangeRebaser,
 		encoder: optionalFieldEncoder,
 		editor: optionalFieldEditor,
@@ -514,7 +545,10 @@ export const optional: FieldKind<OptionalFieldEditor> = new FieldKind<OptionalFi
 /**
  * 0 or more items.
  */
-export const sequence: FieldKind<SequenceField.SequenceFieldEditor> = new FieldKind(
+export const sequence: FieldKind<
+	SequenceField.SequenceFieldEditor,
+	SequenceField.SequenceFieldAnchorSetURI
+> = new FieldKind(
 	brand("Sequence"),
 	Multiplicity.Sequence,
 	SequenceField.sequenceFieldChangeHandler,
@@ -565,6 +599,6 @@ export const forbidden = brandedFieldKind(
 /**
  * Default field kinds by identifier
  */
-export const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind<any>> = new Map(
+export const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind<unknown, any>> = new Map(
 	[value, optional, sequence, forbidden].map((s) => [s.identifier, s]),
 );

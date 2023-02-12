@@ -40,9 +40,8 @@ export {
 	Conflicted,
 	CanConflict,
 } from "./format";
-export { SequenceAnchorSet, anchorSetFactory } from "./sequenceFieldAnchorSet";
 export {
-	SequenceFieldChangeHandler,
+	SequenceFieldAnchorSetURI,
 	sequenceFieldChangeHandler,
 } from "./sequenceFieldChangeHandler";
 export { SequenceChangeRebaser, sequenceFieldChangeRebaser } from "./sequenceFieldChangeRebaser";

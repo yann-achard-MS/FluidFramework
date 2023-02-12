@@ -8,7 +8,7 @@ import {
 	FieldKind,
 	Multiplicity,
 	FieldKinds,
-	baseChangeHandlerKeyFunctions,
+	defaultKeyFunctions,
 	noRebaseAnchorSetFactoryFactory,
 	referenceFreeFieldChangeRebaser,
 	BaseAnchorSet,
@@ -22,7 +22,7 @@ import { singleJsonCursor } from "../../../domains";
 export type ValueChangeset = FieldKinds.ReplaceOp<number>;
 
 export const valueHandler: FieldChangeHandler<ValueChangeset> = {
-	...baseChangeHandlerKeyFunctions,
+	...defaultKeyFunctions,
 	anchorSetFactory: noRebaseAnchorSetFactoryFactory<ValueChangeset>(),
 	rebaser: FieldKinds.replaceRebaser(),
 	encoder: FieldKinds.valueEncoder<ValueChangeset & JsonCompatibleReadOnly>(),
@@ -108,7 +108,7 @@ const addDelRebaser = {
 };
 
 export const addDelHandler: FieldChangeHandler<AddDelChangeset> = {
-	...baseChangeHandlerKeyFunctions,
+	...defaultKeyFunctions,
 	anchorSetFactory: <TData>() => new AddDelAnchorSet<TData>(),
 	rebaser: referenceFreeFieldChangeRebaser(addDelRebaser),
 	encoder: FieldKinds.valueEncoder<AddDelChangeset & JsonCompatibleReadOnly>(),

@@ -89,7 +89,7 @@ function encodeFieldChangesForJson(
 			fieldKind: fieldChange.fieldKind,
 		};
 
-		const encoder = getChangeHandler(fieldKinds, fieldChange.fieldKind).encoder;
+		const { encoder, anchorSetOps } = getChangeHandler(fieldKinds, fieldChange.fieldKind);
 
 		if (fieldChange.shallow !== undefined) {
 			const shallow = encoder.encodeChangeForJson(0, fieldChange.shallow);
@@ -99,7 +99,7 @@ function encodeFieldChangesForJson(
 		if (fieldChange.nested !== undefined) {
 			const childEncoder = (nodeChange: NodeChangeset): JsonCompatibleReadOnly =>
 				encodeNodeChangesForJson(fieldKinds, nodeChange);
-			const nested = encoder.encodeAnchorSetForJson(0, fieldChange.nested, childEncoder);
+			const nested = anchorSetOps.encode(0, fieldChange.nested, childEncoder);
 			encodedField.nested = nested;
 		}
 
@@ -152,7 +152,7 @@ function decodeFieldChangesFromJson(
 		const decodedField: Mutable<FieldChange> = {
 			fieldKind: field.fieldKind,
 		};
-		const encoder = getChangeHandler(fieldKinds, field.fieldKind).encoder;
+		const { encoder, anchorSetOps } = getChangeHandler(fieldKinds, field.fieldKind);
 
 		if (field.shallow !== undefined) {
 			const shallow = encoder.decodeChangeJson(0, field.shallow);
@@ -160,7 +160,7 @@ function decodeFieldChangesFromJson(
 		}
 
 		if (field.nested !== undefined) {
-			const nested = encoder.decodeAnchorSetJson(0, field.nested, (encodedChild) =>
+			const nested = anchorSetOps.decode(0, field.nested, (encodedChild) =>
 				decodeNodeChangesetFromJson(fieldKinds, encodedChild),
 			);
 			decodedField.nested = nested;

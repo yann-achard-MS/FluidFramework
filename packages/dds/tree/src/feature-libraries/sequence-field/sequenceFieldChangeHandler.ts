@@ -3,23 +3,37 @@
  * Licensed under the MIT License.
  */
 
-import { baseChangeHandlerKeyFunctions, FieldChangeHandler, BaseNodeKey } from "../modular-schema";
+import {
+	defaultKeyFunctions,
+	FieldChangeHandler,
+	SequenceAnchorSetTypes,
+	sequenceFieldAnchorSetOps,
+} from "../modular-schema";
 import { Changeset } from "./format";
 import { sequenceFieldChangeRebaser } from "./sequenceFieldChangeRebaser";
 import { sequenceFieldChangeEncoder } from "./sequenceFieldChangeEncoder";
 import { SequenceFieldEditor, sequenceFieldEditor } from "./sequenceFieldEditor";
 import { sequenceFieldToDelta } from "./sequenceFieldToDelta";
-import { anchorSetFactory } from "./sequenceFieldAnchorSet";
 
-export type SequenceFieldChangeHandler = FieldChangeHandler<
-	Changeset,
-	BaseNodeKey,
+export const SequenceFieldAnchorSetURI = "SequenceFieldAnchorSetURI";
+export type SequenceFieldAnchorSetURI = typeof SequenceFieldAnchorSetURI;
+
+// Registers the types used by the value field anchor set.
+declare module "../modular-schema/anchorSet" {
+	interface AnchorSetOpRegistry<TData> {
+		[SequenceFieldAnchorSetURI]: SequenceAnchorSetTypes<TData, Changeset>;
+	}
+}
+
+export const sequenceFieldChangeHandler: FieldChangeHandler<
+	SequenceFieldAnchorSetURI,
 	SequenceFieldEditor
->;
-
-export const sequenceFieldChangeHandler: SequenceFieldChangeHandler = {
-	...baseChangeHandlerKeyFunctions,
-	anchorSetFactory,
+> = {
+	...defaultKeyFunctions,
+	anchorSetOps: {
+		rebase: () => {},
+		...sequenceFieldAnchorSetOps,
+	},
 	rebaser: sequenceFieldChangeRebaser,
 	encoder: sequenceFieldChangeEncoder,
 	editor: sequenceFieldEditor,

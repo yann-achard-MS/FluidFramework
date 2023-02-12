@@ -24,7 +24,7 @@ import {
 } from "../../core";
 import { brand, clone, getOrAddEmptyToMap, JsonCompatibleReadOnly, Mutable } from "../../util";
 import { dummyRepairDataStore } from "../fakeRepairDataStore";
-import { RebaseDirection } from "./anchorSet";
+import { AnchorSetContainer, RebaseDirection } from "./anchorSet";
 import {
 	FieldChangeHandler,
 	FieldChangeMap,
@@ -36,10 +36,10 @@ import {
 	ChangesetLocalId,
 	IdAllocator,
 	Context,
-	FieldNodeKey,
+	FieldAnchorContainer,
 } from "./fieldChangeHandler";
-import { FieldKind, BrandedFieldAnchorSet } from "./fieldKind";
-import { GenericAnchorSet, genericFieldKind } from "./genericFieldKind";
+import { FieldKind, BrandedAnchorSetOpsURI, BrandedFieldKind } from "./fieldKind";
+import { genericAnchorSetOps, GenericAnchorSetURI, genericFieldKind } from "./genericFieldKind";
 import { decodeJsonFormat0, encodeForJsonFormat0 } from "./modularChangeEncoding";
 
 /**
@@ -72,7 +72,7 @@ export class ModularChangeFamily
 	 * The returned `FieldChange`s may be a shallow copy of the input `FieldChange`s.
 	 */
 	private normalizeFieldChanges(changes: readonly FieldChange[]): {
-		fieldKind: FieldKind;
+		fieldKind: BrandedFieldKind;
 		fieldChanges: readonly FieldChange[];
 	} {
 		// TODO: Handle the case where changes have conflicting field kinds
@@ -81,22 +81,27 @@ export class ModularChangeFamily
 		);
 		if (nonGenericChange === undefined) {
 			// All the changes are generic
-			return { fieldKind: genericFieldKind, fieldChanges: changes };
+			return {
+				fieldKind: genericFieldKind as unknown as BrandedFieldKind,
+				fieldChanges: changes,
+			};
 		}
 		const kind = nonGenericChange.fieldKind;
-		const fieldKind = getFieldKind(this.fieldKinds, kind);
+		const fieldKind = getFieldKind(this.fieldKinds, kind) as unknown as BrandedFieldKind;
 		const handler = fieldKind.changeHandler;
+		const anchorSetOps = handler.anchorSetOps;
 		const normalizedChanges = changes.map((change): FieldChange => {
 			if (change.fieldKind === genericFieldKind.identifier) {
 				const normalized: Mutable<FieldChange> = { fieldKind: kind };
 				// The cast is based on the `fieldKind` check above
-				const nestedGenericChanges = change.nested as
-					| GenericAnchorSet<NodeChangeset>
-					| undefined;
+				const nestedGenericChanges = change.nested as unknown as AnchorSetContainer<
+					GenericAnchorSetURI,
+					NodeChangeset
+				>;
 				if (nestedGenericChanges !== undefined) {
-					const set = handler.anchorSetFactory<NodeChangeset>();
-					for (const { key, data } of nestedGenericChanges.entries()) {
-						set.track(handler.getKey(key), data);
+					const set = anchorSetOps.factory<NodeChangeset>();
+					for (const { key, data } of genericAnchorSetOps.entries(nestedGenericChanges)) {
+						anchorSetOps.track(set, handler.getKey(key), data);
 					}
 					normalized.nested = set;
 				}
@@ -171,21 +176,26 @@ export class ModularChangeFamily
 				}
 
 				let hasNestedChanges = false;
-				const childChanges = changeHandler.anchorSetFactory<TaggedChange<NodeChangeset>>();
+				const anchorOps = changeHandler.anchorSetOps;
+				const childChanges = anchorOps.factory<TaggedChange<NodeChangeset>>();
 				for (let i = fieldChanges.length - 1; i >= 0; --i) {
 					const iThFieldChanges = fieldChanges[i];
 					if (iThFieldChanges.shallow !== undefined) {
-						childChanges.rebase(
+						anchorOps.rebase(
+							childChanges,
 							tagChange(iThFieldChanges.shallow, iThFieldChanges.revision),
 							RebaseDirection.Backward,
 						);
 					}
 					if (iThFieldChanges.nested !== undefined) {
 						hasNestedChanges = true;
-						childChanges.mergeIn(
-							iThFieldChanges.nested.map((change) =>
-								tagChange(change, iThFieldChanges.revision),
-							),
+						const taggedIthChildChanges = anchorOps.map(
+							iThFieldChanges.nested,
+							(change) => tagChange(change, iThFieldChanges.revision),
+						);
+						anchorOps.mergeIn(
+							childChanges,
+							taggedIthChildChanges,
 							(
 								existing: TaggedChange<NodeChangeset>,
 								added: TaggedChange<NodeChangeset>,
@@ -194,8 +204,8 @@ export class ModularChangeFamily
 					}
 				}
 
-				if (hasNestedChanges && childChanges.count() > 0) {
-					composedField.nested = childChanges.map((tagged) => tagged.change);
+				if (hasNestedChanges && anchorOps.count(childChanges) > 0) {
+					composedField.nested = anchorOps.map(childChanges, (tagged) => tagged.change);
 				}
 			}
 
@@ -262,6 +272,7 @@ export class ModularChangeFamily
 			}
 
 			const handler = getChangeHandler(this.fieldKinds, fieldChange.fieldKind);
+			const anchorOps = handler.anchorSetOps;
 
 			if (fieldChange.shallow !== undefined) {
 				const invertedChange = handler.rebaser.invert(
@@ -272,14 +283,15 @@ export class ModularChangeFamily
 			}
 
 			if (fieldChange.nested !== undefined) {
-				const childChanges = fieldChange.nested.clone();
+				const childChanges = anchorOps.clone(fieldChange.nested);
 				if (fieldChange.shallow !== undefined) {
-					childChanges.rebase(
+					anchorOps.rebase(
+						childChanges,
 						tagChange(fieldChange.shallow, revision),
 						RebaseDirection.Forward,
 					);
 				}
-				childChanges.updateAll((data) =>
+				anchorOps.updateAll(childChanges, (data) =>
 					this.invertNodeChange({ revision, change: data }, genId),
 				);
 				invertedFieldChange.nested = childChanges;
@@ -346,6 +358,7 @@ export class ModularChangeFamily
 				} = this.normalizeFieldChanges([fieldChange, baseChanges]);
 
 				const rebaser = fieldKind.changeHandler.rebaser;
+				const anchorOps = fieldKind.changeHandler.anchorSetOps;
 				const rebasedFieldChange: Mutable<FieldChange> = {
 					fieldKind: fieldKind.identifier,
 				};
@@ -373,11 +386,11 @@ export class ModularChangeFamily
 				}
 
 				if (normalFieldChange.nested !== undefined) {
-					const childChanges = normalFieldChange.nested.clone();
+					const childChanges = anchorOps.clone(normalFieldChange.nested);
 					if (normalBaseFieldChange.nested !== undefined) {
 						const nestedBaseChanges = normalBaseFieldChange.nested;
-						childChanges.updateAll((data, key) => {
-							const baseChildChanges = nestedBaseChanges.lookup(key);
+						anchorOps.updateAll(childChanges, (data, key) => {
+							const baseChildChanges = anchorOps.lookup(nestedBaseChanges, key);
 							if (baseChildChanges !== undefined) {
 								return this.rebaseNodeChange(
 									data,
@@ -389,8 +402,8 @@ export class ModularChangeFamily
 						});
 					}
 					if (taggedBaseChanges !== undefined) {
-						childChanges.rebase(taggedBaseChanges, RebaseDirection.Forward);
-						if (childChanges.count() > 0) {
+						anchorOps.rebase(childChanges, taggedBaseChanges, RebaseDirection.Forward);
+						if (anchorOps.count(childChanges) > 0) {
 							rebasedFieldChange.nested = childChanges;
 						}
 					} else {
@@ -454,6 +467,7 @@ export class ModularChangeFamily
 		const delta: Map<FieldKey, Delta.FieldChanges> = new Map();
 		for (const [field, fieldChange] of change) {
 			const changeHandler = getChangeHandler(this.fieldKinds, fieldChange.fieldKind);
+			const anchorOps = changeHandler.anchorSetOps;
 			const fieldChanges: Mutable<Delta.FieldChanges> = {};
 			let hasChanges = false;
 			if (fieldChange.shallow !== undefined) {
@@ -471,7 +485,7 @@ export class ModularChangeFamily
 			const beforeShallow: Delta.NestedChange[] = [];
 			const afterShallow: Delta.NestedChange[] = [];
 			if (fieldChange.nested !== undefined) {
-				for (const { key, data } of fieldChange.nested.entries()) {
+				for (const { key, data } of anchorOps.entries(fieldChange.nested)) {
 					const deltaKey = changeHandler.keyToDeltaKey(key);
 					if (deltaKey !== undefined) {
 						const nodeDelta = this.deltaFromNodeChange(
@@ -555,25 +569,25 @@ export class ModularChangeFamily
 	}
 }
 
-export function getFieldKind(
+function getFieldKind(
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>,
 	kind: FieldKindIdentifier,
-): FieldKind {
+): BrandedFieldKind {
 	if (kind === genericFieldKind.identifier) {
-		return genericFieldKind;
+		return genericFieldKind as unknown as BrandedFieldKind;
 	}
 	const fieldKind = fieldKinds.get(kind);
 	assert(fieldKind !== undefined, 0x3ad /* Unknown field kind */);
-	return fieldKind;
+	return fieldKind as unknown as BrandedFieldKind;
 }
 
-export type BrandedChangeHandler = FieldChangeHandler<FieldChangeset, FieldNodeKey>;
+export type BrandedChangeHandler = FieldChangeHandler<typeof BrandedAnchorSetOpsURI>;
 
 export function getChangeHandler(
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind>,
 	kind: FieldKindIdentifier,
 ): BrandedChangeHandler {
-	return getFieldKind(fieldKinds, kind).changeHandler as BrandedChangeHandler;
+	return getFieldKind(fieldKinds, kind).changeHandler;
 }
 
 function makeModularChangeset(changes: FieldChangeMap, maxId: number): ModularChangeset {
@@ -664,11 +678,11 @@ export class ModularEditBuilder
 }
 
 function makeGenericNestedChange(index: number, nodeChange: NodeChangeset): FieldChange {
-	const nested = genericFieldKind.changeHandler.anchorSetFactory<NodeChangeset>();
+	const nested = genericAnchorSetOps.factory<NodeChangeset>();
 	const key = genericFieldKind.changeHandler.getKey(index);
-	nested.track(key, nodeChange);
+	genericAnchorSetOps.track(nested, key, nodeChange);
 	return {
 		fieldKind: genericFieldKind.identifier,
-		nested: nested as unknown as BrandedFieldAnchorSet,
+		nested: nested as unknown as FieldAnchorContainer<NodeChangeset>,
 	};
 }

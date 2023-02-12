@@ -42,7 +42,6 @@ declare module "../../../feature-libraries/modular-schema/anchorSet" {
 
 // Implementation of the AnchorSet concern for SequenceFieldAnchorSet
 const noChangeSequenceAnchorSetOps: FieldAnchorSetOps<typeof NoChangeSequenceAnchorSet> = {
-	clone: defaultCloneFromMap<typeof NoChangeSequenceAnchorSet>(sequenceFieldAnchorSetOps.map),
 	rebase: () => {},
 	...sequenceFieldAnchorSetOps,
 };

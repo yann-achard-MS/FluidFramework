@@ -5,8 +5,7 @@
 
 import { FieldKindIdentifier, Delta, FieldKey, Value, TaggedChange, RevisionTag } from "../../core";
 import { Brand, Invariant, JsonCompatibleReadOnly } from "../../util";
-import { FieldAnchorSet } from "./anchorSet";
-import { BrandedFieldAnchorSet } from "./fieldKind";
+import { AnchorSetChange, AnchorSetKey, AnchorSetOpsURIs, FieldAnchorSetOps } from "./anchorSet";
 
 /**
  * Functionality provided by a field kind which will be composed with other `FieldChangeHandler`s to
@@ -14,20 +13,16 @@ import { BrandedFieldAnchorSet } from "./fieldKind";
  * @alpha
  */
 export interface FieldChangeHandler<
-	TChangeset,
-	TNodeKey = number,
+	TOps extends AnchorSetOpsURIs = any,
 	TEditor = unknown,
-	TAnchorSet extends FieldAnchorSet<TNodeKey, TChangeset, unknown> = FieldAnchorSet<
-		TNodeKey,
-		TChangeset,
-		unknown
-	>,
+	TChangeset extends AnchorSetChange<TOps> = AnchorSetChange<TOps>,
+	TNodeKey extends AnchorSetKey<TOps> = AnchorSetKey<TOps>,
 > {
 	_typeCheck?: Invariant<TChangeset>;
 	rebaser: FieldChangeRebaser<TChangeset>;
-	encoder: FieldChangeEncoder<TChangeset, TAnchorSet>;
+	encoder: FieldChangeEncoder<TChangeset>;
 	editor: TEditor;
-	readonly anchorSetFactory: <TData>() => FieldAnchorSet<TNodeKey, TChangeset, TData>;
+	readonly anchorSetOps: FieldAnchorSetOps<TOps>;
 	getKey(index: number): TNodeKey;
 	keyToDeltaKey(key: TNodeKey): ChildIndex | undefined;
 	intoDelta(change: TChangeset, reviver: NodeReviver): Delta.MarkList;
@@ -98,10 +93,7 @@ export function referenceFreeFieldChangeRebaser<TChangeset>(data: {
 /**
  * @alpha
  */
-export interface FieldChangeEncoder<
-	TChangeset,
-	TAnchorSet extends FieldAnchorSet<any, TChangeset, unknown>,
-> {
+export interface FieldChangeEncoder<TChangeset> {
 	/**
 	 * Encodes `change` into a JSON compatible object.
 	 */
@@ -111,18 +103,6 @@ export interface FieldChangeEncoder<
 	 * Decodes `change` from a JSON compatible object.
 	 */
 	decodeChangeJson(formatVersion: number, change: JsonCompatibleReadOnly): TChangeset;
-
-	encodeAnchorSetForJson<TData>(
-		formatVersion: number,
-		set: TAnchorSet & FieldAnchorSet<any, TChangeset, TData>,
-		dataEncoder: DataEncoder<TData>,
-	): JsonCompatibleReadOnly;
-
-	decodeAnchorSetJson<TData>(
-		formatVersion: number,
-		set: JsonCompatibleReadOnly,
-		dataDecoder: DataDecoder<TData>,
-	): TAnchorSet & FieldAnchorSet<any, TChangeset, TData>;
 }
 
 // export interface FieldEditor<TChangeset> {
@@ -238,18 +218,24 @@ export interface FieldChange {
 	 */
 	revision?: RevisionTag;
 	shallow?: FieldChangeset;
-	readonly nested?: BrandedFieldAnchorSet;
+	readonly nested?: FieldAnchorContainer<NodeChangeset>;
 }
 
 // export type TT = FieldChangeset ? true : false;
 // const t: FieldChangeset = undefined;
 
-/**
- * @alpha
- */
 export type FieldChangeset = Brand<unknown, "FieldChangeset">;
 
-/**
- * @alpha
- */
 export type FieldNodeKey = Brand<unknown, "FieldNodeKey">;
+
+export class Container<TData> {
+	protected readonly data?: TData;
+
+	/**
+	 * This class should never exist at runtime, so make it un-constructable.
+	 */
+	private constructor() {}
+}
+
+export type FieldAnchorContainer<TData> = Brand<unknown, "NodeChangesetContainer"> &
+	Container<TData>;

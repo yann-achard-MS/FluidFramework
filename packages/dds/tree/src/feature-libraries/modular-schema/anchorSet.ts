@@ -23,11 +23,16 @@ export enum RebaseDirection {
 export type DataEncoder<TData> = (data: TData) => JsonCompatibleReadOnly;
 export type DataDecoder<TData> = (data: JsonCompatibleReadOnly) => TData;
 
+export const UnknownAnchorSetOps = "UnknownAnchorSetOps";
+export type UnknownAnchorSetOps = typeof UnknownAnchorSetOps;
+
 /**
  * Global registry that maps implementation URIs to their concrete types.
  * @param TData - The type of data stored in individual anchors.
  */
-export interface AnchorSetOpRegistry<TData> {}
+export interface AnchorSetOpRegistry<TData> {
+	[UnknownAnchorSetOps]: AnchorSetAspects;
+}
 
 /**
  * Set of URIs for the registered concrete implementations of {@link FieldAnchorSetOps}.
@@ -40,8 +45,8 @@ export type AnchorSetOpsURIs = keyof AnchorSetOpRegistry<any>;
  * This interface is purely used for describing the concrete type of {@link FieldAnchorSetOps} implementations in a
  * standardized manner. No objects of this type are instantiated.
  */
-export interface AnchorSetAspects<TShape = unknown, TKey = unknown, TChangeset = unknown> {
-	container: TShape;
+export interface AnchorSetAspects<TContainer = unknown, TKey = unknown, TChangeset = unknown> {
+	container: TContainer;
 	key: TKey;
 	changeset: TChangeset;
 }
@@ -56,13 +61,12 @@ type AnchorSetOpsAspectImpl<
 > = URI extends AnchorSetOpsURIs ? AnchorSetOpRegistry<TData>[URI][TAspect] : never;
 
 /**
- * Retrieves the concrete shape type of a {@link FieldAnchorSetOps} implementation.
+ * Retrieves the concrete container type of a {@link FieldAnchorSetOps} implementation.
  */
-export type AnchorSetShape<URI extends AnchorSetOpsURIs, TData = unknown> = AnchorSetOpsAspectImpl<
-	URI,
-	"container",
-	TData
->;
+export type AnchorSetContainer<
+	URI extends AnchorSetOpsURIs,
+	TData = unknown,
+> = AnchorSetOpsAspectImpl<URI, "container", TData>;
 
 /**
  * Retrieves the concrete key type of a {@link FieldAnchorSetOps} implementation.
@@ -88,44 +92,67 @@ export type AnchorSetChange<URI extends AnchorSetOpsURIs, TData = unknown> = Anc
  * @param TOpsURI - The type of the URI of the {@link FieldAnchorSetOps} implementation.
  */
 export interface FieldAnchorSetOps<TOpsURI extends AnchorSetOpsURIs> {
+	// readonly URI: TOpsURI;
+
 	readonly encode: <TData>(
-		set: AnchorSetShape<TOpsURI, TData>,
+		formatVersion: number,
+		set: AnchorSetContainer<TOpsURI, TData>,
 		dataEncoder: DataEncoder<TData>,
 	) => JsonCompatibleReadOnly;
 
 	readonly decode: <TData>(
+		formatVersion: number,
 		encodedSet: JsonCompatibleReadOnly,
 		dataDecoder: DataDecoder<TData>,
-	) => AnchorSetShape<TOpsURI, TData>;
+	) => AnchorSetContainer<TOpsURI, TData>;
 
-	readonly factory: <TData>() => AnchorSetShape<TOpsURI, TData>;
+	readonly factory: <TData>() => AnchorSetContainer<TOpsURI, TData>;
 
-	readonly clone: <TData>(set: AnchorSetShape<TOpsURI, TData>) => AnchorSetShape<TOpsURI, TData>;
+	readonly count: (set: AnchorSetContainer<TOpsURI>) => number;
+
+	readonly clone: <TData>(
+		set: AnchorSetContainer<TOpsURI, TData>,
+	) => AnchorSetContainer<TOpsURI, TData>;
 
 	readonly map: <TIn, TOut>(
-		fa: AnchorSetShape<TOpsURI, TIn>,
+		fa: AnchorSetContainer<TOpsURI, TIn>,
 		f: MapCallback<TIn, TOut>,
-	) => AnchorSetShape<TOpsURI, TOut>;
+	) => AnchorSetContainer<TOpsURI, TOut>;
+
+	readonly updateAll: <TData>(
+		fa: AnchorSetContainer<TOpsURI, TData>,
+		f: UpdateCallback<TData, AnchorSetKey<TOpsURI>>,
+	) => void;
 
 	readonly track: <TData>(
-		set: AnchorSetShape<TOpsURI, TData>,
+		set: AnchorSetContainer<TOpsURI, TData>,
 		key: AnchorSetKey<TOpsURI, TData>,
 		data: TData,
 		mergeData?: MergeCallback<TData>,
 	) => void;
 
+	readonly mergeIn: <TData>(
+		set: AnchorSetContainer<TOpsURI, TData>,
+		added: AnchorSetContainer<TOpsURI, TData>,
+		mergeData?: MergeCallback<TData>,
+	) => void;
+
 	readonly rebase: (
-		set: AnchorSetShape<TOpsURI>,
+		set: AnchorSetContainer<TOpsURI>,
 		over: TaggedChange<AnchorSetChange<TOpsURI>>,
 		direction: RebaseDirection,
 	) => void;
 
-	readonly forget: (set: AnchorSetShape<TOpsURI>, key: AnchorSetKey<TOpsURI>) => void;
+	readonly forget: (set: AnchorSetContainer<TOpsURI>, key: AnchorSetKey<TOpsURI>) => void;
 
 	readonly lookup: <TData>(
-		set: AnchorSetShape<TOpsURI, TData>,
+		set: AnchorSetContainer<TOpsURI, TData>,
 		key: AnchorSetKey<TOpsURI>,
 	) => FieldAnchorSetEntry<TData, AnchorSetKey<TOpsURI>> | undefined;
+
+	readonly entries: <TData>(
+		set: AnchorSetContainer<TOpsURI, TData>,
+	) => IterableIterator<FieldAnchorSetEntry<TData, AnchorSetKey<TOpsURI>>>;
 }
 
 // --- Default Implementations no matter the shape, key, or changeset
@@ -136,6 +163,6 @@ export interface FieldAnchorSetOps<TOpsURI extends AnchorSetOpsURIs> {
 export function defaultCloneFromMap<TSetURI extends AnchorSetOpsURIs>(
 	map: FieldAnchorSetOps<TSetURI>["map"],
 ) {
-	return <TData>(set: AnchorSetShape<TSetURI, TData>): AnchorSetShape<TSetURI, TData> =>
+	return <TData>(set: AnchorSetContainer<TSetURI, TData>): AnchorSetContainer<TSetURI, TData> =>
 		map(set, (data) => data);
 }

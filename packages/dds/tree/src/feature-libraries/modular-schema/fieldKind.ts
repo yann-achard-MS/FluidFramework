@@ -11,13 +11,13 @@ import {
 	fieldSchema,
 	SchemaData,
 } from "../../core";
-import { FieldAnchorSet } from "./anchorSet";
+import { AnchorSetAspects, AnchorSetOpsURIs, UnknownAnchorSetOps } from "./anchorSet";
 import { isNeverField } from "./comparison";
 import {
 	FieldChangeHandler,
 	FieldChangeset,
 	FieldNodeKey,
-	NodeChangeset,
+	FieldAnchorContainer,
 } from "./fieldChangeHandler";
 
 /**
@@ -35,7 +35,10 @@ import {
  * @sealed
  * @alpha
  */
-export class FieldKind<TEditor = unknown> {
+export class FieldKind<
+	TEditor = unknown,
+	TAnchorSetOps extends AnchorSetOpsURIs = UnknownAnchorSetOps,
+> {
 	/**
 	 * @param identifier - Globally scoped identifier.
 	 * @param multiplicity - bound on the number of children that fields of this kind may have.
@@ -54,7 +57,7 @@ export class FieldKind<TEditor = unknown> {
 	public constructor(
 		public readonly identifier: FieldKindIdentifier,
 		public readonly multiplicity: Multiplicity,
-		public readonly changeHandler: FieldChangeHandler<any, any, TEditor>,
+		public readonly changeHandler: FieldChangeHandler<TAnchorSetOps, TEditor>,
 		private readonly allowsTreeSupersetOf: (
 			originalTypes: ReadonlySet<TreeSchemaIdentifier> | undefined,
 			superset: FieldSchema,
@@ -82,7 +85,21 @@ export class FieldKind<TEditor = unknown> {
 	}
 }
 
-export type BrandedFieldAnchorSet = FieldAnchorSet<FieldNodeKey, FieldChangeset, NodeChangeset>;
+export const BrandedAnchorSetOpsURI = "BrandedAnchorSetOps";
+export type BrandedAnchorSetOps<TData> = AnchorSetAspects<
+	FieldAnchorContainer<TData>,
+	FieldNodeKey,
+	FieldChangeset
+>;
+
+// Registers NoRebaseSlotAnchorSet as a concrete implementation of the FieldAnchorSetOps concern
+declare module "./anchorSet" {
+	interface AnchorSetOpRegistry<TData> {
+		[BrandedAnchorSetOpsURI]: BrandedAnchorSetOps<TData>;
+	}
+}
+
+export type BrandedFieldKind = FieldKind<unknown, typeof BrandedAnchorSetOpsURI>;
 
 /**
  * Policy from the app for interpreting the stored schema.

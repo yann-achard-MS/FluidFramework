@@ -16,7 +16,7 @@ import {
 	FieldChange,
 	ModularChangeset,
 	ChangesetLocalId,
-	baseChangeHandlerKeyFunctions,
+	defaultKeyFunctions,
 	SingleCellAnchorSet,
 	BrandedFieldAnchorSet,
 	GenericAnchorSet,
@@ -69,7 +69,7 @@ const idFieldRebaser: FieldChangeRebaser<IdChangeset> = {
 };
 
 const idFieldHandler: FieldChangeHandler<IdChangeset> = {
-	...baseChangeHandlerKeyFunctions,
+	...defaultKeyFunctions,
 	anchorSetFactory: noRebaseAnchorSetFactoryFactory<IdChangeset>(),
 	rebaser: idFieldRebaser,
 	encoder: FieldKinds.valueEncoder<IdChangeset & JsonCompatibleReadOnly>(),

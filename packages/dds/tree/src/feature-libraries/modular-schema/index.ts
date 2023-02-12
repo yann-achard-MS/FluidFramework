@@ -11,17 +11,17 @@ export {
 	allowsFieldSuperset,
 	allowsTreeSuperset,
 } from "./comparison";
-export { FieldKind, FullSchemaPolicy, Multiplicity, BrandedFieldAnchorSet } from "./fieldKind";
+export { FieldKind, FullSchemaPolicy, Multiplicity } from "./fieldKind";
 export {
 	RebaseDirection,
 	FieldAnchorSetEntry,
 	MergeCallback,
 	FieldAnchorSetOps,
 	defaultCloneFromMap,
-	AnchorSetShape,
+	AnchorSetContainer as AnchorSetShape,
 	AnchorSetOpsURIs,
 } from "./anchorSet";
-export { SequenceSetTypes, sequenceFieldAnchorSetOps } from "./sequenceShapedFieldAnchorSet";
+export { SequenceAnchorSetTypes, sequenceFieldAnchorSetOps } from "./sequenceShapedFieldAnchorSet";
 export { SlotAnchorSetTypes, slotFieldAnchorSetOps } from "./slotShapedFieldAnchorSet";
 export {
 	ChangesetLocalId,
@@ -43,27 +43,14 @@ export {
 	ValueChange,
 } from "./fieldChangeHandler";
 export {
-	EncodedGenericChange,
-	BaseAnchorSet,
-	GenericAnchorSet,
-	baseAnchorSetEncoder,
-	baseChangeHandlerKeyFunctions,
-	noRebaseAnchorSetFactoryFactory,
-	genericAnchorSetFactory,
-	GenericChange,
-	BaseNodeKey,
+	defaultKeyFunctions,
 	genericChangeHandler,
-	GenericChangeset,
+	EmptyChangeset,
 	genericFieldKind,
+	GenericAnchorSetURI,
+	genericAnchorSetOps,
 } from "./genericFieldKind";
-export {
-	SingleCellChangeCodec,
-	singleCellFieldEncoder,
-	singleCellAnchorSetFactory,
-	SingleCellAnchorSet,
-	SingleCellKey,
-	singleCellKeyFunctions,
-} from "./singleCellUtils";
+export { singleCellKeyFunctions } from "./singleCellUtils";
 export { ModularChangeFamily, ModularEditBuilder } from "./modularChangeFamily";
 export { typedTreeSchema, typedFieldSchema } from "./typedSchema";
 export { FieldTypeView, TreeViewSchema, ViewSchemaCollection, ViewSchema } from "./view";
