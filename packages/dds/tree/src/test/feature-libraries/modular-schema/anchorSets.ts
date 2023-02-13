@@ -5,7 +5,7 @@
 
 import {
 	FieldAnchorSetOps,
-	AnchorSetShape,
+	AnchorSetContainer,
 	AnchorSetOpsURIs,
 	SequenceAnchorSetTypes,
 	sequenceFieldAnchorSetOps,
@@ -45,7 +45,7 @@ const noChangeSequenceAnchorSetOps: FieldAnchorSetOps<typeof NoChangeSequenceAnc
 // --- Usage example
 
 function use<TSet extends AnchorSetOpsURIs>(
-	set: AnchorSetShape<TSet, string>,
+	set: AnchorSetContainer<TSet, string>,
 	ops: FieldAnchorSetOps<TSet>,
 ) {
 	return ops.map(set, (s: string) => 42);

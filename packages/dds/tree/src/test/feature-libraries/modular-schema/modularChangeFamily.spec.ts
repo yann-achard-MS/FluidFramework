@@ -5,26 +5,11 @@
 
 import { strict as assert } from "assert";
 import {
-	FieldChangeHandler,
-	FieldChangeRebaser,
-	FieldKind,
-	Multiplicity,
 	ModularChangeFamily,
-	FieldKinds,
 	NodeChangeset,
-	genericFieldKind,
 	FieldChange,
 	ModularChangeset,
 	ChangesetLocalId,
-	defaultKeyFunctions,
-	SingleCellAnchorSet,
-	BrandedFieldAnchorSet,
-	GenericAnchorSet,
-	noRebaseAnchorSetFactoryFactory,
-	SingleCellKey,
-	singleCellAnchorSetFactory,
-	singleCellFieldEncoder,
-	singleCellKeyFunctions,
 	FieldChangeMap,
 } from "../../../feature-libraries";
 import {
@@ -33,66 +18,27 @@ import {
 	RevisionTag,
 	tagChange,
 	TaggedChange,
-	FieldKindIdentifier,
 	AnchorSet,
 	Delta,
 	FieldKey,
 	UpPath,
 } from "../../../core";
-import { brand, JsonCompatibleReadOnly } from "../../../util";
+import { brand } from "../../../util";
 import { assertDeltaEqual, deepFreeze, noRepair } from "../../utils";
-import { AddDelAnchorSet, AddDelChangeset, addDelField, ValueChangeset, valueField } from "./utils";
+import {
+	AddDelChangeset,
+	addDelField,
+	idField,
+	nestedAddDelChange,
+	nestedGenericChange,
+	nestedSingleNodeChange,
+	nestedValueChange,
+	testFieldKinds,
+	ValueChangeset,
+	valueField,
+} from "./testFieldKinds";
 
-const singleNodeHandler: FieldChangeHandler<0, SingleCellKey> = {
-	...FieldKinds.noChangeHandler,
-	...singleCellKeyFunctions,
-	encoder: singleCellFieldEncoder({
-		...FieldKinds.noChangeHandler.encoder,
-	}),
-	anchorSetFactory: singleCellAnchorSetFactory,
-};
-
-const singleNodeField = new FieldKind(
-	brand("SingleNode"),
-	Multiplicity.Value,
-	singleNodeHandler,
-	(a, b) => false,
-	new Set(),
-);
-
-type IdChangeset = ChangesetLocalId;
-
-const idFieldRebaser: FieldChangeRebaser<IdChangeset> = {
-	compose: (changes, genId): IdChangeset => genId(),
-	invert: (change, genId): IdChangeset => genId(),
-	rebase: (change, over, genId): IdChangeset => genId(),
-};
-
-const idFieldHandler: FieldChangeHandler<IdChangeset> = {
-	...defaultKeyFunctions,
-	anchorSetFactory: noRebaseAnchorSetFactoryFactory<IdChangeset>(),
-	rebaser: idFieldRebaser,
-	encoder: FieldKinds.valueEncoder<IdChangeset & JsonCompatibleReadOnly>(),
-	editor: {},
-	intoDelta: () => [],
-};
-
-/**
- * A field which just allocates a new `ChangesetLocalId` for every operation.
- */
-const idField = new FieldKind(
-	brand("Id"),
-	Multiplicity.Value,
-	idFieldHandler,
-	(a, b) => false,
-	new Set(),
-);
-
-const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind<any>> = new Map(
-	[singleNodeField, valueField, addDelField, idField].map((field) => [field.identifier, field]),
-);
-
-const family = new ModularChangeFamily(fieldKinds);
+const family = new ModularChangeFamily(testFieldKinds);
 
 const tag1: RevisionTag = brand(1);
 const tag2: RevisionTag = brand(2);
@@ -904,35 +850,3 @@ describe("ModularChangeFamily", () => {
 		assert.deepEqual(changes, [nodeValueOverwrite]);
 	});
 });
-
-function nestedSingleNodeChange(nodeChange: NodeChangeset): FieldChange {
-	return {
-		fieldKind: singleNodeField.identifier,
-		nested: SingleCellAnchorSet.fromData(nodeChange) as unknown as BrandedFieldAnchorSet,
-	};
-}
-
-function nestedValueChange(nodeChange: NodeChangeset): FieldChange {
-	return {
-		fieldKind: valueField.identifier,
-		nested: nestedGenericChange(0, nodeChange).nested,
-	};
-}
-
-function nestedAddDelChange(index: number, nodeChange: NodeChangeset): FieldChange {
-	return {
-		fieldKind: addDelField.identifier,
-		nested: AddDelAnchorSet.fromData([
-			{ key: addDelField.changeHandler.getKey(index), data: nodeChange },
-		]) as unknown as BrandedFieldAnchorSet,
-	};
-}
-
-function nestedGenericChange(index: number, nodeChange: NodeChangeset): FieldChange {
-	return {
-		fieldKind: genericFieldKind.identifier,
-		nested: GenericAnchorSet.fromData([
-			{ key: genericFieldKind.changeHandler.getKey(index), data: nodeChange },
-		]) as unknown as BrandedFieldAnchorSet,
-	};
-}

@@ -39,7 +39,7 @@ export interface TypedTreeSchemaBuilder {
  */
 export interface TypedFieldSchemaTypeBuilder {
 	readonly types?: readonly (string | Named<string>)[];
-	readonly kind: FieldKind<any>;
+	readonly kind: FieldKind<unknown, any>;
 }
 
 const empty = [] as const;
@@ -84,7 +84,7 @@ export function typedTreeSchema<T extends TypedTreeSchemaBuilder>(
  * typescript type to allow for deriving schema aware APIs.
  */
 export function typedFieldSchema<
-	TKind extends FieldKind<any>,
+	TKind extends FieldKind<unknown, any>,
 	TTypes extends undefined | readonly (string | Named<string>)[],
 >(
 	kind: TKind,

@@ -35,6 +35,8 @@ import {
 	GenericAnchorSetURI,
 	SlotAnchorSetTypes,
 	slotFieldAnchorSetOps,
+	AnchorSetOpsURIs,
+	UnknownAnchorSetOps,
 } from "./modular-schema";
 import * as SequenceField from "./sequence-field";
 
@@ -42,28 +44,34 @@ type BrandedFieldKind<
 	TName extends string,
 	TMultiplicity extends Multiplicity,
 	TEditor = unknown,
-> = FieldKind<TEditor> & {
+	TAnchorSetOps extends AnchorSetOpsURIs = UnknownAnchorSetOps,
+> = FieldKind<TEditor, TAnchorSetOps> & {
 	identifier: TName & FieldKindIdentifier;
 	multiplicity: TMultiplicity;
 };
 
-function brandedFieldKind<TName extends string, TMultiplicity extends Multiplicity, TEditor>(
+function brandedFieldKind<
+	TName extends string,
+	TMultiplicity extends Multiplicity,
+	TEditor,
+	TAnchorSetOps extends AnchorSetOpsURIs = UnknownAnchorSetOps,
+>(
 	identifier: TName,
 	multiplicity: TMultiplicity,
-	changeHandler: FieldChangeHandler<any, TEditor>,
+	changeHandler: FieldChangeHandler<TAnchorSetOps, TEditor>,
 	allowsTreeSupersetOf: (
 		originalTypes: ReadonlySet<TreeSchemaIdentifier> | undefined,
 		superset: FieldSchema,
 	) => boolean,
 	handlesEditsFrom: ReadonlySet<FieldKindIdentifier>,
-): BrandedFieldKind<TName, TMultiplicity, TEditor> {
-	return new FieldKind<TEditor>(
+): BrandedFieldKind<TName, TMultiplicity, TEditor, TAnchorSetOps> {
+	return new FieldKind(
 		brand(identifier),
 		multiplicity,
 		changeHandler,
 		allowsTreeSupersetOf,
 		handlesEditsFrom,
-	) as BrandedFieldKind<TName, TMultiplicity, TEditor>;
+	) as BrandedFieldKind<TName, TMultiplicity, TEditor, TAnchorSetOps>;
 }
 
 /**
@@ -337,18 +345,22 @@ const valueChangeHandler: FieldChangeHandler<ValueFieldAnchorSetURI, ValueFieldE
 /**
  * Exactly one item.
  */
-export const value: BrandedFieldKind<"Value", Multiplicity.Value, ValueFieldEditor> =
-	brandedFieldKind<"Value", Multiplicity.Value, ValueFieldEditor>(
-		"Value",
-		Multiplicity.Value,
-		valueChangeHandler,
-		(types, other) =>
-			(other.kind === sequence.identifier ||
-				other.kind === value.identifier ||
-				other.kind === optional.identifier) &&
-			allowsTreeSchemaIdentifierSuperset(types, other.types),
-		new Set(),
-	);
+export const value: BrandedFieldKind<
+	"Value",
+	Multiplicity.Value,
+	ValueFieldEditor,
+	ValueFieldAnchorSetURI
+> = brandedFieldKind(
+	"Value",
+	Multiplicity.Value,
+	valueChangeHandler,
+	(types, other) =>
+		(other.kind === sequence.identifier ||
+			other.kind === value.identifier ||
+			other.kind === optional.identifier) &&
+		allowsTreeSchemaIdentifierSuperset(types, other.types),
+	new Set(),
+);
 
 export interface OptionalFieldChange {
 	/**

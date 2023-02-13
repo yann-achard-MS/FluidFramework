@@ -78,7 +78,7 @@ export {
 	Multiplicity,
 	FullSchemaPolicy,
 	allowsRepoSuperset,
-	EmptyChangeset as GenericChangeset,
+	EmptyChangeset,
 	genericFieldKind,
 	NodeReviver,
 	defaultKeyFunctions,
@@ -87,13 +87,16 @@ export {
 	singleCellKeyFunctions,
 	FieldAnchorSetOps,
 	defaultCloneFromMap,
-	AnchorSetShape,
+	anchorSetFromData,
+	AnchorSetContainer,
 	AnchorSetOpsURIs,
 	SequenceFieldAnchorSet,
 	SequenceAnchorSetTypes,
 	sequenceFieldAnchorSetOps,
 	SlotAnchorSetTypes,
 	slotFieldAnchorSetOps,
+	genericAnchorSetOps,
+	nestedChange,
 } from "./modular-schema";
 
 // Split this up into separate import and export for compatibility with API-Extractor.

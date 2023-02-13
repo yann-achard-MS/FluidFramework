@@ -18,8 +18,10 @@ export {
 	MergeCallback,
 	FieldAnchorSetOps,
 	defaultCloneFromMap,
-	AnchorSetContainer as AnchorSetShape,
+	anchorSetFromData,
+	AnchorSetContainer,
 	AnchorSetOpsURIs,
+	UnknownAnchorSetOps,
 } from "./anchorSet";
 export {
 	SequenceFieldAnchorSet,
@@ -45,6 +47,7 @@ export {
 	Context,
 	ChildIndex,
 	ValueChange,
+	nestedChange,
 } from "./fieldChangeHandler";
 export {
 	defaultKeyFunctions,

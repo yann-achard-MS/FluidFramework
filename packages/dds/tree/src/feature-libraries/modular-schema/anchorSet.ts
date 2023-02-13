@@ -160,9 +160,20 @@ export interface FieldAnchorSetOps<TOpsURI extends AnchorSetOpsURIs> {
 /**
  * @returns a implementation of {@link FieldAnchorSetOps.clone}.
  */
-export function defaultCloneFromMap<TSetURI extends AnchorSetOpsURIs>(
-	map: FieldAnchorSetOps<TSetURI>["map"],
+export function defaultCloneFromMap<TOpsURI extends AnchorSetOpsURIs>(
+	map: FieldAnchorSetOps<TOpsURI>["map"],
 ) {
-	return <TData>(set: AnchorSetContainer<TSetURI, TData>): AnchorSetContainer<TSetURI, TData> =>
+	return <TData>(set: AnchorSetContainer<TOpsURI, TData>): AnchorSetContainer<TOpsURI, TData> =>
 		map(set, (data) => data);
+}
+
+export function anchorSetFromData<TOpsURI extends AnchorSetOpsURIs, TData>(
+	ops: FieldAnchorSetOps<TOpsURI>,
+	entries: readonly FieldAnchorSetEntry<TData, AnchorSetKey<TOpsURI>>[],
+): AnchorSetContainer<TOpsURI, TData> {
+	const set = ops.factory<TData>();
+	for (const { key, data } of entries) {
+		ops.track(set, key, data);
+	}
+	return set;
 }

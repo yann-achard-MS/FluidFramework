@@ -36,7 +36,7 @@ export interface TreeSchemaTypeInfo extends TreeSchemaBuilder {
  * Object for capturing information about a FieldSchema for use at both compile time and runtime.
  */
 export interface FieldSchemaTypeInfo {
-	readonly kind: FieldKind<any>;
+	readonly kind: FieldKind<unknown, any>;
 	readonly types?: { readonly [key: string]: MapToken };
 }
 

@@ -14,8 +14,19 @@ import {
 	sequenceFieldAnchorSetOps,
 	SequenceAnchorSetTypes,
 	SequenceFieldAnchorSet,
+	EmptyChangeset,
+	singleCellKeyFunctions,
+	slotFieldAnchorSetOps,
+	SlotAnchorSetTypes,
+	ChangesetLocalId,
+	FieldChangeRebaser,
+	genericAnchorSetOps,
+	nestedChange,
+	NodeChangeset,
+	FieldChange,
+	genericFieldKind,
 } from "../../../feature-libraries";
-import { Delta, makeAnonChange, TaggedChange } from "../../../core";
+import { Delta, FieldKindIdentifier, makeAnonChange, TaggedChange } from "../../../core";
 import { brand, JsonCompatibleReadOnly, makeArray } from "../../../util";
 import { singleJsonCursor } from "../../../domains";
 
@@ -148,3 +159,90 @@ export const addDelField = new FieldKind(
 	(a, b) => false,
 	new Set(),
 );
+
+export const SingleNodeAnchorSetURI = "SingleNodeAnchorSetURI";
+export type SingleNodeAnchorSetURI = typeof SingleNodeAnchorSetURI;
+
+declare module "../../../feature-libraries/modular-schema/anchorSet" {
+	interface AnchorSetOpRegistry<TData> {
+		[SingleNodeAnchorSetURI]: SlotAnchorSetTypes<TData, EmptyChangeset>;
+	}
+}
+
+const singleNodeHandler: FieldChangeHandler<SingleNodeAnchorSetURI> = {
+	...FieldKinds.noChangeHandler,
+	...singleCellKeyFunctions,
+	encoder: FieldKinds.noChangeHandler.encoder,
+	anchorSetOps: {
+		...slotFieldAnchorSetOps,
+		rebase: () => 0,
+	},
+};
+
+export const singleNodeField = new FieldKind(
+	brand("SingleNode"),
+	Multiplicity.Value,
+	singleNodeHandler,
+	(a, b) => false,
+	new Set(),
+);
+
+type IdChangeset = ChangesetLocalId;
+
+const idFieldRebaser: FieldChangeRebaser<IdChangeset> = {
+	compose: (changes, genId): IdChangeset => genId(),
+	invert: (change, genId): IdChangeset => genId(),
+	rebase: (change, over, genId): IdChangeset => genId(),
+};
+
+export const IdFieldAnchorSetURI = "IdFieldAnchorSetURI";
+export type IdFieldAnchorSetURI = typeof IdFieldAnchorSetURI;
+
+declare module "../../../feature-libraries/modular-schema/anchorSet" {
+	interface AnchorSetOpRegistry<TData> {
+		[IdFieldAnchorSetURI]: SequenceAnchorSetTypes<TData, IdChangeset>;
+	}
+}
+
+const idFieldHandler: FieldChangeHandler<IdFieldAnchorSetURI> = {
+	...defaultKeyFunctions,
+	anchorSetOps: {
+		...genericAnchorSetOps,
+		rebase: () => {},
+	},
+	rebaser: idFieldRebaser,
+	encoder: FieldKinds.valueEncoder<IdChangeset & JsonCompatibleReadOnly>(),
+	editor: {},
+	intoDelta: () => [],
+};
+
+/**
+ * A field which just allocates a new `ChangesetLocalId` for every operation.
+ */
+export const idField = new FieldKind(
+	brand("Id"),
+	Multiplicity.Value,
+	idFieldHandler,
+	(a, b) => false,
+	new Set(),
+);
+
+export const testFieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind<unknown, any>> = new Map(
+	[singleNodeField, valueField, addDelField, idField].map((field) => [field.identifier, field]),
+);
+
+export function nestedSingleNodeChange(nodeChange: NodeChangeset): FieldChange {
+	return nestedChange(singleNodeField, 0, nodeChange);
+}
+
+export function nestedValueChange(nodeChange: NodeChangeset): FieldChange {
+	return nestedChange(valueField, 0, nodeChange);
+}
+
+export function nestedAddDelChange(index: number, nodeChange: NodeChangeset): FieldChange {
+	return nestedChange(addDelField, index, nodeChange);
+}
+
+export function nestedGenericChange(index: number, nodeChange: NodeChangeset): FieldChange {
+	return nestedChange(genericFieldKind, index, nodeChange);
+}

@@ -10,17 +10,22 @@ import { deepFreeze } from "../../utils";
 import { ChangeMaker as Change, TestChangeset } from "./testEdits";
 
 const encoder = SF.sequenceFieldChangeEncoder;
+const anchorSetOps = SF.sequenceFieldChangeHandler.anchorSetOps;
 
 describe("SequenceField - Encoder", () => {
 	it("AnchorSet", () => {
-		const original = SF.anchorSetFactory<TestChange>();
-		original.track(SF.sequenceFieldChangeHandler.getKey(42), TestChange.mint([], 1));
+		const original = anchorSetOps.factory<TestChange>();
+		anchorSetOps.track(
+			original,
+			SF.sequenceFieldChangeHandler.getKey(42),
+			TestChange.mint([], 1),
+		);
 		deepFreeze(original);
 		const childEncoder = new TestChangeEncoder();
 		const encoded = JSON.stringify(
-			encoder.encodeAnchorSetForJson(0, original, (c) => childEncoder.encodeForJson(0, c)),
+			anchorSetOps.encode(0, original, (c) => childEncoder.encodeForJson(0, c)),
 		);
-		const decoded = encoder.decodeAnchorSetJson(0, JSON.parse(encoded), (c) =>
+		const decoded = anchorSetOps.decode(0, JSON.parse(encoded), (c) =>
 			childEncoder.decodeJson(0, c),
 		);
 		assert.deepEqual(decoded, original);

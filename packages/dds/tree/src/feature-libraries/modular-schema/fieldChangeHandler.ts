@@ -5,7 +5,14 @@
 
 import { FieldKindIdentifier, Delta, FieldKey, Value, TaggedChange, RevisionTag } from "../../core";
 import { Brand, Invariant, JsonCompatibleReadOnly } from "../../util";
-import { AnchorSetChange, AnchorSetKey, AnchorSetOpsURIs, FieldAnchorSetOps } from "./anchorSet";
+import {
+	AnchorSetChange,
+	anchorSetFromData,
+	AnchorSetKey,
+	AnchorSetOpsURIs,
+	FieldAnchorSetOps,
+} from "./anchorSet";
+import { FieldKind } from "./fieldKind";
 
 /**
  * Functionality provided by a field kind which will be composed with other `FieldChangeHandler`s to
@@ -239,3 +246,16 @@ export class Container<TData> {
 
 export type FieldAnchorContainer<TData> = Brand<unknown, "NodeChangesetContainer"> &
 	Container<TData>;
+
+export function nestedChange<TAnchorSetOps extends AnchorSetOpsURIs>(
+	fieldKind: FieldKind<unknown, TAnchorSetOps>,
+	index: number,
+	nodeChange: NodeChangeset,
+): FieldChange {
+	return {
+		fieldKind: fieldKind.identifier,
+		nested: anchorSetFromData(fieldKind.changeHandler.anchorSetOps, [
+			{ key: fieldKind.changeHandler.getKey(index), data: nodeChange },
+		]) as FieldAnchorContainer<NodeChangeset>,
+	};
+}

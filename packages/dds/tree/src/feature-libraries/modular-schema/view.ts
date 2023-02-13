@@ -167,7 +167,9 @@ export interface TreeViewSchema extends TreeSchema {}
  *
  * This can include policy for how to use this schema for "view" purposes, and well as how to expose editing APIs.
  */
-export class FieldTypeView<Kind extends FieldKind<any> = FieldKind<any>> implements FieldSchema {
+export class FieldTypeView<Kind extends FieldKind<unknown, any> = FieldKind<unknown, any>>
+	implements FieldSchema
+{
 	public readonly types?: ReadonlySet<TreeSchemaIdentifier>;
 
 	get kind(): FieldKindIdentifier {

@@ -90,17 +90,14 @@ describe("Value field changesets", () => {
 	it("can encode anchors in JSON", () => {
 		const version = 0;
 		const childEncoder = new TestChangeEncoder();
-		const original = FieldKinds.value.changeHandler.anchorSetFactory<TestChange>();
-		original.track(fieldHandler.getKey(0), TestChange.mint([], 1));
+		const anchorSetOps = FieldKinds.value.changeHandler.anchorSetOps;
+		const original = anchorSetOps.factory<TestChange>();
+		anchorSetOps.track(original, fieldHandler.getKey(0), TestChange.mint([], 1));
 		const encoded = JSON.stringify(
-			fieldHandler.encoder.encodeAnchorSetForJson(version, original, (data) =>
-				childEncoder.encodeForJson(0, data),
-			),
+			anchorSetOps.encode(version, original, (data) => childEncoder.encodeForJson(0, data)),
 		);
-		const decoded = fieldHandler.encoder.decodeAnchorSetJson(
-			version,
-			JSON.parse(encoded),
-			(data) => childEncoder.decodeJson(0, data),
+		const decoded = anchorSetOps.decode(version, JSON.parse(encoded), (data) =>
+			childEncoder.decodeJson(0, data),
 		);
 		assert.deepEqual(decoded, original);
 	});
@@ -209,17 +206,14 @@ describe("Optional field changesets", () => {
 	it("can encode anchors in JSON", () => {
 		const version = 0;
 		const childEncoder = new TestChangeEncoder();
-		const original = FieldKinds.optional.changeHandler.anchorSetFactory<TestChange>();
-		original.track(fieldHandler.getKey(0), TestChange.mint([], 1));
+		const anchorSetOps = FieldKinds.optional.changeHandler.anchorSetOps;
+		const original = anchorSetOps.factory<TestChange>();
+		anchorSetOps.track(original, fieldHandler.getKey(0), TestChange.mint([], 1));
 		const encoded = JSON.stringify(
-			fieldHandler.encoder.encodeAnchorSetForJson(version, original, (data) =>
-				childEncoder.encodeForJson(0, data),
-			),
+			anchorSetOps.encode(version, original, (data) => childEncoder.encodeForJson(0, data)),
 		);
-		const decoded = fieldHandler.encoder.decodeAnchorSetJson(
-			version,
-			JSON.parse(encoded),
-			(data) => childEncoder.decodeJson(0, data),
+		const decoded = anchorSetOps.decode(version, JSON.parse(encoded), (data) =>
+			childEncoder.decodeJson(0, data),
 		);
 		assert.deepEqual(decoded, original);
 	});

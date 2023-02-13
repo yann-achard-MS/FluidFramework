@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import { assert } from "@fluidframework/common-utils";
 import { brand } from "../../util";
 import { ChildIndex, Context } from "./fieldChangeHandler";
 import { SlotKey } from "./slotShapedFieldAnchorSet";
@@ -170,7 +171,10 @@ import { SlotKey } from "./slotShapedFieldAnchorSet";
  * @alpha
  */
 export const singleCellKeyFunctions = {
-	getKey: (index: number): SlotKey => brand(0),
+	getKey: (index: number): SlotKey => {
+		assert(index === 0, "Unexpected non-zero index passed to single-cell field");
+		return brand(0);
+	},
 	keyToDeltaKey: (key: SlotKey): ChildIndex | undefined => ({
 		context: Context.Input,
 		index: 0,
