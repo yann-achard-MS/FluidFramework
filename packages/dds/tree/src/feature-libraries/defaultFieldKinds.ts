@@ -111,13 +111,6 @@ function commutativeRebaser<TChange>(data: {
 export const CounterAnchorSet = "CounterAnchorSet";
 export type CounterAnchorSet = typeof CounterAnchorSet;
 
-// Registers the types used by the counter field anchor set.
-declare module "./modular-schema/anchorSet" {
-	interface AnchorSetOpRegistry<TData> {
-		[CounterAnchorSet]: SequenceAnchorSetTypes<TData, number>;
-	}
-}
-
 export const counterAnchorSetOps: FieldAnchorSetOps<typeof CounterAnchorSet> = {
 	rebase: () => {},
 	...sequenceFieldAnchorSetOps,
@@ -304,13 +297,6 @@ const valueFieldEditor: ValueFieldEditor = {
 export const ValueFieldAnchorSetURI = "ValueFieldAnchorSetURI";
 export type ValueFieldAnchorSetURI = typeof ValueFieldAnchorSetURI;
 
-// Registers the types used by the value field anchor set.
-declare module "./modular-schema/anchorSet" {
-	interface AnchorSetOpRegistry<TData> {
-		[ValueFieldAnchorSetURI]: SlotAnchorSetTypes<TData, ValueChangeset>;
-	}
-}
-
 const valueChangeHandler: FieldChangeHandler<ValueFieldAnchorSetURI, ValueFieldEditor> = {
 	...singleCellKeyFunctions,
 	anchorSetOps: {
@@ -495,13 +481,6 @@ const optionalFieldEncoder: FieldChangeEncoder<OptionalChangeset> = {
 export const OptionalFieldAnchorSetURI = "OptionalFieldAnchorSetURI";
 export type OptionalFieldAnchorSetURI = typeof OptionalFieldAnchorSetURI;
 
-// Registers the types used by the value field anchor set.
-declare module "./modular-schema/anchorSet" {
-	interface AnchorSetOpRegistry<TData> {
-		[OptionalFieldAnchorSetURI]: SlotAnchorSetTypes<TData, OptionalChangeset>;
-	}
-}
-
 /**
  * 0 or 1 items.
  */
@@ -614,3 +593,12 @@ export const forbidden = brandedFieldKind(
 export const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKind<unknown, any>> = new Map(
 	[value, optional, sequence, forbidden].map((s) => [s.identifier, s]),
 );
+
+// Registers the types used by the field kinds.
+declare module "./modular-schema/anchorSetOpsRegistry" {
+	interface AnchorSetOpsRegistry<TData> {
+		[ValueFieldAnchorSetURI]: SlotAnchorSetTypes<TData, ValueChangeset>;
+		[OptionalFieldAnchorSetURI]: SlotAnchorSetTypes<TData, OptionalChangeset>;
+		[CounterAnchorSet]: SequenceAnchorSetTypes<TData, number>;
+	}
+}

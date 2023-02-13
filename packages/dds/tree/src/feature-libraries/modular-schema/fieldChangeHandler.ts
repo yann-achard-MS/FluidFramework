@@ -11,7 +11,7 @@ import {
 	AnchorSetKey,
 	AnchorSetOpsURIs,
 	FieldAnchorSetOps,
-} from "./anchorSet";
+} from "./anchorSetOps";
 import { FieldKind } from "./fieldKind";
 
 /**

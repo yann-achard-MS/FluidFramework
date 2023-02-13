@@ -35,13 +35,6 @@ export type ValueChangeset = FieldKinds.ReplaceOp<number>;
 export const ValueAnchorSetURI = "ValueAnchorSetURI";
 export type ValueAnchorSetURI = typeof ValueAnchorSetURI;
 
-// Registers the types used by the value anchor set.
-declare module "../../../feature-libraries/modular-schema/anchorSet" {
-	interface AnchorSetOpRegistry<TData> {
-		[ValueAnchorSetURI]: SequenceAnchorSetTypes<TData, ValueChangeset>;
-	}
-}
-
 export const valueHandler: FieldChangeHandler<ValueAnchorSetURI> = {
 	...defaultKeyFunctions,
 	anchorSetOps: {
@@ -121,13 +114,6 @@ function rebaseAnchorSet(
 export const AddDelAnchorSetURI = "AddDelAnchorSetURI";
 export type AddDelAnchorSetURI = typeof AddDelAnchorSetURI;
 
-// Registers the types used by the value anchor set.
-declare module "../../../feature-libraries/modular-schema/anchorSet" {
-	interface AnchorSetOpRegistry<TData> {
-		[AddDelAnchorSetURI]: SequenceAnchorSetTypes<TData, AddDelChangeset>;
-	}
-}
-
 export const addDelHandler: FieldChangeHandler<AddDelAnchorSetURI> = {
 	...defaultKeyFunctions,
 	anchorSetOps: {
@@ -163,12 +149,6 @@ export const addDelField = new FieldKind(
 export const SingleNodeAnchorSetURI = "SingleNodeAnchorSetURI";
 export type SingleNodeAnchorSetURI = typeof SingleNodeAnchorSetURI;
 
-declare module "../../../feature-libraries/modular-schema/anchorSet" {
-	interface AnchorSetOpRegistry<TData> {
-		[SingleNodeAnchorSetURI]: SlotAnchorSetTypes<TData, EmptyChangeset>;
-	}
-}
-
 const singleNodeHandler: FieldChangeHandler<SingleNodeAnchorSetURI> = {
 	...FieldKinds.noChangeHandler,
 	...singleCellKeyFunctions,
@@ -197,12 +177,6 @@ const idFieldRebaser: FieldChangeRebaser<IdChangeset> = {
 
 export const IdFieldAnchorSetURI = "IdFieldAnchorSetURI";
 export type IdFieldAnchorSetURI = typeof IdFieldAnchorSetURI;
-
-declare module "../../../feature-libraries/modular-schema/anchorSet" {
-	interface AnchorSetOpRegistry<TData> {
-		[IdFieldAnchorSetURI]: SequenceAnchorSetTypes<TData, IdChangeset>;
-	}
-}
 
 const idFieldHandler: FieldChangeHandler<IdFieldAnchorSetURI> = {
 	...defaultKeyFunctions,
@@ -245,4 +219,14 @@ export function nestedAddDelChange(index: number, nodeChange: NodeChangeset): Fi
 
 export function nestedGenericChange(index: number, nodeChange: NodeChangeset): FieldChange {
 	return nestedChange(genericFieldKind, index, nodeChange);
+}
+
+// Registers the types used by the field kinds.
+declare module "../../../feature-libraries/modular-schema/anchorSetOpsRegistry" {
+	interface AnchorSetOpsRegistry<TData> {
+		[ValueAnchorSetURI]: SequenceAnchorSetTypes<TData, ValueChangeset>;
+		[AddDelAnchorSetURI]: SequenceAnchorSetTypes<TData, AddDelChangeset>;
+		[SingleNodeAnchorSetURI]: SlotAnchorSetTypes<TData, EmptyChangeset>;
+		[IdFieldAnchorSetURI]: SequenceAnchorSetTypes<TData, IdChangeset>;
+	}
 }

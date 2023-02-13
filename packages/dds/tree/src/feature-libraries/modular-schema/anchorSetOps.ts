@@ -5,6 +5,7 @@
 
 import { TaggedChange } from "../../core";
 import { JsonCompatibleReadOnly } from "../../util";
+import { AnchorSetOpsRegistry } from "./anchorSetOpsRegistry";
 
 export type MergeCallback<TData> = (existingData: TData, newData: TData) => TData;
 export type UpdateCallback<TData, TKey> = (data: TData, key: TKey) => TData;
@@ -27,17 +28,9 @@ export const UnknownAnchorSetOps = "UnknownAnchorSetOps";
 export type UnknownAnchorSetOps = typeof UnknownAnchorSetOps;
 
 /**
- * Global registry that maps implementation URIs to their concrete types.
- * @param TData - The type of data stored in individual anchors.
- */
-export interface AnchorSetOpRegistry<TData> {
-	[UnknownAnchorSetOps]: AnchorSetAspects;
-}
-
-/**
  * Set of URIs for the registered concrete implementations of {@link FieldAnchorSetOps}.
  */
-export type AnchorSetOpsURIs = keyof AnchorSetOpRegistry<any>;
+export type AnchorSetOpsURIs = keyof AnchorSetOpsRegistry<any>;
 
 /**
  * The aspects that make up an {@link FieldAnchorSetOps} implementation.
@@ -58,7 +51,7 @@ type AnchorSetOpsAspectImpl<
 	URI extends AnchorSetOpsURIs,
 	TAspect extends keyof AnchorSetAspects,
 	TData = unknown,
-> = URI extends AnchorSetOpsURIs ? AnchorSetOpRegistry<TData>[URI][TAspect] : never;
+> = URI extends AnchorSetOpsURIs ? AnchorSetOpsRegistry<TData>[URI][TAspect] : never;
 
 /**
  * Retrieves the concrete container type of a {@link FieldAnchorSetOps} implementation.

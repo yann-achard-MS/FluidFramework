@@ -11,7 +11,7 @@ import {
 	fieldSchema,
 	SchemaData,
 } from "../../core";
-import { AnchorSetAspects, AnchorSetOpsURIs, UnknownAnchorSetOps } from "./anchorSet";
+import { AnchorSetAspects, AnchorSetOpsURIs, UnknownAnchorSetOps } from "./anchorSetOps";
 import { isNeverField } from "./comparison";
 import {
 	FieldChangeHandler,
@@ -93,8 +93,8 @@ export type BrandedAnchorSetOps<TData> = AnchorSetAspects<
 >;
 
 // Registers NoRebaseSlotAnchorSet as a concrete implementation of the FieldAnchorSetOps concern
-declare module "./anchorSet" {
-	interface AnchorSetOpRegistry<TData> {
+declare module "./anchorSetOpsRegistry" {
+	interface AnchorSetOpsRegistry<TData> {
 		[BrandedAnchorSetOpsURI]: BrandedAnchorSetOps<TData>;
 	}
 }

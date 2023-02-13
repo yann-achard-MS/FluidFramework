@@ -22,7 +22,7 @@ export {
 	AnchorSetContainer,
 	AnchorSetOpsURIs,
 	UnknownAnchorSetOps,
-} from "./anchorSet";
+} from "./anchorSetOps";
 export {
 	SequenceFieldAnchorSet,
 	SequenceAnchorSetTypes,

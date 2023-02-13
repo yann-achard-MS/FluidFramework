@@ -13,7 +13,7 @@ import {
 	MapCallback,
 	MergeCallback,
 	UpdateCallback,
-} from "./anchorSet";
+} from "./anchorSetOps";
 
 /**
  * An entry in an anchor set for a sequence-shaped field.

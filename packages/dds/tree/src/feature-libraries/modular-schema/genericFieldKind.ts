@@ -5,7 +5,7 @@
 
 import { Delta } from "../../core";
 import { brand, JsonCompatibleReadOnly } from "../../util";
-import { FieldAnchorSetOps } from "./anchorSet";
+import { FieldAnchorSetOps } from "./anchorSetOps";
 import { FieldChangeHandler, ChildIndex, Context } from "./fieldChangeHandler";
 import { FieldKind, Multiplicity } from "./fieldKind";
 import {
@@ -32,8 +32,8 @@ export const GenericAnchorSetURI = "GenericAnchorSetURI";
 export type GenericAnchorSetURI = typeof GenericAnchorSetURI;
 
 // Registers the types used by the generic anchor set.
-declare module "./anchorSet" {
-	interface AnchorSetOpRegistry<TData> {
+declare module "./anchorSetOpsRegistry" {
+	interface AnchorSetOpsRegistry<TData> {
 		[GenericAnchorSetURI]: SequenceAnchorSetTypes<TData, EmptyChangeset>;
 	}
 }

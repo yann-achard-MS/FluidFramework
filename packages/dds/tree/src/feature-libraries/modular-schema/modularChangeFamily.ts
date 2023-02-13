@@ -24,7 +24,7 @@ import {
 } from "../../core";
 import { brand, clone, getOrAddEmptyToMap, JsonCompatibleReadOnly, Mutable } from "../../util";
 import { dummyRepairDataStore } from "../fakeRepairDataStore";
-import { AnchorSetContainer, RebaseDirection } from "./anchorSet";
+import { AnchorSetContainer, RebaseDirection } from "./anchorSetOps";
 import {
 	FieldChangeHandler,
 	FieldChangeMap,

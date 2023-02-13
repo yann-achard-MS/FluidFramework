@@ -13,7 +13,7 @@ import {
 	DataEncoder,
 	DataDecoder,
 	UpdateCallback,
-} from "./anchorSet";
+} from "./anchorSetOps";
 
 /**
  * A set of anchors for a slot-shaped field.

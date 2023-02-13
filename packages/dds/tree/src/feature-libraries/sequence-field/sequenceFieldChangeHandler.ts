@@ -19,8 +19,8 @@ export const SequenceFieldAnchorSetURI = "SequenceFieldAnchorSetURI";
 export type SequenceFieldAnchorSetURI = typeof SequenceFieldAnchorSetURI;
 
 // Registers the types used by the value field anchor set.
-declare module "../modular-schema/anchorSet" {
-	interface AnchorSetOpRegistry<TData> {
+declare module "../modular-schema/anchorSetOpsRegistry" {
+	interface AnchorSetOpsRegistry<TData> {
 		[SequenceFieldAnchorSetURI]: SequenceAnchorSetTypes<TData, Changeset>;
 	}
 }
