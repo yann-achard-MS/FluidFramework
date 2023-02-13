@@ -364,10 +364,6 @@ export class ModularChangeFamily
 				};
 
 				const { revision } = fieldChange.revision !== undefined ? fieldChange : over;
-				if (revision !== undefined) {
-					rebasedFieldChange.revision = revision;
-				}
-
 				const taggedBaseChanges =
 					normalBaseFieldChange.shallow !== undefined
 						? tagChange(normalBaseFieldChange.shallow, revision)
