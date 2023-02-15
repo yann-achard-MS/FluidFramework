@@ -13,7 +13,6 @@ export {
 } from "./comparison";
 export { FieldKind, FullSchemaPolicy, Multiplicity } from "./fieldKind";
 export {
-	RebaseDirection,
 	FieldAnchorSetEntry,
 	MergeCallback,
 	FieldAnchorSetOps,
@@ -28,7 +27,11 @@ export {
 	SequenceAnchorSetTypes,
 	sequenceFieldAnchorSetOps,
 } from "./sequenceShapedFieldAnchorSet";
-export { SlotAnchorSetTypes, slotFieldAnchorSetOps } from "./slotShapedFieldAnchorSet";
+export {
+	SlotAnchorSetTypes,
+	slotFieldAnchorSetOps,
+	SlotFieldAnchorSet,
+} from "./slotShapedFieldAnchorSet";
 export {
 	ChangesetLocalId,
 	IdAllocator,
@@ -50,14 +53,12 @@ export {
 	nestedChange,
 } from "./fieldChangeHandler";
 export {
-	defaultKeyFunctions,
 	genericChangeHandler,
 	EmptyChangeset,
 	genericFieldKind,
 	GenericAnchorSetURI,
 	genericAnchorSetOps,
 } from "./genericFieldKind";
-export { singleCellKeyFunctions } from "./singleCellUtils";
 export { ModularChangeFamily, ModularEditBuilder } from "./modularChangeFamily";
 export { typedTreeSchema, typedFieldSchema } from "./typedSchema";
 export { FieldTypeView, TreeViewSchema, ViewSchemaCollection, ViewSchema } from "./view";

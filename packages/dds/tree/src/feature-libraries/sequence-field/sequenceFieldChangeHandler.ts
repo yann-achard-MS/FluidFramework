@@ -4,7 +4,6 @@
  */
 
 import {
-	defaultKeyFunctions,
 	FieldChangeHandler,
 	SequenceAnchorSetTypes,
 	sequenceFieldAnchorSetOps,
@@ -29,9 +28,9 @@ export const sequenceFieldChangeHandler: FieldChangeHandler<
 	SequenceFieldAnchorSetURI,
 	SequenceFieldEditor
 > = {
-	...defaultKeyFunctions,
 	anchorSetOps: {
 		rebase: () => {},
+		composeWith: () => {},
 		...sequenceFieldAnchorSetOps,
 	},
 	rebaser: sequenceFieldChangeRebaser,

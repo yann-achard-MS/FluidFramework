@@ -79,7 +79,7 @@ export function deepFreeze<T>(object: T): void {
 			deepFreeze(key);
 		}
 		freezeObjectMethods(object, ["add", "delete", "clear"]);
-	} else {
+	} else if (typeof object === "object" && object !== null) {
 		// Retrieve the property names defined on object
 		const propNames: (keyof T)[] = Object.getOwnPropertyNames(object) as (keyof T)[];
 		// Freeze properties before freezing self

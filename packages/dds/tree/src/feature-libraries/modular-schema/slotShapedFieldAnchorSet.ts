@@ -14,12 +14,13 @@ import {
 	DataDecoder,
 	UpdateCallback,
 } from "./anchorSetOps";
+import { ChildIndex, Context } from "./fieldChangeHandler";
 
 /**
  * A set of anchors for a slot-shaped field.
  */
-export interface SlotFieldAnchorSet<A = unknown> {
-	entry?: A;
+export interface SlotFieldAnchorSet<TData = unknown> {
+	entry?: TData;
 }
 
 /**
@@ -36,6 +37,8 @@ export const slotFieldAnchorSetOps = {
 	mergeIn,
 	track,
 	forget,
+	getKey,
+	keyToDeltaKey,
 	lookup,
 	entries,
 };
@@ -112,6 +115,18 @@ function lookup<TData>(
 ): FieldAnchorSetEntry<TData, SlotKey> | undefined {
 	assert(key === 0, "Unary field anchor set cannot track non-zero key");
 	return set.entry === undefined ? undefined : { key, data: set.entry };
+}
+
+function getKey(index: number): SlotKey {
+	assert(index === 0, "Invalid non-zero index into single-slot field");
+	return brand(0);
+}
+
+function keyToDeltaKey(key: SlotKey): ChildIndex | undefined {
+	return {
+		context: Context.Output,
+		index: 0,
+	};
 }
 
 function entries<TData>(

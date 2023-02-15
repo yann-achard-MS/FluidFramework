@@ -59,21 +59,21 @@ describe("Generic FieldKind", () => {
 		[
 			"key: 0",
 			anchorSetFromData(anchorSetOps, [
-				{ key: changeHandler.getKey(0), data: TestChange.mint([], 0) },
+				{ key: anchorSetOps.getKey(0), data: TestChange.mint([], 0) },
 			]),
 		],
 		[
 			"key: 42",
 			anchorSetFromData(anchorSetOps, [
-				{ key: changeHandler.getKey(42), data: TestChange.mint([], 42) },
+				{ key: anchorSetOps.getKey(42), data: TestChange.mint([], 42) },
 			]),
 		],
 		[
 			"key: 0,1,42",
 			anchorSetFromData(anchorSetOps, [
-				{ key: changeHandler.getKey(0), data: TestChange.mint([], 0) },
-				{ key: changeHandler.getKey(1), data: TestChange.mint([], 1) },
-				{ key: changeHandler.getKey(42), data: TestChange.mint([], 42) },
+				{ key: anchorSetOps.getKey(0), data: TestChange.mint([], 0) },
+				{ key: anchorSetOps.getKey(1), data: TestChange.mint([], 1) },
+				{ key: anchorSetOps.getKey(42), data: TestChange.mint([], 42) },
 			]),
 		],
 	];

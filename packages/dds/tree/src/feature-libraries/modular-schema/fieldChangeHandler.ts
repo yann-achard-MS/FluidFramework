@@ -30,8 +30,6 @@ export interface FieldChangeHandler<
 	encoder: FieldChangeEncoder<TChangeset>;
 	editor: TEditor;
 	readonly anchorSetOps: FieldAnchorSetOps<TOps>;
-	getKey(index: number): TNodeKey;
-	keyToDeltaKey(key: TNodeKey): ChildIndex | undefined;
 	intoDelta(change: TChangeset, reviver: NodeReviver): Delta.MarkList;
 }
 
@@ -255,7 +253,7 @@ export function nestedChange<TAnchorSetOps extends AnchorSetOpsURIs>(
 	return {
 		fieldKind: fieldKind.identifier,
 		nested: anchorSetFromData(fieldKind.changeHandler.anchorSetOps, [
-			{ key: fieldKind.changeHandler.getKey(index), data: nodeChange },
+			{ key: fieldKind.changeHandler.anchorSetOps.getKey(index), data: nodeChange },
 		]) as FieldAnchorContainer<NodeChangeset>,
 	};
 }

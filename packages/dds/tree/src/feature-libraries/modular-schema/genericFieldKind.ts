@@ -3,24 +3,17 @@
  * Licensed under the MIT License.
  */
 
-import { Delta } from "../../core";
+import { Delta, TaggedChange } from "../../core";
 import { brand, JsonCompatibleReadOnly } from "../../util";
-import { FieldAnchorSetOps } from "./anchorSetOps";
-import { FieldChangeHandler, ChildIndex, Context } from "./fieldChangeHandler";
+import { FieldAnchorSetOps, MergeCallback } from "./anchorSetOps";
+import { FieldChangeHandler } from "./fieldChangeHandler";
 import { FieldKind, Multiplicity } from "./fieldKind";
 import {
 	sequenceFieldAnchorSetOps,
 	SequenceKey,
 	SequenceAnchorSetTypes,
+	SequenceFieldAnchorSet,
 } from "./sequenceShapedFieldAnchorSet";
-
-export const defaultKeyFunctions = {
-	getKey: (index: number): SequenceKey => brand(index),
-	keyToDeltaKey: (key: SequenceKey): ChildIndex | undefined => ({
-		context: Context.Input,
-		index: key,
-	}),
-};
 
 /**
  * A field-agnostic set of empty changes to the elements of a field.
@@ -40,8 +33,20 @@ declare module "./anchorSetOpsRegistry" {
 
 export const genericAnchorSetOps: FieldAnchorSetOps<typeof GenericAnchorSetURI> = {
 	rebase: () => {},
+	composeWith,
 	...sequenceFieldAnchorSetOps,
 };
+
+function composeWith<TData>(
+	set: SequenceFieldAnchorSet<TData>,
+	_: TaggedChange<EmptyChangeset> | undefined,
+	laterSet: SequenceFieldAnchorSet<TData> | undefined,
+	mergeData: MergeCallback<TData>,
+): void {
+	if (laterSet !== undefined) {
+		sequenceFieldAnchorSetOps.mergeIn(set, laterSet, mergeData);
+	}
+}
 
 /**
  * {@link FieldChangeHandler} implementation for {@link EmptyChangeset}.
@@ -52,7 +57,6 @@ export const genericChangeHandler: FieldChangeHandler<
 	EmptyChangeset,
 	SequenceKey
 > = {
-	...defaultKeyFunctions,
 	anchorSetOps: genericAnchorSetOps,
 	rebaser: {
 		compose: (): EmptyChangeset => 0,

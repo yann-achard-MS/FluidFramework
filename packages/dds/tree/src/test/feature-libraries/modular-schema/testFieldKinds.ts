@@ -8,14 +8,11 @@ import {
 	FieldKind,
 	Multiplicity,
 	FieldKinds,
-	defaultKeyFunctions,
 	referenceFreeFieldChangeRebaser,
-	RebaseDirection,
 	sequenceFieldAnchorSetOps,
 	SequenceAnchorSetTypes,
 	SequenceFieldAnchorSet,
 	EmptyChangeset,
-	singleCellKeyFunctions,
 	slotFieldAnchorSetOps,
 	SlotAnchorSetTypes,
 	ChangesetLocalId,
@@ -25,6 +22,7 @@ import {
 	NodeChangeset,
 	FieldChange,
 	genericFieldKind,
+	MergeCallback,
 } from "../../../feature-libraries";
 import { Delta, FieldKindIdentifier, makeAnonChange, TaggedChange } from "../../../core";
 import { brand, JsonCompatibleReadOnly, makeArray } from "../../../util";
@@ -36,9 +34,13 @@ export const ValueAnchorSetURI = "ValueAnchorSetURI";
 export type ValueAnchorSetURI = typeof ValueAnchorSetURI;
 
 export const valueHandler: FieldChangeHandler<ValueAnchorSetURI> = {
-	...defaultKeyFunctions,
 	anchorSetOps: {
 		rebase: () => {},
+		composeWith: (setA, _, setB, merge) => {
+			if (setB !== undefined) {
+				sequenceFieldAnchorSetOps.mergeIn(setA, setB, merge);
+			}
+		},
 		...sequenceFieldAnchorSetOps,
 	},
 	rebaser: FieldKinds.replaceRebaser(),
@@ -86,18 +88,10 @@ const addDelRebaser = {
 	}),
 };
 
-function rebaseAnchorSet(
+function rebaseAddDelAnchorSet(
 	set: SequenceFieldAnchorSet,
 	over: TaggedChange<AddDelChangeset>,
-	direction: RebaseDirection,
 ): void {
-	if (direction === RebaseDirection.Backward) {
-		return rebaseAnchorSet(
-			set,
-			makeAnonChange(addDelRebaser.invert(over.change)),
-			RebaseDirection.Forward,
-		);
-	}
 	// The keys only refer to nodes in the input context
 	let iEntry = 0;
 	const { del, add } = over.change;
@@ -111,14 +105,32 @@ function rebaseAnchorSet(
 	}
 }
 
+function composeWithAddDelAnchorSet<TData>(
+	set: SequenceFieldAnchorSet<TData>,
+	taggedChange: TaggedChange<AddDelChangeset> | undefined,
+	laterSet: SequenceFieldAnchorSet<TData> | undefined,
+	mergeData: MergeCallback<TData>,
+): void {
+	if (laterSet !== undefined) {
+		const inInputContext = sequenceFieldAnchorSetOps.clone(laterSet);
+		if (taggedChange !== undefined) {
+			rebaseAddDelAnchorSet(
+				inInputContext,
+				makeAnonChange(addDelRebaser.invert(taggedChange.change)),
+			);
+		}
+		sequenceFieldAnchorSetOps.mergeIn(set, inInputContext, mergeData);
+	}
+}
+
 export const AddDelAnchorSetURI = "AddDelAnchorSetURI";
 export type AddDelAnchorSetURI = typeof AddDelAnchorSetURI;
 
 export const addDelHandler: FieldChangeHandler<AddDelAnchorSetURI> = {
-	...defaultKeyFunctions,
 	anchorSetOps: {
 		...sequenceFieldAnchorSetOps,
-		rebase: rebaseAnchorSet,
+		rebase: rebaseAddDelAnchorSet,
+		composeWith: composeWithAddDelAnchorSet,
 	},
 	rebaser: referenceFreeFieldChangeRebaser(addDelRebaser),
 	encoder: FieldKinds.valueEncoder<AddDelChangeset & JsonCompatibleReadOnly>(),
@@ -151,11 +163,15 @@ export type SingleNodeAnchorSetURI = typeof SingleNodeAnchorSetURI;
 
 const singleNodeHandler: FieldChangeHandler<SingleNodeAnchorSetURI> = {
 	...FieldKinds.noChangeHandler,
-	...singleCellKeyFunctions,
 	encoder: FieldKinds.noChangeHandler.encoder,
 	anchorSetOps: {
 		...slotFieldAnchorSetOps,
-		rebase: () => 0,
+		rebase: () => {},
+		composeWith: (setA, _, setB, merge) => {
+			if (setB !== undefined) {
+				slotFieldAnchorSetOps.mergeIn(setA, setB, merge);
+			}
+		},
 	},
 };
 
@@ -179,10 +195,10 @@ export const IdFieldAnchorSetURI = "IdFieldAnchorSetURI";
 export type IdFieldAnchorSetURI = typeof IdFieldAnchorSetURI;
 
 const idFieldHandler: FieldChangeHandler<IdFieldAnchorSetURI> = {
-	...defaultKeyFunctions,
 	anchorSetOps: {
 		...genericAnchorSetOps,
 		rebase: () => {},
+		composeWith: () => {},
 	},
 	rebaser: idFieldRebaser,
 	encoder: FieldKinds.valueEncoder<IdChangeset & JsonCompatibleReadOnly>(),

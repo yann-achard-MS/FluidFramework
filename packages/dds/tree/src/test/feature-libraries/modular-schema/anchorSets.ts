@@ -17,6 +17,7 @@ const NoChangeSlotAnchorSetURI = "NoChangeSlotAnchorSetURI";
 
 const noChangeSlotFieldAnchorSetOps: FieldAnchorSetOps<typeof NoChangeSlotAnchorSetURI> = {
 	rebase: () => {},
+	composeWith: () => {},
 	...slotFieldAnchorSetOps,
 };
 
@@ -25,6 +26,7 @@ const NoChangeSequenceAnchorSetURI = "NoChangeSequenceAnchorSetURI";
 // Implementation of the AnchorSet concern for SequenceFieldAnchorSet
 const noChangeSequenceAnchorSetOps: FieldAnchorSetOps<typeof NoChangeSequenceAnchorSetURI> = {
 	rebase: () => {},
+	composeWith: () => {},
 	...sequenceFieldAnchorSetOps,
 };
 

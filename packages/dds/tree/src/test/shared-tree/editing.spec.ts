@@ -4,12 +4,89 @@
  */
 import { strict as assert } from "assert";
 import { singleTextCursor } from "../../feature-libraries";
-import { jsonString } from "../../domains";
+import { jsonString, singleJsonCursor } from "../../domains";
 import { brand, JsonCompatible } from "../../util";
-import { rootFieldKeySymbol } from "../../core";
+import { rootFieldKeySymbol, UpPath } from "../../core";
 import { Sequencer, TestTree, TestTreeEdit } from "./testTree";
 
+const rootKey = rootFieldKeySymbol;
+const root: UpPath = {
+	parent: undefined,
+	parentField: rootKey,
+	parentIndex: 0,
+};
+const foo: UpPath = {
+	parent: root,
+	parentField: brand("foo"),
+	parentIndex: 0,
+};
+const bar: UpPath = {
+	parent: root,
+	parentField: brand("bar"),
+	parentIndex: 0,
+};
+
+const nodeX = { type: jsonString.name, value: "X" };
+const nodeY = { type: jsonString.name, value: "Y" };
+
 describe("Editing", () => {
+	describe("Value Field", () => {
+		it("Can compose nested changes", () => {
+			const sequencer = new Sequencer();
+			const tree1 = TestTree.fromJson({ foo: "A", bar: "B" });
+			const edit = tree1.runTransaction((forest, editor) => {
+				editor.setValue(foo, "C");
+				editor.setValue(bar, "D");
+				editor.setValue(bar, "E");
+				editor.setValue(foo, "F");
+			});
+			const sequenced = sequencer.sequence([edit]);
+			tree1.receive(sequenced);
+			expectJsonTree(tree1, [{ foo: "F", bar: "E" }]);
+		});
+		it("Can compose shallow changes", () => {
+			const sequencer = new Sequencer();
+			const tree1 = TestTree.fromJson("A");
+			const edit = tree1.runTransaction((forest, editor) => {
+				const field = editor.valueField(undefined, rootKey);
+				field.set(singleJsonCursor("X"));
+				field.set(singleJsonCursor("Y"));
+				field.set(singleJsonCursor("Z"));
+			});
+			const sequenced = sequencer.sequence([edit]);
+			tree1.receive(sequenced);
+			expectJsonTree(tree1, ["Z"]);
+		});
+		it("Can compose nested and shallow changes", () => {
+			const sequencer = new Sequencer();
+			const tree1 = TestTree.fromJson("A");
+			const edit = tree1.runTransaction((forest, editor) => {
+				const field = editor.valueField(undefined, rootKey);
+				editor.setValue(root, "B");
+				field.set(singleJsonCursor("X"));
+				editor.setValue(root, "C");
+				field.set(singleJsonCursor("Y"));
+			});
+			const sequenced = sequencer.sequence([edit]);
+			tree1.receive(sequenced);
+			expectJsonTree(tree1, ["Y"]);
+		});
+		it("Can compose shallow and nested changes", () => {
+			const sequencer = new Sequencer();
+			const tree1 = TestTree.fromJson("A");
+			const edit = tree1.runTransaction((forest, editor) => {
+				const field = editor.valueField(undefined, rootKey);
+				field.set(singleJsonCursor("X"));
+				editor.setValue(root, "B");
+				field.set(singleJsonCursor({ foo: "A", bar: "B" }));
+				editor.setValue(foo, "C");
+				editor.setValue(bar, "D");
+			});
+			const sequenced = sequencer.sequence([edit]);
+			tree1.receive(sequenced);
+			expectJsonTree(tree1, [{ foo: "C", bar: "D" }]);
+		});
+	});
 	describe("Sequence Field", () => {
 		it("can order concurrent inserts within concurrently deleted content", () => {
 			const sequencer = new Sequencer();

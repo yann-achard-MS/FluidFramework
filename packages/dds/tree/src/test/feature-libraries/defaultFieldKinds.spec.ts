@@ -4,10 +4,17 @@
  */
 
 import { strict as assert } from "assert";
-import { FieldKinds, IdAllocator, NodeReviver, singleTextCursor } from "../../feature-libraries";
+import {
+	anchorSetFromData,
+	FieldKinds,
+	IdAllocator,
+	NodeReviver,
+	singleTextCursor,
+	SlotFieldAnchorSet,
+} from "../../feature-libraries";
 import { makeAnonChange, RevisionTag, TreeSchemaIdentifier, Delta, tagChange } from "../../core";
 import { brand } from "../../util";
-import { assertMarkListEqual, noRepair } from "../utils";
+import { assertMarkListEqual, deepFreeze, noRepair } from "../utils";
 import { TestChange, TestChangeEncoder } from "../testChange";
 
 const nodeType: TreeSchemaIdentifier = brand("Node");
@@ -18,6 +25,7 @@ const idAllocator: IdAllocator = () => assert.fail("Should not be called");
 
 describe("Value field changesets", () => {
 	const fieldHandler = FieldKinds.value.changeHandler;
+	const anchorSetOps = fieldHandler.anchorSetOps;
 
 	const change1 = fieldHandler.editor.set(singleTextCursor(tree1));
 	const change2 = fieldHandler.editor.set(singleTextCursor(tree2));
@@ -27,12 +35,12 @@ describe("Value field changesets", () => {
 		value: { revert: detachedBy },
 	};
 
-	it("can be created", () => {
+	it("changes can be created", () => {
 		const expected: FieldKinds.ValueChangeset = { value: { set: tree1 } };
 		assert.deepEqual(change1, expected);
 	});
 
-	it("can be composed", () => {
+	it("changes can be composed", () => {
 		const composed = fieldHandler.rebaser.compose(
 			[makeAnonChange(change1), makeAnonChange(change2)],
 			idAllocator,
@@ -41,20 +49,86 @@ describe("Value field changesets", () => {
 		assert.deepEqual(composed, change2);
 	});
 
-	it("can be inverted", () => {
+	describe("anchors can be composed", () => {
+		const testChangeMerge = (a: TestChange, b: TestChange) =>
+			TestChange.compose([makeAnonChange(a), makeAnonChange(b)]);
+
+		function makeNested(nested: TestChange): SlotFieldAnchorSet<TestChange> {
+			return anchorSetFromData(anchorSetOps, [{ key: anchorSetOps.getKey(0), data: nested }]);
+		}
+
+		it("nested ○ no change", () => {
+			const set = makeNested(TestChange.mint([], 0));
+			const expected = anchorSetOps.clone(set);
+			anchorSetOps.composeWith(set, undefined, undefined, testChangeMerge);
+			assert.deepEqual(set, expected);
+		});
+
+		it("nested ○ shallow", () => {
+			const set = makeNested(TestChange.mint([], 0));
+			const expected = anchorSetOps.factory();
+			const change = tagChange(change1, detachedBy);
+			anchorSetOps.composeWith(set, change, undefined, testChangeMerge);
+			assert.deepEqual(set, expected);
+		});
+
+		it("nested ○ nested", () => {
+			const nestedChange1: TestChange = TestChange.mint([], 1);
+			const nestedChange2: TestChange = TestChange.mint([1], 2);
+			const nestedChangeComposed = testChangeMerge(nestedChange1, nestedChange2);
+			const set = makeNested(nestedChange1);
+			const laterSet = makeNested(nestedChange2);
+			const expected = makeNested(nestedChangeComposed);
+			anchorSetOps.composeWith(set, undefined, laterSet, testChangeMerge);
+			assert.deepEqual(set, expected);
+		});
+
+		it("nested ○ shallow & nested", () => {
+			const set = makeNested(TestChange.mint([], 0));
+			const laterSet = makeNested(TestChange.mint([], 1));
+			deepFreeze(laterSet);
+			const change = tagChange(change1, detachedBy);
+			anchorSetOps.composeWith(set, change, laterSet, testChangeMerge);
+			assert.deepEqual(set, laterSet);
+		});
+	});
+
+	it("changes can be inverted", () => {
 		const inverted = fieldHandler.rebaser.invert(tagChange(change1, detachedBy), idAllocator);
 		const expected: FieldKinds.ValueChangeset = { value: { revert: detachedBy } };
 		assert.deepEqual(inverted, expected);
 	});
 
-	it("can be rebased", () => {
+	it("changes can be rebased", () => {
 		assert.deepEqual(
 			fieldHandler.rebaser.rebase(change2, makeAnonChange(change1), idAllocator),
 			change2,
 		);
 	});
 
-	it("can be converted to a delta when overwriting content", () => {
+	describe("anchors can be rebased", () => {
+		const setWithOneAnchor = anchorSetFromData(anchorSetOps, [
+			{ key: anchorSetOps.getKey(0), data: "" },
+		]);
+		deepFreeze(setWithOneAnchor);
+
+		it("over an empty change", () => {
+			const set = anchorSetFromData(anchorSetOps, [
+				{ key: anchorSetOps.getKey(0), data: "" },
+			]);
+			anchorSetOps.rebase(set, makeAnonChange({}));
+			assert.deepEqual(set, setWithOneAnchor);
+		});
+		it("over a replace change", () => {
+			const set = anchorSetFromData(anchorSetOps, [
+				{ key: anchorSetOps.getKey(0), data: "" },
+			]);
+			anchorSetOps.rebase(set, makeAnonChange(change1));
+			assert.deepEqual(set, anchorSetOps.factory());
+		});
+	});
+
+	it("changes can be converted to a delta when overwriting content", () => {
 		const expected: Delta.MarkList = [
 			{ type: Delta.MarkType.Delete, count: 1 },
 			{ type: Delta.MarkType.Insert, content: [singleTextCursor(tree1)] },
@@ -64,7 +138,7 @@ describe("Value field changesets", () => {
 		assertMarkListEqual(delta, expected);
 	});
 
-	it("can be converted to a delta when restoring content", () => {
+	it("changes can be converted to a delta when restoring content", () => {
 		const expected: Delta.MarkList = [
 			{ type: Delta.MarkType.Delete, count: 1 },
 			{ type: Delta.MarkType.Insert, content: [singleTextCursor(tree1)] },
@@ -80,19 +154,18 @@ describe("Value field changesets", () => {
 		assertMarkListEqual(actual, expected);
 	});
 
-	it("can encode change in JSON", () => {
+	it("changes can be encoded in JSON", () => {
 		const version = 0;
 		const encoded = JSON.stringify(fieldHandler.encoder.encodeChangeForJson(version, change1));
 		const decoded = fieldHandler.encoder.decodeChangeJson(version, JSON.parse(encoded));
 		assert.deepEqual(decoded, change1);
 	});
 
-	it("can encode anchors in JSON", () => {
+	it("anchors can be encoded in JSON", () => {
 		const version = 0;
 		const childEncoder = new TestChangeEncoder();
-		const anchorSetOps = FieldKinds.value.changeHandler.anchorSetOps;
 		const original = anchorSetOps.factory<TestChange>();
-		anchorSetOps.track(original, fieldHandler.getKey(0), TestChange.mint([], 1));
+		anchorSetOps.track(original, anchorSetOps.getKey(0), TestChange.mint([], 1));
 		const encoded = JSON.stringify(
 			anchorSetOps.encode(version, original, (data) => childEncoder.encodeForJson(0, data)),
 		);
@@ -105,6 +178,7 @@ describe("Value field changesets", () => {
 
 describe("Optional field changesets", () => {
 	const fieldHandler = FieldKinds.optional.changeHandler;
+	const anchorSetOps = fieldHandler.anchorSetOps;
 	const editor = fieldHandler.editor;
 
 	const change1: FieldKinds.OptionalChangeset = {
@@ -206,9 +280,8 @@ describe("Optional field changesets", () => {
 	it("can encode anchors in JSON", () => {
 		const version = 0;
 		const childEncoder = new TestChangeEncoder();
-		const anchorSetOps = FieldKinds.optional.changeHandler.anchorSetOps;
 		const original = anchorSetOps.factory<TestChange>();
-		anchorSetOps.track(original, fieldHandler.getKey(0), TestChange.mint([], 1));
+		anchorSetOps.track(original, anchorSetOps.getKey(0), TestChange.mint([], 1));
 		const encoded = JSON.stringify(
 			anchorSetOps.encode(version, original, (data) => childEncoder.encodeForJson(0, data)),
 		);

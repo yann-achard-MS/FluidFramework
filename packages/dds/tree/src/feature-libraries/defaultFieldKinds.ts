@@ -26,8 +26,6 @@ import {
 	FieldChangeEncoder,
 	referenceFreeFieldChangeRebaser,
 	NodeReviver,
-	defaultKeyFunctions,
-	singleCellKeyFunctions,
 	SequenceAnchorSetTypes,
 	FieldAnchorSetOps,
 	sequenceFieldAnchorSetOps,
@@ -37,6 +35,8 @@ import {
 	slotFieldAnchorSetOps,
 	AnchorSetOpsURIs,
 	UnknownAnchorSetOps,
+	SlotFieldAnchorSet,
+	MergeCallback,
 } from "./modular-schema";
 import * as SequenceField from "./sequence-field";
 
@@ -113,6 +113,7 @@ export type CounterAnchorSet = typeof CounterAnchorSet;
 
 export const counterAnchorSetOps: FieldAnchorSetOps<typeof CounterAnchorSet> = {
 	rebase: () => {},
+	composeWith: () => {},
 	...sequenceFieldAnchorSetOps,
 };
 
@@ -126,7 +127,6 @@ export const counterAnchorSetOps: FieldAnchorSetOps<typeof CounterAnchorSet> = {
  * or via modular arithmetic.
  */
 export const counterHandle: FieldChangeHandler<CounterAnchorSet> = {
-	...defaultKeyFunctions,
 	anchorSetOps: counterAnchorSetOps,
 	rebaser: commutativeRebaser({
 		compose: (changes: number[]) => changes.reduce((a, b) => a + b, 0),
@@ -197,7 +197,6 @@ export function replaceRebaser<T>(): FieldChangeRebaser<ReplaceOp<T>> {
  * @alpha
  */
 export const noChangeHandler: FieldChangeHandler<GenericAnchorSetURI> = {
-	...defaultKeyFunctions,
 	anchorSetOps: genericAnchorSetOps,
 	rebaser: referenceFreeFieldChangeRebaser({
 		compose: (changes: 0[]) => 0,
@@ -294,13 +293,40 @@ const valueFieldEditor: ValueFieldEditor = {
 	set: (newValue: ITreeCursor) => ({ value: { set: jsonableTreeFromCursor(newValue) } }),
 };
 
+function valueAnchorRebase<TData>(
+	set: SlotFieldAnchorSet<TData>,
+	{ change }: TaggedChange<ValueChangeset>,
+): void {
+	if (change.value === undefined) {
+		return;
+	}
+	// TODO: Preserve changes to subtrees that are being deleted
+	delete set.entry;
+}
+
+function valueComposeWith<TData>(
+	set: SlotFieldAnchorSet<TData>,
+	change: TaggedChange<ValueChangeset> | undefined,
+	laterSet: SlotFieldAnchorSet<TData> | undefined,
+	mergeData: MergeCallback<TData>,
+): void {
+	const hasChange = change?.change.value !== undefined;
+	if (hasChange) {
+		// TODO: Preserve changes to subtrees that are being deleted
+		delete set.entry;
+	}
+	if (laterSet !== undefined) {
+		slotFieldAnchorSetOps.mergeIn(set, laterSet, mergeData);
+	}
+}
+
 export const ValueFieldAnchorSetURI = "ValueFieldAnchorSetURI";
 export type ValueFieldAnchorSetURI = typeof ValueFieldAnchorSetURI;
 
 const valueChangeHandler: FieldChangeHandler<ValueFieldAnchorSetURI, ValueFieldEditor> = {
-	...singleCellKeyFunctions,
 	anchorSetOps: {
-		rebase: () => {},
+		rebase: valueAnchorRebase,
+		composeWith: valueComposeWith,
 		...slotFieldAnchorSetOps,
 	},
 	rebaser: valueRebaser,
@@ -491,9 +517,9 @@ export const optional: FieldKind<OptionalFieldEditor, OptionalFieldAnchorSetURI>
 	brand("Optional"),
 	Multiplicity.Optional,
 	{
-		...singleCellKeyFunctions,
 		anchorSetOps: {
 			rebase: () => {},
+			composeWith: () => {},
 			...slotFieldAnchorSetOps,
 		},
 		rebaser: optionalChangeRebaser,

@@ -81,10 +81,7 @@ export {
 	EmptyChangeset,
 	genericFieldKind,
 	NodeReviver,
-	defaultKeyFunctions,
-	RebaseDirection,
 	referenceFreeFieldChangeRebaser,
-	singleCellKeyFunctions,
 	FieldAnchorSetOps,
 	defaultCloneFromMap,
 	anchorSetFromData,
@@ -97,6 +94,8 @@ export {
 	slotFieldAnchorSetOps,
 	genericAnchorSetOps,
 	nestedChange,
+	MergeCallback,
+	SlotFieldAnchorSet,
 } from "./modular-schema";
 
 // Split this up into separate import and export for compatibility with API-Extractor.

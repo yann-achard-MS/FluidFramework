@@ -762,7 +762,7 @@ describe("ModularChangeFamily", () => {
 				shallow: valueField.changeHandler.intoDelta(valueChange1a, noRepair),
 			};
 			const outerFieldADelta: Delta.FieldChanges = {
-				beforeShallow: [{ index: 0, fields: new Map([[fieldA, innerFieldADelta]]) }],
+				afterShallow: [{ index: 0, fields: new Map([[fieldA, innerFieldADelta]]) }],
 			};
 			const fieldBDelta: Delta.FieldChanges = {
 				shallow: valueField.changeHandler.intoDelta(valueChange2, noRepair),

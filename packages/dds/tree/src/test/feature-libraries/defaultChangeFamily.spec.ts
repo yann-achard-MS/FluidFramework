@@ -11,7 +11,6 @@ import {
 	IForestSubscription,
 	initializeForest,
 	InMemoryStoredSchemaRepository,
-	ITreeCursorSynchronous,
 	JsonableTree,
 	mapCursorField,
 	moveToDetachedField,
@@ -57,7 +56,6 @@ const root_foo2_foo5: UpPath = {
 };
 
 const nodeX = { type: jsonString.name, value: "X" };
-const nodeXCursor: ITreeCursorSynchronous = singleTextCursor(nodeX);
 
 function assertDeltasEqual(actual: Delta.Root[], expected: Delta.Root[]): void {
 	assert.equal(actual.length, expected.length);

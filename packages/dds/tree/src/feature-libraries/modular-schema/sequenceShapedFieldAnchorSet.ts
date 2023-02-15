@@ -4,7 +4,7 @@
  */
 
 import { assert } from "@fluidframework/common-utils";
-import { Brand, JsonCompatibleReadOnly, Mutable } from "../../util";
+import { brand, Brand, JsonCompatibleReadOnly, Mutable } from "../../util";
 import {
 	AnchorSetAspects,
 	DataDecoder,
@@ -14,6 +14,7 @@ import {
 	MergeCallback,
 	UpdateCallback,
 } from "./anchorSetOps";
+import { ChildIndex, Context } from "./fieldChangeHandler";
 
 /**
  * An entry in an anchor set for a sequence-shaped field.
@@ -41,6 +42,8 @@ export const sequenceFieldAnchorSetOps = {
 	mergeIn,
 	track,
 	forget,
+	getKey,
+	keyToDeltaKey,
 	lookup,
 	entries,
 };
@@ -135,6 +138,17 @@ function forget(set: SequenceFieldAnchorSet, key: SequenceKey): void {
 	const index = set.list.findIndex((entry) => entry.key === key);
 	assert(index !== -1, "Cannot forget unknown key");
 	set.list.splice(index, 1);
+}
+
+function getKey(index: number): SequenceKey {
+	return brand(index);
+}
+
+function keyToDeltaKey(key: SequenceKey): ChildIndex | undefined {
+	return {
+		context: Context.Input,
+		index: key,
+	};
 }
 
 function lookup<TData>(

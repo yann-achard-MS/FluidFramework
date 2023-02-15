@@ -6,6 +6,7 @@
 import { TaggedChange } from "../../core";
 import { JsonCompatibleReadOnly } from "../../util";
 import { AnchorSetOpsRegistry } from "./anchorSetOpsRegistry";
+import { ChildIndex } from "./fieldChangeHandler";
 
 export type MergeCallback<TData> = (existingData: TData, newData: TData) => TData;
 export type UpdateCallback<TData, TKey> = (data: TData, key: TKey) => TData;
@@ -14,11 +15,6 @@ export type MapCallback<TIn, TOut> = (data: TIn) => TOut;
 export interface FieldAnchorSetEntry<TData, TKey> {
 	readonly key: TKey;
 	readonly data: TData;
-}
-
-export enum RebaseDirection {
-	Forward,
-	Backward,
 }
 
 export type DataEncoder<TData> = (data: TData) => JsonCompatibleReadOnly;
@@ -133,10 +129,20 @@ export interface FieldAnchorSetOps<TOpsURI extends AnchorSetOpsURIs> {
 	readonly rebase: (
 		set: AnchorSetContainer<TOpsURI>,
 		over: TaggedChange<AnchorSetChange<TOpsURI>>,
-		direction: RebaseDirection,
+	) => void;
+
+	readonly composeWith: <TData>(
+		set: AnchorSetContainer<TOpsURI, TData>,
+		laterChange: TaggedChange<AnchorSetChange<TOpsURI>> | undefined,
+		laterSet: AnchorSetContainer<TOpsURI, TData> | undefined,
+		mergeData: MergeCallback<TData>,
 	) => void;
 
 	readonly forget: (set: AnchorSetContainer<TOpsURI>, key: AnchorSetKey<TOpsURI>) => void;
+
+	readonly getKey: (index: number) => AnchorSetKey<TOpsURI>;
+
+	readonly keyToDeltaKey: (index: AnchorSetKey<TOpsURI>) => ChildIndex | undefined;
 
 	readonly lookup: <TData>(
 		set: AnchorSetContainer<TOpsURI, TData>,

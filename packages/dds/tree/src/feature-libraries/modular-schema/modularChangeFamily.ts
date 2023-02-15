@@ -24,7 +24,7 @@ import {
 } from "../../core";
 import { brand, clone, getOrAddEmptyToMap, JsonCompatibleReadOnly, Mutable } from "../../util";
 import { dummyRepairDataStore } from "../fakeRepairDataStore";
-import { AnchorSetContainer, RebaseDirection } from "./anchorSetOps";
+import { AnchorSetContainer } from "./anchorSetOps";
 import {
 	FieldChangeHandler,
 	FieldChangeMap,
@@ -101,7 +101,7 @@ export class ModularChangeFamily
 				if (nestedGenericChanges !== undefined) {
 					const set = anchorSetOps.factory<NodeChangeset>();
 					for (const { key, data } of genericAnchorSetOps.entries(nestedGenericChanges)) {
-						anchorSetOps.track(set, handler.getKey(key), data);
+						anchorSetOps.track(set, anchorSetOps.getKey(key), data);
 					}
 					normalized.nested = set;
 				}
@@ -175,36 +175,32 @@ export class ModularChangeFamily
 					}
 				}
 
-				let hasNestedChanges = false;
+				const mergeNodeChanges = (
+					existing: TaggedChange<NodeChangeset>,
+					added: TaggedChange<NodeChangeset>,
+				) => makeAnonChange(this.composeNodeChanges([existing, added], genId));
 				const anchorOps = changeHandler.anchorSetOps;
 				const childChanges = anchorOps.factory<TaggedChange<NodeChangeset>>();
-				for (let i = fieldChanges.length - 1; i >= 0; --i) {
-					const iThFieldChanges = fieldChanges[i];
-					if (iThFieldChanges.shallow !== undefined) {
-						anchorOps.rebase(
-							childChanges,
-							tagChange(iThFieldChanges.shallow, iThFieldChanges.revision),
-							RebaseDirection.Backward,
-						);
-					}
-					if (iThFieldChanges.nested !== undefined) {
-						hasNestedChanges = true;
-						const taggedIthChildChanges = anchorOps.map(
-							iThFieldChanges.nested,
-							(change) => tagChange(change, iThFieldChanges.revision),
-						);
-						anchorOps.mergeIn(
-							childChanges,
-							taggedIthChildChanges,
-							(
-								existing: TaggedChange<NodeChangeset>,
-								added: TaggedChange<NodeChangeset>,
-							) => makeAnonChange(this.composeNodeChanges([added, existing], genId)),
-						);
-					}
+				for (const iThFieldChanges of fieldChanges) {
+					const taggedIthNestedChanges =
+						iThFieldChanges.nested === undefined
+							? undefined
+							: anchorOps.map(iThFieldChanges.nested, (change) =>
+									tagChange(change, iThFieldChanges.revision),
+							  );
+					const taggedIthShallowChanges =
+						iThFieldChanges.shallow === undefined
+							? undefined
+							: tagChange(iThFieldChanges.shallow, iThFieldChanges.revision);
+					anchorOps.composeWith(
+						childChanges,
+						taggedIthShallowChanges,
+						taggedIthNestedChanges,
+						mergeNodeChanges,
+					);
 				}
 
-				if (hasNestedChanges && anchorOps.count(childChanges) > 0) {
+				if (anchorOps.count(childChanges) > 0) {
 					composedField.nested = anchorOps.map(childChanges, (tagged) => tagged.change);
 				}
 			}
@@ -285,11 +281,7 @@ export class ModularChangeFamily
 			if (fieldChange.nested !== undefined) {
 				const childChanges = anchorOps.clone(fieldChange.nested);
 				if (fieldChange.shallow !== undefined) {
-					anchorOps.rebase(
-						childChanges,
-						tagChange(fieldChange.shallow, revision),
-						RebaseDirection.Forward,
-					);
+					anchorOps.rebase(childChanges, tagChange(fieldChange.shallow, revision));
 				}
 				anchorOps.updateAll(childChanges, (data) =>
 					this.invertNodeChange({ revision, change: data }, genId),
@@ -398,7 +390,7 @@ export class ModularChangeFamily
 						});
 					}
 					if (taggedBaseChanges !== undefined) {
-						anchorOps.rebase(childChanges, taggedBaseChanges, RebaseDirection.Forward);
+						anchorOps.rebase(childChanges, taggedBaseChanges);
 						if (anchorOps.count(childChanges) > 0) {
 							rebasedFieldChange.nested = childChanges;
 						}
@@ -482,7 +474,7 @@ export class ModularChangeFamily
 			const afterShallow: Delta.NestedChange[] = [];
 			if (fieldChange.nested !== undefined) {
 				for (const { key, data } of anchorOps.entries(fieldChange.nested)) {
-					const deltaKey = changeHandler.keyToDeltaKey(key);
+					const deltaKey = anchorOps.keyToDeltaKey(key);
 					if (deltaKey !== undefined) {
 						const nodeDelta = this.deltaFromNodeChange(
 							data,
@@ -675,7 +667,7 @@ export class ModularEditBuilder
 
 function makeGenericNestedChange(index: number, nodeChange: NodeChangeset): FieldChange {
 	const nested = genericAnchorSetOps.factory<NodeChangeset>();
-	const key = genericFieldKind.changeHandler.getKey(index);
+	const key = genericAnchorSetOps.getKey(index);
 	genericAnchorSetOps.track(nested, key, nodeChange);
 	return {
 		fieldKind: genericFieldKind.identifier,
