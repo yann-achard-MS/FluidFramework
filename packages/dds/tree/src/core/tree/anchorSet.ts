@@ -520,10 +520,6 @@ export class AnchorSet implements ISubscribable<AnchorSetRootEvents> {
 					dstPath.children.set(dst.parentField, toMove);
 				}
 			} else {
-				assert(
-					count !== undefined,
-					"A move-in of a whole field should first clear the destination.",
-				);
 				// Update existing field contents
 				let numberBeforeMove = 0;
 				let index = 0;
@@ -531,10 +527,16 @@ export class AnchorSet implements ISubscribable<AnchorSetRootEvents> {
 					numberBeforeMove++;
 					index++;
 				}
-				while (index < field.length) {
-					// Fix indexes in dst after moved items (add count).
-					field[index].parentIndex += count;
-					index++;
+				if (index < field.length) {
+					assert(
+						count !== undefined,
+						"A move-in of a whole field should first clear the destination.",
+					);
+					while (index < field.length) {
+						// Fix indexes in dst after moved items (add count).
+						field[index].parentIndex += count;
+						index++;
+					}
 				}
 				// Insert toMove items into dstPath
 				// TODO: this will fail for very large numbers of anchors due to argument limits.

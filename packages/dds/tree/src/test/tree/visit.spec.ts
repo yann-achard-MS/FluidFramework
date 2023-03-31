@@ -179,6 +179,32 @@ describe("visit", () => {
 		testTreeVisit(delta, expected);
 	});
 
+	it("delete field remainder", () => {
+		const mark: Delta.Delete = {
+			type: Delta.MarkType.Delete,
+		};
+		const delta: Delta.MarkList = [
+			{
+				type: Delta.MarkType.Modify,
+				fields: new Map([[fooKey, [42, mark]]]),
+			},
+		];
+		const expected: VisitScript = [
+			["enterNode", 0],
+			["enterField", fooKey],
+			["exitField", fooKey],
+			["exitNode", 0],
+			["exitField", rootKey],
+			["enterField", rootKey],
+			["enterNode", 0],
+			["enterField", fooKey],
+			["onDelete", 42, undefined],
+			["exitField", fooKey],
+			["exitNode", 0],
+		];
+		testTreeVisit(delta, expected);
+	});
+
 	it("the lot on a field", () => {
 		const del: Delta.Delete = {
 			type: Delta.MarkType.Delete,
@@ -436,6 +462,57 @@ describe("visit", () => {
 			["enterNode", 0],
 			["enterField", fooKey],
 			["onMoveIn", 0, 2, moveId],
+			["exitField", fooKey],
+			["enterField", barKey],
+			["exitField", barKey],
+			["exitNode", 0],
+			["exitField", rootKey],
+		];
+
+		testVisit(delta, expected);
+	});
+
+	it("move field remainder", () => {
+		const moveId: Delta.MoveId = brand(1);
+		const moveOut: Delta.MoveOut = {
+			type: Delta.MarkType.MoveOut,
+			moveId,
+		};
+
+		const moveIn: Delta.MoveIn = {
+			type: Delta.MarkType.MoveIn,
+			moveId,
+		};
+
+		const delta: Delta.Root = new Map([
+			[
+				rootKey,
+				[
+					{
+						type: Delta.MarkType.Modify,
+						fields: new Map([
+							[fooKey, [1, moveIn]],
+							[barKey, [3, moveOut]],
+						]),
+					},
+				],
+			],
+		]);
+
+		const expected: VisitScript = [
+			["enterField", rootKey],
+			["enterNode", 0],
+			["enterField", fooKey],
+			["exitField", fooKey],
+			["enterField", barKey],
+			["onMoveOut", 3, undefined, moveId],
+			["exitField", barKey],
+			["exitNode", 0],
+			["exitField", rootKey],
+			["enterField", rootKey],
+			["enterNode", 0],
+			["enterField", fooKey],
+			["onMoveIn", 1, undefined, moveId],
 			["exitField", fooKey],
 			["enterField", barKey],
 			["exitField", barKey],

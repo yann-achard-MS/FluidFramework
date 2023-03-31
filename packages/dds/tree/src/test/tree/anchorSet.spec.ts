@@ -97,6 +97,22 @@ describe("AnchorSet", () => {
 		assert.throws(() => anchors.locate(anchor3));
 	});
 
+	it("can rebase over delete of field remainder", () => {
+		const [anchors, anchor1, anchor2, anchor3] = setup();
+		const deleteMark = {
+			type: Delta.MarkType.Delete,
+		};
+
+		anchors.applyDelta(makeDelta(deleteMark, makePath([fieldFoo, 4])));
+		checkEquality(anchors.locate(anchor2), path2);
+		assert.equal(anchors.locate(anchor1), undefined);
+		assert.equal(anchors.locate(anchor3), undefined);
+		assert.doesNotThrow(() => anchors.forget(anchor1));
+		assert.doesNotThrow(() => anchors.forget(anchor3));
+		assert.throws(() => anchors.locate(anchor1));
+		assert.throws(() => anchors.locate(anchor3));
+	});
+
 	it("can rebase over delete of parent node", () => {
 		const [anchors, anchor1, anchor2, anchor3, anchor4] = setup();
 		const deleteMark = {
@@ -157,6 +173,28 @@ describe("AnchorSet", () => {
 			makePath([fieldFoo, 4], [fieldBar, 3], [fieldBaz, 2]),
 		);
 		checkEquality(anchors.locate(anchor3), makePath([fieldFoo, 3]));
+	});
+
+	it("can rebase over move of remainder", () => {
+		const [anchors, anchor1, anchor2, anchor3] = setup();
+		const moveOut: Delta.MoveOut = {
+			type: Delta.MarkType.MoveOut,
+			moveId: brand(1),
+		};
+
+		const moveIn: Delta.MoveIn = {
+			type: Delta.MarkType.MoveIn,
+			moveId: brand(1),
+		};
+
+		const delta = new Map([
+			[fieldFoo, [4, moveOut]],
+			[fieldBar, [4, moveIn]],
+		]);
+		anchors.applyDelta(delta);
+		checkEquality(anchors.locate(anchor2), path2);
+		assert.equal(anchors.locate(anchor1), makePath([fieldBar, 5], [fieldBar, 4]));
+		assert.equal(anchors.locate(anchor3), makePath([fieldBar, 4]));
 	});
 
 	describe("internalize path", () => {
