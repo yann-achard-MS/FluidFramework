@@ -291,7 +291,7 @@ export const defaultSchemaPolicy: FullSchemaPolicy;
 
 // @alpha
 interface Delete<TTree = ProtoNode> extends HasModifications<TTree> {
-    readonly count: number;
+    readonly count?: number;
     // (undocumented)
     readonly type: typeof MarkType.Delete;
 }
@@ -1017,8 +1017,7 @@ interface MoveId extends Opaque<Brand<number, "delta.MoveId">> {
 
 // @alpha
 interface MoveIn {
-    // (undocumented)
-    readonly count: number;
+    readonly count?: number;
     readonly moveId: MoveId;
     // (undocumented)
     readonly type: typeof MarkType.MoveIn;
@@ -1026,7 +1025,7 @@ interface MoveIn {
 
 // @alpha
 interface MoveOut<TTree = ProtoNode> extends HasModifications<TTree> {
-    readonly count: number;
+    readonly count?: number;
     readonly moveId: MoveId;
     // (undocumented)
     readonly type: typeof MarkType.MoveOut;
