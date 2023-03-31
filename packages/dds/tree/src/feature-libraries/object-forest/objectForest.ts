@@ -126,18 +126,18 @@ class ObjectForest extends SimpleDependee implements IEditableForest {
 			return children.length;
 		};
 		const visitor = {
-			onDelete: (index: number, count: number): void => {
+			onDelete: (index: number, count: number | undefined): void => {
 				visitor.onMoveOut(index, count);
 			},
-			onInsert: (index: number, content: Delta.ProtoNode[]): void => {
+			onInsert: (index: number, content: readonly Delta.ProtoNode[]): void => {
 				const range = this.add(content);
 				moveIn(index, range);
 			},
-			onMoveOut: (index: number, count: number, id?: Delta.MoveId): void => {
+			onMoveOut: (index: number, count: number | undefined, id?: Delta.MoveId): void => {
 				const [parent, key] = cursor.getParent();
 				const sourceField = getMapTreeField(parent, key, false);
 				const startIndex = index;
-				const endIndex = index + count;
+				const endIndex = count === undefined ? sourceField.length : index + count;
 				assertValidIndex(startIndex, sourceField, true);
 				assertValidIndex(endIndex, sourceField, true);
 				assert(
@@ -155,7 +155,7 @@ class ObjectForest extends SimpleDependee implements IEditableForest {
 					parent.fields.delete(key);
 				}
 			},
-			onMoveIn: (index: number, count: number, id: Delta.MoveId): void => {
+			onMoveIn: (index: number, count: number | undefined, id: Delta.MoveId): void => {
 				const toAttach = moves.get(id) ?? fail("move in without move out");
 				moves.delete(id);
 				const countMoved = moveIn(index, toAttach);

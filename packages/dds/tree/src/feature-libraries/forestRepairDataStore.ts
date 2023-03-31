@@ -73,7 +73,9 @@ export class ForestRepairDataStore implements RepairDataStore {
 							const child = parent.getOrCreateChild(key, index, repairDataFactory);
 							visitModify(mark, child);
 							onDelete(parent, key, index, mark.count);
-							index += mark.count;
+							if (mark.count !== undefined) {
+								index += mark.count;
+							}
 							break;
 						}
 						case Delta.MarkType.Modify: {
@@ -117,9 +119,10 @@ export class ForestRepairDataStore implements RepairDataStore {
 			parent: RepairDataNode,
 			key: FieldKey,
 			startIndex: number,
-			count: number,
+			count: number | undefined,
 		): void {
-			for (let i = 0; i < count; ++i) {
+			const actualCount = count ?? cursor.getFieldLength() - startIndex;
+			for (let i = 0; i < actualCount; ++i) {
 				const fork = cursor.fork();
 				const index = startIndex + i;
 				fork.enterNode(index);

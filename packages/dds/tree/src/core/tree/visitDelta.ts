@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { unreachableCase } from "@fluidframework/common-utils";
+import { assert, unreachableCase } from "@fluidframework/common-utils";
 import { FieldKey, Value } from "./types";
 import * as Delta from "./delta";
 
@@ -83,19 +83,42 @@ export function visitDelta(delta: Delta.Root, visitor: DeltaVisitor): void {
 }
 
 export interface DeltaVisitor {
-	onDelete(index: number, count: number): void;
-	onInsert(index: number, content: readonly Delta.ProtoNode[]): void;
-	onMoveOut(index: number, count: number, id: Delta.MoveId): void;
-	onMoveIn(index: number, count: number, id: Delta.MoveId): void;
-	onSetValue(value: Value): void;
+	/**
+	 * @param index - The index of the first node to delete.
+	 * @param count - The number of nodes to delete.
+	 * When undefined, delete all nodes from the given index to the end of the field.
+	 */
+	readonly onDelete: (index: number, count: number | undefined) => void;
+	/**
+	 * @param index - The index that the first inserted node should have after insertion.
+	 * @param content - The content to insert.
+	 */
+	readonly onInsert: (index: number, content: readonly Delta.ProtoNode[]) => void;
+	/**
+	 * @param index - The index of the first node to move out.
+	 * @param count - The number of nodes to move out.
+	 * When undefined, move out all nodes from the given index to the end of the field.
+	 * @param id - Uniquely identifies the matching `onMoveIn` call that will be made at a later time during the visit
+	 * of this Delta.
+	 */
+	readonly onMoveOut: (index: number, count: number | undefined, id: Delta.MoveId) => void;
+	/**
+	 * @param index - The index that the first moved-in node should have after insertion.
+	 * @param count - The number of nodes to move in.
+	 * When undefined, the number of moved is dependent on the number of nodes present in the source field.
+	 * @param id - Uniquely identifies the matching `onMoveOut` call that was made at an earlier time during the visit
+	 * of this Delta.
+	 */
+	readonly onMoveIn: (index: number, count: number | undefined, id: Delta.MoveId) => void;
+	readonly onSetValue: (value: Value) => void;
 	// TODO: better align this with ITreeCursor:
 	// maybe rename its up and down to enter / exit? Maybe Also)?
 	// Maybe also have cursor have "current field key" state to allow better handling of empty fields and better match
 	// this visitor?
-	enterNode(index: number): void;
-	exitNode(index: number): void;
-	enterField(key: FieldKey): void;
-	exitField(key: FieldKey): void;
+	readonly enterNode: (index: number) => void;
+	readonly exitNode: (index: number) => void;
+	readonly enterField: (key: FieldKey) => void;
+	readonly exitField: (key: FieldKey) => void;
 }
 
 interface PassConfig {
@@ -151,7 +174,12 @@ function visitModify(
 function firstPass(delta: Delta.MarkList, visitor: DeltaVisitor, config: PassConfig): boolean {
 	let containsMoves = false;
 	let index = 0;
+	let fieldRemainderClaimed = false;
 	for (const mark of delta) {
+		assert(
+			!fieldRemainderClaimed,
+			"Invalid delta: marks present after the field remainder has been claimed",
+		);
 		if (typeof mark === "number") {
 			// Untouched nodes
 			index += mark;
@@ -163,7 +191,11 @@ function firstPass(delta: Delta.MarkList, visitor: DeltaVisitor, config: PassCon
 				case Delta.MarkType.Delete:
 					// Handled in the second pass
 					visitModify(index, mark, visitor, config);
-					index += mark.count;
+					if (mark.count === undefined) {
+						fieldRemainderClaimed = true;
+					} else {
+						index += mark.count;
+					}
 					result = true;
 					break;
 				case Delta.MarkType.MoveOut:
@@ -172,6 +204,9 @@ function firstPass(delta: Delta.MarkList, visitor: DeltaVisitor, config: PassCon
 						config.modsToMovedTrees.set(mark.moveId, mark);
 					}
 					visitor.onMoveOut(index, mark.count, mark.moveId);
+					if (mark.count === undefined) {
+						fieldRemainderClaimed = true;
+					}
 					break;
 				case Delta.MarkType.Modify:
 					result = visitModify(index, mark, visitor, config);
@@ -228,7 +263,9 @@ function secondPass(delta: Delta.MarkList, visitor: DeltaVisitor, config: PassCo
 							visitModify(index, modify, visitor, config);
 						}
 					}
-					index += mark.count;
+					if (mark.count !== undefined) {
+						index += mark.count;
+					}
 					break;
 				}
 				default:

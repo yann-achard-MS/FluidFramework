@@ -195,9 +195,11 @@ export interface Modify<TTree = ProtoNode> extends HasModifications<TTree> {
 export interface Delete<TTree = ProtoNode> extends HasModifications<TTree> {
 	readonly type: typeof MarkType.Delete;
 	/**
+	 * When defined, indicates the number of nodes that should be deleted.
+	 * When undefined, indicates that all the remaining nodes in the field (if any) should be deleted.
 	 * Must be 1 when either `setValue` or `fields` is populated.
 	 */
-	readonly count: number;
+	readonly count?: number;
 }
 
 /**
@@ -207,9 +209,11 @@ export interface Delete<TTree = ProtoNode> extends HasModifications<TTree> {
 export interface MoveOut<TTree = ProtoNode> extends HasModifications<TTree> {
 	readonly type: typeof MarkType.MoveOut;
 	/**
+	 * When defined, indicates the number of nodes that should be moved out.
+	 * When undefined, indicates that all the remaining nodes in the field (if any) should be moved out.
 	 * Must be 1 when either `setValue` or `fields` is populated.
 	 */
-	readonly count: number;
+	readonly count?: number;
 	/**
 	 * The delta should carry exactly one `MoveIn` mark with the same move ID.
 	 */
@@ -222,7 +226,14 @@ export interface MoveOut<TTree = ProtoNode> extends HasModifications<TTree> {
  */
 export interface MoveIn {
 	readonly type: typeof MarkType.MoveIn;
-	readonly count: number;
+	/**
+	 * When defined, indicates the number of nodes that should be moved in.
+	 * When undefined, indicates that an unspecified number of nodes should be moved in.
+	 * This occurs when the number of nodes being moved in is dependent on the number of nodes present in the
+	 * source field.
+	 * Must be 1 when either `setValue` or `fields` is populated.
+	 */
+	readonly count?: number;
 	/**
 	 * The delta should carry exactly one `MoveOut` mark with the same move ID.
 	 */

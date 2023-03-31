@@ -403,6 +403,7 @@ export class AnchorSet implements ISubscribable<AnchorSetRootEvents> {
 	/**
 	 * Updates paths for a range move (including re-parenting path items and updating indexes).
 	 * @param count - number of siblings to insert/delete/move.
+	 * Undefined means all siblings after (and including `srcStart`).
 	 * @param srcStart - where the siblings are removed from. If undefined the operation is an insert.
 	 * @param dst - where the siblings are moved to. If undefined the operation is a delete.
 	 *
@@ -418,7 +419,7 @@ export class AnchorSet implements ISubscribable<AnchorSetRootEvents> {
 	 * TODO: tests
 	 */
 	private moveChildren(
-		count: number,
+		count: number | undefined,
 		srcStart: UpPath | undefined,
 		dst: UpPath | undefined,
 	): void {
@@ -447,18 +448,22 @@ export class AnchorSet implements ISubscribable<AnchorSetRootEvents> {
 				numberBeforeMove++;
 				index++;
 			}
-			while (
-				index < srcChildren.length &&
-				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-				srcChildren[index].parentIndex < srcStart!.parentIndex + count
-			) {
-				numberToMove++;
-				index++;
-			}
-			while (index < srcChildren.length) {
-				// Fix indexes in src after moved items (subtract count).
-				srcChildren[index].parentIndex -= count;
-				index++;
+			if (count === undefined) {
+				numberToMove = srcChildren.length - numberBeforeMove;
+			} else {
+				while (
+					index < srcChildren.length &&
+					// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+					srcChildren[index].parentIndex < srcStart!.parentIndex + count
+				) {
+					numberToMove++;
+					index++;
+				}
+				while (index < srcChildren.length) {
+					// Fix indexes in src after moved items (subtract count).
+					srcChildren[index].parentIndex -= count;
+					index++;
+				}
 			}
 			// Sever the parent -> child connections
 			toMove = srcChildren.splice(numberBeforeMove, numberToMove);
@@ -515,6 +520,10 @@ export class AnchorSet implements ISubscribable<AnchorSetRootEvents> {
 					dstPath.children.set(dst.parentField, toMove);
 				}
 			} else {
+				assert(
+					count !== undefined,
+					"A move-in of a whole field should first clear the destination.",
+				);
 				// Update existing field contents
 				let numberBeforeMove = 0;
 				let index = 0;
@@ -565,7 +574,7 @@ export class AnchorSet implements ISubscribable<AnchorSetRootEvents> {
 		};
 
 		const visitor: DeltaVisitor = {
-			onDelete: (start: number, count: number): void => {
+			onDelete: (start: number, count: number | undefined): void => {
 				assert(parentField !== undefined, 0x3a7 /* Must be in a field to delete */);
 				maybeWithNode(
 					(p) => p.events.emit("childrenChanging", p),
@@ -573,7 +582,7 @@ export class AnchorSet implements ISubscribable<AnchorSetRootEvents> {
 				);
 				this.moveChildren(count, { parent, parentField, parentIndex: start }, undefined);
 			},
-			onInsert: (start: number, content: Delta.ProtoNode[]): void => {
+			onInsert: (start: number, content: readonly Delta.ProtoNode[]): void => {
 				assert(parentField !== undefined, 0x3a8 /* Must be in a field to insert */);
 				maybeWithNode(
 					(p) => p.events.emit("childrenChanging", p),
@@ -585,7 +594,7 @@ export class AnchorSet implements ISubscribable<AnchorSetRootEvents> {
 					parentIndex: start,
 				});
 			},
-			onMoveOut: (start: number, count: number, id: Delta.MoveId): void => {
+			onMoveOut: (start: number, count: number | undefined, id: Delta.MoveId): void => {
 				assert(parentField !== undefined, 0x3a9 /* Must be in a field to move out */);
 				maybeWithNode(
 					(p) => p.events.emit("childrenChanging", p),
@@ -593,7 +602,7 @@ export class AnchorSet implements ISubscribable<AnchorSetRootEvents> {
 				);
 				moveTable.set(id, { parent, parentField, parentIndex: start });
 			},
-			onMoveIn: (start: number, count: number, id: Delta.MoveId): void => {
+			onMoveIn: (start: number, count: number | undefined, id: Delta.MoveId): void => {
 				assert(parentField !== undefined, 0x3aa /* Must be in a field to move in */);
 				maybeWithNode(
 					(p) => p.events.emit("childrenChanging", p),

@@ -7,7 +7,7 @@ import { strict as assert } from "assert";
 import { jsonString } from "../../domains";
 import { singleTextCursor } from "../../feature-libraries";
 import { FieldKey, Delta, DeltaVisitor, visitDelta, rootFieldKeySymbol } from "../../core";
-import { brand } from "../../util";
+import { brand, Mutable } from "../../util";
 import { deepFreeze } from "../utils";
 
 function visit(delta: Delta.Root, visitor: DeltaVisitor): void {
@@ -45,7 +45,7 @@ function testVisit(delta: Delta.Root, expected: Readonly<VisitScript>): void {
 			// assert.deepStrictEqual([name, ...args], expected[callIndex]);
 			callIndex += 1;
 		};
-	const visitor: DeltaVisitor = {} as any;
+	const visitor: Mutable<DeltaVisitor> = {} as any;
 	for (const methodName of visitorMethods) {
 		visitor[methodName] = makeChecker(methodName);
 	}

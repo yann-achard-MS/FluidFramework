@@ -10,8 +10,9 @@ export const emptyDelta: Root<never> = new Map();
 
 /**
  * Returns the number of nodes in the input tree that the mark affects or skips.
+ * `undefined` means the mark consumes the remainder of the field.
  */
-export function inputLength(mark: Mark<unknown>): number {
+export function inputLength(mark: Mark<unknown>): number | undefined {
 	if (isSkipMark(mark)) {
 		return mark;
 	}
