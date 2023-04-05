@@ -82,7 +82,7 @@ describe("AnchorSet", () => {
 		checkEquality(anchors.locate(anchor3), makePath([fieldFoo, 6]));
 	});
 
-	it("can rebase over delete", () => {
+	it("can rebase over delete of nodes", () => {
 		const [anchors, anchor1, anchor2, anchor3] = setup();
 		const deleteMark = {
 			type: Delta.MarkType.Delete,
@@ -94,6 +94,22 @@ describe("AnchorSet", () => {
 		checkEquality(anchors.locate(anchor2), path2);
 		assert.equal(anchors.locate(anchor3), undefined);
 		assert.doesNotThrow(() => anchors.forget(anchor3));
+		assert.throws(() => anchors.locate(anchor3));
+	});
+
+	it("can rebase over delete of field", () => {
+		const [anchors, anchor1, anchor2, anchor3] = setup();
+		const deleteMark = {
+			type: Delta.MarkType.Delete,
+		};
+
+		anchors.applyDelta(makeDelta(deleteMark, makePath([fieldFoo, 4])));
+		checkEquality(anchors.locate(anchor2), path2);
+		assert.equal(anchors.locate(anchor1), undefined);
+		assert.equal(anchors.locate(anchor3), undefined);
+		assert.doesNotThrow(() => anchors.forget(anchor1));
+		assert.doesNotThrow(() => anchors.forget(anchor3));
+		assert.throws(() => anchors.locate(anchor1));
 		assert.throws(() => anchors.locate(anchor3));
 	});
 

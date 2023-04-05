@@ -83,6 +83,9 @@ export function visitDelta(delta: Delta.Root, visitor: DeltaVisitor): void {
 }
 
 export interface DeltaVisitor {
+	onDeleteField(): void;
+	onMoveOutField(id: Delta.MoveId): void;
+	onMoveInField(id: Delta.MoveId): void;
 	onDelete(index: number, count: number): void;
 	onInsert(index: number, content: readonly Delta.ProtoNode[]): void;
 	onMoveOut(index: number, count: number, id: Delta.MoveId): void;

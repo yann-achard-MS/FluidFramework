@@ -261,6 +261,14 @@ export type FieldMarks<TTree = ProtoNode> = FieldMap<MarkList<TTree>>;
 /**
  * @alpha
  */
+export interface FieldChanges<TTree = ProtoNode> {
+	fieldChange: "";
+	contentChanges: MarkList<TTree>;
+}
+
+/**
+ * @alpha
+ */
 export const MarkType = {
 	Modify: 0,
 	Insert: 1,
