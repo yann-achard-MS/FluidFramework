@@ -256,14 +256,26 @@ export type FieldMap<T> = ReadonlyMap<FieldKey, T>;
 /**
  * @alpha
  */
-export type FieldMarks<TTree = ProtoNode> = FieldMap<MarkList<TTree>>;
+export type FieldMarks<TTree = ProtoNode> = FieldMap<FieldChanges<TTree> | MarkList<TTree>>;
 
 /**
  * @alpha
  */
 export interface FieldChanges<TTree = ProtoNode> {
-	fieldChange: "";
-	contentChanges: MarkList<TTree>;
+	/**
+	 * Changes to apply to the contents of the field.
+	 */
+	contentChanges?: MarkList<TTree>;
+	/**
+	 * A field-wide change that applies to all the nodes in the field.
+	 * Applied after the content changes.
+	 */
+	fieldDetach?: Omit<MoveIn | MoveOut, "count">;
+	/**
+	 * A field-wide change that applies to an empty field.
+	 * Applied after the `fieldDetach`.
+	 */
+	fieldAttach?: Omit<MoveIn, "count"> | Insert<TTree>;
 }
 
 /**

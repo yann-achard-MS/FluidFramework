@@ -99,11 +99,11 @@ describe("AnchorSet", () => {
 
 	it("can rebase over delete of field", () => {
 		const [anchors, anchor1, anchor2, anchor3] = setup();
-		const deleteMark = {
-			type: Delta.MarkType.Delete,
+		const deletion: Delta.FieldChanges = {
+			fieldDetach: { type: Delta.MarkType.Delete },
 		};
 
-		anchors.applyDelta(makeDelta(deleteMark, makePath([fieldFoo, 4])));
+		anchors.applyDelta();
 		checkEquality(anchors.locate(anchor2), path2);
 		assert.equal(anchors.locate(anchor1), undefined);
 		assert.equal(anchors.locate(anchor3), undefined);
