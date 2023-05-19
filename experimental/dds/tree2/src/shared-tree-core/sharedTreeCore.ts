@@ -88,6 +88,7 @@ export interface ChangeEvents<TChangeset> {
 export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends SharedObject<
 	TransformEvents<ISharedTreeCoreEvents, ISharedObjectEvents>
 > {
+	public debug: boolean = false;
 	private readonly editManager: EditManager<TEditor, TChange, ChangeFamily<TEditor, TChange>>;
 	private readonly summarizables: readonly Summarizable[];
 
@@ -155,6 +156,9 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 		 */
 		// TODO: Change this type to be the Session ID type provided by the IdCompressor when available.
 		const localSessionId = uuid();
+		if (this.debug) {
+			console.debug(`New tree ${localSessionId}`);
+		}
 		this.editManager = new EditManager(
 			changeFamily,
 			localSessionId,
@@ -210,6 +214,9 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 		serializer: IFluidSerializer,
 		telemetryContext?: ITelemetryContext,
 	): ISummaryTreeWithStats {
+		if (this.debug) {
+			console.debug(`[${this.editManager.localSessionId}] summarizeCore`);
+		}
 		const builder = new SummaryTreeBuilder();
 		const summarizableBuilder = new SummaryTreeBuilder();
 		// Merge the summaries of all summarizables together under a single ISummaryTree
@@ -230,6 +237,9 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 	}
 
 	protected async loadCore(services: IChannelStorageService): Promise<void> {
+		if (this.debug) {
+			console.debug(`[${this.editManager.localSessionId}] loadCore Start`);
+		}
 		const loadSummaries = this.summarizables.map(async (summaryElement) =>
 			summaryElement.load(
 				scopeStorageService(services, summarizablesTreeKey, summaryElement.key),
@@ -239,6 +249,9 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 
 		await Promise.all(loadSummaries);
 		this.editManager.afterSummaryLoad();
+		if (this.debug) {
+			console.debug(`[${this.editManager.localSessionId}] loadCore End`);
+		}
 	}
 
 	/**
@@ -248,6 +261,11 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 	private submitCommit(commit: GraphCommit<TChange>): void {
 		if (!this.submitOps) {
 			return;
+		}
+
+		if (this.debug) {
+			console.debug(`[${this.editManager.localSessionId}] SC`);
+			console.debug(`[${this.editManager.localSessionId}] SC`, commit);
 		}
 
 		// Edits should not be submitted until all transactions finish
@@ -274,6 +292,10 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 			changeset: this.changeCodec.json.encode(commit.change),
 		};
 		this.submitLocalMessage(message);
+
+		if (this.debug) {
+			console.debug(`[${this.editManager.localSessionId}] SC End`);
+		}
 	}
 
 	protected processCore(
@@ -281,7 +303,14 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 		local: boolean,
 		localOpMetadata: unknown,
 	) {
+		if (this.debug) {
+			console.debug(`[${this.editManager.localSessionId}] PC Start`);
+		}
 		const commit = parseCommit(message.contents, this.changeCodec);
+		if (this.debug) {
+			console.debug(`[${this.editManager.localSessionId}] PC`, message);
+			console.debug(`[${this.editManager.localSessionId}] PC`, commit);
+		}
 
 		this.editManager.addSequencedChange(
 			commit,
@@ -290,6 +319,9 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 		);
 
 		this.editManager.advanceMinimumSequenceNumber(brand(message.minimumSequenceNumber));
+		if (this.debug) {
+			console.debug(`[${this.editManager.localSessionId}] PC End`);
+		}
 	}
 
 	/**
