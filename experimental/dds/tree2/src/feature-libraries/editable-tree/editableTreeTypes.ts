@@ -183,6 +183,8 @@ export interface EditableTree extends Iterable<EditableField>, ContextuallyTyped
 	 * as it works the same way for all children of the tree starting from its root.
 	 *
 	 * Use with the `delete` operator to delete `optional` or `sequence` fields of this node.
+	 *
+	 * TODO: see `EditableField.setContent`
 	 */
 	// TODO: update docs for concurrently deleting the field.
 	[key: FieldKey]: UnwrappedEditableField;
@@ -272,6 +274,7 @@ export type UnwrappedEditableField = UnwrappedEditableTree | undefined | Editabl
  * It is forbidden to delete the node using the `delete` operator, use the `deleteNodes()` method instead.
  *
  * TODO: split this interface by field kind.
+ * TODO: Container deletion/replacement & move.
  * @alpha
  */
 export interface EditableField
@@ -323,12 +326,19 @@ export interface EditableField
 	/**
 	 * Inserts new nodes into this field.
 	 * Sequence fields only.
+	 *
+	 * TODO: Merge left vs. merge right tie-breaker.
+	 * TODO: Opt into slice deletion/move when sequenced before/after.
 	 */
 	insertNodes(index: number, newContent: NewFieldContent): void;
 
 	/**
 	 * Moves nodes from this field to destination iff both source and destination are sequence fields.
 	 * If the destinationField is not provided, the current field is used as the destination.
+	 *
+	 * TODO: Merge left vs. merge right tie-breaker.
+	 * TODO: Opt into slice deletion/move when sequenced before/after.
+	 * TODO: Slice-move.
 	 */
 	moveNodes(
 		sourceIndex: number,
@@ -344,6 +354,9 @@ export interface EditableField
 	 * @param index - the index of the first node to be deleted. It must be in a range of existing node indices.
 	 * @param count - the number of nodes to be deleted. If not provided, deletes all nodes
 	 * starting from the index and up to the length of the field.
+	 *
+	 * TODO: Slice-delete.
+	 * TODO: Delete the node vs. clear the cell
 	 */
 	deleteNodes(index: number, count?: number): void;
 
@@ -357,12 +370,23 @@ export interface EditableField
 	 *
 	 * Note that, if multiple clients concurrently call replace on a sequence field,
 	 * all the insertions will be preserved.
+	 *
+	 * TODO: This is more like splice than replace, except that the deletions will currently impact the nodes even when they are moved out.
+	 *   - Rename this to "splice" and make it use slice semantics. (With tiebreaker)
+	 *     - Delete the node vs. clear the cell
+	 *   - Offer true replace semantics as a separate API (no tiebreaker, no count but ensures the sequence has enough existing nodes).
 	 */
 	replaceNodes(index: number, newContent: NewFieldContent, count?: number): void;
 
 	/**
 	 * Delete the content of this field.
 	 * Only supports field kinds which can be empty.
+	 *
+	 * TODO: On optional field this has LWW "clear" semantics.
+	 * TODO: This degree of freedom shouldn't exist for value fields.
+	 * TODO: On sequence field, this has "splice" semantics (all concurrent inserts are preserved), which is already supported elsewhere.
+	 *   We could support "clear" semantics on this API. It could either be:
+	 *   - Slice-based (with the option to include/exclude
 	 */
 	delete(): void;
 
@@ -373,6 +397,8 @@ export interface EditableField
 	 * For optional and value field multiplicities, the single child, or undefined of none.
 	 * For sequence fields, the field itself (and thus not very useful to read, but can be assigned to).
 	 * Does not unwrap the content.
+	 *
+	 * TODO: see `EditableField.setContent`
 	 */
 	get content(): EditableTree | undefined | EditableField;
 	set content(newContent: NewFieldContent);
@@ -384,6 +410,10 @@ export interface EditableField
 	 * Same as assigning to `content`.
 	 * This exists in addition to the setter for `content` since in many contexts limitations in TypeScripts typing
 	 * prevent providing strongly typed getters and setters with the types required.
+	 *
+	 * On optional/value field, this has LWW replace semantics.
+	 * On sequence field, this has splice semantics (all concurrent inserts are preserved), which is already supported elsewhere.
+	 * It could have container deletion/replacement semantics instead.
 	 */
 	setContent(newContent: NewFieldContent): void;
 }
