@@ -103,12 +103,6 @@ export interface CellId extends ChangeAtomId, HasLineage {}
 
 export const CellId = Type.Composite([EncodedChangeAtomId, HasLineage]);
 
-export interface HasChanges<TNodeChange = NodeChangeType> {
-	changes?: TNodeChange;
-}
-export const HasChanges = <TNodeChange extends TSchema>(tNodeChange: TNodeChange) =>
-	Type.Object({ changes: Type.Optional(tNodeChange) });
-
 export interface HasReattachFields {
 	/**
 	 * The revision this mark is inverting a detach from.
@@ -142,26 +136,21 @@ export const Transient = Type.Object({ detachedBy: EncodedChangeAtomId });
 export type CanBeTransient = Partial<Transient>;
 export const CanBeTransient = Type.Partial(Transient);
 
-export interface Insert<TNodeChange = NodeChangeType>
-	extends HasRevisionTag,
-		CanBeTransient,
-		HasChanges<TNodeChange> {
+export interface Insert extends HasRevisionTag, CanBeTransient {
 	type: "Insert";
 	content: ProtoNode[];
 }
-export const Insert = <Schema extends TSchema>(tNodeChange: Schema) =>
-	Type.Composite(
-		[
-			HasRevisionTag,
-			CanBeTransient,
-			HasChanges(tNodeChange),
-			Type.Object({
-				type: Type.Literal("Insert"),
-				content: Type.Array(ProtoNode),
-			}),
-		],
-		noAdditionalProps,
-	);
+export const Insert = Type.Composite(
+	[
+		HasRevisionTag,
+		CanBeTransient,
+		Type.Object({
+			type: Type.Literal("Insert"),
+			content: Type.Array(ProtoNode),
+		}),
+	],
+	noAdditionalProps,
+);
 
 export interface MoveIn extends HasMoveId, HasRevisionTag {
 	type: "MoveIn";
@@ -184,67 +173,52 @@ export const MoveIn = Type.Composite(
 	noAdditionalProps,
 );
 
-export interface Delete<TNodeChange = NodeChangeType>
-	extends HasRevisionTag,
-		HasChanges<TNodeChange> {
+export interface Delete extends HasRevisionTag {
 	type: "Delete";
 	id: ChangesetLocalId;
 }
 
-export const Delete = <Schema extends TSchema>(tNodeChange: Schema) =>
-	Type.Composite(
-		[
-			HasRevisionTag,
-			HasChanges(tNodeChange),
-			Type.Object({
-				type: Type.Literal("Delete"),
-				id: ChangesetLocalIdSchema,
-			}),
-		],
-		noAdditionalProps,
-	);
+export const Delete = Type.Composite(
+	[
+		HasRevisionTag,
+		Type.Object({
+			type: Type.Literal("Delete"),
+			id: ChangesetLocalIdSchema,
+		}),
+	],
+	noAdditionalProps,
+);
 
-export interface MoveOut<TNodeChange = NodeChangeType>
-	extends HasRevisionTag,
-		HasMoveId,
-		HasChanges<TNodeChange> {
+export interface MoveOut extends HasRevisionTag, HasMoveId {
 	type: "MoveOut";
 }
-export const MoveOut = <Schema extends TSchema>(tNodeChange: Schema) =>
-	Type.Composite(
-		[
-			HasRevisionTag,
-			HasMoveId,
-			HasChanges(tNodeChange),
-			Type.Object({
-				type: Type.Literal("MoveOut"),
-			}),
-		],
-		noAdditionalProps,
-	);
-
-export interface Revive<TNodeChange = NodeChangeType>
-	extends HasReattachFields,
+export const MoveOut = Type.Composite(
+	[
 		HasRevisionTag,
-		CanBeTransient,
-		HasChanges<TNodeChange> {
+		HasMoveId,
+		Type.Object({
+			type: Type.Literal("MoveOut"),
+		}),
+	],
+	noAdditionalProps,
+);
+
+export interface Revive extends HasReattachFields, HasRevisionTag, CanBeTransient {
 	type: "Revive";
 	content: ITreeCursorSynchronous[];
 }
-export const Revive = <Schema extends TSchema>(tNodeChange: Schema) =>
-	Type.Composite(
-		[
-			HasReattachFields,
-			HasRevisionTag,
-			CanBeTransient,
-			HasChanges(tNodeChange),
-			Type.Object({
-				type: Type.Literal("Revive"),
-				content: Type.Array(ProtoNode),
-			}),
-		],
-		noAdditionalProps,
-	);
+export const Revive = Type.Composite(
+	[
+		HasReattachFields,
+		HasRevisionTag,
+		CanBeTransient,
+		Type.Object({
+			type: Type.Literal("Revive"),
+			content: Type.Array(ProtoNode),
+		}),
+	],
+	noAdditionalProps,
+);
 
 export interface ReturnTo extends HasReattachFields, HasRevisionTag, HasMoveId {
 	type: "ReturnTo";
@@ -268,10 +242,7 @@ export const ReturnTo = Type.Composite(
 	noAdditionalProps,
 );
 
-export interface ReturnFrom<TNodeChange = NodeChangeType>
-	extends HasRevisionTag,
-		HasMoveId,
-		HasChanges<TNodeChange> {
+export interface ReturnFrom extends HasRevisionTag, HasMoveId {
 	type: "ReturnFrom";
 
 	/**
@@ -280,74 +251,41 @@ export interface ReturnFrom<TNodeChange = NodeChangeType>
 	 */
 	isDstConflicted?: true;
 }
-export const ReturnFrom = <Schema extends TSchema>(tNodeChange: Schema) =>
-	Type.Composite(
-		[
-			HasRevisionTag,
-			HasMoveId,
-			HasChanges(tNodeChange),
-			Type.Object({
-				type: Type.Literal("ReturnFrom"),
-				isDstConflicted: OptionalTrue,
-			}),
-		],
-		noAdditionalProps,
-	);
+export const ReturnFrom = Type.Composite(
+	[
+		HasRevisionTag,
+		HasMoveId,
+		Type.Object({
+			type: Type.Literal("ReturnFrom"),
+			isDstConflicted: OptionalTrue,
+		}),
+	],
+	noAdditionalProps,
+);
 
-/**
- * An attach mark that allocates new cells.
- */
-export type NewAttach<TNodeChange = NodeChangeType> = Insert<TNodeChange> | MoveIn;
-export const NewAttach = <Schema extends TSchema>(tNodeChange: Schema) =>
-	Type.Union([Insert(tNodeChange), MoveIn]);
+export type NewAttach = Insert | MoveIn;
+export const NewAttach = Type.Union([Insert, MoveIn]);
 
-export type Reattach<TNodeChange = NodeChangeType> = Revive<TNodeChange> | ReturnTo;
-export const Reattach = <Schema extends TSchema>(tNodeChange: Schema) =>
-	Type.Union([Revive(tNodeChange), ReturnTo]);
+export type Reattach = Revive | ReturnTo;
+export const Reattach = Type.Union([Revive, ReturnTo]);
 
-export type Attach<TNodeChange = NodeChangeType> = NewAttach<TNodeChange> | Reattach<TNodeChange>;
-export const Attach = <Schema extends TSchema>(tNodeChange: Schema) =>
-	Type.Union([NewAttach(tNodeChange), Reattach(tNodeChange)]);
+export type Attach = NewAttach | Reattach;
+export const Attach = Type.Union([NewAttach, Reattach]);
 
-export type Detach<TNodeChange = NodeChangeType> =
-	| Delete<TNodeChange>
-	| MoveOut<TNodeChange>
-	| ReturnFrom<TNodeChange>;
-export const Detach = <Schema extends TSchema>(tNodeChange: Schema) =>
-	Type.Union([Delete(tNodeChange), MoveOut(tNodeChange), ReturnFrom(tNodeChange)]);
+export type Detach = Delete | MoveOut | ReturnFrom;
+export const Detach = Type.Union([Delete, MoveOut, ReturnFrom]);
 
 /**
  * Mark used during compose to temporarily remember the position of nodes which were being moved
  * but had their move cancelled with an inverse.
  * This mark should only exist as part of intermediate output of compose and should be removed during the amendCompose pass.
  */
-export interface MovePlaceholder<TNodeChange>
-	extends HasRevisionTag,
-		HasMoveId,
-		HasChanges<TNodeChange> {
+export interface MovePlaceholder extends HasRevisionTag, HasMoveId {
 	type: "Placeholder";
 }
 
-export interface Modify<TNodeChange = NodeChangeType> {
-	type: "Modify";
-	changes: TNodeChange;
-}
-export const Modify = <Schema extends TSchema>(tNodeChange: Schema) =>
-	Type.Object(
-		{
-			type: Type.Literal("Modify"),
-			changes: tNodeChange,
-		},
-		noAdditionalProps,
-	);
-
-export type Effect<TNodeChange = NodeChangeType> =
-	| Modify<TNodeChange>
-	| MovePlaceholder<TNodeChange>
-	| Attach<TNodeChange>
-	| Detach<TNodeChange>;
-export const Effect = <Schema extends TSchema>(tNodeChange: Schema) =>
-	Type.Union([Modify(tNodeChange), Attach(tNodeChange), Detach(tNodeChange)]);
+export type Effect = MovePlaceholder | Attach | Detach;
+export const Effect = Type.Union([Attach, Detach]);
 
 export interface Mark<TNodeChange> {
 	count: CellCount;
@@ -362,7 +300,15 @@ export interface Mark<TNodeChange> {
 	 * Undefined if no effect is to be applied the the cells.
 	 * Empty is equivalent to undefined, with empty being preferred for terseness.
 	 */
-	effects?: Effect<TNodeChange>[];
+	effects?: Effect[];
+	/**
+	 * Nested changes to the node that exists or existed in the cell.
+	 * Nested changes are always represented in the mark that that corresponds to the cell that contains
+	 * (or last contained, in situations where the node has been removed)
+	 * the affected node in the input context. This means that if a node is moved, the nested changes
+	 * will be represented at the location of the cell the node was moved from.
+	 */
+	changes?: TNodeChange;
 }
 
 export const Mark = <Schema extends TSchema>(tNodeChange: Schema) =>
@@ -370,7 +316,8 @@ export const Mark = <Schema extends TSchema>(tNodeChange: Schema) =>
 		{
 			count: CellCount,
 			cellId: Type.Optional(CellId),
-			effects: Type.Optional(Type.Array(Effect(tNodeChange))),
+			effects: Type.Optional(Type.Array(Effect)),
+			changes: Type.Optional(tNodeChange),
 		},
 		noAdditionalProps,
 	);
