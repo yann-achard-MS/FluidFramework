@@ -129,8 +129,8 @@ function applyMoveEffectsToSource<T>(
 	consumeEffect: boolean,
 	composeChildren?: (a: T | undefined, b: T | undefined) => T | undefined,
 ): Mark<T> {
-	const markEffect = getEffect<MoveOut<T> | ReturnFrom<T>>(mark);
-	let nodeChange = markEffect.changes;
+	const markEffect = getEffect<MoveOut | ReturnFrom>(mark);
+	let nodeChange = mark.changes;
 	const modifyAfter = getModifyAfter(
 		effects,
 		markEffect.revision ?? revision,
@@ -143,15 +143,15 @@ function applyMoveEffectsToSource<T>(
 			composeChildren !== undefined,
 			0x569 /* Must provide a change composer if modifying moves */,
 		);
-		nodeChange = composeChildren(markEffect.changes, modifyAfter);
+		nodeChange = composeChildren(mark.changes, modifyAfter);
 	}
 
 	const newMark = cloneMark(mark);
-	const newMarkEffect = getEffect<MoveOut<T> | ReturnFrom<T>>(newMark);
+	const newMarkEffect = getEffect<MoveOut | ReturnFrom>(newMark);
 	if (nodeChange !== undefined) {
-		newMarkEffect.changes = nodeChange;
+		newMark.changes = nodeChange;
 	} else {
-		delete newMarkEffect.changes;
+		delete newMark.changes;
 	}
 
 	const statusUpdate = getPairedMarkStatus(

@@ -113,7 +113,7 @@ describe("SequenceField - toDelta", () => {
 			fieldChanges: new Map([[fooField, nestedChange]]),
 		};
 		const changeset = [
-			Mark.revive(contentCursor, { revision: tag, localId: brand(0) }, { changes }),
+			{ ...Mark.revive(contentCursor, { revision: tag, localId: brand(0) }), changes },
 		];
 		const fieldChanges = new Map([[fooField, [{ type: Delta.MarkType.Insert, content: [] }]]]);
 		const deltaFromChild = (child: NodeChangeset): Delta.Modify => {
@@ -237,7 +237,7 @@ describe("SequenceField - toDelta", () => {
 	});
 
 	it("modify and delete => delete", () => {
-		const changeset = [Mark.delete(1, brand(0), { changes: childChange1 })];
+		const changeset = [{ ...Mark.delete(1, brand(0)), changes: childChange1 }];
 		const mark: Delta.Delete = {
 			type: Delta.MarkType.Delete,
 			count: 1,
@@ -265,7 +265,7 @@ describe("SequenceField - toDelta", () => {
 	});
 
 	it("modify and move-out => move-out", () => {
-		const changeset = [Mark.moveOut(1, moveId, { changes: childChange1 })];
+		const changeset = [{ ...Mark.moveOut(1, moveId), changes: childChange1 }];
 		const mark: Delta.MoveOut = {
 			type: Delta.MarkType.MoveOut,
 			moveId: deltaMoveId,
@@ -301,7 +301,7 @@ describe("SequenceField - toDelta", () => {
 		const nodeChange = {
 			fieldChanges: new Map([[fooField, nestedChange]]),
 		};
-		const changeset = [Mark.insert(content, brand(0), { changes: nodeChange })];
+		const changeset = [{ ...Mark.insert(content, brand(0)), changes: nodeChange }];
 		const nestedMoveDelta = new Map([
 			[fooField, [{ type: Delta.MarkType.MoveIn, moveId: deltaMoveId, count: 42 }]],
 		]);
@@ -353,7 +353,7 @@ describe("SequenceField - toDelta", () => {
 		it("redundant revive", () => {
 			const changeset = [
 				Mark.revive(fakeRepairData(tag, 0, 1)),
-				Mark.revive(fakeRepairData(tag, 1, 1), undefined, { changes: childChange1 }),
+				{ ...Mark.revive(fakeRepairData(tag, 1, 1)), changes: childChange1 },
 			];
 			const actual = toDelta(changeset);
 			const expected: Delta.MarkList = [1, childChange1Delta];
@@ -367,11 +367,14 @@ describe("SequenceField - toDelta", () => {
 					{ revision: tag2, localId: brand(0) },
 					{ inverseOf: tag1 },
 				),
-				Mark.revive(
-					fakeRepairData(tag, 1, 1),
-					{ revision: tag2, localId: brand(1) },
-					{ inverseOf: tag1, changes: childChange1 },
-				),
+				{
+					...Mark.revive(
+						fakeRepairData(tag, 1, 1),
+						{ revision: tag2, localId: brand(1) },
+						{ inverseOf: tag1 },
+					),
+					changes: childChange1,
+				},
 			];
 			const actual = toDelta(changeset);
 			const expected: Delta.MarkList = [];

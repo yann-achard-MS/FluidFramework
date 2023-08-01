@@ -9,13 +9,7 @@ import { Delta } from "../../core";
 import { populateChildModifications } from "../deltaUtils";
 import { singleTextCursor } from "../treeTextCursor";
 import { MarkList, NoopMarkType } from "./format";
-import {
-	areInputCellsEmpty,
-	areOutputCellsEmpty,
-	getNodeChange,
-	markIsTransient,
-	tryGetEffect,
-} from "./utils";
+import { areInputCellsEmpty, areOutputCellsEmpty, markIsTransient, tryGetEffect } from "./utils";
 
 export type ToDelta<TNodeChange> = (child: TNodeChange) => Delta.Modify;
 
@@ -26,15 +20,24 @@ export function sequenceFieldToDelta<TNodeChange>(
 	const out = new OffsetListFactory<Delta.Mark>();
 	for (const mark of marks) {
 		if (!areInputCellsEmpty(mark) && !areOutputCellsEmpty(mark)) {
-			out.push(deltaFromNodeChange(getNodeChange(mark), mark.count, deltaFromChild));
+			out.push(deltaFromNodeChange(mark.changes, mark.count, deltaFromChild));
 		} else if (
 			areInputCellsEmpty(mark) &&
 			areOutputCellsEmpty(mark) &&
-			(!markIsTransient(mark) || mark.effects[0].changes === undefined)
+			(!markIsTransient(mark) || mark.changes === undefined)
 		) {
 		} else {
 			const effect = tryGetEffect(mark);
-			assert(effect !== undefined, "Mark must have an effect");
+			if (effect === undefined) {
+				assert(mark.changes !== undefined, "Mark must have changes if it has no effect");
+				const modify = deltaFromChild(mark.changes);
+				if (modify.fields !== undefined) {
+					out.pushContent(modify);
+				} else {
+					out.pushOffset(1);
+				}
+				continue;
+			}
 			// Inline into `switch(effect.type)` once we upgrade to TS 4.7
 			const type = effect.type;
 			assert(type !== NoopMarkType, 0x6b0 /* Cell changing mark must no be a NoopMark */);
@@ -48,7 +51,7 @@ export function sequenceFieldToDelta<TNodeChange>(
 					if (effect.transientDetach !== undefined) {
 						insertMark.isTransient = true;
 					}
-					populateChildModificationsIfAny(effect.changes, insertMark, deltaFromChild);
+					populateChildModificationsIfAny(mark.changes, insertMark, deltaFromChild);
 					out.pushContent(insertMark);
 					break;
 				}
@@ -62,21 +65,12 @@ export function sequenceFieldToDelta<TNodeChange>(
 					out.pushContent(moveMark);
 					break;
 				}
-				case "Modify": {
-					const modify = deltaFromChild(effect.changes);
-					if (modify.fields !== undefined) {
-						out.pushContent(modify);
-					} else {
-						out.pushOffset(1);
-					}
-					break;
-				}
 				case "Delete": {
 					const deleteMark: Mutable<Delta.Delete> = {
 						type: Delta.MarkType.Delete,
 						count: mark.count,
 					};
-					populateChildModificationsIfAny(effect.changes, deleteMark, deltaFromChild);
+					populateChildModificationsIfAny(mark.changes, deleteMark, deltaFromChild);
 					out.pushContent(deleteMark);
 					break;
 				}
@@ -87,7 +81,7 @@ export function sequenceFieldToDelta<TNodeChange>(
 						moveId: brandOpaque<Delta.MoveId>(effect.id),
 						count: mark.count,
 					};
-					populateChildModificationsIfAny(effect.changes, moveMark, deltaFromChild);
+					populateChildModificationsIfAny(mark.changes, moveMark, deltaFromChild);
 					out.pushContent(moveMark);
 					break;
 				}
@@ -99,7 +93,7 @@ export function sequenceFieldToDelta<TNodeChange>(
 					if (effect.transientDetach !== undefined) {
 						insertMark.isTransient = true;
 					}
-					populateChildModificationsIfAny(effect.changes, insertMark, deltaFromChild);
+					populateChildModificationsIfAny(mark.changes, insertMark, deltaFromChild);
 					out.pushContent(insertMark);
 					break;
 				}

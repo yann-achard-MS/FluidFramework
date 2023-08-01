@@ -14,7 +14,7 @@ import {
 	IdAllocator,
 	RevisionMetadataSource,
 } from "../modular-schema";
-import { Changeset, Mark, MarkList, Modify, MoveId, NoopMarkType, CellId } from "./format";
+import { Changeset, Mark, MarkList, MoveId, NoopMarkType, CellId } from "./format";
 import { MarkListFactory } from "./markListFactory";
 import { MarkQueue } from "./markQueue";
 import {
@@ -37,7 +37,6 @@ import {
 	isNewAttach,
 	isExistingCellMark,
 	isDetachMark,
-	getNodeChange,
 	markHasCellEffect,
 	withNodeChange,
 	getMarkMoveId,
@@ -167,12 +166,7 @@ function composeMarks<TNodeChange>(
 	moveEffects: MoveEffectTable<TNodeChange>,
 	revisionMetadata: RevisionMetadataSource,
 ): Mark<TNodeChange> {
-	const nodeChange = composeChildChanges(
-		getNodeChange(baseMark),
-		getNodeChange(newMark),
-		newRev,
-		composeChild,
-	);
+	const nodeChange = composeChildChanges(baseMark.changes, newMark.changes, newRev, composeChild);
 
 	if (markIsTransient(newMark)) {
 		return withNodeChange(baseMark, nodeChange);
@@ -243,7 +237,7 @@ function composeMarks<TNodeChange>(
 	} else if (areInputCellsEmpty(baseMark)) {
 		if (isMoveMark(baseMark) && isMoveMark(newMark)) {
 			// `baseMark` must be a move destination since it is filling cells, and `newMark` must be a move source.
-			const baseEffect = getEffect<Move<TNodeChange>>(baseMark);
+			const baseEffect = getEffect<Move>(baseMark);
 			const baseIntention = getIntention(baseEffect.revision, revisionMetadata);
 			const newIntention = getIntention(
 				getEffect(newMark).revision ?? newRev,
@@ -284,7 +278,7 @@ function composeMarks<TNodeChange>(
 		}
 
 		if (isMoveMark(baseMark)) {
-			const baseEffect = getEffect<Move<TNodeChange>>(baseMark);
+			const baseEffect = getEffect<Move>(baseMark);
 			setReplacementMark(
 				moveEffects,
 				CrossFieldTarget.Source,
@@ -351,14 +345,9 @@ function composeMarks<TNodeChange>(
 						type: "Placeholder",
 						revision: baseEffect.revision,
 						id: baseEffect.id,
-						changes: composeChildChanges(
-							nodeChange,
-							nodeChanges,
-							undefined,
-							composeChild,
-						),
 					},
 				],
+				changes: composeChildChanges(nodeChange, nodeChanges, undefined, composeChild),
 			};
 		}
 		const length = baseMark.count;
@@ -376,8 +365,7 @@ function createModifyMark<TNodeChange>(
 	}
 
 	assert(length === 1, 0x692 /* A mark with a node change must have length one */);
-	const modify: Modify<TNodeChange> = { type: "Modify", changes: nodeChange };
-	const mark: ModifyMark<TNodeChange> = { count: 1, effects: [modify] };
+	const mark: ModifyMark<TNodeChange> = { count: 1, changes: nodeChange };
 	if (cellId !== undefined) {
 		mark.cellId = cellId;
 	}
@@ -418,16 +406,12 @@ function composeMark<TNodeChange, TMark extends Mark<TNodeChange>>(
 	}
 	const effect = tryGetEffect(cloned);
 	if (effect !== undefined) {
-		if (revision !== undefined && effect.type !== "Modify" && effect.revision === undefined) {
+		if (revision !== undefined && effect.revision === undefined) {
 			effect.revision = revision;
 		}
 
-		if (
-			effect.type !== "MoveIn" &&
-			effect.type !== "ReturnTo" &&
-			effect.changes !== undefined
-		) {
-			effect.changes = composeChild([tagChange(effect.changes, revision)]);
+		if (mark.changes !== undefined) {
+			cloned.changes = composeChild([tagChange(mark.changes, revision)]);
 			return cloned;
 		}
 	}
@@ -497,14 +481,14 @@ function amendComposeI<TNodeChange>(
 					);
 					if (modifyAfter !== undefined) {
 						const changes = composeChildChanges(
-							effect.changes,
+							mark.changes,
 							modifyAfter,
 							undefined,
 							composeChild,
 						);
 						mark = createModifyMark(mark.count, changes);
 					} else {
-						mark = createModifyMark(mark.count, effect.changes);
+						mark = createModifyMark(mark.count, mark.changes);
 					}
 				}
 				default:

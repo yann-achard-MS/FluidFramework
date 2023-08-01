@@ -57,13 +57,13 @@ export const sequenceFieldEditor = {
 	buildChildChange: <TNodeChange = NodeChangeType>(
 		index: number,
 		change: TNodeChange,
-	): Changeset<TNodeChange> => markAtIndex(index, 1, { type: "Modify", changes: change }),
+	): Changeset<TNodeChange> => markAtIndex(index, 1, undefined, undefined, change),
 	insert: (
 		index: number,
 		cursors: readonly ITreeCursor[],
 		id: ChangesetLocalId,
 	): Changeset<never> => {
-		const mark: Insert<never> = {
+		const mark: Insert = {
 			type: "Insert",
 			content: cursors.map(jsonableTreeFromCursor),
 		};
@@ -80,7 +80,7 @@ export const sequenceFieldEditor = {
 		isIntention: boolean = false,
 	): Changeset<never> => {
 		assert(cellId.revision !== undefined, "Target cell must have a revision.");
-		const effect: Reattach<never> = {
+		const effect: Reattach = {
 			type: "Revive",
 			content: reviver(cellId.revision, cellId.localId, count),
 		};
@@ -96,12 +96,12 @@ export const sequenceFieldEditor = {
 		destIndex: number,
 		id: ChangesetLocalId,
 	): [moveOut: Changeset<never>, moveIn: Changeset<never>] {
-		const moveOut: Effect<never> = {
+		const moveOut: Effect = {
 			type: "MoveOut",
 			id,
 		};
 
-		const moveIn: Effect<never> = {
+		const moveIn: Effect = {
 			type: "MoveIn",
 			id,
 		};
@@ -163,15 +163,22 @@ export const sequenceFieldEditor = {
 function markAtIndex<TNodeChange>(
 	index: number,
 	count: number,
-	effect: Effect<TNodeChange>,
+	effect?: Effect,
 	cellId?: CellId,
+	changes?: TNodeChange,
 ): Changeset<TNodeChange> {
 	if (count === 0) {
 		return [];
 	}
-	const mark: Mark<TNodeChange> = { count, effects: [effect] };
+	const mark: Mark<TNodeChange> = { count };
+	if (effect !== undefined) {
+		mark.effects = [effect];
+	}
 	if (cellId !== undefined) {
 		mark.cellId = cellId;
+	}
+	if (changes !== undefined) {
+		mark.changes = changes;
 	}
 	return index === 0 ? [mark] : [{ count: index }, mark];
 }

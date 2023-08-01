@@ -13,7 +13,7 @@ import {
 	IdAllocator,
 	NodeReviver,
 } from "../modular-schema";
-import { Changeset, Mark, MarkList, Modify, ReturnFrom, MoveOut } from "./format";
+import { Changeset, Mark, MarkList, ReturnFrom, MoveOut } from "./format";
 import { MarkListFactory } from "./markListFactory";
 import {
 	areInputCellsEmpty,
@@ -108,7 +108,14 @@ function invertMark<TNodeChange>(
 ): Mark<TNodeChange>[] {
 	const effect = tryGetEffect(mark);
 	if (effect === undefined) {
-		return [mark];
+		if (mark.cellId === undefined) {
+			return mark.changes !== undefined
+				? [withNodeChange(mark, invertChild(mark.changes, inputIndex))]
+				: [mark];
+		} else {
+			// TODO: preserve modifications to the removed nodes.
+			return [];
+		}
 	}
 	switch (effect.type) {
 		case "Insert": {
@@ -135,7 +142,7 @@ function invertMark<TNodeChange>(
 								},
 							],
 						},
-						invertNodeChange(effect.changes, inputIndex, invertChild),
+						invertNodeChange(mark.changes, inputIndex, invertChild),
 					),
 				];
 			} else {
@@ -144,7 +151,7 @@ function invertMark<TNodeChange>(
 						count: mark.count,
 						effects: [{ type: "Delete", id: mark.cellId.localId }],
 					},
-					invertNodeChange(effect.changes, inputIndex, invertChild),
+					invertNodeChange(mark.changes, inputIndex, invertChild),
 				);
 				return [inverse];
 			}
@@ -164,7 +171,7 @@ function invertMark<TNodeChange>(
 							},
 						],
 					},
-					invertNodeChange(effect.changes, inputIndex, invertChild),
+					invertNodeChange(mark.changes, inputIndex, invertChild),
 				);
 
 				return [inverse];
@@ -201,7 +208,7 @@ function invertMark<TNodeChange>(
 									},
 								],
 							},
-							invertNodeChange(effect.changes, inputIndex, invertChild),
+							invertNodeChange(mark.changes, inputIndex, invertChild),
 						),
 					];
 				}
@@ -215,7 +222,7 @@ function invertMark<TNodeChange>(
 							},
 						],
 					},
-					invertNodeChange(effect.changes, inputIndex, invertChild),
+					invertNodeChange(mark.changes, inputIndex, invertChild),
 				);
 				return [inverse];
 			}
@@ -227,10 +234,10 @@ function invertMark<TNodeChange>(
 								{
 									type: "Delete",
 									revision: effect.transientDetach.revision ?? revision,
-									changes: effect.changes,
 									id: effect.transientDetach.localId,
 								},
 							],
+							changes: mark.changes,
 						},
 						inputIndex,
 						revision,
@@ -241,19 +248,12 @@ function invertMark<TNodeChange>(
 				: [
 						invertModifyOrSkip(
 							mark.count,
-							effect.changes,
+							mark.changes,
 							inputIndex,
 							invertChild,
 							mark.cellId,
 						),
 				  ];
-		}
-		case "Modify": {
-			if (mark.cellId === undefined) {
-				return [withNodeChange(mark, invertChild(effect.changes, inputIndex))];
-			}
-			// TODO: preserve modifications to the removed nodes.
-			return [];
 		}
 		case "MoveOut":
 		case "ReturnFrom": {
@@ -263,9 +263,9 @@ function invertMark<TNodeChange>(
 			}
 			if (effect.type === "ReturnFrom" && effect.isDstConflicted) {
 				// The nodes were present but the destination was conflicted, the mark had no effect on the nodes.
-				return [invertModifyOrSkip(mark.count, effect.changes, inputIndex, invertChild)];
+				return [invertModifyOrSkip(mark.count, mark.changes, inputIndex, invertChild)];
 			}
-			if (effect.changes !== undefined) {
+			if (mark.changes !== undefined) {
 				assert(
 					mark.count === 1,
 					0x6ed /* Mark with changes can only target a single cell */,
@@ -275,7 +275,7 @@ function invertMark<TNodeChange>(
 					effect.revision ?? revision,
 					effect.id,
 					mark.count,
-					invertChild(effect.changes, inputIndex),
+					invertChild(mark.changes, inputIndex),
 					true,
 				);
 			}
@@ -353,7 +353,7 @@ function applyMovedChanges<TNodeChange>(
 	manager: CrossFieldManager<TNodeChange>,
 ): Mark<TNodeChange>[] {
 	// Although this is a source mark, we query the destination because this was a destination mark during the original invert pass.
-	const effect = getEffect<MoveOut<TNodeChange> | ReturnFrom<TNodeChange>>(mark);
+	const effect = getEffect<MoveOut | ReturnFrom>(mark);
 	const entry = manager.get(
 		CrossFieldTarget.Destination,
 		effect.revision ?? revision,
@@ -388,8 +388,7 @@ function invertModifyOrSkip<TNodeChange>(
 ): Mark<TNodeChange> {
 	if (changes !== undefined) {
 		assert(length === 1, 0x66c /* A modify mark must have length equal to one */);
-		const modify: Modify<TNodeChange> = { type: "Modify", changes: inverter(changes, index) };
-		const mark: Mark<TNodeChange> = { count: 1, effects: [modify] };
+		const mark: Mark<TNodeChange> = { count: 1, changes: inverter(changes, index) };
 		if (detachEvent !== undefined) {
 			mark.cellId = detachEvent;
 		}

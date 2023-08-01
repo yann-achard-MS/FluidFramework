@@ -17,12 +17,10 @@ import {
 } from "../modular-schema";
 import {
 	Detach,
-	HasChanges,
 	HasRevisionTag,
 	Insert,
 	LineageEvent,
 	Mark,
-	Modify,
 	MoveIn,
 	ReturnTo,
 	Changeset,
@@ -63,18 +61,16 @@ export function isEmpty<T>(change: Changeset<T>): boolean {
 	return change.length === 0;
 }
 
-export function getEffect<TEffect extends Effect<unknown>>(mark: EffectMark<TEffect>): TEffect {
+export function getEffect<TEffect extends Effect>(mark: EffectMark<TEffect>): TEffect {
 	return mark.effects[0];
 }
 
-export function tryGetEffect<TNodeChange>(
-	mark: Mark<TNodeChange>,
-): Effect<TNodeChange> | undefined {
+export function tryGetEffect(mark: Mark<unknown>): Effect | undefined {
 	return mark.effects === undefined ? undefined : mark.effects[0];
 }
 
 export function isModify<TNodeChange>(mark: Mark<TNodeChange>): mark is ModifyMark<TNodeChange> {
-	return tryGetEffect(mark)?.type === "Modify";
+	return tryGetEffect(mark) === undefined && mark.changes !== undefined;
 }
 
 export function isReturnTo(mark: Mark<unknown>): mark is ReturnToMark {
@@ -255,7 +251,7 @@ export function getRevision(mark: Mark<unknown>): RevisionTag | undefined {
 	if (effect === undefined) {
 		return undefined;
 	}
-	return effect?.type === "Modify" ? undefined : effect.revision;
+	return effect.revision;
 }
 
 /**
@@ -287,7 +283,6 @@ export function isExistingCellMark<T>(mark: Mark<T>): mark is ExistingCellMark<T
 	switch (type) {
 		case NoopMarkType:
 		case "Delete":
-		case "Modify":
 		case "MoveOut":
 		case "ReturnFrom":
 		case "ReturnTo":
@@ -309,7 +304,7 @@ export function areInputCellsEmpty<T>(mark: Mark<T>): mark is EmptyInputCellMark
 export function areOutputCellsEmpty(mark: Mark<unknown>): boolean {
 	const effect = tryGetEffect(mark);
 	if (effect === undefined) {
-		return false;
+		return mark.cellId !== undefined;
 	}
 	const type = effect.type;
 	switch (type) {
@@ -322,7 +317,6 @@ export function areOutputCellsEmpty(mark: Mark<unknown>): boolean {
 		case "Delete":
 		case "MoveOut":
 			return true;
-		case "Modify":
 		case "Placeholder":
 			return mark.cellId !== undefined;
 		case "ReturnFrom":
@@ -343,7 +337,7 @@ export function areOutputCellsEmpty(mark: Mark<unknown>): boolean {
 }
 
 export function isNoop(mark: Mark<unknown>): mark is NoopMark {
-	return tryGetEffect(mark) === undefined;
+	return tryGetEffect(mark) === undefined && mark.changes === undefined;
 }
 
 /**
@@ -435,6 +429,10 @@ export function tryExtendMark<T>(lhs: Mark<T>, rhs: Readonly<Mark<T>>): boolean 
 		return false;
 	}
 
+	if (rhs.changes !== undefined || lhs.changes !== undefined) {
+		return false;
+	}
+
 	if (lhsEffect === undefined || rhsEffect === undefined) {
 		if (lhsEffect === undefined && rhsEffect === undefined) {
 			lhs.count += rhs.count;
@@ -444,14 +442,7 @@ export function tryExtendMark<T>(lhs: Mark<T>, rhs: Readonly<Mark<T>>): boolean 
 	}
 
 	const type = rhsEffect.type;
-	if (type !== "Modify" && rhsEffect.revision !== (lhsEffect as HasRevisionTag).revision) {
-		return false;
-	}
-
-	if (
-		(type !== "MoveIn" && type !== "ReturnTo" && rhsEffect.changes !== undefined) ||
-		(lhsEffect as Modify | HasChanges).changes !== undefined
-	) {
+	if (rhsEffect.revision !== (lhsEffect as HasRevisionTag).revision) {
 		return false;
 	}
 
@@ -914,14 +905,12 @@ export function splitMark<T, TMark extends Mark<T>>(mark: TMark, length: number)
 	}
 	return [mark1, mark2] as [TMark, TMark];
 }
-export function splitEffect<T, TEffect extends Effect<T>>(
+export function splitEffect<TEffect extends Effect>(
 	effect: TEffect,
 	length: number,
 ): [TEffect, TEffect] {
 	const type = effect.type;
 	switch (type) {
-		case "Modify":
-			fail("Unable to split Modify mark of length 1");
 		case "Insert": {
 			const effect1: TEffect = { ...effect, content: effect.content.slice(0, length) };
 			const effect2: TEffect = {
@@ -1002,72 +991,16 @@ export function compareLineages(
 	return 0;
 }
 
-export function getNodeChange<TNodeChange>(mark: Mark<TNodeChange>): TNodeChange | undefined {
-	const effect = tryGetEffect(mark);
-	if (effect === undefined) {
-		return undefined;
-	}
-	const type = effect?.type;
-	switch (type) {
-		case "MoveIn":
-		case "ReturnTo":
-			return undefined;
-		case "Delete":
-		case "Insert":
-		case "Modify":
-		case "MoveOut":
-		case "ReturnFrom":
-		case "Revive":
-		case "Placeholder":
-			return effect.changes;
-		default:
-			unreachableCase(type);
-	}
-}
-
 export function withNodeChange<TNodeChange>(
 	mark: Mark<TNodeChange>,
 	changes: TNodeChange | undefined,
 ): Mark<TNodeChange> {
-	const newMark = { ...mark };
 	if (changes === undefined) {
-		const effect = tryGetEffect(newMark);
-		if (effect === undefined || effect.type === "Modify") {
-			delete newMark.effects;
-			return newMark;
-		}
-		if (effect.type !== "MoveIn" && effect.type !== "ReturnTo") {
-			const newEffect = { ...effect };
-			delete newEffect.changes;
-			return { ...newMark, effects: [newEffect] };
-		}
-	} else {
-		assert(mark.count === 1, "Only length 1 marks can carry nested changes");
-		const effect = tryGetEffect(mark);
-		if (effect === undefined) {
-			return { ...mark, effects: [{ type: "Modify", changes }] };
-		}
-		const type = effect.type;
-		switch (type) {
-			case "MoveIn":
-			case "ReturnTo":
-				assert(false, 0x6a7 /* Cannot have a node change on a MoveIn or ReturnTo mark */);
-			case "Delete":
-			case "Insert":
-			case "Modify":
-			case "MoveOut":
-			case "ReturnFrom":
-			case "Revive":
-			case "Placeholder": {
-				const newEffect = { ...effect, changes };
-				newMark.effects = [newEffect];
-				break;
-			}
-			default:
-				unreachableCase(type);
-		}
+		const clone = { ...mark };
+		delete clone.changes;
+		return clone;
 	}
-	return newMark;
+	return { ...mark, changes };
 }
 
 export function withRevision<TMark extends Mark<unknown>>(
@@ -1088,7 +1021,9 @@ export function withRevision<TMark extends Mark<unknown>>(
 
 	const cloned = cloneMark(mark);
 	const effect = tryGetEffect(cloned);
-	(effect as Exclude<Effect<unknown>, Modify<unknown>>).revision = revision;
+	if (effect !== undefined) {
+		effect.revision = revision;
+	}
 	return cloned;
 }
 

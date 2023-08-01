@@ -28,7 +28,6 @@ import {
 	getCellId,
 	getOffsetInCellRange,
 	compareLineages,
-	getNodeChange,
 	withNodeChange,
 	getMarkMoveId,
 	isNoop,
@@ -42,7 +41,7 @@ import {
 	getEffect,
 	tryGetEffect,
 } from "./utils";
-import { Changeset, Mark, MarkList, MoveId, Modify, NoopMarkType, HasLineage } from "./format";
+import { Changeset, Mark, MarkList, MoveId, NoopMarkType, HasLineage } from "./format";
 import { MarkListFactory } from "./markListFactory";
 import { ComposeQueue } from "./compose";
 import {
@@ -334,11 +333,10 @@ function rebaseMark<TNodeChange>(
 				return { count: 0 };
 			}
 
-			const nodeChange = getNodeChange(rebasedMark);
+			const nodeChange = rebasedMark.changes;
 			if (nodeChange !== undefined) {
 				rebasedMark = withNodeChange(rebasedMark, undefined);
-				const modify: Modify<TNodeChange> = { type: "Modify", changes: nodeChange };
-				const mark: ModifyMark<TNodeChange> = { count: 1, effects: [modify] };
+				const mark: ModifyMark<TNodeChange> = { count: 1, changes: nodeChange };
 				sendMarkToDest(mark, moveEffects, baseRevision, moveId, baseMark.count);
 			}
 		}
@@ -384,7 +382,7 @@ function rebaseMark<TNodeChange>(
 			0x69e /* Only an ExistingCellMark can target an empty cell */,
 		);
 		if (isMoveMark(rebasedMark)) {
-			const rebasedEffect = getEffect<Move<TNodeChange>>(rebasedMark);
+			const rebasedEffect = getEffect<Move>(rebasedMark);
 			if (
 				(isMoveOut(rebasedMark) || isReturnFrom(rebasedMark)) &&
 				nodeExistenceState === NodeExistenceState.Alive
@@ -414,7 +412,7 @@ function rebaseMark<TNodeChange>(
 		(isMoveOut(rebasedMark) || isReturnFrom(rebasedMark)) &&
 		rebasedMark.cellId === undefined
 	) {
-		const rebasedEffect = getEffect<Move<TNodeChange>>(rebasedMark);
+		const rebasedEffect = getEffect<Move>(rebasedMark);
 		setPairedMarkStatus(
 			moveEffects,
 			CrossFieldTarget.Destination,
@@ -427,7 +425,7 @@ function rebaseMark<TNodeChange>(
 		nodeExistenceState === NodeExistenceState.Dead &&
 		(isMoveOut(rebasedMark) || isReturnFrom(rebasedMark))
 	) {
-		const rebasedEffect = getEffect<Move<TNodeChange>>(rebasedMark);
+		const rebasedEffect = getEffect<Move>(rebasedMark);
 		setPairedMarkStatus(
 			moveEffects,
 			CrossFieldTarget.Destination,
@@ -444,7 +442,6 @@ function markFollowsMoves(mark: Mark<unknown>): boolean {
 	const type = tryGetEffect(mark)?.type;
 	switch (type) {
 		case "Delete":
-		case "Modify":
 		case "MoveOut":
 		case "Revive":
 			return true;
@@ -529,8 +526,8 @@ function rebaseNodeChange<TNodeChange>(
 	baseMark: Mark<TNodeChange>,
 	nodeRebaser: NodeChangeRebaser<TNodeChange>,
 ): Mark<TNodeChange> {
-	const baseChange = getNodeChange(baseMark);
-	const currChange = getNodeChange<TNodeChange>(currMark);
+	const baseChange = baseMark.changes;
+	const currChange = currMark.changes;
 
 	if (markEmptiesCells(baseMark) && !isMoveMark(baseMark)) {
 		return withNodeChange(
@@ -613,7 +610,7 @@ function amendRebaseI<TNodeChange>(
 				newMark !== undefined,
 				0x70c /* Non-empty RebaseQueue should not provide two empty marks */,
 			);
-			factory.push(withNodeChange(newMark, rebaseChild(getNodeChange(newMark), undefined)));
+			factory.push(withNodeChange(newMark, rebaseChild(newMark.changes, undefined)));
 		}
 
 		if (baseMark !== undefined && (isMoveIn(baseMark) || isReturnTo(baseMark))) {

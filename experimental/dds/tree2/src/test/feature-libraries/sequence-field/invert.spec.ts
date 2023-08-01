@@ -135,7 +135,7 @@ describe("SequenceField - Invert", () => {
 		it("delete", () => {
 			const cellId = { revision: tag1, localId: brand<ChangesetLocalId>(0) };
 			const input = [
-				Mark.onEmptyCell(cellId, Mark.delete(1, brand(0), { changes: childChange1 })),
+				{ ...Mark.onEmptyCell(cellId, Mark.delete(1, brand(0))), changes: childChange1 },
 			];
 
 			const actual = invert(input);
@@ -147,7 +147,7 @@ describe("SequenceField - Invert", () => {
 		it("move out", () => {
 			const cellId = { revision: tag1, localId: brand<ChangesetLocalId>(0) };
 			const input = [
-				Mark.onEmptyCell(cellId, Mark.moveOut(1, brand(0), { changes: childChange1 })),
+				{ ...Mark.onEmptyCell(cellId, Mark.moveOut(1, brand(0))), changes: childChange1 },
 				Mark.moveIn(1, brand(0), { isSrcConflicted: true }),
 			];
 
@@ -160,10 +160,10 @@ describe("SequenceField - Invert", () => {
 		it("revert-only redundant revive => skip", () => {
 			const input = [
 				Mark.modify(childChange1),
-				Mark.revive(fakeRepair(tag1, 0, 1), undefined, {
-					inverseOf: tag1,
+				{
+					...Mark.revive(fakeRepair(tag1, 0, 1), undefined, { inverseOf: tag1 }),
 					changes: childChange2,
-				}),
+				},
 				Mark.modify(childChange3),
 			];
 			const expected = composeAnonChanges([
@@ -216,7 +216,10 @@ describe("SequenceField - Invert", () => {
 
 		it("return-from + redundant return-to => skip + skip", () => {
 			const input = [
-				Mark.returnFrom(1, brand(0), { isDstConflicted: true, changes: childChange1 }),
+				{
+					...Mark.returnFrom(1, brand(0), { isDstConflicted: true }),
+					changes: childChange1,
+				},
 				Mark.returnTo(1, brand(0), undefined, { inverseOf: tag1 }),
 				Mark.modify(childChange2),
 			];

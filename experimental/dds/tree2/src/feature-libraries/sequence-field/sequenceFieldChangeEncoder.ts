@@ -7,54 +7,35 @@ import { unreachableCase } from "@fluidframework/common-utils";
 import { Type } from "@sinclair/typebox";
 import { JsonCompatibleReadOnly, fail } from "../../util";
 import { IJsonCodec, makeCodecFamily } from "../../codec";
+import { JsonableTree } from "../../core";
 import { jsonableTreeFromCursor, singleTextCursor } from "../treeTextCursor";
-import { Changeset, Effect, Mark, NoopMarkType } from "./format";
+import { Changeset, Effect, Mark, NoopMarkType, Revive } from "./format";
 
 export const sequenceFieldChangeCodecFactory = <TNodeChange>(childCodec: IJsonCodec<TNodeChange>) =>
 	makeCodecFamily<Changeset<TNodeChange>>([[0, makeV0Codec(childCodec)]]);
 
-type EncodedEffect = JsonCompatibleReadOnly & Effect<JsonCompatibleReadOnly>;
+type EncodedEffect = JsonCompatibleReadOnly & Effect;
 type EncodedMark = JsonCompatibleReadOnly & Mark<JsonCompatibleReadOnly>;
 type EncodedChangeset = JsonCompatibleReadOnly & Changeset<JsonCompatibleReadOnly>;
 
 function makeV0Codec<TNodeChange>(
 	childCodec: IJsonCodec<TNodeChange>,
 ): IJsonCodec<Changeset<TNodeChange>> {
-	function encodeEffect(effect: Effect<TNodeChange>): EncodedEffect {
+	function encodeEffect(effect: Effect): EncodedEffect {
 		const type = effect.type;
 		switch (type) {
+			case "Revive": {
+				const content = effect.content.map(jsonableTreeFromCursor);
+				const encodedEffect: Omit<Revive, "content"> & { content: JsonableTree[] } = {
+					...effect,
+					content,
+				};
+				return encodedEffect as EncodedEffect;
+			}
 			case "Insert":
 			case "Delete":
 			case "MoveOut":
 			case "ReturnFrom":
-				return (
-					effect.changes !== undefined
-						? {
-								...effect,
-								changes: childCodec.encode(effect.changes),
-						  }
-						: effect
-				) as EncodedEffect;
-			case "Revive": {
-				const content = effect.content.map(jsonableTreeFromCursor);
-				return (
-					effect.changes !== undefined
-						? {
-								...effect,
-								content,
-								changes: childCodec.encode(effect.changes),
-						  }
-						: {
-								...effect,
-								content,
-						  }
-				) as EncodedEffect;
-			}
-			case "Modify":
-				return {
-					...effect,
-					changes: childCodec.encode(effect.changes),
-				};
 			case NoopMarkType:
 			case "MoveIn":
 			case "ReturnTo":
@@ -66,39 +47,20 @@ function makeV0Codec<TNodeChange>(
 		}
 	}
 
-	function decodeEffect(effect: Effect<JsonCompatibleReadOnly>): Effect<TNodeChange> {
+	function decodeEffect(effect: Effect): Effect {
 		const type = effect.type;
 		switch (type) {
-			case "Modify": {
+			case "Revive": {
+				const content = effect.content.map(singleTextCursor);
 				return {
 					...effect,
-					changes: childCodec.decode(effect.changes),
+					content,
 				};
 			}
 			case "Insert":
 			case "Delete":
 			case "MoveOut":
-			case "ReturnFrom": {
-				return effect.changes !== undefined
-					? {
-							...effect,
-							changes: childCodec.decode(effect.changes),
-					  }
-					: (effect as Effect<never>);
-			}
-			case "Revive": {
-				const content = effect.content.map(singleTextCursor);
-				return effect.changes !== undefined
-					? {
-							...effect,
-							content,
-							changes: childCodec.decode(effect.changes),
-					  }
-					: ({
-							...effect,
-							content,
-					  } as unknown as Effect<never>);
-			}
+			case "ReturnFrom":
 			case NoopMarkType:
 			case "MoveIn":
 			case "ReturnTo":
@@ -124,6 +86,9 @@ function makeV0Codec<TNodeChange>(
 				if (mark.cellId !== undefined) {
 					encodedMark.cellId = mark.cellId;
 				}
+				if (mark.changes !== undefined) {
+					encodedMark.changes = childCodec.encode(mark.changes);
+				}
 				encodedMarks.push(encodedMark);
 			}
 			return encodedMarks;
@@ -141,6 +106,9 @@ function makeV0Codec<TNodeChange>(
 				}
 				if (mark.cellId !== undefined) {
 					decodedMark.cellId = mark.cellId;
+				}
+				if (mark.changes !== undefined) {
+					decodedMark.changes = childCodec.decode(mark.changes);
 				}
 				decodedMarks.push(decodedMark);
 			}
