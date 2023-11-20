@@ -10,16 +10,16 @@ import {
 	forbiddenFieldKindIdentifier,
 	ChangesetLocalId,
 } from "../../core";
-import { fail } from "../../util";
 import {
 	FieldKind,
 	Multiplicity,
 	allowsTreeSchemaIdentifierSuperset,
 	ToDelta,
 	FieldChangeHandler,
-	FieldEditor,
 	referenceFreeFieldChangeRebaser,
 	FieldKindWithEditor,
+	GenericAnchorSetURI,
+	genericAnchorSetOps,
 } from "../modular-schema";
 import { sequenceFieldChangeHandler } from "../sequence-field";
 import {
@@ -27,25 +27,26 @@ import {
 	OptionalChangeset,
 	optionalChangeHandler,
 	optionalFieldEditor,
+	OptionalFieldAnchorSetURI,
 } from "../optional-field";
 
 /**
  * ChangeHandler that only handles no-op / identity changes.
  */
-export const noChangeHandler: FieldChangeHandler<0> = {
+export const noChangeHandler: FieldChangeHandler<GenericAnchorSetURI> = {
+	anchorSetOps: genericAnchorSetOps,
 	rebaser: referenceFreeFieldChangeRebaser({
 		compose: (changes: 0[]) => 0,
 		invert: (changes: 0) => 0,
 		rebase: (change: 0, over: 0) => 0,
 	}),
 	codecsFactory: () => noChangeCodecFamily,
-	editor: { buildChildChange: (index, change) => fail("Child changes not supported") },
+	editor: {},
 	intoDelta: (change, deltaFromChild: ToDelta): Delta.FieldChanges => ({}),
-	relevantRemovedTrees: (change): Iterable<Delta.DetachedNodeId> => [],
 	isEmpty: (change: 0) => true,
 };
 
-export interface ValueFieldEditor extends FieldEditor<OptionalChangeset> {
+export interface ValueFieldEditor {
 	/**
 	 * Creates a change which replaces the current value of the field with `newValue`.
 	 * @param newContent - the new content for the field
@@ -83,7 +84,11 @@ export const valueFieldEditor: ValueFieldEditor = {
 	): OptionalChangeset => optionalFieldEditor.set(newContent, false, setId, buildId),
 };
 
-export const valueChangeHandler: FieldChangeHandler<OptionalChangeset, ValueFieldEditor> = {
+export const valueChangeHandler: FieldChangeHandler<
+	OptionalFieldAnchorSetURI,
+	OptionalChangeset,
+	ValueFieldEditor
+> = {
 	...optional.changeHandler,
 	editor: valueFieldEditor,
 };
@@ -93,7 +98,12 @@ const requiredIdentifier = "Value";
 /**
  * Exactly one item.
  */
-export const required = new FieldKindWithEditor(
+export const required = new FieldKindWithEditor<
+	ValueFieldEditor,
+	Multiplicity.Single,
+	typeof requiredIdentifier,
+	OptionalFieldAnchorSetURI
+>(
 	requiredIdentifier,
 	Multiplicity.Single,
 	valueChangeHandler,
@@ -180,9 +190,10 @@ export const forbidden = new FieldKindWithEditor(
 /**
  * Default field kinds by identifier
  */
-export const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor> = new Map(
-	[required, optional, sequence, nodeKey, forbidden].map((s) => [s.identifier, s]),
-);
+export const fieldKinds: ReadonlyMap<
+	FieldKindIdentifier,
+	FieldKindWithEditor<unknown, Multiplicity, string, any>
+> = new Map([required, optional, sequence, nodeKey, forbidden].map((s) => [s.identifier, s]));
 
 // Create named Aliases for nicer intellisense.
 

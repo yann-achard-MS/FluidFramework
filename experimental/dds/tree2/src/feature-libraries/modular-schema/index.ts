@@ -57,3 +57,4 @@ export {
 	singleSlotFieldAnchorSetOps,
 } from "./singleSlotShapedFieldAnchorSet";
 export { SequenceAnchorSetTypes, sequenceFieldAnchorSetOps } from "./sequenceShapedFieldAnchorSet";
+export { GenericAnchorSetURI, genericAnchorSetOps } from "./genericField";

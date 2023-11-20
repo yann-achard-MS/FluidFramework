@@ -10,4 +10,5 @@ export {
 	optionalFieldEditor,
 	optionalChangeRebaser,
 	optionalFieldIntoDelta,
+	OptionalFieldAnchorSetURI,
 } from "./optionalField";
