@@ -53,7 +53,12 @@ import {
 	NodeExistsConstraint,
 	RevisionInfo,
 } from "./modularChangeTypes";
-import { AnchorSetContainer, AnchorSetOpsURIs, anchorSetFromData } from "./anchorSetOps";
+import {
+	AnchorSetChange,
+	AnchorSetContainer,
+	AnchorSetOpsURIs,
+	anchorSetFromData,
+} from "./anchorSetOps";
 import {
 	ModularFieldAnchorContainer,
 	ModularFieldChangeHandler,
@@ -115,7 +120,7 @@ export class ModularChangeFamily
 			if (change.fieldKind === genericFieldKind.identifier) {
 				const normalized: Mutable<FieldChange> = { fieldKind: kind };
 				// The cast is based on the `fieldKind` check above
-				const nestedGenericChanges = change.nested as unknown as AnchorSetContainer<
+				const nestedGenericChanges = change.anchors as unknown as AnchorSetContainer<
 					GenericAnchorSetURI,
 					NodeChangeset
 				>;
@@ -124,7 +129,7 @@ export class ModularChangeFamily
 					for (const { key, data } of genericAnchorSetOps.entries(nestedGenericChanges)) {
 						anchorSetOps.track(set, anchorSetOps.getKey(key), data);
 					}
-					normalized.nested = set;
+					normalized.anchors = set;
 				}
 				if (change.revision !== undefined) {
 					normalized.revision = change.revision;
@@ -1048,12 +1053,18 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 	 * @param change - the change to the field
 	 * @param maxId - the highest `ChangesetLocalId` used in this change
 	 */
-	public submitChange(edit: EditDescription, maxId: ChangesetLocalId = brand(-1)): void {
+	public submitChange<TOps extends AnchorSetOpsURIs>(
+		edit: EditDescription<TOps>,
+		maxId: ChangesetLocalId = brand(-1),
+	): void {
 		const changeMap = this.buildChangeMap(edit);
 		this.applyChange(makeModularChangeset(changeMap, maxId));
 	}
 
-	public submitChanges(changes: EditDescription[], maxId: ChangesetLocalId = brand(-1)) {
+	public submitChanges<TOps extends AnchorSetOpsURIs>(
+		changes: EditDescription<TOps>[],
+		maxId: ChangesetLocalId = brand(-1),
+	) {
 		const changeMaps = changes.map((change) =>
 			makeAnonChange(makeModularChangeset(this.buildChangeMap(change))),
 		);
@@ -1068,9 +1079,18 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 		return brand(this.idAllocator.allocate(count));
 	}
 
-	private buildChangeMap(edit: EditDescription): FieldChangeMap {
-		const { fieldPath, ...rest } = edit;
-		let fieldChangeMap: FieldChangeMap = new Map([[fieldPath.field, rest]]);
+	private buildChangeMap<TOps extends AnchorSetOpsURIs>(
+		edit: EditDescription<TOps>,
+	): FieldChangeMap {
+		const { fieldPath, fieldKind, change, anchors } = edit;
+		const fieldChange: Mutable<FieldChange> = { fieldKind: fieldKind.identifier };
+		if (change !== undefined) {
+			fieldChange.change = brand(change);
+		}
+		if (anchors !== undefined) {
+			fieldChange.anchors = brand(anchors);
+		}
+		let fieldChangeMap: FieldChangeMap = new Map([[fieldPath.field, fieldChange]]);
 
 		let remainingPath = fieldPath.parent;
 		while (remainingPath !== undefined) {
@@ -1083,7 +1103,7 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 					remainingPath.parentField,
 					{
 						fieldKind: genericFieldKind.identifier,
-						nested: anchorSet as unknown as ModularFieldAnchorContainer<NodeChangeset>,
+						anchors: brand(anchorSet),
 					},
 				],
 			]);
@@ -1102,8 +1122,8 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 		genericOps.track(anchors, path.parentIndex, nodeChange);
 		this.submitChange({
 			fieldPath: { parent: path.parent, field: path.parentField },
-			fieldKind: genericFieldKind.identifier,
-			anchors: anchors as unknown as ModularFieldAnchorContainer<NodeChangeset>,
+			fieldKind: genericFieldKind,
+			anchors,
 		});
 	}
 }
@@ -1115,7 +1135,7 @@ export function nestedChange<TAnchorSetOps extends AnchorSetOpsURIs>(
 ): FieldChange {
 	return {
 		fieldKind: fieldKind.identifier,
-		nested: anchorSetFromData(fieldKind.changeHandler.anchorSetOps, [
+		anchors: anchorSetFromData(fieldKind.changeHandler.anchorSetOps, [
 			{ key: fieldKind.changeHandler.anchorSetOps.getKey(index), data: nodeChange },
 		]) as ModularFieldAnchorContainer<NodeChangeset>,
 	};
@@ -1124,11 +1144,11 @@ export function nestedChange<TAnchorSetOps extends AnchorSetOpsURIs>(
 /**
  * @alpha
  */
-export interface EditDescription {
+export interface EditDescription<TOps extends AnchorSetOpsURIs> {
 	fieldPath: FieldUpPath;
-	fieldKind: FieldKindIdentifier;
-	change?: ModularFieldChangeset;
-	anchors?: ModularFieldAnchorContainer<NodeChangeset>;
+	fieldKind: FieldKindWithEditor<any, any, any, TOps>;
+	change?: AnchorSetChange<TOps>;
+	anchors?: AnchorSetContainer<TOps>;
 }
 
 function getRevInfoFromTaggedChanges(changes: TaggedChange<ModularChangeset>[]): {

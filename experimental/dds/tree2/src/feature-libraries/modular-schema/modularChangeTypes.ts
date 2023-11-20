@@ -79,5 +79,5 @@ export interface FieldChange {
 	 */
 	revision?: RevisionTag;
 	change?: ModularFieldChangeset;
-	readonly nested?: ModularFieldAnchorContainer<NodeChangeset>;
+	readonly anchors?: ModularFieldAnchorContainer<NodeChangeset>;
 }
