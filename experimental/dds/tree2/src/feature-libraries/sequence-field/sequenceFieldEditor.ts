@@ -6,7 +6,6 @@
 import { assert } from "@fluidframework/core-utils";
 import { jsonableTreeFromCursor } from "../treeTextCursor";
 import { ChangesetLocalId, ITreeCursor } from "../../core";
-import { FieldEditor } from "../modular-schema";
 import { brand } from "../../util";
 import {
 	CellId,
@@ -15,7 +14,6 @@ import {
 	Insert,
 	Mark,
 	MoveId,
-	NodeChangeType,
 	ReturnFrom,
 	MoveIn,
 	MarkList,
@@ -25,7 +23,7 @@ import { MarkListFactory } from "./markListFactory";
 import { splitMark } from "./utils";
 import { MoveDestination } from "./helperTypes";
 
-export interface SequenceFieldEditor extends FieldEditor<Changeset> {
+export interface SequenceFieldEditor {
 	/**
 	 * @param cursor - cursors in Nodes mode.
 	 * @privateRemarks
@@ -60,10 +58,6 @@ export interface SequenceFieldEditor extends FieldEditor<Changeset> {
 }
 
 export const sequenceFieldEditor = {
-	buildChildChange: <TNodeChange = NodeChangeType>(
-		index: number,
-		change: TNodeChange,
-	): Changeset<TNodeChange> => markAtIndex(index, { count: 1, changes: change }),
 	insert: (
 		index: number,
 		cursors: readonly ITreeCursor[],

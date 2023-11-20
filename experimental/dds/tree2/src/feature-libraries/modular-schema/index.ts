@@ -24,7 +24,6 @@ export { FieldKind, FullSchemaPolicy, Multiplicity, FieldKindWithEditor } from "
 export {
 	FieldChangeHandler,
 	FieldChangeRebaser,
-	FieldEditor,
 	getIntention,
 	NodeChangeComposer,
 	NodeChangeInverter,
@@ -40,18 +39,21 @@ export {
 export {
 	FieldChange,
 	FieldChangeMap,
-	FieldChangeset,
 	HasFieldChanges,
 	ModularChangeset,
 	NodeChangeset,
 	RevisionInfo,
 	NodeExistsConstraint,
 } from "./modularChangeTypes";
-export { convertGenericChange, genericChangeHandler, genericFieldKind } from "./genericFieldKind";
-export { GenericChange, GenericChangeset } from "./genericFieldKindTypes";
+export { GenericChangeset, genericChangeHandler, genericFieldKind } from "./genericField";
 export {
 	ModularChangeFamily,
 	ModularEditBuilder,
 	EditDescription,
 	revisionMetadataSourceFromInfo,
 } from "./modularChangeFamily";
+export {
+	SingleSlotAnchorSetTypes,
+	singleSlotFieldAnchorSetOps,
+} from "./singleSlotShapedFieldAnchorSet";
+export { SequenceAnchorSetTypes, sequenceFieldAnchorSetOps } from "./sequenceShapedFieldAnchorSet";

@@ -9,38 +9,27 @@ import { ICodecFamily, IJsonCodec } from "../../codec";
 import { MemoizedIdRangeAllocator } from "../memoizedIdRangeAllocator";
 import { CrossFieldManager } from "./crossFieldQueries";
 import { NodeChangeset, RevisionInfo } from "./modularChangeTypes";
+import { AnchorSetChange, AnchorSetOpsURIs, FieldAnchorSetOps } from "./anchorSetOps";
 
 /**
  * Functionality provided by a field kind which will be composed with other `FieldChangeHandler`s to
  * implement a unified ChangeFamily supporting documents with multiple field kinds.
  */
 export interface FieldChangeHandler<
-	TChangeset,
-	TEditor extends FieldEditor<TChangeset> = FieldEditor<TChangeset>,
+	TOps extends AnchorSetOpsURIs = any,
+	TChangeset extends AnchorSetChange<TOps> = AnchorSetChange<TOps>,
+	TEditor = unknown,
 > {
 	_typeCheck?: Invariant<TChangeset>;
 	readonly rebaser: FieldChangeRebaser<TChangeset>;
 	readonly codecsFactory: (childCodec: IJsonCodec<NodeChangeset>) => ICodecFamily<TChangeset>;
 	readonly editor: TEditor;
+	readonly anchorSetOps: FieldAnchorSetOps<TOps>;
 	intoDelta(
 		change: TaggedChange<TChangeset>,
 		deltaFromChild: ToDelta,
 		idAllocator: MemoizedIdRangeAllocator,
 	): Delta.FieldChanges;
-	/**
-	 * Returns the set of removed trees that should be in memory for the given change to be applied.
-	 * A removed tree is relevant if it is being restored being edited (or both).
-	 *
-	 * Implementations are allowed to be conservative by returning more trees than strictly necessary
-	 * (though they should try to avoid doing so for the sake of performance).
-	 *
-	 * @param change - The change to be applied.
-	 * @param removedTreesFromChild - Delegate for collecting relevant removed trees from child changes.
-	 */
-	readonly relevantRemovedTrees: (
-		change: TChangeset,
-		removedTreesFromChild: RemovedTreesFromChild,
-	) => Iterable<Delta.DetachedNodeId>;
 
 	/**
 	 * Returns whether this change is empty, meaning that it represents no modifications to the field
@@ -135,13 +124,6 @@ export function isolatedFieldChangeRebaser<TChangeset>(data: {
 		amendCompose: () => fail("Not implemented"),
 		prune: (change) => change,
 	};
-}
-
-export interface FieldEditor<TChangeset> {
-	/**
-	 * Creates a changeset which represents the given `change` to the child at `childIndex` of this editor's field.
-	 */
-	buildChildChange(childIndex: number, change: NodeChangeset): TChangeset;
 }
 
 /**

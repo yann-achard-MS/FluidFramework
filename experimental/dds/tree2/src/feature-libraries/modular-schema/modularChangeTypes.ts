@@ -4,7 +4,7 @@
  */
 
 import { ChangesetLocalId, FieldKey, FieldKindIdentifier, RevisionTag } from "../../core";
-import { Brand } from "../../util";
+import { ModularFieldAnchorContainer, ModularFieldChangeset } from "./brands";
 
 /**
  * @alpha
@@ -78,10 +78,6 @@ export interface FieldChange {
 	 * C) `change` is part of an anonymous revision.
 	 */
 	revision?: RevisionTag;
-	change: FieldChangeset;
+	change?: ModularFieldChangeset;
+	readonly nested?: ModularFieldAnchorContainer<NodeChangeset>;
 }
-
-/**
- * @alpha
- */
-export type FieldChangeset = Brand<unknown, "FieldChangeset">;

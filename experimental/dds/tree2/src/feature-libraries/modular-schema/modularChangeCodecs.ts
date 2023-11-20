@@ -16,23 +16,23 @@ import {
 	SchemaValidationFunction,
 } from "../../codec";
 import {
+	FieldChange,
 	FieldChangeMap,
-	FieldChangeset,
 	ModularChangeset,
 	NodeChangeset,
 	RevisionInfo,
 } from "./modularChangeTypes";
-import { FieldKindWithEditor } from "./fieldKind";
-import { genericFieldKind } from "./genericFieldKind";
+import { genericFieldKind } from "./genericField";
 import {
 	EncodedFieldChange,
 	EncodedFieldChangeMap,
 	EncodedModularChangeset,
 	EncodedNodeChangeset,
 } from "./modularChangeFormat";
+import { ModularFieldChangeset, ModularFieldKind } from "./brands";
 
 function makeV0Codec(
-	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, ModularFieldKind>,
 	{ jsonValidator: validator }: ICodecOptions,
 ): IJsonCodec<ModularChangeset> {
 	const nodeChangesetCodec: IJsonCodec<NodeChangeset, EncodedNodeChangeset> = {
@@ -41,7 +41,7 @@ function makeV0Codec(
 		encodedSchema: EncodedNodeChangeset,
 	};
 
-	const getMapEntry = (field: FieldKindWithEditor) => {
+	const getMapEntry = (field: ModularFieldKind) => {
 		const codec = field.changeHandler.codecsFactory(nodeChangesetCodec).resolve(0);
 		return {
 			codec,
@@ -55,9 +55,11 @@ function makeV0Codec(
 		FieldKindIdentifier,
 		{
 			compiledSchema?: SchemaValidationFunction<TAnySchema>;
-			codec: IMultiFormatCodec<FieldChangeset>;
+			codec: IMultiFormatCodec<ModularFieldChangeset>;
 		}
-	> = new Map([[genericFieldKind.identifier, getMapEntry(genericFieldKind)]]);
+	> = new Map([
+		[genericFieldKind.identifier, getMapEntry(genericFieldKind as unknown as ModularFieldKind)],
+	]);
 
 	fieldKinds.forEach((fieldKind, identifier) => {
 		fieldChangesetCodecs.set(identifier, getMapEntry(fieldKind));
@@ -66,7 +68,7 @@ function makeV0Codec(
 	const getFieldChangesetCodec = (
 		fieldKind: FieldKindIdentifier,
 	): {
-		codec: IMultiFormatCodec<FieldChangeset>;
+		codec: IMultiFormatCodec<ModularFieldChangeset>;
 		compiledSchema?: SchemaValidationFunction<TAnySchema>;
 	} => {
 		const entry = fieldChangesetCodecs.get(fieldKind);
@@ -78,17 +80,19 @@ function makeV0Codec(
 		const encodedFields: EncodedFieldChangeMap = [];
 		for (const [field, fieldChange] of change) {
 			const { codec, compiledSchema } = getFieldChangesetCodec(fieldChange.fieldKind);
-			const encodedChange = codec.json.encode(fieldChange.change);
-			if (compiledSchema !== undefined && !compiledSchema.check(encodedChange)) {
-				fail("Encoded change didn't pass schema validation.");
-			}
-
 			const fieldKey: FieldKey = field;
 			const encodedField: EncodedFieldChange = {
 				fieldKey,
 				fieldKind: fieldChange.fieldKind,
-				change: encodedChange,
 			};
+
+			if (fieldChange.change !== undefined) {
+				const encodedChange = codec.json.encode(fieldChange.change);
+				if (compiledSchema !== undefined && !compiledSchema.check(encodedChange)) {
+					fail("Encoded change didn't pass schema validation.");
+				}
+				encodedField.change = encodedChange;
+			}
 
 			encodedFields.push(encodedField);
 		}
@@ -118,14 +122,16 @@ function makeV0Codec(
 			if (compiledSchema !== undefined && !compiledSchema.check(field.change)) {
 				fail("Encoded change didn't pass schema validation.");
 			}
-			const fieldChangeset = codec.json.decode(field.change);
-
 			const fieldKey: FieldKey = brand<FieldKey>(field.fieldKey);
 
-			decodedFields.set(fieldKey, {
+			const fieldChange: Mutable<FieldChange> = {
 				fieldKind: field.fieldKind,
-				change: brand(fieldChangeset),
-			});
+			};
+			if (field.change !== undefined) {
+				fieldChange.change = codec.json.decode(field.change);
+			}
+
+			decodedFields.set(fieldKey, fieldChange);
 		}
 
 		return decodedFields;
@@ -172,7 +178,7 @@ function makeV0Codec(
 }
 
 export function makeModularChangeCodecFamily(
-	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, ModularFieldKind>,
 	options: ICodecOptions,
 ): ICodecFamily<ModularChangeset> {
 	return makeCodecFamily([[0, makeV0Codec(fieldKinds, options)]]);

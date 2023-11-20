@@ -25,16 +25,15 @@ import {
 	NodeChangeInverter,
 	NodeChangeRebaser,
 	NodeChangeset,
-	FieldEditor,
 	CrossFieldManager,
 	RevisionMetadataSource,
 	getIntention,
 	NodeExistenceState,
 	FieldChangeHandler,
-	RemovedTreesFromChild,
 	NodeChangePruner,
+	SingleSlotAnchorSetTypes,
+	singleSlotFieldAnchorSetOps,
 } from "../modular-schema";
-import { nodeIdFromChangeAtom } from "../deltaUtils";
 import { NodeUpdate, OptionalChangeset, OptionalFieldChange } from "./optionalFieldChangeTypes";
 import { makeOptionalFieldCodecFamily } from "./optionalFieldCodecs";
 
@@ -491,7 +490,7 @@ function nodeUpdateWithNodeChange(
 	return result;
 }
 
-export interface OptionalFieldEditor extends FieldEditor<OptionalChangeset> {
+export interface OptionalFieldEditor {
 	/**
 	 * Creates a change which replaces the field with `newContent`
 	 * @param newContent - the new content for the field
@@ -534,11 +533,6 @@ export const optionalFieldEditor: OptionalFieldEditor = {
 	clear: (wasEmpty: boolean, id: ChangesetLocalId): OptionalChangeset => ({
 		fieldChange: { id, wasEmpty },
 	}),
-
-	buildChildChange: (index: number, childChange: NodeChangeset): OptionalChangeset => {
-		assert(index === 0, 0x404 /* Optional fields only support a single child node */);
-		return { childChanges: [["self", childChange]] };
-	},
 };
 
 export function optionalFieldIntoDelta(
@@ -595,13 +589,30 @@ export function optionalFieldIntoDelta(
 	return delta;
 }
 
-export const optionalChangeHandler: FieldChangeHandler<OptionalChangeset, OptionalFieldEditor> = {
+export const OptionalFieldAnchorSetURI = "OptionalFieldAnchorSetURI";
+export type OptionalFieldAnchorSetURI = typeof OptionalFieldAnchorSetURI;
+
+declare module "../modular-schema/anchorSetOps/anchorSetOpsRegistry" {
+	interface AnchorSetOpsRegistry<TData> {
+		[OptionalFieldAnchorSetURI]: SingleSlotAnchorSetTypes<TData, OptionalChangeset>;
+	}
+}
+
+export const optionalChangeHandler: FieldChangeHandler<
+	OptionalFieldAnchorSetURI,
+	OptionalChangeset,
+	OptionalFieldEditor
+> = {
 	rebaser: optionalChangeRebaser,
 	codecsFactory: makeOptionalFieldCodecFamily,
 	editor: optionalFieldEditor,
-
+	anchorSetOps: {
+		rebase: () => {},
+		composeWith: () => {},
+		...singleSlotFieldAnchorSetOps,
+		codecsFactory: singleSlotFieldAnchorSetOps.codecsFactory as any,
+	},
 	intoDelta: optionalFieldIntoDelta,
-	relevantRemovedTrees,
 
 	isEmpty: (change: OptionalChangeset) =>
 		change.childChanges === undefined && change.fieldChange === undefined,
@@ -613,45 +624,4 @@ function areEqualChangeIds(a: ChangeId, b: ChangeId): boolean {
 	}
 
 	return areEqualChangeAtomIds(a, b);
-}
-
-function* relevantRemovedTrees(
-	change: OptionalChangeset,
-	removedTreesFromChild: RemovedTreesFromChild,
-): Iterable<Delta.DetachedNodeId> {
-	let removedNode: ChangeAtomId | undefined;
-	let restoredNode: ChangeAtomId | undefined;
-	const fieldChange = change.fieldChange;
-	if (fieldChange !== undefined) {
-		removedNode = { revision: fieldChange.revision, localId: fieldChange.id };
-		const newContent = fieldChange.newContent;
-		if (newContent !== undefined) {
-			if (Object.prototype.hasOwnProperty.call(newContent, "revert")) {
-				// This tree is being restored by this change, so it is a relevant removed tree.
-				restoredNode = (newContent as { revert: ChangeAtomId }).revert;
-				yield nodeIdFromChangeAtom(restoredNode);
-			}
-			if (newContent.changes !== undefined) {
-				yield* removedTreesFromChild(newContent.changes);
-			}
-		}
-	}
-	if (change.childChanges !== undefined) {
-		for (const [deletedBy, child] of change.childChanges) {
-			if (
-				deletedBy === "self" ||
-				(removedNode !== undefined && areEqualChangeIds(deletedBy, removedNode))
-			) {
-				// This node is in the document at the time this change applies, so it isn't a relevant removed tree.
-			} else {
-				if (restoredNode !== undefined && areEqualChangeIds(deletedBy, restoredNode)) {
-					// This tree is a relevant removed tree, but it is already included in the list
-				} else {
-					// This tree is being edited by this change, so it is a relevant removed tree.
-					yield nodeIdFromChangeAtom(deletedBy);
-				}
-			}
-			yield* removedTreesFromChild(child);
-		}
-	}
 }

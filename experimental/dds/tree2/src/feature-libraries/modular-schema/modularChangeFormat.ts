@@ -59,7 +59,8 @@ const EncodedFieldChange = Type.Object(
 		// Implementation note: node and field change encoding is mutually recursive.
 		// This field marks a boundary in that recursion to avoid constructing excessively complex
 		// recursive types. Encoded changes are validated at this boundary at runtime--see modularChangeCodecs.ts.
-		change: JsonCompatibleReadOnlySchema,
+		change: Type.Optional(JsonCompatibleReadOnlySchema),
+		// TODO: add anchor set
 	},
 	noAdditionalProps,
 );
@@ -68,7 +69,7 @@ export interface EncodedFieldChange extends Static<typeof EncodedFieldChange> {
 	/**
 	 * Encoded in format selected by `fieldKind`
 	 */
-	change: JsonCompatibleReadOnly;
+	change?: JsonCompatibleReadOnly;
 }
 
 const EncodedFieldChangeMap = Type.Array(EncodedFieldChange);

@@ -12,7 +12,8 @@ import {
 	TreeTypeSet,
 } from "../../core";
 import { isNeverField } from "./comparison";
-import { FieldChangeHandler, FieldEditor } from "./fieldChangeHandler";
+import { FieldChangeHandler } from "./fieldChangeHandler";
+import { AnchorSetChange, AnchorSetOpsURIs, UnknownAnchorSetOps } from "./anchorSetOps";
 
 /**
  * Functionality for FieldKinds that is stable,
@@ -62,9 +63,10 @@ export abstract class FieldKind<
  * These policies include the data encoding, change encoding, change rebase and change application.
  */
 export class FieldKindWithEditor<
-	TEditor extends FieldEditor<any> = FieldEditor<any>,
+	TEditor = unknown,
 	TMultiplicity extends Multiplicity = Multiplicity,
 	TName extends string = string,
+	TAnchorSetOps extends AnchorSetOpsURIs = UnknownAnchorSetOps,
 > extends FieldKind<TName, TMultiplicity> {
 	/**
 	 * @param identifier - Globally scoped identifier.
@@ -84,7 +86,11 @@ export class FieldKindWithEditor<
 	public constructor(
 		identifier: TName,
 		multiplicity: TMultiplicity,
-		public readonly changeHandler: FieldChangeHandler<any, TEditor>,
+		public readonly changeHandler: FieldChangeHandler<
+			TAnchorSetOps,
+			AnchorSetChange<TAnchorSetOps>,
+			TEditor
+		>,
 		private readonly allowsTreeSupersetOf: (
 			originalTypes: TreeTypeSet,
 			superset: TreeFieldStoredSchema,
@@ -125,11 +131,9 @@ export class FieldKindWithEditor<
 export function withEditor<
 	TName extends string = string,
 	TMultiplicity extends Multiplicity = Multiplicity,
->(
-	kind: FieldKind<TName, TMultiplicity>,
-): FieldKindWithEditor<FieldEditor<any>, TMultiplicity, TName> {
+>(kind: FieldKind<TName, TMultiplicity>): FieldKindWithEditor<unknown, TMultiplicity, TName> {
 	assert(kind instanceof FieldKindWithEditor, 0x7b5 /* kind must be FieldKindWithEditor */);
-	return kind as FieldKindWithEditor<FieldEditor<any>, TMultiplicity, TName>;
+	return kind as FieldKindWithEditor<unknown, TMultiplicity, TName>;
 }
 /**
  * Policy from the app for interpreting the stored schema.

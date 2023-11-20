@@ -226,12 +226,12 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 			this.modularBuilder.submitChanges(
 				[
 					{
-						field: sourceField,
+						fieldPath: sourceField,
 						fieldKind: sequence.identifier,
 						change: brand(moveOut),
 					},
 					{
-						field: adjustedAttachField,
+						fieldPath: adjustedAttachField,
 						fieldKind: sequence.identifier,
 						change: brand(moveIn),
 					},

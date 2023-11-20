@@ -627,7 +627,7 @@ describe("ModularChangeFamily", () => {
 		};
 
 		editor.submitChange(
-			{ parent: path, field: fieldB },
+			{ parent: path, fieldPath: fieldB },
 			valueField.identifier,
 			brand(valueChange1a),
 		);
