@@ -15,7 +15,6 @@ import {
 	makeAnonChange,
 	tagChange,
 	deltaForSet,
-	emptyFieldChanges,
 } from "../../../core";
 import {
 	FieldChange,
@@ -24,11 +23,11 @@ import {
 	SequenceField as SF,
 	cursorForJsonableTreeNode,
 } from "../../../feature-libraries";
-import { brand, makeArray } from "../../../util";
+import { brand } from "../../../util";
 import { TestChange } from "../../testChange";
 import { assertFieldChangesEqual, deepFreeze } from "../../utils";
 import { ChangeMaker as Change, MarkMaker as Mark, TestChangeset } from "./testEdits";
-import { composeAnonChanges, toDelta } from "./utils";
+import { toDelta } from "./utils";
 
 const type: TreeNodeSchemaIdentifier = brand("Node");
 const nodeX = { type, value: 0 };
@@ -47,11 +46,6 @@ const tag2: RevisionTag = mintRevisionTag();
 const fooField = brand<FieldKey>("foo");
 const cellId = { revision: tag1, localId: brand<ChangesetLocalId>(0) };
 const deltaNodeId: Delta.DetachedNodeId = { major: cellId.revision, minor: cellId.localId };
-const DUMMY_REVIVED_NODE_TYPE: TreeNodeSchemaIdentifier = brand("DummyRevivedNode");
-
-function fakeRepairData(_revision: RevisionTag, _index: number, count: number): Delta.ProtoNode[] {
-	return makeArray(count, () => cursorForJsonableTreeNode({ type: DUMMY_REVIVED_NODE_TYPE }));
-}
 
 function toDeltaShallow(change: TestChangeset): Delta.FieldChanges {
 	deepFreeze(change);
@@ -68,27 +62,6 @@ describe("SequenceField - toDelta", () => {
 	it("empty mark list", () => {
 		const actual = toDeltaShallow([]);
 		assert.deepEqual(actual, {});
-	});
-
-	it("child change", () => {
-		const actual = toDelta(Change.modify(0, childChange1), tag);
-		const markList: Delta.Mark[] = [{ count: 1, fields: childChange1Delta }];
-		const expected: Delta.FieldChanges = { local: markList };
-		assert.deepEqual(actual, expected);
-	});
-
-	it("child change under removed node", () => {
-		const modify = [Mark.modify(childChange1, { revision: tag, localId: brand(42) })];
-		const actual = toDelta(modify, tag);
-		const expected: Delta.FieldChanges = {
-			global: [{ id: detachId, fields: childChange1Delta }],
-		};
-		assertFieldChangesEqual(actual, expected);
-	});
-
-	it("empty child change", () => {
-		const actual = toDelta(Change.modify(0, TestChange.emptyChange));
-		assert.deepEqual(actual, emptyFieldChanges);
 	});
 
 	it("insert", () => {
@@ -239,8 +212,6 @@ describe("SequenceField - toDelta", () => {
 			Mark.delete(10, brand(42)),
 			{ count: 3 },
 			Mark.insert(1, brand(52)),
-			{ count: 1 },
-			Mark.modify(childChange1),
 		];
 		const del: Delta.Mark = {
 			count: 10,
@@ -250,13 +221,7 @@ describe("SequenceField - toDelta", () => {
 			count: 1,
 			attach: { major: tag, minor: 52 },
 		};
-		const markList: Delta.Mark[] = [
-			del,
-			{ count: 3 },
-			ins,
-			{ count: 1 },
-			{ count: 1, fields: childChange1Delta },
-		];
+		const markList: Delta.Mark[] = [del, { count: 3 }, ins];
 		const expected: Delta.FieldChanges = {
 			build: [{ id: { major: tag, minor: 52 }, trees: [contentCursor] }],
 			local: markList,
@@ -265,41 +230,10 @@ describe("SequenceField - toDelta", () => {
 		assert.deepStrictEqual(actual, expected);
 	});
 
-	it("insert and modify => insert", () => {
-		const changeset = composeAnonChanges([Change.insert(0, 1), Change.modify(0, childChange1)]);
-		const buildId = { major: tag, minor: 0 };
+	it("move-out => move-out", () => {
+		const changeset = [Mark.moveOut(1, moveId)];
 		const expected: Delta.FieldChanges = {
-			build: [
-				{
-					id: buildId,
-					trees: [
-						cursorForJsonableTreeNode({
-							type,
-							value: 0,
-						}),
-					],
-				},
-			],
-			global: [{ id: buildId, fields: childChange1Delta }],
-			local: [{ count: 1, attach: buildId }],
-		};
-		const actual = toDelta(changeset, tag);
-		assertFieldChangesEqual(actual, expected);
-	});
-
-	it("modify and delete => delete", () => {
-		const changeset = [Mark.delete(1, brand(42), { changes: childChange1 })];
-		const expected: Delta.FieldChanges = {
-			local: [{ count: 1, detach: detachId, fields: childChange1Delta }],
-		};
-		const actual = toDelta(changeset, tag);
-		assertFieldChangesEqual(actual, expected);
-	});
-
-	it("modify and move-out => move-out", () => {
-		const changeset = [Mark.moveOut(1, moveId, { changes: childChange1 })];
-		const expected: Delta.FieldChanges = {
-			local: [{ count: 1, detach: { major: tag, minor: moveId }, fields: childChange1Delta }],
+			local: [{ count: 1, detach: { major: tag, minor: moveId } }],
 		};
 		const actual = toDelta(changeset, tag);
 		assertFieldChangesEqual(actual, expected);

@@ -8,7 +8,6 @@ import {
 	FieldChangeHandler,
 	FieldChangeRebaser,
 	Multiplicity,
-	FieldEditor,
 	NodeChangeset,
 	genericFieldKind,
 	FieldChange,
@@ -41,51 +40,22 @@ import {
 	makeEncodingTestSuite,
 	testChangeReceiver,
 } from "../../utils";
-// eslint-disable-next-line import/no-internal-modules
-import { ModularChangeFamily } from "../../../feature-libraries/modular-schema/modularChangeFamily";
 import { singleJsonCursor } from "../../../domains";
+import {
+	ModularChangeFamily,
+	nestedChange,
+	// eslint-disable-next-line import/no-internal-modules
+} from "../../../feature-libraries/modular-schema/modularChangeFamily";
 // Allows typechecking test data used in modulaChangeFamily's codecs.
 // eslint-disable-next-line import/no-internal-modules
 import { EncodedModularChangeset } from "../../../feature-libraries/modular-schema/modularChangeFormat";
 import { ValueChangeset, valueField } from "./basicRebasers";
+import { testField1, testField2 } from "./testFieldKind";
 
-const singleNodeRebaser: FieldChangeRebaser<NodeChangeset> = {
-	compose: (changes, composeChild) => composeChild(changes),
-	invert: (change, invertChild) => invertChild(change.change),
-	rebase: (change, base, rebaseChild) => rebaseChild(change, base.change) ?? {},
-	amendCompose: () => fail("Not supported"),
-	prune: (change) => change,
-};
-
-const singleNodeEditor: FieldEditor<NodeChangeset> = {
-	buildChildChange: (index: number, change: NodeChangeset): NodeChangeset => {
-		assert(index === 0, "This field kind only supports one node in its field");
-		return change;
-	},
-};
-
-const singleNodeHandler: FieldChangeHandler<NodeChangeset> = {
-	rebaser: singleNodeRebaser,
-	codecsFactory: (childCodec) => makeCodecFamily([[0, childCodec]]),
-	editor: singleNodeEditor,
-	intoDelta: ({ change }, deltaFromChild): Delta.FieldChanges => ({
-		local: [{ count: 1, fields: deltaFromChild(change) }],
-	}),
-	relevantRemovedTrees: (change, removedTreesFromChild) => removedTreesFromChild(change),
-	isEmpty: (change) => change.fieldChanges === undefined,
-};
-
-const singleNodeField = new FieldKindWithEditor(
-	"SingleNode",
-	Multiplicity.Single,
-	singleNodeHandler,
-	(a, b) => false,
-	new Set(),
-);
-
-const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor> = new Map(
-	[singleNodeField, valueField].map((field) => [field.identifier, field]),
-);
+const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor> = new Map([
+	[testField1.identifier, testField1 as unknown as FieldKindWithEditor],
+	[testField2.identifier, testField2 as unknown as FieldKindWithEditor],
+]);
 
 const family = new ModularChangeFamily(fieldKinds, { jsonValidator: typeboxValidator });
 
@@ -172,7 +142,7 @@ const rootChange1a: ModularChangeset = {
 		[
 			fieldA,
 			{
-				fieldKind: singleNodeField.identifier,
+				fieldKind: testField1.identifier,
 				change: brand(nodeChange1a),
 			},
 		],
@@ -188,15 +158,7 @@ const rootChange1a: ModularChangeset = {
 
 const rootChange1aGeneric: ModularChangeset = {
 	fieldChanges: new Map([
-		[
-			fieldA,
-			{
-				fieldKind: genericFieldKind.identifier,
-				change: brand(
-					genericFieldKind.changeHandler.editor.buildChildChange(0, nodeChange1a),
-				),
-			},
-		],
+		[fieldA, nestedChange(genericFieldKind, 0, nodeChange1a)],
 		[
 			fieldB,
 			{
@@ -212,7 +174,7 @@ const rootChange1b: ModularChangeset = {
 		[
 			fieldA,
 			{
-				fieldKind: singleNodeField.identifier,
+				fieldKind: testField1.identifier,
 				change: brand(nodeChanges1b),
 			},
 		],
@@ -220,17 +182,7 @@ const rootChange1b: ModularChangeset = {
 };
 
 const rootChange1bGeneric: ModularChangeset = {
-	fieldChanges: new Map([
-		[
-			fieldA,
-			{
-				fieldKind: genericFieldKind.identifier,
-				change: brand(
-					genericFieldKind.changeHandler.editor.buildChildChange(0, nodeChanges1b),
-				),
-			},
-		],
-	]),
+	fieldChanges: new Map([[fieldA, nestedChange(genericFieldKind, 0, nodeChanges1b)]]),
 };
 
 const rootChange2: ModularChangeset = {
@@ -238,7 +190,7 @@ const rootChange2: ModularChangeset = {
 		[
 			fieldA,
 			{
-				fieldKind: singleNodeField.identifier,
+				fieldKind: testField1.identifier,
 				change: brand(nodeChanges2),
 			},
 		],
@@ -246,17 +198,7 @@ const rootChange2: ModularChangeset = {
 };
 
 const rootChange2Generic: ModularChangeset = {
-	fieldChanges: new Map([
-		[
-			fieldA,
-			{
-				fieldKind: genericFieldKind.identifier,
-				change: brand(
-					genericFieldKind.changeHandler.editor.buildChildChange(0, nodeChanges2),
-				),
-			},
-		],
-	]),
+	fieldChanges: new Map([[fieldA, nestedChange(genericFieldKind, 0, nodeChanges2)]]),
 };
 
 const rootChange3: ModularChangeset = {
@@ -264,7 +206,7 @@ const rootChange3: ModularChangeset = {
 		[
 			fieldA,
 			{
-				fieldKind: singleNodeField.identifier,
+				fieldKind: testField1.identifier,
 				change: brand(nodeChange3),
 			},
 		],
@@ -280,7 +222,7 @@ const rootChange4: ModularChangeset = {
 		[
 			fieldA,
 			{
-				fieldKind: singleNodeField.identifier,
+				fieldKind: testField1.identifier,
 				change: brand(nodeChange4),
 			},
 		],
@@ -294,7 +236,7 @@ const rootChangeWithoutNodeFieldChanges: ModularChangeset = {
 		[
 			fieldA,
 			{
-				fieldKind: singleNodeField.identifier,
+				fieldKind: testField1.identifier,
 				change: brand(nodeChangeWithoutFieldChanges),
 			},
 		],
@@ -330,7 +272,7 @@ describe("ModularChangeFamily", () => {
 					[
 						fieldA,
 						{
-							fieldKind: singleNodeField.identifier,
+							fieldKind: testField1.identifier,
 							change: brand(composedNodeChange),
 						},
 					],
@@ -355,7 +297,7 @@ describe("ModularChangeFamily", () => {
 					[
 						fieldA,
 						{
-							fieldKind: singleNodeField.identifier,
+							fieldKind: testField1.identifier,
 							change: brand(composedNodeChange),
 						},
 					],
@@ -380,7 +322,7 @@ describe("ModularChangeFamily", () => {
 					[
 						fieldA,
 						{
-							fieldKind: singleNodeField.identifier,
+							fieldKind: testField1.identifier,
 							change: brand(composedNodeChange),
 						},
 					],
@@ -402,18 +344,7 @@ describe("ModularChangeFamily", () => {
 		it("compose generic ○ generic", () => {
 			const expectedCompose: ModularChangeset = {
 				fieldChanges: new Map([
-					[
-						fieldA,
-						{
-							fieldKind: genericFieldKind.identifier,
-							change: brand(
-								genericFieldKind.changeHandler.editor.buildChildChange(
-									0,
-									composedNodeChange,
-								),
-							),
-						},
-					],
+					[fieldA, nestedChange(genericFieldKind, 0, composedNodeChange)],
 					[
 						fieldB,
 						{
@@ -458,7 +389,7 @@ describe("ModularChangeFamily", () => {
 			};
 
 			const change2B: FieldChange = {
-				fieldKind: singleNodeField.identifier,
+				fieldKind: testField1.identifier,
 				change: brand(nodeChange2),
 			};
 
@@ -498,7 +429,7 @@ describe("ModularChangeFamily", () => {
 					[
 						fieldB,
 						{
-							fieldKind: singleNodeField.identifier,
+							fieldKind: testField1.identifier,
 							change: brand(expectedNodeChange),
 						},
 					],
@@ -529,7 +460,7 @@ describe("ModularChangeFamily", () => {
 		it("specific", () => {
 			const expectedInverse: ModularChangeset = {
 				fieldChanges: new Map([
-					[fieldA, { fieldKind: singleNodeField.identifier, change: brand(nodeInverse) }],
+					[fieldA, { fieldKind: testField1.identifier, change: brand(nodeInverse) }],
 					[fieldB, { fieldKind: valueField.identifier, change: brand(valueInverse2) }],
 				]),
 			};
@@ -538,10 +469,7 @@ describe("ModularChangeFamily", () => {
 		});
 
 		it("generic", () => {
-			const fieldChange = genericFieldKind.changeHandler.editor.buildChildChange(
-				0,
-				nodeInverse,
-			);
+			const fieldChange = nestedChange(genericFieldKind, 0, nodeInverse);
 			const expectedInverse: ModularChangeset = {
 				fieldChanges: new Map([
 					[
@@ -626,11 +554,11 @@ describe("ModularChangeFamily", () => {
 			parentIndex: 0,
 		};
 
-		editor.submitChange(
-			{ parent: path, fieldPath: fieldB },
-			valueField.identifier,
-			brand(valueChange1a),
-		);
+		editor.submitChange({
+			fieldPath: { parent: path, field: fieldB },
+			fieldKind: valueField,
+			change: valueChange1a,
+		});
 		const changes = getChanges();
 		const nodeChange: NodeChangeset = {
 			fieldChanges: new Map([
@@ -638,7 +566,7 @@ describe("ModularChangeFamily", () => {
 			]),
 		};
 
-		const fieldChange = genericFieldKind.changeHandler.editor.buildChildChange(0, nodeChange);
+		const fieldChange = nestedChange(genericFieldKind, 0, nodeChange);
 		const expectedChange: ModularChangeset = {
 			fieldChanges: new Map([
 				[fieldA, { fieldKind: genericFieldKind.identifier, change: brand(fieldChange) }],
@@ -743,7 +671,7 @@ describe("ModularChangeFamily", () => {
 			},
 			isEmpty: (change: RevisionTag[]) => change.length === 0,
 			codecsFactory: () => makeCodecFamily([[0, throwCodec]]),
-		} as unknown as FieldChangeHandler<RevisionTag[]>;
+		} as unknown as FieldChangeHandler;
 		const field = new FieldKindWithEditor(
 			"ChecksRevIndexing",
 			Multiplicity.Single,

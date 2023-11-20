@@ -205,6 +205,7 @@ export const TestChange = {
 	checkChangeList,
 	toDelta,
 	codec,
+	isEmpty,
 };
 deepFreeze(TestChange);
 
@@ -299,4 +300,8 @@ export function testChangeFamilyFactory(
 		intoDelta: ({ change }: TaggedChange<TestChange>): Delta.Root => asDelta(change.intentions),
 	};
 	return family;
+}
+
+function isEmpty(change: TestChange): boolean {
+	return change.intentions.length === 0;
 }

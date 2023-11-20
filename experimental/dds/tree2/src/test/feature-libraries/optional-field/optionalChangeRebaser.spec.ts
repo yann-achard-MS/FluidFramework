@@ -6,7 +6,6 @@
 import { strict as assert } from "assert";
 import {
 	CrossFieldManager,
-	NodeChangeset,
 	RevisionMetadataSource,
 	cursorForJsonableTreeNode,
 } from "../../../feature-libraries";
@@ -71,10 +70,6 @@ const OptionalChange = {
 
 	clear(wasEmpty: boolean, id: ChangesetLocalId = brand(0)) {
 		return optionalFieldEditor.clear(wasEmpty, id);
-	},
-
-	buildChildChange(childChange: TestChange) {
-		return optionalFieldEditor.buildChildChange(0, childChange as NodeChangeset);
 	},
 };
 
@@ -199,22 +194,6 @@ const generateChildStates: ChildStateGenerator<string | undefined, OptionalChang
 ): Iterable<OptionalFieldTestState> {
 	const inputContext = getInputContext(state);
 	if (state.content !== undefined) {
-		const changeChildIntention = mintIntention();
-		yield {
-			content: state.content,
-			mostRecentEdit: {
-				changeset: tagChange(
-					OptionalChange.buildChildChange(
-						TestChange.mint(inputContext, changeChildIntention),
-					),
-					tagFromIntention(changeChildIntention),
-				),
-				intention: changeChildIntention,
-				description: `ChildChange${changeChildIntention}`,
-			},
-			parent: state,
-		};
-
 		const setUndefinedIntention = mintIntention();
 		yield {
 			content: undefined,

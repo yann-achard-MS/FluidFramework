@@ -33,9 +33,9 @@ import { sequence } from "../../feature-libraries/default-schema/defaultFieldKin
 // eslint-disable-next-line import/no-internal-modules
 import { MarkMaker } from "./sequence-field/testEdits";
 
-const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor> = new Map(
-	[sequence].map((f) => [f.identifier, f]),
-);
+const fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor> = new Map([
+	[sequence.identifier, sequence as unknown as FieldKindWithEditor],
+]);
 
 const family = new ModularChangeFamily(fieldKinds, { jsonValidator: typeboxValidator });
 

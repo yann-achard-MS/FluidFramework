@@ -21,8 +21,11 @@ import {
 } from "../../../core";
 import { brand, fakeIdAllocator } from "../../../util";
 import { defaultRevisionMetadataFromChanges } from "../../utils";
-// eslint-disable-next-line import/no-internal-modules
-import { OptionalChangeset } from "../../../feature-libraries/optional-field";
+import {
+	OptionalChangeset,
+	OptionalFieldAnchorSetURI,
+	// eslint-disable-next-line import/no-internal-modules
+} from "../../../feature-libraries/optional-field";
 import { changesetForChild, testTree, testTreeCursor } from "../fieldKindTestUtils";
 
 /**
@@ -69,8 +72,11 @@ describe("defaultFieldKinds", () => {
 	// These tests are covering value field usage patterns of optional field's rebaser (which value field uses).
 	// These patterns should be covered in the optional field tests and not be needed here (except perhaps for a minimal integration test).
 	describe("value field rebaser", () => {
-		const fieldHandler: FieldChangeHandler<OptionalChangeset, ValueFieldEditor> =
-			valueChangeHandler;
+		const fieldHandler: FieldChangeHandler<
+			OptionalFieldAnchorSetURI,
+			OptionalChangeset,
+			ValueFieldEditor
+		> = valueChangeHandler;
 
 		const childChange1: OptionalChangeset = { childChanges: [["self", nodeChange1]] };
 		const childChange2: OptionalChangeset = { childChanges: [["self", nodeChange2]] };
@@ -203,30 +209,9 @@ describe("defaultFieldKinds", () => {
 			);
 		});
 
-		it("can rebase child changes", () => {
-			const childRebaser = (
-				change: NodeChangeset | undefined,
-				base: NodeChangeset | undefined,
-			) => {
-				assert.deepEqual(change, nodeChange2);
-				assert.deepEqual(base, nodeChange1);
-				return arbitraryChildChange;
-			};
-
-			const baseChange = fieldHandler.editor.buildChildChange(0, nodeChange1);
-			const changeToRebase = fieldHandler.editor.buildChildChange(0, nodeChange2);
-
-			assert.deepEqual(
-				fieldHandler.rebaser.rebase(
-					changeToRebase,
-					makeAnonChange(baseChange),
-					childRebaser,
-					fakeIdAllocator,
-					failCrossFieldManager,
-					defaultRevisionMetadataFromChanges([]),
-				),
-				childChange3,
-			);
+		it("can rebase anchors", () => {
+			// TODO
+			assert.deepEqual(false, true);
 		});
 	});
 });

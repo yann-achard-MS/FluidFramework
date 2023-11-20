@@ -15,7 +15,6 @@ import {
 	TreeNodeSchemaIdentifier,
 } from "../../../core";
 import { TestChange } from "../../testChange";
-import { composeAnonChanges } from "./utils";
 
 const type: TreeNodeSchemaIdentifier = brand("Node");
 const tag: RevisionTag = mintRevisionTag();
@@ -25,8 +24,6 @@ export type TestChangeset = SF.Changeset<TestChange>;
 export const cases: {
 	no_change: TestChangeset;
 	insert: TestChangeset;
-	modify: TestChangeset;
-	modify_insert: TestChangeset;
 	delete: TestChangeset;
 	revive: TestChangeset;
 	pin: TestChangeset;
@@ -36,11 +33,6 @@ export const cases: {
 } = {
 	no_change: [],
 	insert: createInsertChangeset(1, 2, 1),
-	modify: SF.sequenceFieldEditor.buildChildChange(0, TestChange.mint([], 1)),
-	modify_insert: composeAnonChanges([
-		createInsertChangeset(1, 1, 1),
-		createModifyChangeset(1, TestChange.mint([], 2)),
-	]),
 	delete: createDeleteChangeset(1, 3),
 	revive: createReviveChangeset(2, 2, { revision: tag, localId: brand(0) }),
 	pin: [createPinMark(4, brand(0))],
@@ -127,24 +119,6 @@ function createReturnChangeset(
 	detachEvent: SF.CellId,
 ): SF.Changeset<never> {
 	return SF.sequenceFieldEditor.return(sourceIndex, count, destIndex, detachEvent);
-}
-
-function createModifyChangeset<TNodeChange>(
-	index: number,
-	change: TNodeChange,
-): SF.Changeset<TNodeChange> {
-	return SF.sequenceFieldEditor.buildChildChange(index, change);
-}
-
-function createModifyDetachedChangeset<TNodeChange>(
-	index: number,
-	change: TNodeChange,
-	detachEvent: SF.CellId,
-): SF.Changeset<TNodeChange> {
-	const changeset = createModifyChangeset(index, change);
-	const modify = changeset[changeset.length - 1] as SF.CellMark<SF.NoopMark, TNodeChange>;
-	modify.cellId = detachEvent;
-	return changeset;
 }
 
 /**
@@ -334,24 +308,6 @@ function createReturnToMark(
 	return { ...mark, ...overrides };
 }
 
-/**
- * @param changes - The changes to apply to the node.
- * @param cellId - Describes the cell that the target node used to reside in. Used when the target node is removed.
- */
-function createModifyMark<TChange>(
-	changes: TChange,
-	cellId?: SF.CellId,
-): SF.CellMark<SF.NoopMark, TChange> {
-	const mark: SF.CellMark<SF.NoopMark, TChange> = {
-		count: 1,
-		changes,
-	};
-	if (cellId !== undefined) {
-		mark.cellId = cellId;
-	}
-	return mark;
-}
-
 function createAttachAndDetachMark<TChange>(
 	attach: SF.CellMark<SF.Attach, TChange>,
 	detach: SF.CellMark<SF.Detach, TChange>,
@@ -395,7 +351,6 @@ export const MarkMaker = {
 	revive: createReviveMark,
 	pin: createPinMark,
 	delete: createDeleteMark,
-	modify: createModifyMark,
 	moveOut: createMoveOutMark,
 	moveIn: createMoveInMark,
 	returnFrom: createReturnFromMark,
@@ -411,6 +366,4 @@ export const ChangeMaker = {
 	redundantRevive: createRedundantReviveChangeset,
 	move: createMoveChangeset,
 	return: createReturnChangeset,
-	modify: createModifyChangeset,
-	modifyDetached: createModifyDetachedChangeset,
 };

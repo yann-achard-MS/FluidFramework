@@ -74,11 +74,16 @@ export class ModularChangeFamily
 	implements ChangeFamily<ModularEditBuilder, ModularChangeset>, ChangeRebaser<ModularChangeset>
 {
 	public readonly codecs: ICodecFamily<ModularChangeset>;
+	public readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, ModularFieldKind>;
 
 	public constructor(
-		public readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, ModularFieldKind>,
+		fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>,
 		codecOptions: ICodecOptions,
 	) {
+		this.fieldKinds = fieldKinds as unknown as ReadonlyMap<
+			FieldKindIdentifier,
+			ModularFieldKind
+		>;
 		this.codecs = makeModularChangeCodecFamily(this.fieldKinds, codecOptions);
 	}
 

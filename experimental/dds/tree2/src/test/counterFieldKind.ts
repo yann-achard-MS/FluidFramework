@@ -12,12 +12,15 @@ import {
 } from "../feature-libraries";
 // This is imported directly to implement an example of a field kind.
 import {
+	FieldAnchorSetOps,
 	FieldKindWithEditor,
 	Multiplicity,
+	SingleSlotAnchorSetTypes,
 	referenceFreeFieldChangeRebaser,
+	singleSlotFieldAnchorSetOps,
 	// eslint-disable-next-line import/no-internal-modules
 } from "../feature-libraries/modular-schema";
-import { brand, fail } from "../util";
+import { brand } from "../util";
 import { Delta, FieldKey, TaggedChange, makeDetachedNodeId } from "../core";
 import { leaf } from "../domains";
 
@@ -36,6 +39,22 @@ function commutativeRebaser<TChange>(data: {
 	return referenceFreeFieldChangeRebaser({ ...data, rebase });
 }
 
+export const CounterAnchorSet = "CounterAnchorSet";
+export type CounterAnchorSet = typeof CounterAnchorSet;
+
+declare module "../feature-libraries/modular-schema/anchorSetOps/anchorSetOpsRegistry" {
+	interface AnchorSetOpsRegistry<TData> {
+		[CounterAnchorSet]: SingleSlotAnchorSetTypes<TData, number>;
+	}
+}
+
+export const counterAnchorSetOps: FieldAnchorSetOps<typeof CounterAnchorSet> = {
+	rebase: () => {},
+	composeWith: () => {},
+	...singleSlotFieldAnchorSetOps,
+	codecsFactory: singleSlotFieldAnchorSetOps.codecsFactory as any,
+};
+
 /**
  * ChangeHandler that does not support any changes.
  *
@@ -45,13 +64,14 @@ function commutativeRebaser<TChange>(data: {
  * and handling values past Number.MAX_SAFE_INTEGER (ex: via an arbitrarily large integer library)
  * or via modular arithmetic.
  */
-export const counterHandle: FieldChangeHandler<number> = {
+export const counterHandle: FieldChangeHandler<CounterAnchorSet> = {
 	rebaser: commutativeRebaser({
 		compose: (changes: number[]) => changes.reduce((a, b) => a + b, 0),
 		invert: (change: number) => -change,
 	}),
+	anchorSetOps: counterAnchorSetOps,
 	codecsFactory: () => counterCodecFamily,
-	editor: { buildChildChange: (index, change) => fail("Child changes not supported") },
+	editor: {},
 	intoDelta: ({ change, revision }: TaggedChange<number>): Delta.FieldChanges => {
 		const buildId = makeDetachedNodeId(revision, 424243);
 		return {
@@ -93,7 +113,6 @@ export const counterHandle: FieldChangeHandler<number> = {
 			],
 		};
 	},
-	relevantRemovedTrees: (change) => [],
 	isEmpty: (change: number) => change === 0,
 };
 

@@ -10,10 +10,12 @@ import {
 	FieldChangeRebaser,
 	FieldKindWithEditor,
 	Multiplicity,
+	SingleSlotAnchorSetTypes,
 	referenceFreeFieldChangeRebaser,
+	singleSlotFieldAnchorSetOps,
 	// eslint-disable-next-line import/no-internal-modules
 } from "../../../feature-libraries/modular-schema";
-import { Mutable, fail } from "../../../util";
+import { Mutable } from "../../../util";
 import { makeCodecFamily, makeValueCodec } from "../../../codec";
 import { singleJsonCursor } from "../../../domains";
 import { Delta, makeDetachedNodeId } from "../../../core";
@@ -75,11 +77,29 @@ export function replaceRebaser<T>(): FieldChangeRebaser<ReplaceOp<T>> {
 
 export type ValueChangeset = ReplaceOp<number>;
 
-export const valueHandler: FieldChangeHandler<ValueChangeset> = {
+export const ValueAnchorSetURI = "ValueAnchorSetURI";
+export type ValueAnchorSetURI = typeof ValueAnchorSetURI;
+
+declare module "../../../feature-libraries/modular-schema/anchorSetOps/anchorSetOpsRegistry" {
+	interface AnchorSetOpsRegistry<TData> {
+		[ValueAnchorSetURI]: SingleSlotAnchorSetTypes<TData, ValueChangeset>;
+	}
+}
+export const valueHandler: FieldChangeHandler<ValueAnchorSetURI> = {
 	rebaser: replaceRebaser(),
+	anchorSetOps: {
+		rebase: () => {},
+		composeWith: (setA, _, setB, merge) => {
+			if (setB !== undefined) {
+				singleSlotFieldAnchorSetOps.mergeIn(setA, setB, merge);
+			}
+		},
+		...singleSlotFieldAnchorSetOps,
+		codecsFactory: singleSlotFieldAnchorSetOps.codecsFactory as any,
+	},
 	codecsFactory: () =>
 		makeCodecFamily([[0, makeValueCodec<TUnsafe<ValueChangeset>>(Type.Any())]]),
-	editor: { buildChildChange: (index, change) => fail("Child changes not supported") },
+	editor: {},
 
 	intoDelta: ({ change, revision }): Delta.FieldChanges => {
 		const delta: Mutable<Delta.FieldChanges> = {};
@@ -92,8 +112,6 @@ export const valueHandler: FieldChangeHandler<ValueChangeset> = {
 		}
 		return delta;
 	},
-
-	relevantRemovedTrees: (change) => [],
 	isEmpty: (change) => change === 0,
 };
 

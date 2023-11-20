@@ -52,6 +52,7 @@ export {
 	EditDescription,
 	revisionMetadataSourceFromInfo,
 } from "./modularChangeFamily";
+export { FieldAnchorSetOps } from "./anchorSetOps";
 export {
 	SingleSlotAnchorSetTypes,
 	singleSlotFieldAnchorSetOps,

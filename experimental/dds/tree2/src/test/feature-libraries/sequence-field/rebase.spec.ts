@@ -6,7 +6,6 @@
 import { strict as assert } from "assert";
 import { SequenceField as SF, revisionMetadataSourceFromInfo } from "../../../feature-libraries";
 import { ChangeAtomId, mintRevisionTag, RevisionTag, tagChange } from "../../../core";
-import { TestChange } from "../../testChange";
 import { brand } from "../../../util";
 import {
 	checkDeltaEquality,
@@ -52,64 +51,6 @@ describe("SequenceField - Rebase", () => {
 				assert.deepEqual(actual, testCase);
 			});
 		}
-	});
-
-	it("modify ↷ modify", () => {
-		const change1 = Change.modify(0, TestChange.mint([0], 1));
-		const change2 = Change.modify(0, TestChange.mint([0], 2));
-		const expected = Change.modify(0, TestChange.mint([0, 1], 2));
-		const actual = rebase(change2, change1);
-		assert.deepEqual(actual, expected);
-	});
-
-	it("insert ↷ modify", () => {
-		const actual = rebase(cases.insert, cases.modify);
-		assert.deepEqual(actual, cases.insert);
-	});
-
-	it("modify insert ↷ modify", () => {
-		const actual = rebase(cases.modify_insert, cases.modify);
-		assert.deepEqual(actual, cases.modify_insert);
-	});
-
-	it("delete ↷ modify", () => {
-		const actual = rebase(cases.delete, cases.modify);
-		assert.deepEqual(actual, cases.delete);
-	});
-
-	it("revive ↷ modify", () => {
-		const revive = composeAnonChanges([
-			Change.revive(0, 2, { revision: tag1, localId: brand(0) }),
-			Change.revive(4, 2, { revision: tag1, localId: brand(2) }),
-			Change.revive(10, 2, { revision: tag1, localId: brand(4) }),
-		]);
-		const mods = composeAnonChanges([
-			Change.modify(0, TestChange.mint([0], 1)),
-			Change.modify(3, TestChange.mint([0], 2)),
-			Change.modify(8, TestChange.mint([0], 3)),
-		]);
-		const actual = rebase(revive, mods);
-		assert.deepEqual(actual, revive);
-	});
-
-	it("modify ↷ delete", () => {
-		const mods = [
-			Mark.modify(TestChange.mint([0], 1)),
-			{ count: 2 },
-			Mark.modify(TestChange.mint([0], 2)),
-			{ count: 2 },
-			Mark.modify(TestChange.mint([0], 3)),
-		];
-		const deletion = [{ count: 2 }, Mark.delete(3, brand(0))];
-		const actual = rebase(mods, deletion, tag1);
-		const expected = [
-			Mark.modify(TestChange.mint([0], 1)),
-			{ count: 1 },
-			Mark.modify(TestChange.mint([0], 2), { revision: tag1, localId: brand(1) }),
-			{ count: 1 },
-			Mark.modify(TestChange.mint([0], 3)),
-		];
-		checkDeltaEquality(actual, expected);
 	});
 
 	it("insert ↷ delete", () => {
@@ -280,22 +221,6 @@ describe("SequenceField - Rebase", () => {
 		assert.deepEqual(actual, expected);
 	});
 
-	it("modify ↷ insert", () => {
-		const mods = composeAnonChanges([
-			Change.modify(0, TestChange.mint([0], 1)),
-			Change.modify(3, TestChange.mint([0], 2)),
-		]);
-		const insert = Change.insert(2, 1, 2);
-		const expected = composeAnonChanges([
-			// Modify at earlier index is unaffected
-			Change.modify(0, TestChange.mint([0], 1)),
-			// Modify at later index has its index increased
-			Change.modify(4, TestChange.mint([0], 2)),
-		]);
-		const actual = rebase(mods, insert);
-		assert.deepEqual(actual, expected);
-	});
-
 	it("delete ↷ insert", () => {
 		// Deletes A-CD-E
 		const deletion = composeAnonChanges([
@@ -351,22 +276,6 @@ describe("SequenceField - Rebase", () => {
 			Change.redundantRevive(0, 1, { revision: tag1, localId: brand(0) }),
 			Change.redundantRevive(2, 2, { revision: tag1, localId: brand(1) }),
 		]);
-		assert.deepEqual(actual, expected);
-	});
-
-	it("modify ↷ revive", () => {
-		const mods = composeAnonChanges([
-			Change.modify(0, TestChange.mint([0], 1)),
-			Change.modify(3, TestChange.mint([0], 2)),
-		]);
-		const revive = Change.revive(2, 1, { revision: tag1, localId: brand(0) });
-		const expected = composeAnonChanges([
-			// Modify at earlier index is unaffected
-			Change.modify(0, TestChange.mint([0], 1)),
-			// Modify at later index has its index increased
-			Change.modify(4, TestChange.mint([0], 2)),
-		]);
-		const actual = rebase(mods, revive);
 		assert.deepEqual(actual, expected);
 	});
 
@@ -531,15 +440,6 @@ describe("SequenceField - Rebase", () => {
 		checkDeltaEquality(moveC2.change, expected);
 	});
 
-	it("modify ↷ move", () => {
-		const inner = TestChange.mint([0], 1);
-		const modify = Change.modify(0, inner);
-		const move = Change.move(0, 1, 4);
-		const expected = Change.modify(3, inner);
-		const rebased = rebase(modify, move);
-		assert.deepEqual(rebased, expected);
-	});
-
 	it("delete ↷ move", () => {
 		const deletion = Change.delete(2, 2);
 		const move = Change.move(1, 3, 0);
@@ -648,22 +548,29 @@ describe("SequenceField - Rebase", () => {
 	});
 
 	it("rebasing over transient revive changes cell ID", () => {
-		const change = TestChange.mint([0], 1);
-		const modify = Change.modifyDetached(0, change, {
-			revision: tag1,
-			localId: brand(1),
-		});
+		const deletion = [
+			Mark.delete(1, brand(0), {
+				cellId: {
+					revision: tag1,
+					localId: brand(1),
+				},
+			}),
+		];
 
 		const revive = [
 			Mark.delete(2, brand(2), { cellId: { revision: tag1, localId: brand(0) } }),
 		];
 
-		const rebased = rebase(modify, revive, tag2);
-		const expected = Change.modifyDetached(0, change, {
-			revision: tag2,
-			localId: brand(3),
-			adjacentCells: [{ id: brand(2), count: 2 }],
-		});
+		const rebased = rebase(deletion, revive, tag2);
+		const expected = [
+			Mark.delete(1, brand(0), {
+				cellId: {
+					revision: tag2,
+					localId: brand(3),
+					adjacentCells: [{ id: brand(2), count: 2 }],
+				},
+			}),
+		];
 		assert.deepEqual(rebased, expected);
 	});
 
@@ -957,29 +864,6 @@ describe("SequenceField - Rebase", () => {
 					],
 				}),
 			];
-			assert.deepEqual(rebased, expected);
-		});
-
-		it("modify ↷ [delete, delete]", () => {
-			const deletes: TestChangeset = shallowCompose([
-				tagChange(Change.delete(1, 3), tag1),
-				tagChange(Change.delete(0, 2), tag2),
-			]);
-
-			const nodeChange = TestChange.mint([], 0);
-			const modify = Change.modify(3, nodeChange);
-			const rebased = rebaseOverComposition(
-				modify,
-				deletes,
-				revisionMetadataSourceFromInfo([{ revision: tag1 }, { revision: tag2 }]),
-			);
-
-			const expected = Change.modifyDetached(0, nodeChange, {
-				revision: tag1,
-				localId: brand(2),
-				adjacentCells: [{ id: brand(0), count: 3 }],
-				lineage: [{ revision: tag2, id: brand(0), count: 2, offset: 1 }],
-			});
 			assert.deepEqual(rebased, expected);
 		});
 	});

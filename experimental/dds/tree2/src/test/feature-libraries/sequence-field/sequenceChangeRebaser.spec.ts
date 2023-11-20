@@ -13,7 +13,6 @@ import {
 	RevisionTag,
 	tagChange,
 	tagRollbackInverse,
-	TreeNodeSchemaIdentifier,
 } from "../../../core";
 import { TestChange } from "../../testChange";
 import { deepFreeze } from "../../utils";
@@ -28,9 +27,8 @@ import {
 	withNormalizedLineage,
 	withoutLineage,
 } from "./utils";
-import { ChangeMaker as Change, MarkMaker as Mark } from "./testEdits";
+import { ChangeMaker as Change } from "./testEdits";
 
-const type: TreeNodeSchemaIdentifier = brand("Node");
 const tag1: RevisionTag = mintRevisionTag();
 const tag2: RevisionTag = mintRevisionTag();
 const tag3: RevisionTag = mintRevisionTag();
@@ -47,23 +45,6 @@ function generateAdjacentCells(maxId: number): SF.IdRange[] {
 }
 
 const testChanges: [string, (index: number, maxIndex: number) => SF.Changeset<TestChange>][] = [
-	["NestedChange", (i) => Change.modify(i, TestChange.mint([], 1))],
-	[
-		"NestedChangeUnderRemovedNode",
-		(i, max) => [
-			...(i > 0 ? [{ count: i }] : []),
-			Mark.modify(TestChange.mint([], 1), {
-				revision: tag1,
-				localId: brand(i),
-				adjacentCells: generateAdjacentCells(max),
-			}),
-		],
-	],
-	[
-		"MInsert",
-		(i) =>
-			composeAnonChanges([Change.insert(i, 1, 42), Change.modify(i, TestChange.mint([], 2))]),
-	],
 	["Insert", (i) => Change.insert(i, 2, 42)],
 	["TransientInsert", (i) => composeAnonChanges([Change.insert(i, 1), Change.delete(i, 1)])],
 	["Delete", (i) => Change.delete(i, 2)],

@@ -126,6 +126,7 @@ export {
 	NodeExistenceState,
 	FieldKindWithEditor,
 	RemovedTreesFromChild,
+	FieldAnchorSetOps,
 } from "./modular-schema";
 
 export {
