@@ -12,6 +12,7 @@ export {
 	FieldAnchorSetOps,
 	MapCallback,
 	MergeCallback,
+	MutateCallback,
 	UpdateCallback,
 	AnchorSetChange,
 	AnchorSetOpsURIs,

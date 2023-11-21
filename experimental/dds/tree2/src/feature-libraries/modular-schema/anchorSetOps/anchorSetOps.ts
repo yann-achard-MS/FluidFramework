@@ -10,6 +10,7 @@ import { AnchorSetOpsRegistry } from "./anchorSetOpsRegistry";
 
 export type MergeCallback<TData> = (existingData: TData, newData: TData) => TData;
 export type UpdateCallback<TData, TKey> = (data: TData, key: TKey) => TData;
+export type MutateCallback<TData, TKey> = (data: TData, key: TKey) => void;
 export type MapCallback<TIn, TOut> = (data: TIn) => TOut;
 
 export interface FieldAnchorSetEntry<TData, TKey> {
@@ -103,6 +104,11 @@ export interface FieldAnchorSetOps<TOpsURI extends AnchorSetOpsURIs> {
 	readonly updateAll: <TData>(
 		fa: AnchorSetContainer<TOpsURI, TData>,
 		f: UpdateCallback<TData, AnchorSetKey<TOpsURI>>,
+	) => void;
+
+	readonly mutateAll: <TData>(
+		fa: AnchorSetContainer<TOpsURI, TData>,
+		f: MutateCallback<TData, AnchorSetKey<TOpsURI>>,
 	) => void;
 
 	readonly track: <TData>(

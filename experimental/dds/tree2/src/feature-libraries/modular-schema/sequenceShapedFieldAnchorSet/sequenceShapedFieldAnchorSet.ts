@@ -10,6 +10,7 @@ import {
 	FieldAnchorSetEntry,
 	MapCallback,
 	MergeCallback,
+	MutateCallback,
 	UpdateCallback,
 } from "../anchorSetOps";
 import { makeSequenceShapedFieldAnchorSetCodecFamily } from "./sequenceShapedFieldAnchorSetCodecs";
@@ -37,6 +38,7 @@ export const sequenceFieldAnchorSetOps = {
 	count,
 	map,
 	updateAll,
+	mutateAll,
 	mergeIn,
 	track,
 	forget,
@@ -70,6 +72,15 @@ function updateAll<TData>(
 ): void {
 	for (const entry of set.list) {
 		entry.data = f(entry.data, entry.key);
+	}
+}
+
+function mutateAll<TData>(
+	set: SequenceFieldAnchorSet<TData>,
+	f: MutateCallback<TData, SequenceKey>,
+): void {
+	for (const entry of set.list) {
+		f(entry.data, entry.key);
 	}
 }
 

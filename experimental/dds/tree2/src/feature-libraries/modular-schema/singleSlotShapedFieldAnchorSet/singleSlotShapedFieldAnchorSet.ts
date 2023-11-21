@@ -9,6 +9,7 @@ import {
 	FieldAnchorSetEntry,
 	MapCallback,
 	MergeCallback,
+	MutateCallback,
 	UpdateCallback,
 } from "../anchorSetOps";
 import { makeSingleSlotShapedFieldAnchorSetCodecFamily } from "./singleSlotShapedFieldAnchorSetCodecs";
@@ -24,6 +25,7 @@ export const singleSlotFieldAnchorSetOps = {
 	count,
 	map,
 	updateAll,
+	mutateAll,
 	mergeIn,
 	track,
 	forget,
@@ -63,6 +65,15 @@ function updateAll<TData>(
 ): void {
 	if (set.entry !== undefined) {
 		set.entry = f(set.entry, undefined);
+	}
+}
+
+function mutateAll<TData>(
+	set: SingleSlotFieldAnchorSet<TData>,
+	f: MutateCallback<TData, SingleSlotKey>,
+): void {
+	if (set.entry !== undefined) {
+		f(set.entry, undefined);
 	}
 }
 

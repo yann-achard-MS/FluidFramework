@@ -601,7 +601,7 @@ export class ModularChangeFamily
 					stateChange,
 				);
 
-			const rebasedFieldChange: FieldChange = {
+			const rebasedFieldChange: Mutable<FieldChange> = {
 				fieldKind: fieldKind.identifier,
 			};
 			if (fieldChangeset.change !== undefined && baseChangeset.change !== undefined) {
@@ -614,6 +614,31 @@ export class ModularChangeFamily
 					revisionMetadata,
 				);
 				rebasedFieldChange.change = rebasedField;
+			}
+			// TODO: can we avoid cloning the anchors in some cases?
+			if (fieldChangeset.anchors !== undefined) {
+				const anchorSetOps = fieldKind.changeHandler.anchorSetOps;
+				const anchors = anchorSetOps.clone(fieldChangeset.anchors);
+				if (baseChangeset.anchors !== undefined) {
+					const baseAnchors = baseChangeset.anchors;
+					anchorSetOps.updateAll(anchors, (data, key) => {
+						// TODO: instead of a lookup, consider adding a function to anchorSetOps that enumerates key collisions
+						const baseChildChanges = anchorSetOps.lookup(baseAnchors, key);
+						if (baseChildChanges !== undefined) {
+							const rebased = rebaseChild(data, baseChildChanges.data, undefined);
+							assert(
+								rebased !== undefined,
+								"Child changes should not be during rebase",
+							);
+						}
+						return data;
+					});
+				}
+				if (baseChangeset.change !== undefined) {
+					const taggedFieldBaseChange = tagChange(baseChangeset.change, over.revision);
+					fieldKind.changeHandler.anchorSetOps.rebase(anchors, taggedFieldBaseChange);
+				}
+				rebasedFieldChange.anchors = anchors;
 			}
 
 			rebasedFields.set(field, rebasedFieldChange);
@@ -764,9 +789,7 @@ export class ModularChangeFamily
 
 	/**
 	 * @param change - The change to convert into a delta.
-	 * @param repairStore - The store to query for repair data.
-	 * @param path - The path of the node being altered by the change as defined by the input context.
-	 * Undefined for the root and for nodes that do not exist in the input context.
+	 * @param revision - The revision associated with the change.
 	 */
 	private intoDeltaImpl(
 		change: FieldChangeMap,
@@ -782,8 +805,9 @@ export class ModularChangeFamily
 			const changeHandler = getChangeHandler(this.fieldKinds, fieldChange.fieldKind);
 			const deltaField = changeHandler.intoDelta(
 				tagChange(fieldChange.change, fieldRevision),
-				(childChange): Delta.FieldMap =>
-					this.deltaFromNodeChange(tagChange(childChange, fieldRevision), idAllocator),
+				(childChange): Delta.FieldMap => {
+					assert(false, "TODO: update contract");
+				},
 				idAllocator,
 			);
 			if (fieldChange.anchors !== undefined) {
@@ -824,9 +848,15 @@ export class ModularChangeFamily
 			}
 			const handler = getChangeHandler(this.fieldKinds, fieldChange.fieldKind);
 
-			const prunedFieldChangeset = handler.rebaser.prune(fieldChange.change, (node) =>
-				this.pruneNodeChange(node),
-			);
+			const prunedFieldChangeset = handler.rebaser.prune(fieldChange.change, (node) => {
+				assert(false, "TODO: update contract");
+				return this.pruneNodeChange(node);
+			});
+			if (fieldChange.anchors !== undefined) {
+				handler.anchorSetOps.mutateAll(fieldChange.anchors, (node) =>
+					this.pruneNodeChange(node),
+				);
+			}
 
 			if (!handler.isEmpty(prunedFieldChangeset)) {
 				prunedChangeset.set(field, {
