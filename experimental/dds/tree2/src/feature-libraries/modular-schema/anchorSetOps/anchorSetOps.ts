@@ -132,9 +132,9 @@ export interface FieldAnchorSetOps<TOpsURI extends AnchorSetOpsURIs> {
 
 	readonly forget: (set: AnchorSetContainer<TOpsURI>, key: AnchorSetKey<TOpsURI>) => void;
 
-	readonly getKey: (index: number) => AnchorSetKey<TOpsURI>;
+	readonly keyFromIndex: (index: number) => AnchorSetKey<TOpsURI>;
 
-	//	readonly keyToIndex: (index: AnchorSetKey<TOpsURI>) => ChildIndex | undefined;
+	readonly indexFromKey: (key: AnchorSetKey<TOpsURI>) => number;
 
 	readonly lookup: <TData>(
 		set: AnchorSetContainer<TOpsURI, TData>,

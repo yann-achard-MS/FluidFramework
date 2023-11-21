@@ -83,6 +83,7 @@ export {
 	PathRootPrefix,
 	deltaForRootInitialization,
 	deltaForSet,
+	mergeNestedChanges,
 	emptyFieldChanges,
 	isEmptyFieldChanges,
 	makeDetachedNodeId,

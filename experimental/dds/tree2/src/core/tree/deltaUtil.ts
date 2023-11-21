@@ -3,10 +3,11 @@
  * Licensed under the MIT License.
  */
 
+import { assert } from "@fluidframework/core-utils";
 import { Mutable } from "../../util";
 import { FieldKey } from "../schema-stored";
 import { ITreeCursorSynchronous } from "./cursor";
-import { Root, DetachedNodeId, FieldChanges, Mark } from "./delta";
+import { Root, DetachedNodeId, FieldChanges, Mark, FieldMap } from "./delta";
 import { rootFieldKey } from "./types";
 
 export const emptyDelta: Root<never> = {};
@@ -99,4 +100,51 @@ export function offsetDetachId(
 
 export function areDetachedNodeIdsEqual(a: DetachedNodeId, b: DetachedNodeId): boolean {
 	return a.major === b.major && a.minor === b.minor;
+}
+
+export function mergeNestedChanges(
+	marks: Mutable<Mark>[],
+	nested: readonly { readonly index: number; readonly fields: FieldMap }[],
+): void {
+	let iMark = 0;
+	let iNode = 0;
+	for (const { index, fields } of nested) {
+		while (iNode < index && iMark < marks.length) {
+			const mark = marks[iMark];
+			iNode += mark.count;
+			iMark += 1;
+			if (iNode > index) {
+				const extra = iNode - index;
+				marks.splice(iMark - 1, 1, ...splitMark(mark, extra));
+				iNode -= extra;
+			}
+		}
+		if (iMark === marks.length) {
+			if (iNode < index) {
+				marks.push({ count: index - iNode - 1 });
+			}
+			marks.push({ count: 1, fields });
+		} else {
+			const mark = marks[iMark];
+			if (mark.count > 1) {
+				marks.splice(iMark, 1, ...splitMark(mark, 1));
+			}
+			marks[iMark].fields = fields;
+		}
+	}
+}
+
+export function splitMark(mark: Mark, count: number): [Mark, Mark] {
+	assert(mark.count > count, "Cannot split mark with count <= split count");
+	const a: Mutable<Mark> = { count };
+	const b: Mutable<Mark> = { count: mark.count - count };
+	if (mark.attach !== undefined) {
+		a.attach = mark.attach;
+		b.attach = offsetDetachId(mark.attach, count);
+	}
+	if (mark.detach !== undefined) {
+		a.detach = mark.detach;
+		b.detach = offsetDetachId(mark.detach, count);
+	}
+	return [a, b];
 }

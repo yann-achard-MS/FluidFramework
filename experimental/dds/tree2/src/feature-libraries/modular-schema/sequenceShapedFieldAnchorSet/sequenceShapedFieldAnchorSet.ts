@@ -40,7 +40,8 @@ export const sequenceFieldAnchorSetOps = {
 	mergeIn,
 	track,
 	forget,
-	getKey,
+	keyFromIndex,
+	indexFromKey,
 	lookup,
 	entries,
 };
@@ -132,7 +133,7 @@ function forget(set: SequenceFieldAnchorSet, key: SequenceKey): void {
 	set.list.splice(index, 1);
 }
 
-function getKey(index: number): SequenceKey {
+function keyFromIndex(index: number): SequenceKey {
 	return index;
 }
 
@@ -152,4 +153,8 @@ function entries<TData>(
 	set: SequenceFieldAnchorSet<TData>,
 ): IterableIterator<FieldAnchorSetEntry<TData, SequenceKey>> {
 	return set.list.values();
+}
+
+function indexFromKey(key: SequenceKey): number {
+	return key;
 }

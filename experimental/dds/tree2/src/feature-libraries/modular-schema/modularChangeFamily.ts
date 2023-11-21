@@ -26,6 +26,7 @@ import {
 	JsonableTree,
 	makeDetachedNodeId,
 	emptyDelta,
+	mergeNestedChanges,
 } from "../../core";
 import {
 	brand,
@@ -141,7 +142,7 @@ export class ModularChangeFamily
 				if (nestedGenericChanges !== undefined) {
 					const set = anchorSetOps.factory<NodeChangeset>();
 					for (const { key, data } of genericAnchorSetOps.entries(nestedGenericChanges)) {
-						anchorSetOps.track(set, anchorSetOps.getKey(key), data);
+						anchorSetOps.track(set, anchorSetOps.keyFromIndex(key), data);
 					}
 					normalized.anchors = set;
 				}
@@ -778,12 +779,25 @@ export class ModularChangeFamily
 				continue;
 			}
 			const fieldRevision = fieldChange.revision ?? revision;
-			const deltaField = getChangeHandler(this.fieldKinds, fieldChange.fieldKind).intoDelta(
+			const changeHandler = getChangeHandler(this.fieldKinds, fieldChange.fieldKind);
+			const deltaField = changeHandler.intoDelta(
 				tagChange(fieldChange.change, fieldRevision),
 				(childChange): Delta.FieldMap =>
 					this.deltaFromNodeChange(tagChange(childChange, fieldRevision), idAllocator),
 				idAllocator,
 			);
+			if (fieldChange.anchors !== undefined) {
+				const nestedDeltas: { index: number; fields: Delta.FieldMap }[] = [];
+				const anchorSetOps = changeHandler.anchorSetOps;
+				for (const { key, data } of anchorSetOps.entries(fieldChange.anchors)) {
+					const fields = this.deltaFromNodeChange(
+						tagChange(data, fieldRevision),
+						idAllocator,
+					);
+					nestedDeltas.push({ index: anchorSetOps.indexFromKey(key), fields });
+				}
+				mergeNestedChanges(deltaField.local as Mutable<Delta.Mark>[], nestedDeltas);
+			}
 			if (!isEmptyFieldChanges(deltaField)) {
 				delta.set(field, deltaField);
 			}
@@ -1232,7 +1246,7 @@ export function nestedChange<TAnchorSetOps extends AnchorSetOpsURIs>(
 	return {
 		fieldKind: fieldKind.identifier,
 		anchors: anchorSetFromData(fieldKind.changeHandler.anchorSetOps, [
-			{ key: fieldKind.changeHandler.anchorSetOps.getKey(index), data: nodeChange },
+			{ key: fieldKind.changeHandler.anchorSetOps.keyFromIndex(index), data: nodeChange },
 		]) as ModularFieldAnchorContainer<NodeChangeset>,
 	};
 }

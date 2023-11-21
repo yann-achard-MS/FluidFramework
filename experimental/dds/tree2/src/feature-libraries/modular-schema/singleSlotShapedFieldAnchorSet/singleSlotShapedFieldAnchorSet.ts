@@ -27,7 +27,8 @@ export const singleSlotFieldAnchorSetOps = {
 	mergeIn,
 	track,
 	forget,
-	getKey,
+	keyFromIndex,
+	indexFromKey,
 	lookup,
 	entries,
 };
@@ -107,9 +108,13 @@ function lookup<TData>(
 	return set.entry === undefined ? undefined : { key, data: set.entry };
 }
 
-function getKey(index: number): SingleSlotKey {
+function keyFromIndex(index: number): SingleSlotKey {
 	assert(index === 0, "Invalid non-zero index into single-slot field");
 	return undefined;
+}
+
+function indexFromKey(key: SingleSlotKey): number {
+	return 0;
 }
 
 function entries<TData>(

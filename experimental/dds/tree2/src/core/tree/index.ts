@@ -99,6 +99,7 @@ export {
 	emptyFieldChanges,
 	isEmptyFieldChanges,
 	makeDetachedNodeId,
+	mergeNestedChanges,
 	offsetDetachId,
 	emptyDelta,
 } from "./deltaUtil";
