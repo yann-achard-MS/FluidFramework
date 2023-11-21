@@ -277,7 +277,8 @@ export class ModularChangeFamily
 					(tagged): tagged is TaggedChange<ModularFieldChangeset> =>
 						tagged.change !== undefined,
 				);
-			const composedChange = fieldKind.changeHandler.rebaser.compose(
+			const handler = fieldKind.changeHandler;
+			const composedChange = handler.rebaser.compose(
 				taggedChangesets,
 				(children) =>
 					this.composeNodeChanges(children, genId, crossFieldTable, revisionMetadata),
@@ -286,10 +287,45 @@ export class ModularChangeFamily
 				revisionMetadata,
 			);
 
-			const composedField: FieldChange = {
+			const composedField: Mutable<FieldChange> = {
 				fieldKind: fieldKind.identifier,
 				change: brand(composedChange),
 			};
+
+			const mergeNodeChanges = (
+				existing: TaggedChange<NodeChangeset>,
+				added: TaggedChange<NodeChangeset>,
+			) =>
+				makeAnonChange(
+					this.composeNodeChanges(
+						[existing, added],
+						genId,
+						crossFieldTable,
+						revisionMetadata,
+					),
+				);
+			const anchorOps = handler.anchorSetOps;
+			const anchors = anchorOps.factory<TaggedChange<NodeChangeset>>();
+			for (const iThFieldChanges of changesForField) {
+				if (iThFieldChanges.anchors !== undefined) {
+					const taggedIthAnchors = anchorOps.map(iThFieldChanges.anchors, (change) =>
+						tagChange(change, iThFieldChanges.revision),
+					);
+					anchorOps.mergeIn(anchors, taggedIthAnchors, mergeNodeChanges);
+				}
+				if (iThFieldChanges.change !== undefined) {
+					anchorOps.rebase(
+						anchors,
+						tagChange(iThFieldChanges.change, iThFieldChanges.revision),
+					);
+				}
+			}
+
+			if (anchorOps.count(anchors) > 0) {
+				// TODO: rebase anchors over inverse of composed change
+				// OR rebase anchors backwards over each change in the for loop above so they're in the input context instead.
+				composedField.anchors = anchorOps.map(anchors, (tagged) => tagged.change);
+			}
 
 			addFieldData(manager, composedField);
 
@@ -430,28 +466,36 @@ export class ModularChangeFamily
 			const { revision } = fieldChange.revision !== undefined ? fieldChange : changes;
 
 			const manager = newCrossFieldManager(crossFieldTable);
+			const handler = getChangeHandler(this.fieldKinds, fieldChange.fieldKind);
 
-			const invertedFieldChange: FieldChange = {
+			const invertedFieldChange: Mutable<FieldChange> = {
 				...fieldChange,
 			};
 			if (fieldChange.change !== undefined) {
-				const invertedChange = getChangeHandler(
-					this.fieldKinds,
-					fieldChange.fieldKind,
-				).rebaser.invert(
+				const invertedChange = handler.rebaser.invert(
 					{ revision, change: fieldChange.change },
-					(childChanges) =>
-						this.invertNodeChange(
-							{ revision, change: childChanges },
-							genId,
-							crossFieldTable,
-							revisionMetadata,
-						),
+					() => {
+						assert(false, "TODO: update contract");
+					},
 					genId,
 					manager,
 					revisionMetadata,
 				);
 				invertedFieldChange.change = invertedChange;
+			}
+			if (fieldChange.anchors !== undefined) {
+				const anchors = handler.anchorSetOps.map(fieldChange.anchors, (childChanges) =>
+					this.invertNodeChange(
+						{ revision, change: childChanges },
+						genId,
+						crossFieldTable,
+						revisionMetadata,
+					),
+				);
+				if (fieldChange.change !== undefined) {
+					handler.anchorSetOps.rebase(anchors, { revision, change: fieldChange.change });
+				}
+				invertedFieldChange.anchors = anchors;
 			}
 
 			invertedFields.set(field, invertedFieldChange);
@@ -608,7 +652,7 @@ export class ModularChangeFamily
 				const rebasedField = fieldKind.changeHandler.rebaser.rebase(
 					fieldChangeset.change,
 					tagChange(baseChangeset.change, taggedBaseChange.revision),
-					rebaseChild,
+					rebaseChild, // TODO: remove
 					genId,
 					manager,
 					revisionMetadata,
@@ -630,6 +674,7 @@ export class ModularChangeFamily
 								rebased !== undefined,
 								"Child changes should not be during rebase",
 							);
+							return rebased;
 						}
 						return data;
 					});
@@ -667,6 +712,7 @@ export class ModularChangeFamily
 					fieldKind: fieldKind.identifier,
 				};
 
+				// TODO: should we also rebase anchors for this?
 				if (fieldChangeset.change !== undefined && baseChangeset.change !== undefined) {
 					const manager = newCrossFieldManager(crossFieldTable);
 					const rebasedChangeset = fieldKind.changeHandler.rebaser.rebase(
@@ -853,7 +899,7 @@ export class ModularChangeFamily
 				return this.pruneNodeChange(node);
 			});
 			if (fieldChange.anchors !== undefined) {
-				handler.anchorSetOps.mutateAll(fieldChange.anchors, (node) =>
+				handler.anchorSetOps.updateAll(fieldChange.anchors, (node) =>
 					this.pruneNodeChange(node),
 				);
 			}
