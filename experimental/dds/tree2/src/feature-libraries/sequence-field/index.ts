@@ -17,9 +17,7 @@ export {
 	NodeChangeType,
 	CellCount as NodeCount,
 	MoveId,
-	ProtoNode,
 	Attach,
-	ReturnFrom,
 	NoopMark,
 	LineageEvent,
 	CellId,
@@ -32,6 +30,7 @@ export {
 export {
 	SequenceFieldChangeHandler,
 	sequenceFieldChangeHandler,
+	SequenceAnchorSetURI,
 } from "./sequenceFieldChangeHandler";
 export { SequenceChangeRebaser, sequenceFieldChangeRebaser } from "./sequenceFieldChangeRebaser";
 export { sequenceFieldChangeCodecFactory } from "./sequenceFieldChangeEncoder";

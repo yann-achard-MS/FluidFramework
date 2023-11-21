@@ -50,6 +50,8 @@ export {
 	ModularChangeFamily,
 	ModularEditBuilder,
 	EditDescription,
+	GlobalEditDescription,
+	FieldEditDescription,
 	revisionMetadataSourceFromInfo,
 } from "./modularChangeFamily";
 export { FieldAnchorSetOps } from "./anchorSetOps";

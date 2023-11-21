@@ -45,7 +45,7 @@ function generateAdjacentCells(maxId: number): SF.IdRange[] {
 }
 
 const testChanges: [string, (index: number, maxIndex: number) => SF.Changeset<TestChange>][] = [
-	["Insert", (i) => Change.insert(i, 2, 42)],
+	["Insert", (i) => Change.insert(i, 2, brand(42))],
 	["TransientInsert", (i) => composeAnonChanges([Change.insert(i, 1), Change.delete(i, 1)])],
 	["Delete", (i) => Change.delete(i, 2)],
 	[

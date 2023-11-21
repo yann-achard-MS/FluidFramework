@@ -55,19 +55,19 @@ describe("SequenceField - Rebase", () => {
 
 	it("insert ↷ delete", () => {
 		const insert = composeAnonChanges([
-			Change.insert(0, 1, 1),
-			Change.insert(3, 1, 2),
-			Change.insert(8, 1, 3),
+			Change.insert(0, 1, brand(1)),
+			Change.insert(3, 1, brand(2)),
+			Change.insert(8, 1, brand(3)),
 		]);
 		const deletion = Change.delete(1, 3);
 		const actual = rebase(insert, deletion);
 		const expected = composeAnonChanges([
 			// Earlier insert is unaffected
-			Change.insert(0, 1, 1),
+			Change.insert(0, 1, brand(1)),
 			// Overlapping insert has its index reduced
-			Change.insert(2, 1, 2),
+			Change.insert(2, 1, brand(2)),
 			// Later insert has its index reduced
-			Change.insert(5, 1, 3),
+			Change.insert(5, 1, brand(3)),
 		]);
 		checkDeltaEquality(actual, expected);
 	});
@@ -229,7 +229,7 @@ describe("SequenceField - Rebase", () => {
 			Change.delete(2, 1, brand(3)),
 		]);
 		// Inserts between C and D
-		const insert = Change.insert(3, 1, 2);
+		const insert = Change.insert(3, 1, brand(2));
 		const expected = composeAnonChanges([
 			// Delete with earlier index is unaffected
 			Change.delete(0, 1, brand(0)),
@@ -244,10 +244,16 @@ describe("SequenceField - Rebase", () => {
 	});
 
 	it("insert ↷ insert", () => {
-		const insertA = composeAnonChanges([Change.insert(0, 1, 1), Change.insert(3, 1, 2)]);
-		const insertB = Change.insert(1, 1, 3);
+		const insertA = composeAnonChanges([
+			Change.insert(0, 1, brand(1)),
+			Change.insert(3, 1, brand(2)),
+		]);
+		const insertB = Change.insert(1, 1, brand(3));
 		const actual = rebase(insertA, insertB);
-		const expected = composeAnonChanges([Change.insert(0, 1, 1), Change.insert(4, 1, 2)]);
+		const expected = composeAnonChanges([
+			Change.insert(0, 1, brand(1)),
+			Change.insert(4, 1, brand(2)),
+		]);
 		assert.deepEqual(actual, expected);
 	});
 
@@ -302,10 +308,16 @@ describe("SequenceField - Rebase", () => {
 	});
 
 	it("insert ↷ revive", () => {
-		const insert = composeAnonChanges([Change.insert(0, 1, 1), Change.insert(3, 1, 2)]);
+		const insert = composeAnonChanges([
+			Change.insert(0, 1, brand(1)),
+			Change.insert(3, 1, brand(2)),
+		]);
 		const revive = Change.revive(1, 1, { revision: tag1, localId: brand(0) });
 		const actual = rebase(insert, revive);
-		const expected = composeAnonChanges([Change.insert(0, 1, 1), Change.insert(4, 1, 2)]);
+		const expected = composeAnonChanges([
+			Change.insert(0, 1, brand(1)),
+			Change.insert(4, 1, brand(2)),
+		]);
 		assert.deepEqual(actual, expected);
 	});
 
@@ -461,11 +473,7 @@ describe("SequenceField - Rebase", () => {
 			revision: tag3,
 			localId: brand(0),
 		};
-		const move = [
-			Mark.returnTo(1, brand(0), cellId),
-			{ count: 2 },
-			Mark.returnFrom(1, brand(0)),
-		];
+		const move = [Mark.returnTo(1, brand(0), cellId), { count: 2 }, Mark.moveOut(1, brand(0))];
 		const expected = [Mark.pin(1, brand(0))];
 		const rebased = rebase(move, move);
 		assert.deepEqual(rebased, expected);
@@ -476,11 +484,7 @@ describe("SequenceField - Rebase", () => {
 			revision: tag3,
 			localId: brand(0),
 		};
-		const move = [
-			Mark.returnFrom(1, brand(0)),
-			{ count: 2 },
-			Mark.returnTo(1, brand(0), cellId),
-		];
+		const move = [Mark.moveOut(1, brand(0)), { count: 2 }, Mark.returnTo(1, brand(0), cellId)];
 		const expected = [{ count: 2 }, Mark.pin(1, brand(0))];
 		const rebased = rebase(move, move);
 		assert.deepEqual(rebased, expected);
@@ -497,11 +501,11 @@ describe("SequenceField - Rebase", () => {
 				localId: brand(0),
 			}),
 			{ count: 2 },
-			Mark.returnFrom(1, brand(0)),
+			Mark.moveOut(1, brand(0)),
 		];
 		const return2 = [
 			{ count: 2 },
-			Mark.returnFrom(1, brand(0)),
+			Mark.moveOut(1, brand(0)),
 			{ count: 2 },
 			Mark.returnTo(1, brand(0), {
 				revision: tag3,
@@ -509,7 +513,7 @@ describe("SequenceField - Rebase", () => {
 			}),
 		];
 		const expected = [
-			Mark.returnFrom(1, brand(0)),
+			Mark.moveOut(1, brand(0)),
 			{ count: 4 },
 			Mark.returnTo(1, brand(0), {
 				revision: tag3,
@@ -524,7 +528,7 @@ describe("SequenceField - Rebase", () => {
 		const move = [Mark.moveIn(2, brand(0)), { count: 2 }, Mark.moveOut(2, brand(0))];
 		const pin = [{ count: 2 }, Mark.pin(2, brand(0))];
 		const expected = [
-			Mark.returnFrom(2, brand(0)),
+			Mark.moveOut(2, brand(0)),
 			{ count: 2 },
 			Mark.returnTo(2, brand(0), {
 				revision: tag1,
@@ -676,7 +680,7 @@ describe("SequenceField - Rebase", () => {
 				adjacentCells: [{ id: brand(1), count: 1 }],
 			}),
 			{ count: 1 },
-			Mark.returnFrom(1, brand(0)),
+			Mark.moveOut(1, brand(0)),
 		];
 		assert.deepEqual(rebased, expected);
 	});
@@ -703,7 +707,7 @@ describe("SequenceField - Rebase", () => {
 					localId: brand(2),
 					adjacentCells: [{ id: brand(2), count: 1 }],
 				},
-				Mark.returnFrom(1, brand(0)),
+				Mark.moveOut(1, brand(0)),
 			),
 		];
 		assert.deepEqual(rebased, expected);
@@ -768,7 +772,7 @@ describe("SequenceField - Rebase", () => {
 		const cellSrc: ChangeAtomId = { revision: tag1, localId: brand(0) };
 		const cellDst: ChangeAtomId = { revision: tag3, localId: brand(0) };
 		const reviveAndMove = [
-			Mark.returnFrom(1, brand(1), { cellId: cellSrc }),
+			Mark.moveOut(1, brand(1), { cellId: cellSrc }),
 			{ count: 2 },
 			Mark.returnTo(1, brand(1), cellDst),
 		];
@@ -782,19 +786,19 @@ describe("SequenceField - Rebase", () => {
 		const cellDst1: ChangeAtomId = { revision: tag3, localId: brand(1) };
 		const cellDst2: ChangeAtomId = { revision: tag3, localId: brand(2) };
 		const reviveAndMove1 = [
-			Mark.returnFrom(1, brand(1), { cellId: cellSrc }),
+			Mark.moveOut(1, brand(1), { cellId: cellSrc }),
 			{ count: 2 },
 			Mark.returnTo(1, brand(1), cellDst1),
 		];
 		const reviveAndMove2 = [
-			Mark.returnFrom(1, brand(1), { cellId: cellSrc }),
+			Mark.moveOut(1, brand(1), { cellId: cellSrc }),
 			{ count: 4 },
 			Mark.returnTo(1, brand(1), cellDst2),
 		];
 		const rebased = rebase(reviveAndMove2, reviveAndMove1);
 		const expected = [
 			{ count: 2 },
-			Mark.returnFrom(1, brand(1)),
+			Mark.moveOut(1, brand(1)),
 			{ count: 2 },
 			Mark.returnTo(1, brand(1), cellDst2),
 		];
