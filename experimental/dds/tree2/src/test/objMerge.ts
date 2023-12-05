@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import { assert } from "@fluidframework/core-utils";
 import { fail } from "../util";
 
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
@@ -32,6 +33,84 @@ export class Conflict extends Merged {
 	) {
 		super();
 	}
+}
+
+function addIndented(
+	destination: string[],
+	source: readonly string[],
+	indent: string = "  ",
+): void {
+	for (const line of source) {
+		destination.push(indent + line);
+	}
+}
+
+function indented(lines: string[]): string[] {
+	return lines.map((line) => " ".repeat(2) + line);
+}
+
+export function nonConflictedToStrings(data: unknown): string[] {
+	assert(!hasConflict(data), "Invalid input: conflicted data");
+	if (typeof data === "function") {
+		return ["<function>"];
+	}
+	if (typeof data === "symbol") {
+		return [`<symbol:${data.description}>`];
+	}
+	if (Array.isArray(data)) {
+		const lines: string[] = ["["];
+		data.forEach((value, index) => {
+			addLinesForEntry(lines, "  ", String(index), nonConflictedToStrings(value));
+		});
+		lines.push("]");
+		return lines;
+	}
+
+	return [String(data)];
+}
+
+export function mergeToStrings(value: unknown): string[] {
+	return hasConflict(value) ? conflictedToStrings(value) : nonConflictedToStrings(value);
+}
+
+export function conflictedToStrings(conflicted: Conflicted | ConflictedMap): string[] {
+	const lines: string[] = ["{"];
+	for (const [key, value] of Object.entries(conflicted)) {
+		if (value instanceof Conflict) {
+			lines.push(...conflictToStrings(value, key));
+		} else {
+			const indent = hasConflict(value) ? " ≠" : "  ";
+			addLinesForEntry(lines, indent, key, mergeToStrings(value));
+		}
+	}
+	lines.push("}");
+	return lines;
+}
+
+function addLinesForEntry(
+	destination: string[],
+	indent: string,
+	key: string,
+	source: readonly string[],
+): void {
+	if (source.length <= 3) {
+		destination.push(`${indent}${key}: ${source.join(" ")}`);
+	} else {
+		destination.push(`${indent}${key}: ${source[0]}`);
+		addIndented(destination, source.slice(1, -1), indent);
+		destination.push(`${source[source.length - 1]}`);
+	}
+}
+
+export function conflictToStrings(conflict: Conflict, key: string): string[] {
+	const lines: string[] = [];
+	if (Object.prototype.hasOwnProperty.call(conflict, "lhs")) {
+		addLinesForEntry(lines, " ←", key, nonConflictedToStrings(conflict.lhs));
+	}
+	if (Object.prototype.hasOwnProperty.call(conflict, "rhs")) {
+		addLinesForEntry(lines, " →", key, nonConflictedToStrings(conflict.rhs));
+	}
+	return lines;
 }
 
 // TODO: In theory we should also look at object fields on maps and arrays.
@@ -193,6 +272,6 @@ function mergeMaps(lhs: Map<unknown, unknown>, rhs: Map<unknown, unknown>): Map<
 	return final;
 }
 
-function hasConflict(a: unknown): boolean {
-	return a instanceof Merged || a instanceof ConflictedMap;
+function hasConflict(a: unknown): a is Conflicted | ConflictedMap {
+	return a instanceof Conflicted || a instanceof ConflictedMap;
 }
