@@ -872,12 +872,14 @@ function addIdRange(lineageEntries: IdRange[], range: IdRange): void {
 }
 
 function setMarkAdjacentCells(mark: Mark<unknown>, adjacentCells: IdRange[]): void {
-	assert(
-		mark.cellId !== undefined,
-		0x74d /* Can only set adjacent cells on a mark with cell ID */,
-	);
-	assert(mark.cellId.adjacentCells === undefined, 0x74e /* Should not overwrite adjacentCells */);
-	mark.cellId.adjacentCells = adjacentCells;
+	const cellId = mark.cellId;
+	assert(cellId !== undefined, 0x74d /* Can only set adjacent cells on a mark with cell ID */);
+	assert(cellId.adjacentCells === undefined, 0x74e /* Should not overwrite adjacentCells */);
+	assert(adjacentCells.length > 0, "Unexpected lack of adjacent cells");
+	// Omit `adjacentCells` when only a single cell was emptied.
+	if (adjacentCells.length > 1 || adjacentCells[0].count > 1) {
+		cellId.adjacentCells = adjacentCells;
+	}
 }
 
 function shouldReceiveLineage(

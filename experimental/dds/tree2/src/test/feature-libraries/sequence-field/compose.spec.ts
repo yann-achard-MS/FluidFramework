@@ -1139,16 +1139,13 @@ describe("SequenceField - Compose", () => {
 	describe("empty cell ordering", () => {
 		describe("cells named in the same earlier revision", () => {
 			it("A ○ A", () => {
-				const adjacentCells: SF.IdRange[] = [{ id: brand(1), count: 1 }];
 				const markA = Mark.modify(TestChange.mint([], 1), {
 					revision: tag1,
 					localId: brand(1),
-					adjacentCells,
 				});
 				const markB = Mark.modify(TestChange.mint([1], 2), {
 					revision: tag1,
 					localId: brand(1),
-					adjacentCells,
 				});
 
 				const changeX = tagChange([markA], tag2);
@@ -1159,7 +1156,6 @@ describe("SequenceField - Compose", () => {
 					Mark.modify(TestChange.mint([], [1, 2]), {
 						revision: tag1,
 						localId: brand(1),
-						adjacentCells,
 					}),
 				];
 				assert.deepEqual(composedAB, expected);
@@ -1303,7 +1299,6 @@ describe("SequenceField - Compose", () => {
 				const markB = Mark.modify("B", {
 					revision: tag2,
 					localId: brand(2),
-					adjacentCells: [{ id: brand(2), count: 1 }],
 				});
 
 				const changeY = tagChange([markB], tag3);
