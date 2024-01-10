@@ -15,7 +15,6 @@ import {
 	AnchorSet,
 	UpPath,
 	Anchor,
-	ITreeCursor,
 	CursorLocationType,
 	TreeNodeSchemaIdentifier,
 	MapTree,
@@ -30,7 +29,7 @@ import {
 	Value,
 	ITreeCursorSynchronous,
 	aboveRootPlaceholder,
-	ProtoNodes,
+	mapCursorField,
 } from "../../core/index.js";
 import {
 	brand,
@@ -42,6 +41,7 @@ import {
 import { CursorWithNode, SynchronousCursor } from "../treeCursorUtils.js";
 import { mapTreeFromCursor, cursorForMapTreeNode } from "../mapTreeCursor.js";
 import { createEmitter } from "../../events/index.js";
+import { TreeChunk } from "../chunked-forest/index.js";
 
 function makeRoot(): MapTree {
 	return {
@@ -129,7 +129,7 @@ export class ObjectForest implements IEditableForest {
 			destroy(detachedField: FieldKey, count: number): void {
 				this.forest.delete(detachedField);
 			},
-			create(content: ProtoNodes, destination: FieldKey): void {
+			create(content: TreeChunk, destination: FieldKey): void {
 				this.forest.add(content, destination);
 			},
 			attach(source: FieldKey, count: number, destination: PlaceIndex): void {
@@ -231,8 +231,8 @@ export class ObjectForest implements IEditableForest {
 		return range;
 	}
 
-	private add(nodes: Iterable<ITreeCursor>, key: FieldKey): void {
-		const field: ObjectField = Array.from(nodes, mapTreeFromCursor);
+	private add(nodes: TreeChunk, key: FieldKey): void {
+		const field: ObjectField = mapCursorField(nodes.cursor(), mapTreeFromCursor);
 		this.addFieldAsDetached(field, key);
 	}
 

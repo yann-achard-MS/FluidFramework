@@ -33,7 +33,6 @@ export {
 export {
 	ProtoNodes,
 	Root as DeltaRoot,
-	ProtoNode as DeltaProtoNode,
 	Mark as DeltaMark,
 	DetachedNodeId as DeltaDetachedNodeId,
 	FieldMap as DeltaFieldMap,

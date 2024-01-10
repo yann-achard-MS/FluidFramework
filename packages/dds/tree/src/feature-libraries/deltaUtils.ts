@@ -40,7 +40,7 @@ export function mapRootChanges<TIn, TOut>(
 	if (root.build !== undefined) {
 		out.build = root.build.map(({ id, trees }) => ({
 			id,
-			trees: trees.map(func),
+			trees: func(trees),
 		}));
 	}
 	return out;

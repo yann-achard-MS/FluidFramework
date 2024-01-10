@@ -936,12 +936,9 @@ export function intoDelta(
 		const builds: DeltaDetachedNodeBuild[] = [];
 		forEachInNestedMap(change.builds, (chunk, major, minor) => {
 			if (chunk.topLevelLength > 0) {
-				const trees = mapCursorField(chunk.cursor(), (c) =>
-					cursorForMapTreeNode(mapTreeFromCursor(c)),
-				);
 				builds.push({
 					id: makeDetachedNodeId(major ?? revision, minor),
-					trees,
+					trees: chunk,
 				});
 			}
 		});

@@ -32,7 +32,6 @@ export {
 	JsonableTree,
 	ProtoNodes,
 	DeltaRoot,
-	DeltaProtoNode,
 	DeltaMark,
 	DeltaDetachedNodeId,
 	DeltaFieldMap,

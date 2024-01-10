@@ -34,7 +34,7 @@ import { idAllocatorFromMaxId } from "../../util/index.js";
 import { ICodecOptions, noopValidator } from "../../codec/index.js";
 import { FieldBatchEncodingContext, FieldBatchCodec } from "../chunked-forest/index.js";
 // eslint-disable-next-line import/no-internal-modules
-import { chunkField, defaultChunkPolicy } from "../chunked-forest/chunkTree.js";
+import { chunkField, chunkFieldSingle, defaultChunkPolicy } from "../chunked-forest/chunkTree.js";
 // eslint-disable-next-line import/no-internal-modules
 import { DetachedNodeBuild } from "../../core/tree/delta.js";
 import { Format } from "./format.js";
@@ -139,19 +139,16 @@ export class ForestSummarizer implements Summarizable {
 			const fieldChanges: [FieldKey, DeltaFieldChanges][] = [];
 			const build: DetachedNodeBuild[] = [];
 			for (const [fieldKey, field] of fields) {
-				const chunked = chunkField(field, defaultChunkPolicy);
-				const nodeCursors = chunked.flatMap((chunk) =>
-					mapCursorField(chunk.cursor(), (cursor) => cursor.fork()),
-				);
-				const buildId = { minor: allocator.allocate(nodeCursors.length) };
+				const chunked = chunkFieldSingle(field, defaultChunkPolicy);
+				const buildId = { minor: allocator.allocate(chunked.topLevelLength) };
 				build.push({
 					id: buildId,
-					trees: nodeCursors,
+					trees: chunked,
 				});
 				fieldChanges.push([
 					fieldKey,
 					{
-						local: [{ count: nodeCursors.length, attach: buildId }],
+						local: [{ count: chunked.topLevelLength, attach: buildId }],
 					},
 				]);
 			}

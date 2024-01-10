@@ -88,7 +88,6 @@ export {
 	getDetachedFieldContainingPath,
 	aboveRootPlaceholder,
 	DeltaRoot,
-	DeltaProtoNode,
 	DeltaMark,
 	DeltaDetachedNodeId,
 	DeltaFieldMap,

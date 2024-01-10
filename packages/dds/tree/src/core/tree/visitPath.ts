@@ -121,5 +121,5 @@ export interface PathVisitor {
 	 *
 	 * @deprecated Migrate to using the other events.
 	 */
-	onInsert(path: UpPath, content: ProtoNodes): void;
+	onInsert(path: UpPath): void;
 }

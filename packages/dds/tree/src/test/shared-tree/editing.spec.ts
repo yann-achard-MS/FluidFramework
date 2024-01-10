@@ -18,7 +18,6 @@ import {
 	PlaceUpPath,
 	AnchorNode,
 	EmptyKey,
-	ProtoNodes,
 	TreeNavigationResult,
 } from "../../core/index.js";
 import { JsonCompatible, brand, makeArray } from "../../util/index.js";
@@ -1708,7 +1707,7 @@ describe("Editing", () => {
 			let valueAfterInsert: string | undefined;
 			const pathVisitor: PathVisitor = {
 				onRemove(path: UpPath, count: number): void {},
-				onInsert(path: UpPath, content: ProtoNodes): void {},
+				onInsert(path: UpPath): void {},
 				afterCreate(content: DetachedRangeUpPath): void {},
 				beforeReplace(
 					newContent: DetachedRangeUpPath,
@@ -2332,7 +2331,7 @@ describe("Editing", () => {
 			let valueAfterInsert: string | undefined;
 			const pathVisitor: PathVisitor = {
 				onRemove(path: UpPath, count: number): void {},
-				onInsert(path: UpPath, content: ProtoNodes): void {},
+				onInsert(path: UpPath): void {},
 				afterCreate(content: DetachedRangeUpPath): void {},
 				beforeReplace(
 					newContent: DetachedRangeUpPath,

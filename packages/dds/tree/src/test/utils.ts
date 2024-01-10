@@ -73,6 +73,7 @@ import {
 	mapRootChanges,
 	intoStoredSchema,
 	cursorForMapTreeNode,
+	TreeChunk,
 } from "../feature-libraries/index.js";
 import {
 	moveToDetachedField,
@@ -506,8 +507,8 @@ export function assertDeltaFieldMapEqual(a: DeltaFieldMap, b: DeltaFieldMap): vo
  * Assert two Delta are equal, handling cursors.
  */
 export function assertDeltaEqual(a: DeltaRoot, b: DeltaRoot): void {
-	const aTree = mapRootChanges(a, mapTreeFromCursor);
-	const bTree = mapRootChanges(b, mapTreeFromCursor);
+	const aTree = mapRootChanges(a, (chunk: TreeChunk) => mapTreeFromCursor(chunk.cursor()));
+	const bTree = mapRootChanges(b, (chunk: TreeChunk) => mapTreeFromCursor(chunk.cursor()));
 	assert.deepStrictEqual(aTree, bTree);
 }
 

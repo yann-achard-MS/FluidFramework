@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import { TreeChunk } from "../../feature-libraries/index.js";
 import { Mutable } from "../../util/index.js";
 import { FieldKey } from "../schema-stored/index.js";
 import { ITreeCursorSynchronous } from "./cursor.js";
@@ -33,8 +34,8 @@ export function isEmptyFieldChanges(fieldChanges: FieldChanges): boolean {
 	);
 }
 
-export function deltaForRootInitialization(content: readonly ITreeCursorSynchronous[]): Root {
-	if (content.length === 0) {
+export function deltaForRootInitialization(content: TreeChunk): Root {
+	if (content.topLevelLength === 0) {
 		return emptyDelta;
 	}
 	const buildId = { minor: 0 };
@@ -44,7 +45,7 @@ export function deltaForRootInitialization(content: readonly ITreeCursorSynchron
 			[
 				rootFieldKey,
 				{
-					local: [{ count: content.length, attach: buildId }],
+					local: [{ count: content.topLevelLength, attach: buildId }],
 				},
 			],
 		]),

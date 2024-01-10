@@ -402,7 +402,7 @@ function processBuilds(
 ) {
 	if (builds !== undefined) {
 		for (const { id, trees } of builds) {
-			for (let i = 0; i < trees.length; i += 1) {
+			for (let i = 0; i < trees.topLevelLength; i += 1) {
 				const offsettedId = offsetDetachId(id, i);
 				let root = config.detachedFieldIndex.tryGetEntry(offsettedId);
 				// Tree building is idempotent. We can therefore ignore build instructions for trees that already exist.

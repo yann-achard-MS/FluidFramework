@@ -10,9 +10,9 @@ import {
 	FieldKey,
 	PathVisitor,
 	PlaceUpPath,
-	ProtoNodes,
 	RangeUpPath,
 	UpPath,
+	UpPathDefault,
 	topDownPath,
 } from "../core/index.js";
 import { Events, ISubscribable } from "../events/index.js";
@@ -291,7 +291,6 @@ export interface RemoveBindingContext extends BindingContext {
 export interface InsertBindingContext extends BindingContext {
 	readonly type: typeof BindingType.Insert;
 	readonly path: UpPath;
-	readonly content: ProtoNodes;
 }
 
 /**
@@ -341,14 +340,11 @@ abstract class AbstractPathVisitor implements PathVisitor {
 	public beforeDestroy(content: DetachedRangeUpPath): void {}
 	public beforeAttach(source: DetachedRangeUpPath, destination: PlaceUpPath): void {}
 	public afterAttach(source: DetachedPlaceUpPath, destination: RangeUpPath): void {
-		this.onInsert(
-			{
-				parent: destination.parent,
-				parentField: destination.field,
-				parentIndex: destination.start,
-			},
-			this.getContent(destination),
-		);
+		this.onInsert({
+			parent: destination.parent,
+			parentField: destination.field,
+			parentIndex: destination.start,
+		});
 	}
 	public beforeDetach(source: RangeUpPath, destination: DetachedPlaceUpPath): void {}
 	public afterDetach(source: PlaceUpPath, destination: DetachedRangeUpPath): void {
@@ -379,22 +375,15 @@ abstract class AbstractPathVisitor implements PathVisitor {
 			},
 			oldContent.end - oldContent.start,
 		);
-		this.onInsert(
-			{
-				parent: newContent.parent,
-				parentField: newContent.field,
-				parentIndex: newContent.start,
-			},
-			this.getContent(newContent),
-		);
-	}
-	protected getContent(range: RangeUpPath): ProtoNodes {
-		// TODO: either lookup the content in the forest or stop providing the content in the events
-		return [];
+		this.onInsert({
+			parent: newContent.parent,
+			parentField: newContent.field,
+			parentIndex: newContent.start,
+		});
 	}
 
 	public abstract onRemove(path: UpPath, count: number): void;
-	public abstract onInsert(path: UpPath, content: ProtoNodes): void;
+	public abstract onInsert(path: UpPath): void;
 	public registerListener(
 		contextType: BindingContextType,
 		policies: BindPolicy[],
@@ -576,9 +565,8 @@ class DirectPathVisitor extends AbstractPathVisitor {
 		});
 	}
 
-	public onInsert(path: UpPath, content: ProtoNodes): void {
+	public onInsert(path: UpPathDefault): void {
 		this.processRegisteredPaths(path, BindingType.Insert, {
-			content,
 			type: BindingType.Insert,
 		});
 	}
@@ -607,7 +595,7 @@ class InvalidatingPathVisitor
 		this.processRegisteredPaths(path);
 	}
 
-	public onInsert(path: UpPath, content: ProtoNodes): void {
+	public onInsert(path: UpPath): void {
 		this.processRegisteredPaths(path);
 	}
 
@@ -651,13 +639,12 @@ class BufferingPathVisitor extends AbstractPathVisitor implements Flushable<Buff
 		}
 	}
 
-	public onInsert(path: UpPath, content: ProtoNodes): void {
+	public onInsert(path: UpPath): void {
 		const current = toDownPath(path);
 		const listeners = this.getListeners(BindingType.Insert, current);
 		if (listeners !== undefined) {
 			this.eventQueue.push({
 				path,
-				content,
 				type: BindingType.Insert,
 				listeners,
 			});

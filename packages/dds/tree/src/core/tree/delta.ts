@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import { TreeChunk } from "../../feature-libraries/index.js";
 import { RevisionTag } from "../rebase/index.js";
 import { FieldKey } from "../schema-stored/index.js";
 import { ITreeCursorSynchronous } from "./cursor.js";
@@ -70,7 +71,7 @@ import { ITreeCursorSynchronous } from "./cursor.js";
  * Immutable, therefore safe to retain for async processing.
  * @internal
  */
-export interface Root<TTree = ProtoNode> {
+export interface Root<TChunk = ProtoNodes> {
 	/**
 	 * Changes to apply to the root fields.
 	 */
@@ -83,7 +84,7 @@ export interface Root<TTree = ProtoNode> {
 	 * For example, if one wishes to build a tree which is being renamed from ID A to ID B,
 	 * then the build should be listed under ID A.
 	 */
-	readonly build?: readonly DetachedNodeBuild<TTree>[];
+	readonly build?: readonly DetachedNodeBuild<TChunk>[];
 	/**
 	 * New detached nodes to be destroyed.
 	 * The ordering has no significance.
@@ -96,27 +97,10 @@ export interface Root<TTree = ProtoNode> {
 }
 
 /**
- * The default representation for inserted content.
- *
- * TODO:
- * Ownership and lifetime of data referenced by this cursor is unclear,
- * so it is a poor abstraction for this use-case which needs to hold onto the data in a non-exclusive (readonly) way.
- * Cursors can be one supported way to input data, but aren't a good storage format.
+ * The default representation for a chunk (sub-sequence) of inserted content.
  * @internal
  */
-export type ProtoNode = ITreeCursorSynchronous;
-
-/**
- * The default representation a chunk (sub-sequence) of inserted content.
- *
- * TODO:
- * See issue TODO with ProtoNode.
- * Additionally, Cursors support sequences, so if using cursors, there are better ways to handle this than an array of cursors,
- * like using a cursor over all the content (starting in fields mode).
- * Long term something like TreeChunk should probably be used here.
- * @internal
- */
-export type ProtoNodes = readonly ProtoNode[];
+export type ProtoNodes = TreeChunk;
 
 /**
  * Represents a change being made to a part of the document tree.
@@ -178,9 +162,9 @@ export interface DetachedNodeChanges {
  * then this build is ignored in favor of the existing tree.
  * @internal
  */
-export interface DetachedNodeBuild<TTree = ProtoNode> {
+export interface DetachedNodeBuild<TChunk = ProtoNodes> {
 	readonly id: DetachedNodeId;
-	readonly trees: readonly TTree[];
+	readonly trees: TChunk;
 }
 
 /**

@@ -917,7 +917,7 @@ export class AnchorSet implements ISubscribable<AnchorSetRootEvents>, AnchorLoca
 						const rangePath: DetachedRangeUpPath = brand({
 							field: destination,
 							start: 0,
-							end: content.length,
+							end: content.topLevelLength,
 						});
 						pathVisitor.afterCreate(rangePath);
 					}

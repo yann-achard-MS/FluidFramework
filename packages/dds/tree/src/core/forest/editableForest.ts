@@ -15,8 +15,15 @@ import {
 	makeDetachedFieldIndex,
 	deltaForRootInitialization,
 	DeltaRoot,
+	MapTree,
 } from "../tree/index.js";
 import { IForestSubscription, ITreeSubscriptionCursor } from "./forest.js";
+import {
+	chunkFieldSingle,
+	cursorForMapTreeField,
+	defaultChunkPolicy,
+	mapTreeFromCursor,
+} from "../../feature-libraries/index.js";
 
 /**
  * Editing APIs.
@@ -49,7 +56,10 @@ export function initializeForest(
 	revisionTagCodec: RevisionTagCodec,
 ): void {
 	assert(forest.isEmpty, 0x747 /* forest must be empty */);
-	const delta: DeltaRoot = deltaForRootInitialization(content);
+	const mapTrees: MapTree[] = content.map((cursor) => mapTreeFromCursor(cursor));
+	const fieldCursor = cursorForMapTreeField(mapTrees);
+	const chunk = chunkFieldSingle(fieldCursor, defaultChunkPolicy);
+	const delta: DeltaRoot = deltaForRootInitialization(chunk);
 	applyDelta(delta, forest, makeDetachedFieldIndex("init", revisionTagCodec));
 }
 
