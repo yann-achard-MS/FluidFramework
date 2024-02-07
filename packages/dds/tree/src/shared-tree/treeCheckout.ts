@@ -25,6 +25,8 @@ import {
 	JsonableTree,
 	RevisionTagCodec,
 	DeltaVisitor,
+	TaggedChange,
+	RevisionTag,
 } from "../core/index.js";
 import { HasListeners, IEmitter, ISubscribable, createEmitter } from "../events/index.js";
 import {
@@ -173,6 +175,10 @@ export interface ITreeCheckout extends AnchorLocator {
 	 * This is only intended for use in testing and exceptional code paths: it is not performant.
 	 */
 	getRemovedRoots(): [string | number | undefined, number, JsonableTree][];
+
+	// applyChange(change: SharedTreeChange, revision: RevisionTag): void;
+
+	// enrichNewTipChange(change: TaggedChange<SharedTreeChange>): SharedTreeChange;
 }
 
 /**
@@ -382,6 +388,11 @@ export class TreeCheckout implements ITreeCheckoutFork {
 		});
 	}
 
+	public enrichNewTipChange(change: TaggedChange<SharedTreeChange>): SharedTreeChange {
+		// TODO:AB4952 Add repair data refreshers
+		return change.change;
+	}
+
 	private withCombinedVisitor(fn: (visitor: DeltaVisitor) => void): void {
 		const anchorVisitor = this.forest.anchors.acquireVisitor();
 		const combinedVisitor = combineVisitors(
@@ -433,6 +444,10 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			this.revisionTagCodec,
 			this.removedRoots.clone(),
 		);
+	}
+
+	public applyChange(change: SharedTreeChange, revision: RevisionTag): void {
+		this.branch.apply(change, revision);
 	}
 
 	public rebase(view: TreeCheckout): void {

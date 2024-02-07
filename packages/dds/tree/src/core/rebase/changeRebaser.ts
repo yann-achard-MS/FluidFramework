@@ -44,7 +44,7 @@ export interface ChangeRebaser<TChangeset> {
 	 * Compose a collection of changesets into a single one.
 	 * See {@link ChangeRebaser} for requirements.
 	 */
-	compose(changes: TaggedChange<TChangeset>[]): TChangeset;
+	compose(changes: readonly TaggedChange<TChangeset>[]): TChangeset;
 
 	/**
 	 * @param changes - The changes to invert.

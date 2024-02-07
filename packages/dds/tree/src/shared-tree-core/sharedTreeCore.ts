@@ -24,7 +24,7 @@ import { ChangeFamily, ChangeFamilyEditor, GraphCommit, RevisionTagCodec } from 
 import { brand, JsonCompatibleReadOnly } from "../util/index.js";
 import { SharedTreeBranch, getChangeReplaceType } from "./branch.js";
 import { EditManagerSummarizer } from "./editManagerSummarizer.js";
-import { EditManager, minimumPossibleSequenceNumber } from "./editManager.js";
+import { ChangeEnricher, EditManager, minimumPossibleSequenceNumber } from "./editManager.js";
 import { SeqNumber } from "./editManagerFormat.js";
 import { DecodedMessage } from "./messageTypes.js";
 import { makeMessageCodec } from "./messageCodecs.js";
@@ -93,6 +93,7 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 		runtime: IFluidDataStoreRuntime,
 		attributes: IChannelAttributes,
 		telemetryContextPrefix: string,
+		enrichNewChange: ChangeEnricher<TChange>,
 	) {
 		super(id, runtime, attributes, telemetryContextPrefix);
 
@@ -108,7 +109,12 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 		 * This is used rather than the Fluid client ID because the Fluid client ID is not stable across reconnections.
 		 */
 		const localSessionId = runtime.idCompressor.localSessionId;
-		this.editManager = new EditManager(changeFamily, localSessionId, mintRevisionTag);
+		this.editManager = new EditManager(
+			changeFamily,
+			localSessionId,
+			mintRevisionTag,
+			enrichNewChange,
+		);
 		this.editManager.localBranch.on("afterChange", (args) => {
 			if (this.getLocalBranch().isTransacting()) {
 				// Avoid submitting ops for changes that are part of a transaction.
@@ -254,7 +260,7 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 		const {
 			commit: { revision },
 		} = this.messageCodec.decode(content);
-		const [commit] = this.editManager.findLocalCommit(revision);
+		const commit = this.editManager.refreshEnrichments(revision);
 		this.submitCommit(commit, true);
 	}
 

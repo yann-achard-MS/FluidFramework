@@ -25,8 +25,10 @@ import {
 	rootFieldKey,
 	schemaDataIsEmpty,
 	RevisionTagCodec,
+	TaggedChange,
+	RevisionTag,
 } from "../core/index.js";
-import { SharedTreeCore } from "../shared-tree-core/index.js";
+import { ChangeEnricher, SharedTreeCore } from "../shared-tree-core/index.js";
 import {
 	defaultSchemaPolicy,
 	ForestSummarizer,
@@ -246,6 +248,22 @@ export class SharedTree
 			runtime,
 			attributes,
 			telemetryContextPrefix,
+			{
+				enrichNewTipChange: (
+					taggedChange: TaggedChange<SharedTreeChange>,
+				): SharedTreeChange => {
+					return this.checkout.enrichNewTipChange(taggedChange);
+				},
+				applyTipChange: (): void => {
+					assert(false, "The top-level change enricher should not be mutated");
+				},
+				fork: (): ChangeEnricher<SharedTreeChange> => {
+					return new ForkedSharedTreeChangeEnricher(this.checkout.fork());
+				},
+				dispose: () => {
+					// The resources for this fork will be disposed when the SharedTree is disposed.
+				},
+			},
 		);
 		this._events = createEmitter<CheckoutEvents>();
 		const localBranch = this.getLocalBranch();
@@ -458,5 +476,25 @@ export class SharedTreeFactory implements IChannelFactory {
 		const tree = new SharedTree(id, runtime, this.attributes, this.options, "SharedTree");
 		tree.initializeLocal();
 		return tree;
+	}
+}
+
+class ForkedSharedTreeChangeEnricher implements ChangeEnricher<SharedTreeChange> {
+	public constructor(private readonly checkout: TreeCheckout) {}
+
+	public enrichNewTipChange(taggedChange: TaggedChange<SharedTreeChange>): SharedTreeChange {
+		return this.checkout.enrichNewTipChange(taggedChange);
+	}
+
+	public applyTipChange(change: SharedTreeChange, revision: RevisionTag): void {
+		this.checkout.applyChange(change, revision);
+	}
+
+	public fork(): ChangeEnricher<SharedTreeChange> {
+		return new ForkedSharedTreeChangeEnricher(this.checkout.fork());
+	}
+
+	public dispose(): void {
+		this.checkout.dispose();
 	}
 }

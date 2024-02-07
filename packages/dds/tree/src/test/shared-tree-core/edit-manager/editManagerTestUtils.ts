@@ -10,6 +10,8 @@ import {
 	ChangeFamilyEditor,
 	DeltaRoot,
 	emptyDelta,
+	TaggedChange,
+	RevisionTag,
 } from "../../../core/index.js";
 import {
 	TestChangeFamily,
@@ -17,7 +19,7 @@ import {
 	testChangeFamilyFactory,
 	asDelta,
 } from "../../testChange.js";
-import { Commit, EditManager } from "../../../shared-tree-core/index.js";
+import { ChangeEnricher, Commit, EditManager } from "../../../shared-tree-core/index.js";
 import { RecursiveReadonly, brand, makeArray } from "../../../util/index.js";
 import { mintRevisionTag } from "../../utils.js";
 export type TestEditManager = EditManager<ChangeFamilyEditor, TestChange, TestChangeFamily>;
@@ -53,7 +55,7 @@ export function editManagerFactory<TChange = TestChange>(
 		ChangeFamilyEditor,
 		TChange,
 		ChangeFamily<ChangeFamilyEditor, TChange>
-	>(family, options.sessionId ?? ("0" as SessionId), genId);
+	>(family, options.sessionId ?? ("0" as SessionId), genId, new NoOpChangeEnricher());
 
 	if (autoDiscardRevertibles === true) {
 		// by default, discard revertibles in the edit manager tests
@@ -437,4 +439,18 @@ export function addSequencedChange(
 	editManager.addSequencedChange(...args);
 	offChange();
 	return delta;
+}
+
+export class NoOpChangeEnricher<TChange> implements ChangeEnricher<TChange> {
+	public enrichNewTipChange(change: TaggedChange<TChange>): TChange {
+		return change.change;
+	}
+
+	public applyTipChange(change: TChange, revision: RevisionTag): void {}
+
+	public fork(): ChangeEnricher<TChange> {
+		return new NoOpChangeEnricher();
+	}
+
+	public dispose(): void {}
 }

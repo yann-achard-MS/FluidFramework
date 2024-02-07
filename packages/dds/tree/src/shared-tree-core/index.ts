@@ -21,7 +21,12 @@ export { TransactionStack } from "./transactionStack.js";
 
 export { makeEditManagerCodec } from "./editManagerCodecs.js";
 export { EditManagerSummarizer } from "./editManagerSummarizer.js";
-export { EditManager, minimumPossibleSequenceNumber, SummaryData } from "./editManager.js";
+export {
+	EditManager,
+	ChangeEnricher,
+	minimumPossibleSequenceNumber,
+	SummaryData,
+} from "./editManager.js";
 export {
 	Commit,
 	SeqNumber,

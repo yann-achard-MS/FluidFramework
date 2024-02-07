@@ -24,6 +24,7 @@ import {
 	rebaseChange,
 	Revertible,
 	RevisionTag,
+	TaggedChange,
 } from "../core/index.js";
 import { getChangeReplaceType, onForkTransitive, SharedTreeBranch } from "./branch.js";
 import {
@@ -45,6 +46,24 @@ export const minimumPossibleSequenceNumber: SeqNumber = brand(Number.MIN_SAFE_IN
 const minimumPossibleSequenceId: SequenceId = {
 	sequenceNumber: minimumPossibleSequenceNumber,
 };
+
+/**
+ * A component responsible for enriching commits with refreshers.
+ */
+export interface ChangeEnricher<TChange> {
+	/**
+	 * Enriches a change with adequate refreshers.
+	 * @param change - the change to enrich.
+	 * This change but be applicable to, but have been applied to, the tip state.
+	 * @returns the enriched change. Possibly the same as the one passed in.
+	 */
+	enrichNewTipChange(change: TaggedChange<TChange>): TChange;
+
+	applyTipChange(change: TChange, revision: RevisionTag): void;
+
+	fork(): ChangeEnricher<TChange>;
+	dispose(): void;
+}
 
 /**
  * Represents a local branch of a document and interprets the effect on the document of adding sequenced changes,
@@ -128,6 +147,19 @@ export class EditManager<
 	private readonly localCommits: GraphCommit<TChangeset>[] = [];
 
 	/**
+	 * The most recent local commit (i.e., sent to the service but not yet sequenced) that has undergone
+	 * rebasing but whose enrichments have not been refreshed.
+	 *
+	 * Undefined when *any* of the following is true:
+	 * - There are no in-flight commits (i.e., no local commits have been made or they have all been sequenced)
+	 * - None of the in-flight commits have been rebased
+	 * - In-flight commits that have been rebased have all had their enrichments refreshed
+	 */
+	private latestInFlightCommitWithStaleEnrichments?: GraphCommit<TChangeset>;
+
+	private enricherBeforeTransaction?: ChangeEnricher<TChangeset>;
+
+	/**
 	 * @param changeFamily - the change family of changes on the trunk and local branch
 	 * @param localSessionId - the id of the local session that will be used for local commits
 	 */
@@ -135,6 +167,7 @@ export class EditManager<
 		public readonly changeFamily: TChangeFamily,
 		public readonly localSessionId: SessionId,
 		private readonly mintRevisionTag: () => RevisionTag,
+		private readonly enricherForLocalBranch: ChangeEnricher<TChangeset>,
 	) {
 		this.trunkBase = {
 			revision: "root",
@@ -146,6 +179,51 @@ export class EditManager<
 			this.trunk.getHead(),
 			changeFamily,
 			mintRevisionTag,
+			{
+				enrichNewCommits: (
+					newCommits: readonly GraphCommit<TChangeset>[],
+				): readonly GraphCommit<TChangeset>[] => {
+					if (this.enricherBeforeTransaction !== undefined) {
+						// A transaction is under way. No need to enrich the commits since they are not submitted.
+						return newCommits;
+					}
+					const enriched: GraphCommit<TChangeset>[] = [];
+					if (newCommits.length > 0) {
+						enriched.push({
+							...newCommits[0],
+							change: this.enricherForLocalBranch.enrichNewTipChange(newCommits[0]),
+						});
+					}
+					if (newCommits.length > 1) {
+						const fork = this.enricherForLocalBranch.fork();
+						for (let iCommit = 1; iCommit < newCommits.length; iCommit += 1) {
+							const priorCommit = newCommits[iCommit - 1];
+							fork.applyTipChange(priorCommit.change, priorCommit.revision);
+							enriched.push({
+								...newCommits[iCommit],
+								change: this.enricherForLocalBranch.enrichNewTipChange(
+									newCommits[iCommit],
+								),
+							});
+						}
+						fork.dispose();
+					}
+					return enriched;
+				},
+
+				enrichTransactionCommit: (
+					transaction: GraphCommit<TChangeset>,
+				): GraphCommit<TChangeset> => {
+					assert(
+						this.enricherBeforeTransaction !== undefined,
+						"Expected transaction to be under way",
+					);
+					const enriched = this.enricherBeforeTransaction.enrichNewTipChange(transaction);
+					this.enricherBeforeTransaction.dispose();
+					delete this.enricherBeforeTransaction;
+					return { ...transaction, change: enriched };
+				},
+			},
 		);
 
 		this.localBranch.on("afterChange", (event) => {
@@ -162,6 +240,25 @@ export class EditManager<
 			}
 		});
 		this.localBranch.on("revertibleDisposed", this.onRevertibleDisposed.bind(this));
+		this.localBranch.on("startTransaction", (isOuterTransaction: boolean) => {
+			if (isOuterTransaction) {
+				assert(
+					this.enricherBeforeTransaction === undefined,
+					"Outer transaction already should not be already under way",
+				);
+				this.enricherBeforeTransaction = this.enricherForLocalBranch.fork();
+			}
+		});
+		this.localBranch.on("abortTransaction", (isOuterTransaction: boolean) => {
+			if (isOuterTransaction) {
+				assert(
+					this.enricherBeforeTransaction !== undefined,
+					"Expected transaction to be under way",
+				);
+				this.enricherBeforeTransaction.dispose();
+				delete this.enricherBeforeTransaction;
+			}
+		});
 
 		// Track all forks of the local branch for purposes of trunk eviction. Unlike the local branch, they have
 		// an unknown lifetime and rebase frequency, so we can not make any assumptions about which trunk commits
@@ -572,6 +669,52 @@ export class EditManager<
 		return Math.max(max, localPath.length);
 	}
 
+	/**
+	 * Forces a refresh of the enrichments on the commit with with the given revision.
+	 *
+	 * @param revision - The revision of the commit to refresh the enrichments of.
+	 * @returns The refreshed commit.
+	 */
+	public refreshEnrichments(revision: RevisionTag): GraphCommit<TChangeset> {
+		const firstRefresheeIndex = this.localCommits.findIndex((c) => c.revision === revision);
+		assert(firstRefresheeIndex !== -1, "Expected revision to be on the local branch");
+		const firstRefreshee = this.localCommits[firstRefresheeIndex];
+
+		// None of the commits on the local branch have undergone rebasing. They therefore do not require refreshing.
+		if (this.latestInFlightCommitWithStaleEnrichments === undefined) {
+			return firstRefreshee;
+		}
+
+		const refreshTail = this.localCommits.slice(firstRefresheeIndex);
+		const lastRefresheeIndex = refreshTail.findIndex(
+			(c) => c === this.latestInFlightCommitWithStaleEnrichments,
+		);
+		if (lastRefresheeIndex === -1) {
+			// None of the commits in the refresh trail have stale enrichments. They therefore do not require refreshing.
+			return firstRefreshee;
+		}
+
+		const fork = this.enricherForLocalBranch.fork();
+		for (let iCommit = refreshTail.length - 1; iCommit >= 0; iCommit -= 1) {
+			const commit = refreshTail[iCommit];
+			fork.applyTipChange(
+				this.changeFamily.rebaser.invert(commit, true),
+				this.mintRevisionTag(),
+			);
+			if (iCommit <= lastRefresheeIndex) {
+				const refreshed = fork.enrichNewTipChange(commit);
+				// This is gross because this commit is being mutated despite being observable by other entities,
+				// most notably the branch on which it belongs.
+				(commit as Mutable<GraphCommit<TChangeset>>).change = refreshed;
+			}
+		}
+		fork.dispose();
+
+		// All rebased in-flight commits have now been refreshed
+		delete this.latestInFlightCommitWithStaleEnrichments;
+		return refreshTail[0];
+	}
+
 	public addSequencedChange(
 		newCommit: Commit<TChangeset>,
 		sequenceNumber: SeqNumber,
@@ -601,10 +744,24 @@ export class EditManager<
 				0x6b5 /* Received a sequenced change from the local session despite having no local changes */,
 			);
 
+			if (firstLocalCommit === this.latestInFlightCommitWithStaleEnrichments) {
+				// None of the remaining local commits (if any) have undergone rebasing
+				delete this.latestInFlightCommitWithStaleEnrichments;
+			}
+
+			// TODO#AB4952: Filter stale enrichments from commit upon reception. This is necessary because an existing
+			// local branch may need to apply this commit as part of a rebase. When it does, the commit must not
+			// contain enrichments that ought to have been removed. It also makes the trunk of this peer more similar to
+			// the trunk of other peers since they will perform this filtering.
+
 			// The first local branch commit is already rebased over the trunk, so we can push it directly to the trunk.
 			this.pushGraphCommitToTrunk(sequenceId, firstLocalCommit, this.localSessionId);
 			this.fastForwardBranches(headTrunkCommit, sequenceId);
 			return;
+		}
+
+		if (this.localCommits.length > 0) {
+			this.latestInFlightCommitWithStaleEnrichments = this.localBranch.getHead();
 		}
 
 		// Get the revision that the remote change is based on
@@ -632,6 +789,8 @@ export class EditManager<
 				this.trunk.getHead(),
 				this.mintRevisionTag,
 			);
+
+			// TODO#AB4952: Filter stale enrichments from commit before applying it
 
 			peerLocalBranch.apply(newCommit.change, newCommit.revision);
 			this.pushCommitToTrunk(sequenceId, {

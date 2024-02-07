@@ -14,6 +14,8 @@ import {
 } from "../../feature-libraries/index.js";
 import { testRevisionTagCodec } from "../utils.js";
 import { ICodecOptions } from "../../codec/index.js";
+// eslint-disable-next-line import/no-internal-modules
+import { NoOpChangeEnricher } from "./edit-manager/editManagerTestUtils.js";
 
 /**
  * A `SharedTreeCore` with
@@ -45,6 +47,7 @@ export class TestSharedTreeCore extends SharedTreeCore<DefaultEditBuilder, Defau
 			runtime,
 			TestSharedTreeCore.attributes,
 			id,
+			new NoOpChangeEnricher(),
 		);
 	}
 

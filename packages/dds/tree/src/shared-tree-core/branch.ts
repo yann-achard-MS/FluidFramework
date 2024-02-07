@@ -126,10 +126,36 @@ export interface SharedTreeBranchEvents<TEditor extends ChangeFamilyEditor, TCha
 	 */
 	fork(fork: SharedTreeBranch<TEditor, TChange>): void;
 
+	startTransaction(isOuterTransaction: boolean): void;
+	commitTransaction(isOuterTransaction: boolean): void;
+	abortTransaction(isOuterTransaction: boolean): void;
+
 	/**
 	 * Fired after this branch is disposed
 	 */
 	dispose(): void;
+}
+
+/**
+ * A component responsible for enriching commits with refreshers.
+ */
+export interface BranchCommitEnricherPolicy<TChange> {
+	/**
+	 * Enriches a commit with adequate refreshers.
+	 * @param newCommits - the commits to enrich. These have not yet been applied to the tip state.
+	 * @returns the enriched commits. Possibly the same as the one passed in.
+	 * Must match 1:1 with the commits in `newCommits`.
+	 */
+	enrichNewCommits(newCommits: readonly GraphCommit<TChange>[]): readonly GraphCommit<TChange>[];
+
+	/**
+	 * Updates the refreshers on a commit that is replacing the in-progress outer transaction.
+	 * The transaction is guaranteed to be committed after this method is called.
+	 *
+	 * @param transaction - the commit whose refreshers need to be updated.
+	 * @returns A commit with updated refreshers. Possibly the same commit as the one passed in.
+	 */
+	enrichTransactionCommit(transaction: GraphCommit<TChange>): GraphCommit<TChange>;
 }
 
 /**
@@ -176,6 +202,7 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> exten
 		private head: GraphCommit<TChange>,
 		public readonly changeFamily: ChangeFamily<TEditor, TChange>,
 		private readonly mintRevisionTag: () => RevisionTag,
+		private readonly refresherPolicy?: BranchCommitEnricherPolicy<TChange>,
 	) {
 		super();
 		this.editor = this.changeFamily.buildEditor((change) =>
@@ -212,27 +239,30 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> exten
 	): [change: TChange, newCommit: GraphCommit<TChange>] {
 		this.assertNotDisposed();
 
-		const newHead = mintCommit(this.head, {
+		const notEnrichedCommit = mintCommit(this.head, {
 			revision,
 			change,
 		});
 
+		const enrichedCommit =
+			this.refresherPolicy?.enrichNewCommits([notEnrichedCommit])[0] ?? notEnrichedCommit;
+
 		const changeEvent = {
 			type: "append",
-			change: tagChange(change, revision),
-			newCommits: [newHead],
+			change: enrichedCommit,
+			newCommits: [enrichedCommit],
 		} as const;
 
 		this.emit("beforeChange", changeEvent);
-		this.head = newHead;
+		this.head = enrichedCommit;
 
 		// If this is not part of a transaction, emit a revertible event
 		if (!this.isTransacting()) {
-			this.emitNewRevertible(newHead, revertibleKind);
+			this.emitNewRevertible(enrichedCommit, revertibleKind);
 		}
 
 		this.emit("afterChange", changeEvent);
-		return [change, newHead];
+		return [enrichedCommit.change, enrichedCommit];
 	}
 
 	/**
@@ -249,6 +279,7 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> exten
 	 */
 	public startTransaction(): void {
 		this.assertNotDisposed();
+		this.emit("startTransaction", this.transactions.size === 0);
 		const forks = new Set<SharedTreeBranch<TEditor, TChange>>();
 		const onDisposeUnSubscribes: (() => void)[] = [];
 		const onForkUnSubscribe = onForkTransitive(this, (fork) => {
@@ -288,28 +319,32 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> exten
 		const squashedChange = this.changeFamily.rebaser.compose(anonymousCommits);
 		const revision = this.mintRevisionTag();
 
-		const newHead = mintCommit(startCommit, {
+		const notEnrichedCommit = mintCommit(startCommit, {
 			revision,
 			change: squashedChange,
 		});
 
+		const enrichedCommit =
+			this.refresherPolicy?.enrichTransactionCommit(notEnrichedCommit) ?? notEnrichedCommit;
 		const changeEvent = {
 			type: "replace",
 			change: undefined,
 			removedCommits: commits,
-			newCommits: [newHead],
+			newCommits: [enrichedCommit],
 		} as const;
 
 		this.emit("beforeChange", changeEvent);
-		this.head = newHead;
+
+		this.emit("commitTransaction", this.transactions.size === 0);
+		this.head = enrichedCommit;
 
 		// If this transaction is not nested, emit a revertible event
 		if (!this.isTransacting()) {
-			this.emitNewRevertible(newHead, RevertibleKind.Default);
+			this.emitNewRevertible(enrichedCommit, RevertibleKind.Default);
 		}
 
 		this.emit("afterChange", changeEvent);
-		return [commits, newHead];
+		return [commits, enrichedCommit];
 	}
 
 	/**
@@ -345,6 +380,7 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> exten
 		} as const;
 
 		this.emit("beforeChange", changeEvent);
+		this.emit("abortTransaction", this.transactions.size === 0);
 		this.head = startCommit;
 		this.emit("afterChange", changeEvent);
 		return [change, commits];
@@ -562,7 +598,18 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> exten
 
 		// Compute the net change to this branch
 		const sourceCommits = rebaseResult.commits.sourceCommits;
-		const change = this.changeFamily.rebaser.compose(sourceCommits);
+		let enrichedCommits: readonly GraphCommit<TChange>[];
+		if (this.refresherPolicy !== undefined) {
+			enrichedCommits = this.refresherPolicy.enrichNewCommits(sourceCommits);
+			assert(
+				enrichedCommits.length === sourceCommits.length,
+				"Expected 1:1 mapping between source and enriched commits",
+			);
+		} else {
+			enrichedCommits = sourceCommits;
+		}
+
+		const change = this.changeFamily.rebaser.compose(enrichedCommits);
 		const taggedChange = makeAnonChange(change);
 		const changeEvent = {
 			type: "append",
