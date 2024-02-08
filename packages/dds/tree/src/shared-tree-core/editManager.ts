@@ -424,7 +424,7 @@ export class EditManager<
 		);
 	}
 
-	public getSummaryData(): SummaryData<TChangeset> {
+	public getSummaryData(isAttachSummary: boolean): SummaryData<TChangeset> {
 		// The assert below is acceptable at present because summarization only ever occurs on a client with no
 		// local/in-flight changes.
 		// In the future we may wish to relax this constraint. For that to work, the current implementation of
@@ -437,6 +437,14 @@ export class EditManager<
 			this.localBranch.getHead() === this.trunk.getHead(),
 			0x428 /* Clients with local changes cannot be used to generate summaries */,
 		);
+
+		if (isAttachSummary) {
+			assert(
+				this.peerLocalBranches.size === 0,
+				"Cannot produce attach summary once collaboration has started",
+			);
+			return { trunk: [], branches: new Map() };
+		}
 
 		const trunk = getPathFromBase(this.trunk.getHead(), this.trunkBase).map((c) => {
 			const metadata =

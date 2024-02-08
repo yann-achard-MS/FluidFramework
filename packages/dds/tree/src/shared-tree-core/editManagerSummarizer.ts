@@ -72,7 +72,7 @@ export class EditManagerSummarizer<TChangeset> implements Summarizable {
 		trackState?: boolean,
 		telemetryContext?: ITelemetryContext,
 	): ISummaryTreeWithStats {
-		return this.summarizeCore(stringify);
+		return this.summarizeCore(stringify, true);
 	}
 
 	public async summarize(
@@ -81,13 +81,19 @@ export class EditManagerSummarizer<TChangeset> implements Summarizable {
 		trackState?: boolean,
 		telemetryContext?: ITelemetryContext,
 	): Promise<ISummaryTreeWithStats> {
-		return this.summarizeCore(stringify);
+		return this.summarizeCore(stringify, false);
 	}
 
-	private summarizeCore(stringify: SummaryElementStringifier): ISummaryTreeWithStats {
+	private summarizeCore(
+		stringify: SummaryElementStringifier,
+		isAttachSummary: boolean,
+	): ISummaryTreeWithStats {
 		const context: EditManagerEncodingContext =
 			this.schemaAndPolicy !== undefined ? { schema: this.schemaAndPolicy } : {};
-		const jsonCompatible = this.codec.encode(this.editManager.getSummaryData(), context);
+		const jsonCompatible = this.codec.encode(
+			this.editManager.getSummaryData(isAttachSummary),
+			context,
+		);
 		const dataString = stringify(jsonCompatible);
 		return createSingleBlobSummary(stringKey, dataString);
 	}
