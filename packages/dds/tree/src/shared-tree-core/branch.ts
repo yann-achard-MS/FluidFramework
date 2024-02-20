@@ -324,8 +324,9 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> exten
 			change: squashedChange,
 		});
 
-		const enrichedCommit =
-			this.refresherPolicy?.enrichTransactionCommit(notEnrichedCommit) ?? notEnrichedCommit;
+		const enrichedCommit = this.isTransacting()
+			? notEnrichedCommit
+			: this.refresherPolicy?.enrichTransactionCommit(notEnrichedCommit) ?? notEnrichedCommit;
 		const changeEvent = {
 			type: "replace",
 			change: undefined,
