@@ -86,6 +86,13 @@ export class EditManager<
 		new Map();
 
 	/**
+	 * This branch holds the changes made by this client and sent to the ordering service but have not yet been
+	 * confirmed as sequenced changes.
+	 * This branch is automatically kept up to date with (i.e., rebased over) the trunk.
+	 */
+	public readonly inFlightBranch: SharedTreeBranch<TEditor, TChangeset>;
+
+	/**
 	 * This branch holds the changes made by this client which have not yet been confirmed as sequenced changes.
 	 */
 	public readonly localBranch: SharedTreeBranch<TEditor, TChangeset>;
@@ -125,7 +132,7 @@ export class EditManager<
 	 * The list of commits (from oldest to most recent) that are on the local branch but not on the trunk.
 	 * When a local commit is sequenced, the first commit in this list shifted onto the tip of the trunk.
 	 */
-	private readonly localCommits: GraphCommit<TChangeset>[] = [];
+	private readonly inFlightCommits: GraphCommit<TChangeset>[] = [];
 
 	/**
 	 * @param changeFamily - the change family of changes on the trunk and local branch
@@ -135,6 +142,7 @@ export class EditManager<
 		public readonly changeFamily: TChangeFamily,
 		public readonly localSessionId: SessionId,
 		private readonly mintRevisionTag: () => RevisionTag,
+		private readonly submitCommit: (c: GraphCommit<TChangeset>) => void,
 	) {
 		this.trunkBase = {
 			revision: "root",
@@ -142,31 +150,18 @@ export class EditManager<
 		};
 		this.sequenceMap.set(minimumPossibleSequenceId, this.trunkBase);
 		this.trunk = new SharedTreeBranch(this.trunkBase, changeFamily, mintRevisionTag);
-		this.localBranch = new SharedTreeBranch(
+		this.inFlightBranch = new SharedTreeBranch(
 			this.trunk.getHead(),
 			changeFamily,
 			mintRevisionTag,
 		);
-
-		this.localBranch.on("afterChange", (event) => {
-			if (event.type === "append") {
-				for (const commit of event.newCommits) {
-					this.localCommits.push(commit);
-				}
-			} else {
-				this.localCommits.length = 0;
-				findCommonAncestor(
-					[this.localBranch.getHead(), this.localCommits],
-					this.trunk.getHead(),
-				);
-			}
-		});
-		this.localBranch.on("revertibleDisposed", this.onRevertibleDisposed.bind(this));
-
 		// Track all forks of the local branch for purposes of trunk eviction. Unlike the local branch, they have
 		// an unknown lifetime and rebase frequency, so we can not make any assumptions about which trunk commits
 		// they require and therefore we monitor them explicitly.
-		onForkTransitive(this.localBranch, (fork) => this.registerBranch(fork));
+		onForkTransitive(this.inFlightBranch, (fork) => this.registerBranch(fork));
+
+		this.localBranch = this.inFlightBranch.fork();
+		this.localBranch.on("revertibleDisposed", this.onRevertibleDisposed.bind(this));
 	}
 
 	/**
@@ -419,7 +414,7 @@ export class EditManager<
 		return (
 			this.trunk.getHead() === this.trunkBase &&
 			this.peerLocalBranches.size === 0 &&
-			this.localBranch.getHead() === this.trunk.getHead() &&
+			this.inFlightBranch.getHead() === this.trunk.getHead() &&
 			this.minimumSequenceNumber === minimumPossibleSequenceNumber
 		);
 	}
@@ -434,7 +429,7 @@ export class EditManager<
 		// Note that option (A) would be a simple change to `addSequencedChange` whereas (B) would likely require
 		// rebasing trunk changes over the inverse of trunk changes.
 		assert(
-			this.localBranch.getHead() === this.trunk.getHead(),
+			this.inFlightBranch.getHead() === this.trunk.getHead(),
 			0x428 /* Clients with local changes cannot be used to generate summaries */,
 		);
 
@@ -511,7 +506,12 @@ export class EditManager<
 			}, this.trunkBase),
 		);
 
+		this.inFlightBranch.setHead(this.trunk.getHead());
 		this.localBranch.setHead(this.trunk.getHead());
+		this.fastForwardBranches(
+			this.trunkBase,
+			this.sequenceMap.maxKey() ?? minimumPossibleSequenceId,
+		);
 
 		for (const [sessionId, branch] of data.branches) {
 			const commit =
@@ -550,7 +550,7 @@ export class EditManager<
 	}
 
 	public getLocalCommits(): readonly RecursiveReadonly<GraphCommit<TChangeset>>[] {
-		return this.localCommits;
+		return this.inFlightCommits;
 	}
 
 	/**
@@ -568,8 +568,24 @@ export class EditManager<
 				max = branchPath.length;
 			}
 		}
-		const localPath = getPathFromBase(this.localBranch.getHead(), trunkHead);
+		const localPath = getPathFromBase(this.inFlightBranch.getHead(), trunkHead);
 		return Math.max(max, localPath.length);
+	}
+
+	public submitLocalCommit(commit: GraphCommit<TChangeset>): void {
+		assert(
+			commit.parent === this.inFlightBranch.getHead(),
+			"Merged commit must be a child of the in-fight branch",
+		);
+		this.inFlightCommits.push(commit);
+		this.inFlightBranch.setHead(commit);
+		this.submitCommit(commit);
+	}
+
+	public submitLocalChange(change: TChangeset, revision: RevisionTag): GraphCommit<TChangeset> {
+		const commit = mintCommit(this.inFlightBranch.getHead(), { change, revision });
+		this.submitLocalCommit(commit);
+		return commit;
 	}
 
 	public addSequencedChange(
@@ -595,7 +611,7 @@ export class EditManager<
 
 		if (newCommit.sessionId === this.localSessionId) {
 			const headTrunkCommit = this.trunk.getHead();
-			const firstLocalCommit = this.localCommits.shift();
+			const firstLocalCommit = this.inFlightCommits.shift();
 			assert(
 				firstLocalCommit !== undefined,
 				0x6b5 /* Received a sequenced change from the local session despite having no local changes */,
@@ -640,7 +656,12 @@ export class EditManager<
 			});
 		}
 
-		this.localBranch.rebaseOnto(this.trunk);
+		this.inFlightBranch.rebaseOnto(this.trunk);
+		this.inFlightCommits.length = 0;
+		findCommonAncestor(
+			[this.inFlightBranch.getHead(), this.inFlightCommits],
+			this.trunk.getHead(),
+		);
 	}
 
 	public findLocalCommit(
@@ -648,7 +669,7 @@ export class EditManager<
 	): [commit: GraphCommit<TChangeset>, commitsAfter: GraphCommit<TChangeset>[]] {
 		const commits: GraphCommit<TChangeset>[] = [];
 		const commit = findAncestor(
-			[this.localBranch.getHead(), commits],
+			[this.inFlightBranch.getHead(), commits],
 			(c) => c.revision === revision,
 		);
 		assert(commit !== undefined, 0x599 /* Expected local branch to contain revision */);
@@ -670,7 +691,7 @@ export class EditManager<
 		sessionId: SessionId,
 	): void {
 		this.trunk.setHead(graphCommit);
-		this.localBranch.updateRevertibleCommit(graphCommit);
+		this.inFlightBranch.updateRevertibleCommit(graphCommit);
 		const trunkHead = this.trunk.getHead();
 		this.sequenceMap.set(sequenceId, trunkHead);
 		this.trunkMetadata.set(trunkHead.revision, { sequenceId, sessionId });

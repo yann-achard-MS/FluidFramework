@@ -116,7 +116,14 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 		 * This is used rather than the Fluid client ID because the Fluid client ID is not stable across reconnections.
 		 */
 		const localSessionId = runtime.idCompressor.localSessionId;
-		this.editManager = new EditManager(changeFamily, localSessionId, mintRevisionTag);
+		this.editManager = new EditManager(
+			changeFamily,
+			localSessionId,
+			mintRevisionTag,
+			(c: GraphCommit<TChange>): void => this.submitCommit(c),
+		);
+		// This hard-codes a policy of automatically pushing local commits to the service.
+		// This could be made dynamically configurable in the future.
 		this.editManager.localBranch.on("afterChange", (args) => {
 			if (this.getLocalBranch().isTransacting()) {
 				// Avoid submitting ops for changes that are part of a transaction.
@@ -125,16 +132,23 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 			switch (args.type) {
 				case "append":
 					for (const c of args.newCommits) {
-						this.submitCommit(c);
+						this.editManager.submitLocalCommit(c);
 					}
 					break;
 				case "replace":
 					if (getChangeReplaceType(args) === "transactionCommit") {
-						this.submitCommit(args.newCommits[0]);
+						this.editManager.submitLocalCommit(args.newCommits[0]);
 					}
 					break;
 				default:
 					break;
+			}
+		});
+		// This hard-codes a policy of automatically pulling sequenced commits into the local branch.
+		// This could be made dynamically configurable in the future.
+		this.editManager.inFlightBranch.on("afterChange", (args) => {
+			if (args.type === "replace" && getChangeReplaceType(args) === "rebase") {
+				this.editManager.localBranch.rebaseOnto(this.editManager.inFlightBranch);
 			}
 		});
 
@@ -257,7 +271,7 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange> extends
 	}
 
 	/**
-	 * @returns the head commit of the root local branch
+	 * @returns the branch on which new local commits can be added.
 	 */
 	protected getLocalBranch(): SharedTreeBranch<TEditor, TChange> {
 		return this.editManager.localBranch;

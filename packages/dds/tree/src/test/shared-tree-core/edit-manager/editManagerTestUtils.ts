@@ -17,7 +17,7 @@ import {
 	testChangeFamilyFactory,
 	asDelta,
 } from "../../testChange.js";
-import { Commit, EditManager } from "../../../shared-tree-core/index.js";
+import { Commit, EditManager, getChangeReplaceType } from "../../../shared-tree-core/index.js";
 import { RecursiveReadonly, brand, makeArray } from "../../../util/index.js";
 import { mintRevisionTag, testIdCompressor } from "../../utils.js";
 export type TestEditManager = EditManager<ChangeFamilyEditor, TestChange, TestChangeFamily>;
@@ -52,7 +52,7 @@ export function editManagerFactory<TChange = TestChange>(
 		ChangeFamilyEditor,
 		TChange,
 		ChangeFamily<ChangeFamilyEditor, TChange>
-	>(family, options.sessionId ?? ("0" as SessionId), genId);
+	>(family, options.sessionId ?? ("0" as SessionId), genId, () => {});
 
 	if (autoDiscardRevertibles === true) {
 		// by default, discard revertibles in the edit manager tests
@@ -60,6 +60,35 @@ export function editManagerFactory<TChange = TestChange>(
 			revertible.discard();
 		});
 	}
+	// This hard-codes a policy of automatically pushing local commits to the service.
+	// This could be made dynamically configurable in the future.
+	manager.localBranch.on("afterChange", (args) => {
+		if (manager.localBranch.isTransacting()) {
+			// Avoid submitting ops for changes that are part of a transaction.
+			return;
+		}
+		switch (args.type) {
+			case "append":
+				for (const c of args.newCommits) {
+					manager.submitLocalCommit(c);
+				}
+				break;
+			case "replace":
+				if (getChangeReplaceType(args) === "transactionCommit") {
+					manager.submitLocalCommit(args.newCommits[0]);
+				}
+				break;
+			default:
+				break;
+		}
+	});
+	// This hard-codes a policy of automatically pulling sequenced commits into the local branch.
+	// This could be made dynamically configurable in the future.
+	manager.inFlightBranch.on("afterChange", (args) => {
+		if (args.type === "replace" && getChangeReplaceType(args) === "rebase") {
+			manager.localBranch.rebaseOnto(manager.inFlightBranch);
+		}
+	});
 	return manager;
 }
 
