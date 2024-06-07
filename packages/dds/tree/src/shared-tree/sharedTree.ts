@@ -138,8 +138,12 @@ function getCodecVersions(formatVersion: number): ExplicitCodecVersions {
 	return versions;
 }
 
-const idCompressors = new Map<string, (s: number) => any>();
-(globalThis as any).dbg.idCompressors = idCompressors;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const gt = globalThis as any;
+gt.dbg = gt.dbg ?? {};
+
+const idCompressors = new Map<string, (s: number) => string>();
+gt.dbg.idCompressors = idCompressors;
 
 /**
  * Shared tree, configured with a good set of indexes and field kinds which will maintain compatibility over time.
