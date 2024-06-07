@@ -138,6 +138,9 @@ function getCodecVersions(formatVersion: number): ExplicitCodecVersions {
 	return versions;
 }
 
+const idCompressors = new Map<string, (s: number) => any>();
+(globalThis as any).dbg.idCompressors = idCompressors;
+
 /**
  * Shared tree, configured with a good set of indexes and field kinds which will maintain compatibility over time.
  *
@@ -174,6 +177,7 @@ export class SharedTree
 				? buildChunkedForest(makeTreeChunker(schema, defaultSchemaPolicy))
 				: buildForest();
 		const revisionTagCodec = new RevisionTagCodec(runtime.idCompressor);
+		idCompressors.set(id, runtime.idCompressor.decompress.bind(runtime.idCompressor) as any);
 		const removedRoots = makeDetachedFieldIndex(
 			"repair",
 			revisionTagCodec,
