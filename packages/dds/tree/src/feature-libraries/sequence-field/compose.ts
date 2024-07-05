@@ -60,13 +60,14 @@ import {
 	isAttachAndDetachEffect,
 	isDetach,
 	isImpactfulCellRename,
+	isInsert,
 	isNewAttach,
 	isNoopMark,
 	markEmptiesCells,
 	markFillsCells,
 	markHasCellEffect,
 	normalizeCellRename,
-	settleMark,
+	withCellId,
 	withNodeChange,
 	withRevision,
 } from "./utils.js";
@@ -124,7 +125,7 @@ function composeMarkLists(
 		} else {
 			// We only compose changesets that will not be further rebased.
 			// It is therefore safe to remove any intentions that have no impact in the context they apply to.
-			const settledNewMark = settleMark(newMark, revisionMetadata);
+			const settledNewMark = newMark; // settleMark(newMark, revisionMetadata);
 			if (baseMark === undefined) {
 				factory.push(
 					composeMark(settledNewMark, moveEffects, (node: NodeId) =>
@@ -135,7 +136,7 @@ function composeMarkLists(
 				// Past this point, we are guaranteed that `settledNewMark` and `baseMark` have the same length and
 				// start at the same location in the revision after the base changes.
 				// They therefore refer to the same range for that revision.
-				const settledBaseMark = settleMark(baseMark, revisionMetadata);
+				const settledBaseMark = baseMark; // settleMark(baseMark, revisionMetadata);
 				const composedMark = composeMarks(
 					settledBaseMark,
 					settledNewMark,
@@ -335,11 +336,13 @@ function composeMarksIgnoreChild(
 		} else if (isNoopMark(newMark)) {
 			return baseMark;
 		}
-		return createNoopMark(newMark.count, undefined, getInputCellId(baseMark, undefined));
+		return withCellId(newMark, getInputCellId(baseMark, undefined));
 	} else if (!markHasCellEffect(baseMark)) {
 		return newMark;
 	} else if (!markHasCellEffect(newMark)) {
-		return baseMark;
+		return isInsert(newMark)
+			? withCellId(newMark, getInputCellId(baseMark, undefined))
+			: baseMark;
 	} else if (areInputCellsEmpty(baseMark)) {
 		assert(isDetach(newMark), 0x71c /* Unexpected mark type */);
 		assert(isAttach(baseMark), 0x71d /* Expected generative mark */);
@@ -421,8 +424,15 @@ function composeMarksIgnoreChild(
 			detach,
 		});
 	} else {
-		const length = baseMark.count;
-		return createNoopMark(length, undefined);
+		// D+...+D cancels out (leaves a tombstones)
+		// A+...+D cancels out (leaves a tombstones)
+		// D+...+A leaves a pin but which change's details should be used?
+		// A+...+A must use the details of the last attach because the earlier attaches are cancelled out (see A+...+D)
+		// However, if we use the details of the last attach, RTL composition currently settles the pin into a skip mark
+		// Does it make sense to settle the newMark?
+		// Also, does it make sense to settle the baseMark since its input context will indeed change through rebasing?
+		assert(isAttach(newMark), "Unexpected mark type");
+		return { type: "Insert", count: newMark.count, id: newMark.id, revision: newMark.revision };
 	}
 }
 

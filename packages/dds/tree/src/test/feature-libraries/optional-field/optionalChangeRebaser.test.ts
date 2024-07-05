@@ -264,6 +264,7 @@ function assertWrappedChangesetsEquivalent(
 	change2: TaggedChange<WrappedChangeset>,
 ) {
 	assert.deepEqual(toDeltaWrapped(change1), toDeltaWrapped(change2));
+	assert.deepEqual(change1, change2);
 }
 
 type OptionalFieldTestState = FieldStateTree<string | undefined, WrappedChangeset>;

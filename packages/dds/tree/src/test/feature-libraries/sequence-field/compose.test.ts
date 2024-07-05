@@ -103,15 +103,16 @@ export function testCompose() {
 			assert.deepEqual(actual, expected);
 		});
 
-		it("remove ○ revive => Noop", () => {
+		it("remove ○ revive => pin", () => {
 			const deletion = tagChangeInline(Change.remove(0, 1), tag1);
 			const insertion = tagChangeInline(
 				Change.revive(0, 1, { revision: tag1, localId: brand(0) }),
 				tag2,
 				tag1,
 			);
+			const expected = [Mark.pin(1, { localId: brand(0), revision: tag2 })];
 			const actual = shallowCompose([deletion, insertion]);
-			assertChangesetsEqual(actual, cases.no_change);
+			assertChangesetsEqual(actual, expected);
 		});
 
 		it("insert ○ modify", () => {
@@ -633,7 +634,7 @@ export function testCompose() {
 			const expected = [
 				Mark.remove(1, brand(0), { revision: tag2 }),
 				Mark.remove(1, brand(0), { revision: tag1 }),
-				{ count: 1 },
+				Mark.pin(1, brand(1), { revision: tag3 }),
 				Mark.remove(1, brand(2), { revision: tag1 }),
 				Mark.remove(1, brand(1), { revision: tag2 }),
 			];
@@ -649,7 +650,11 @@ export function testCompose() {
 			const remove1 = Change.remove(1, 3);
 			const remove2 = Change.remove(0, 2);
 			const revive = [Mark.revive(2, { revision: tag2, localId: brand(0) })];
-			const expected = [{ count: 1 }, Mark.remove(3, brand(0), { revision: tag1 })];
+			const expected = [
+				Mark.pin(1, brand(0), { revision: tag3 }),
+				Mark.remove(3, brand(0), { revision: tag1 }),
+				Mark.pin(1, brand(1), { revision: tag3 }),
+			];
 			const actual = shallowCompose([
 				tagChangeInline(remove1, tag1),
 				tagChangeInline(remove2, tag2),
@@ -711,11 +716,11 @@ export function testCompose() {
 			const reviveA = Change.revive(0, 2, { revision: tag1, localId: brand(0) });
 			const reviveB = Change.redundantRevive(0, 2, { revision: tag1, localId: brand(0) });
 			const expected = [
-				Mark.revive(2, { revision: tag1, localId: brand(0) }, { revision: tag2 }),
+				Mark.revive(2, { revision: tag1, localId: brand(0) }, { revision: tag3 }),
 			];
 			const actual = shallowCompose([
 				tagChangeInline(reviveA, tag2),
-				makeAnonChange(reviveB),
+				tagChangeInline(reviveB, tag3),
 			]);
 			assertChangesetsEqual(actual, expected);
 		});
@@ -747,7 +752,11 @@ export function testCompose() {
 				{ count: 1 },
 				Mark.returnTo(1, brand(0), { revision: tag1, localId: brand(0) }),
 			];
-			const expected = [Mark.tomb(tag1, brand(1)), { count: 1 }, Mark.modify(changes)];
+			const expected = [
+				Mark.tomb(tag1, brand(1)),
+				{ count: 1 },
+				Mark.pin(1, { localId: brand(0), revision: tag3 }, { changes }),
+			];
 			const actual = shallowCompose([
 				tagChangeInline(move, tag1),
 				tagChangeInline(moveBack, tag3, tag1),
@@ -777,7 +786,11 @@ export function testCompose() {
 			const return2 = tagChangeInline(Change.return(3, 1, 0, cellIdA, cellIdB), tag4);
 			const actual = shallowCompose([return1, return2]);
 
-			const expected = [{ count: 4 }, Mark.tomb(tag2, brand(0))];
+			const expected = [
+				Mark.pin(1, { localId: cellIdB.localId, revision: tag4 }),
+				{ count: 3 },
+				Mark.tomb(tag2, brand(0)),
+			];
 			assertChangesetsEqual(actual, expected);
 		});
 
@@ -795,7 +808,8 @@ export function testCompose() {
 
 			// We expect vestigial moves to exist to record that the cell's ID was changed.
 			const expected = [
-				{ count: 4 },
+				Mark.pin(1, { localId: brand(0), revision: tag4 }),
+				{ count: 3 },
 				Mark.attachAndDetach(
 					Mark.returnTo(1, { revision: tag3, localId: brand(0) }, cellIdA),
 					Mark.moveOut(1, { revision: tag4, localId: brand(0) }),
@@ -1335,7 +1349,8 @@ export function testCompose() {
 
 			const composed = shallowCompose([move1, move2, return1]);
 			const expected = [
-				{ count: 2 },
+				Mark.pin(1, { revision: tag3, localId: brand(0) }),
+				{ count: 1 },
 				Mark.attachAndDetach(
 					Mark.moveIn(1, { revision: tag1, localId: brand(0) }),
 					Mark.moveOut(1, { revision: tag2, localId: brand(0) }),

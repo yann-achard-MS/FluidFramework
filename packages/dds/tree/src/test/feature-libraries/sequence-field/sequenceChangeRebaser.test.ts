@@ -562,20 +562,20 @@ const generateChildStates: ChildStateGenerator<TestState, WrappedChange> = funct
 	// TODO: support for undoing earlier edits
 	// TODO: fix bugs encountered when this is enabled
 	// Undo the most recent edit
-	// if (state.mostRecentEdit !== undefined) {
-	// 	assert(state.parent?.content !== undefined, "Must have parent state to undo");
-	// 	const undoIntention = mintIntention();
-	// 	const invertedEdit = invertDeep(state.mostRecentEdit.changeset);
-	// 	yield {
-	// 		content: state.parent.content,
-	// 		mostRecentEdit: {
-	// 			changeset: tagChangeInline(invertedEdit, tagFromIntention(undoIntention)),
-	// 			intention: undoIntention,
-	// 			description: `Undo(${state.mostRecentEdit.description})`,
-	// 		},
-	// 		parent: state,
-	// 	};
-	// }
+	if (state.mostRecentEdit !== undefined) {
+		assert(state.parent?.content !== undefined, "Must have parent state to undo");
+		const undoIntention = mintIntention();
+		const invertedEdit = invertDeep(state.mostRecentEdit.changeset);
+		yield {
+			content: state.parent.content,
+			mostRecentEdit: {
+				changeset: tagWrappedChangeInline(invertedEdit, tagFromIntention(undoIntention)),
+				intention: undoIntention,
+				description: `Undo(${state.mostRecentEdit.description})`,
+			},
+			parent: state,
+		};
+	}
 
 	for (const nodeCount of config.numNodes) {
 		// Insert nodeCount nodes
@@ -756,7 +756,7 @@ export function testStateBasedRebaserAxioms() {
 			generateChildStates,
 			fieldRebaser,
 			{
-				groupSubSuites: true,
+				groupSubSuites: false,
 				numberOfEditsToVerifyAssociativity: isStress ? 4 : 3,
 				skipRebaseOverCompose: false,
 			},

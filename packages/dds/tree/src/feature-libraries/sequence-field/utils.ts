@@ -921,6 +921,19 @@ export function withNodeChange<TMark extends CellMark<TKind>, TKind extends Mark
 	return newMark;
 }
 
+export function withCellId<TMark extends CellMark<TKind>, TKind extends MarkEffect>(
+	mark: TMark,
+	cellId: CellId | undefined,
+): TMark {
+	const newMark = { ...mark };
+	if (cellId !== undefined) {
+		newMark.cellId = cellId;
+	} else {
+		delete newMark.cellId;
+	}
+	return newMark;
+}
+
 export function withRevision<TMark extends Mark>(
 	mark: TMark,
 	revision: RevisionTag | undefined,
