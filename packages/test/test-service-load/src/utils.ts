@@ -19,7 +19,8 @@ import {
 	generateOdspHostStoragePolicy,
 } from "@fluid-private/test-drivers";
 import { IContainer, IFluidCodeDetails } from "@fluidframework/container-definitions/internal";
-import { IDetachedBlobStorage, Loader } from "@fluidframework/container-loader/internal";
+// eslint-disable-next-line import/no-deprecated
+import { type IDetachedBlobStorage, Loader } from "@fluidframework/container-loader/internal";
 import { IContainerRuntimeOptions } from "@fluidframework/container-runtime/internal";
 import {
 	ConfigTypes,
@@ -32,7 +33,7 @@ import { ICreateBlobResponse } from "@fluidframework/driver-definitions/internal
 import { createChildLogger } from "@fluidframework/telemetry-utils/internal";
 import { LocalCodeLoader } from "@fluidframework/test-utils/internal";
 
-import { ILoadTest, createFluidExport } from "./loadTestDataStore.js";
+import { ILoadTest, createFluidExport, type IRunConfig } from "./loadTestDataStore.js";
 import {
 	generateConfigurations,
 	generateLoaderOptions,
@@ -140,6 +141,7 @@ const codeDetails: IFluidCodeDetails = {
 export const createCodeLoader = (options: IContainerRuntimeOptions) =>
 	new LocalCodeLoader([[codeDetails, createFluidExport(options)]]);
 
+// eslint-disable-next-line import/no-deprecated
 class MockDetachedBlobStorage implements IDetachedBlobStorage {
 	public readonly blobs = new Map<string, ArrayBufferLike>();
 
@@ -173,10 +175,16 @@ export async function initialize(
 	testIdn?: string,
 ) {
 	const random = makeRandom(seed);
-	const optionsOverride = getOptionOverride(testConfig, testDriver.type, testDriver.endpointName);
+	const optionsOverride = getOptionOverride(
+		testConfig,
+		testDriver.type,
+		testDriver.endpointName,
+	);
 
 	const loaderOptions = random.pick(generateLoaderOptions(seed, optionsOverride?.loader));
-	const containerOptions = random.pick(generateRuntimeOptions(seed, optionsOverride?.container));
+	const containerOptions = random.pick(
+		generateRuntimeOptions(seed, optionsOverride?.container),
+	);
 	const configurations = random.pick(
 		generateConfigurations(seed, optionsOverride?.configurations),
 	);
@@ -311,3 +319,9 @@ export const configProvider = (configs: Record<string, ConfigTypes>): IConfigPro
 		getRawConfig: (name: string): ConfigTypes => globalConfigurations[name] ?? configs[name],
 	};
 };
+
+export function printStatus(runConfig: IRunConfig, message: string) {
+	if (runConfig.verbose) {
+		console.log(`${runConfig.runId.toString().padStart(3)}> ${message}`);
+	}
+}

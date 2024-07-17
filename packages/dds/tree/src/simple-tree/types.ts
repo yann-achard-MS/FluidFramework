@@ -3,23 +3,28 @@
  * Licensed under the MIT License.
  */
 
-import { ErasedType } from "@fluidframework/core-interfaces";
+import type { ErasedType } from "@fluidframework/core-interfaces";
 import { assert } from "@fluidframework/core-utils/internal";
 
-import { TreeNodeSchema, WithType, type } from "./schemaTypes.js";
 import {
-	FlexTreeNode,
-	FlexTreeNodeSchema,
+	NodeKind,
+	type TreeNodeSchema,
+	type WithType,
+	typeNameSymbol,
+} from "./schemaTypes.js";
+import {
+	type FlexTreeNode,
+	type MapTreeNode,
 	isFlexTreeNode,
 	markEager,
 } from "../feature-libraries/index.js";
 import { tryGetSimpleNodeSchema } from "./schemaCaching.js";
-import { RawTreeNode } from "./rawNode.js";
 import { isTreeNode } from "./proxies.js";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 import { getFlexSchema } from "./toFlexSchema.js";
 import { fail } from "../util/index.js";
 import { setFlexNode } from "./proxyBinding.js";
+import { tryGetSchema } from "./treeNodeApi.js";
 
 /**
  * Type alias to document which values are un-hydrated.
@@ -33,27 +38,37 @@ import { setFlexNode } from "./proxyBinding.js";
 export type Unhydrated<T> = T;
 
 /**
- * A non-leaf SharedTree node. Includes objects, arrays, and maps.
+ * A non-{@link NodeKind.Leaf|leaf} SharedTree node. Includes objects, arrays, and maps.
  *
  * @remarks
  * Base type which all nodes implement.
  *
  * This can be used as a type to indicate/document values which should be tree nodes.
- * Runtime use of this class object (for example when used with `instanceof` or subclassed), is not supported:
- * it may be replaced with an interface or union in the future.
- * @privateRemarks
- * Future changes may replace this with a branded interface if the runtime oddities related to this are not cleaned up.
+ * Runtime use of this class object (for example when used with `instanceof` or extending it), is not currently supported.
  *
- * Currently not all node implications include this in their prototype chain (some hide it with a proxy), and thus cause `instanceof` to fail.
- * This results in the runtime and compile time behavior of `instanceof` differing.
- * TypeScript 5.3 allows altering the compile time behavior of `instanceof`.
- * The runtime behavior can be changed by implementing `Symbol.hasInstance`.
- * One of those approaches could be used to resolve this inconsistency if TreeNode is kept as a class.
- * @public
+ * Instances of tree nodes must be created by opening an existing document, inserting values into the document,
+ * or by using the constructors and create functions of {@link TreeNodeSchema} produced by {@link SchemaFactory}.
+ * @privateRemarks
+ * This is a class not an interface to enable stricter type checking (see {@link TreeNode.#brand})
+ * and some runtime enforcement of schema class policy (see the the validation in the constructor).
+ * This class is however only `type` exported not value exported, preventing the class object from being used,
+ * similar to how interfaces work.
+ *
+ * Not all node implementations include this in their prototype chain (some hide it with a proxy),
+ * and thus cause the default/built in `instanceof` to return false despite our type checking and all other APIs treating them as TreeNodes.
+ * This class provides a custom `Symbol.hasInstance` to fix `instanceof` for this class and all classes extending it.
+ * For now the type-only export prevents use of `instanceof` on this class (but allows it in subclasses like schema classes).
+ * @sealed @public
  */
 export abstract class TreeNode implements WithType {
 	/**
 	 * This is added to prevent TypeScript from implicitly allowing non-TreeNode types to be used as TreeNodes.
+	 * @remarks
+	 * This field forces TypeScript to use nominal instead of structural typing,
+	 * preventing compiler error messages and tools like "add missing properties"
+	 * from adding the [type] field as a solution when using a non-TreeNode object where a TreeNode is required.
+	 * Instead TreeNodes must be created through the appropriate APIs, see the documentation on {@link TreeNode} for details.
+	 *
 	 * @privateRemarks
 	 * This is a JavaScript private field, so is not accessible from outside this class.
 	 * This prevents it from having name collisions with object fields.
@@ -62,33 +77,81 @@ export abstract class TreeNode implements WithType {
 	 * To avoid this having any runtime impact, the field is uninitialized.
 	 *
 	 * Making this field optional results in different type checking within this project than outside of it, since the d.ts file drops the optional aspect of the field.
-	 * This is extra confusing since sin ce the tests get in-project typing for intellisense and separate project checking at build time.
+	 * This is extra confusing since since the tests get in-project typing for intellisense and separate project checking at build time.
 	 * To avoid all this mess, this field is required, not optional.
 	 *
 	 * Another option would be to use a symbol (possibly as a private field).
 	 * That approach ran into some strange difficulties causing SchemaFactory to fail to compile, and was not investigated further.
 	 *
-	 * TODO: This is disabled due to compilation of this project not targeting es2022,
-	 * which causes this to polyfill to use of a weak map which has some undesired runtime overhead.
-	 * Consider enabling this for stronger typing after targeting es2022.
-	 * The [type] symbol here provides a lot of the value this private brand would, but is not all of it:
-	 * someone could manually make an object literal with it and pass it off as a node: this private brand would prevent that.
-	 * Another option would be to add a protected or private symbol, which would also get the stronger typing.
+	 * The [type] symbol provides a lot of the value this private brand does, but is not all of it:
+	 * someone could manually (or via Intellisense auto-implement completion, or in response to a type error)
+	 * make an object literal with the [type] field and pass it off as a node: this private brand prevents that.
 	 */
-	// readonly #brand!: unknown;
+	readonly #brand!: unknown;
 
 	/**
-	 * {@inheritdoc "type"}
+	 * Adds a type symbol for stronger typing.
 	 * @privateRemarks
 	 * Subclasses provide more specific strings for this to get strong typing of otherwise type compatible nodes.
 	 */
-	public abstract get [type](): string;
+	public abstract get [typeNameSymbol](): string;
+
+	/**
+	 * Provides `instanceof` support for testing if a value is a `TreeNode`.
+	 * @remarks
+	 * For more options, like including leaf values or narrowing to collections of schema, use `is` or `schema` from {@link TreeNodeApi}.
+	 * @privateRemarks
+	 * Due to type-only export, this functionality is not available outside the package.
+	 */
+	public static [Symbol.hasInstance](value: unknown): value is TreeNode;
+
+	/**
+	 * Provides `instanceof` support for all schema classes with public constructors.
+	 * @remarks
+	 * For more options, like including leaf values or narrowing to collections of schema, use `is` or `schema` from {@link TreeNodeApi}.
+	 * @privateRemarks
+	 * Despite type-only export, this functionality is available outside the package since it is inherited by subclasses.
+	 */
+	public static [Symbol.hasInstance]<
+		TSchema extends abstract new (
+			...args: any[]
+		) => TreeNode,
+	>(this: TSchema, value: unknown): value is InstanceType<TSchema>;
+
+	public static [Symbol.hasInstance](this: { prototype: object }, value: unknown): boolean {
+		const schema = tryGetSchema(value);
+
+		if (schema === undefined || schema.kind === NodeKind.Leaf) {
+			return false;
+		}
+
+		assert("prototype" in schema, 0x98a /* expected class based schema */);
+		return inPrototypeChain(schema.prototype, this.prototype);
+	}
 
 	protected constructor() {
-		if (!(this instanceof TreeNodeValid)) {
+		if (!inPrototypeChain(Reflect.getPrototypeOf(this), TreeNodeValid.prototype)) {
 			throw new UsageError("TreeNodes must extend schema classes created by SchemaFactory");
 		}
 	}
+}
+
+/**
+ * Check if the prototype derived's prototype chain contains `base`.
+ * @param derived - prototype to check
+ * @param base - prototype to search for
+ * @returns true iff `base` is in the prototype chain starting at `derived`.
+ */
+// eslint-disable-next-line @rushstack/no-new-null
+export function inPrototypeChain(derived: object | null, base: object): boolean {
+	let checking = derived;
+	while (checking !== null) {
+		if (base === checking) {
+			return true;
+		}
+		checking = Reflect.getPrototypeOf(checking);
+	}
+	return false;
 }
 
 /**
@@ -123,7 +186,7 @@ export abstract class TreeNodeValid<TInput> extends TreeNode {
 		this: typeof TreeNodeValid<T>,
 		instance: TreeNodeValid<T>,
 		input: T,
-	): RawTreeNode<FlexTreeNodeSchema, unknown> {
+	): MapTreeNode {
 		return fail("Schema must override buildRawNode");
 	}
 
@@ -145,51 +208,65 @@ export abstract class TreeNodeValid<TInput> extends TreeNode {
 	 * Also used to detect if oneTimeSetup has run.
 	 *
 	 * @privateRemarks
-	 * This defaults to TreeNodeValid, which is used to trigger an error if not overridden in the derived class.
+	 * This defaults to "default", which is used to trigger an error if not overridden in the derived class.
 	 *
 	 * The value of this on TreeNodeValid must only be overridden by base classes and never modified.
 	 * Ways to enforce this immutability prevent it from being overridden,
 	 * so code modifying constructorCached should be extra careful to avoid accidentally modifying the base/inherited value.
 	 */
-	protected static constructorCached: typeof TreeNodeValid | undefined = TreeNodeValid;
+	protected static constructorCached: MostDerivedData | "default" | undefined = "default";
+
+	/**
+	 * Indicate that `this` is the most derived version of a schema, and thus the only one allowed to be used (other than by being subclassed a single time).
+	 */
+	public static markMostDerived(this: typeof TreeNodeValid & TreeNodeSchema): MostDerivedData {
+		assert(this.constructorCached !== "default", 0x95f /* invalid schema class */);
+
+		if (this.constructorCached === undefined) {
+			// Set the constructorCached on the layer of the prototype chain that declared it.
+			// This is necessary to ensure there is only one subclass of that type used:
+			// if constructorCached was simply set on `schema`,
+			// then a base classes between `schema` (exclusive) and where `constructorCached` is set (inclusive) and other subclasses of them
+			// would not see the stored `constructorCached`, and the validation above against multiple derived classes would not work.
+
+			// This is not just an alias of `this`, but a reference to the item in the prototype chain being walked, which happens to start at `this`.
+			// eslint-disable-next-line @typescript-eslint/no-this-alias
+			let schemaBase: typeof TreeNodeValid = this;
+			while (!Object.prototype.hasOwnProperty.call(schemaBase, "constructorCached")) {
+				schemaBase = Reflect.getPrototypeOf(schemaBase) as typeof TreeNodeValid;
+			}
+			assert(schemaBase.constructorCached === undefined, 0x962 /* overwriting wrong cache */);
+			schemaBase.constructorCached = { constructor: this, oneTimeInitialized: false };
+			assert(
+				this.constructorCached === schemaBase.constructorCached,
+				"Inheritance should work",
+			);
+			return this.constructorCached;
+		} else if (this.constructorCached.constructor === this) {
+			return this.constructorCached;
+		}
+
+		throw new UsageError(
+			`Two schema classes were used (${this.name} and ${
+				this.constructorCached.constructor.name
+			}) which derived from the same SchemaFactory generated class (${JSON.stringify(
+				this.identifier,
+			)}). This is invalid.`,
+		);
+	}
 
 	public constructor(input: TInput | InternalTreeNode) {
 		super();
 		const schema = this.constructor as typeof TreeNodeValid & TreeNodeSchema;
-		assert("constructorCached" in schema, 0x95f /* invalid schema class */);
-		if (schema.constructorCached !== schema) {
-			if (schema.constructorCached !== undefined) {
-				assert(
-					schema.constructorCached !== TreeNodeValid,
-					0x960 /* Schema class schema must override static constructorCached member */,
-				);
-				throw new UsageError(
-					`Two schema classes were instantiated (${schema.name} and ${schema.constructorCached.name}) which derived from the same SchemaFactory generated class. This is invalid`,
-				);
-			}
-
+		const cache = schema.markMostDerived();
+		if (!cache.oneTimeInitialized) {
 			const flexSchema = getFlexSchema(schema);
 			assert(
 				tryGetSimpleNodeSchema(flexSchema) === schema,
 				0x961 /* Schema class not properly configured */,
 			);
 			schema.oneTimeSetup();
-			// Set the constructorCached on the layer of the prototype chain that declared it.
-			// This is necessary to ensure there is only one subclass of that type used:
-			// if constructorCached was simply set on `schema`,
-			// then a base classes between `schema` (exclusive) and where `constructorCached` is set (inclusive) and other subclasses of them
-			// would not see the stored `constructorCached`, and the validation above against multiple derived classes would not work.
-			{
-				let schemaBase: typeof TreeNodeValid = schema;
-				while (!Object.prototype.hasOwnProperty.call(schemaBase, "constructorCached")) {
-					schemaBase = Reflect.getPrototypeOf(schemaBase) as typeof TreeNodeValid;
-				}
-				assert(
-					schemaBase.constructorCached === undefined,
-					0x962 /* overwriting wrong cache */,
-				);
-				schemaBase.constructorCached = schema;
-			}
+			cache.oneTimeInitialized = true;
 		}
 
 		if (isTreeNode(input)) {
@@ -199,7 +276,9 @@ export abstract class TreeNodeValid<TInput> extends TreeNode {
 			);
 		}
 
-		const node: FlexTreeNode = isFlexTreeNode(input) ? input : schema.buildRawNode(this, input);
+		const node: FlexTreeNode = isFlexTreeNode(input)
+			? input
+			: schema.buildRawNode(this, input);
 		assert(
 			tryGetSimpleNodeSchema(node.schema) === schema,
 			0x83b /* building node with wrong schema */,
@@ -214,14 +293,31 @@ export abstract class TreeNodeValid<TInput> extends TreeNode {
 markEager(TreeNodeValid);
 
 /**
+ * Data cached about the most derived type in a schema's class hierarchy.
+ * @remarks
+ * The most derived type is the only one allowed to be referenced by other schema or constructed as a node.
+ * It has to be discovered lazily (when a node is constructed or when a {@link TreeViewConfiguration} is made),
+ * since JavaScript provides no way to find derived classes, or inject static class initialization time logic into base classes.
+ * Additionally since schema can reference other schema through lazy references which might be forward or recursive references,
+ * this can not be evaluated for one schema when referenced by another schema.
+ *
+ * See {@link TreeNodeValid.constructorCached} and {@link TreeNodeValid.markMostDerived}.
+ */
+export interface MostDerivedData {
+	readonly constructor: typeof TreeNodeValid & TreeNodeSchema;
+	oneTimeInitialized: boolean;
+}
+
+/**
  * A node type internal to `@fluidframework/tree`.
  * @remarks
  * This type is used in the construction of {@link TreeNode} as an implementation detail, but leaks into the public API due to how schema are implemented.
  * @privateRemarks
  * A {@link FlexTreeNode}. Includes {@link RawTreeNode}s.
- * @public
+ * @sealed @public
  */
-export interface InternalTreeNode extends ErasedType<"@fluidframework/tree.InternalTreeNode"> {}
+export interface InternalTreeNode
+	extends ErasedType<"@fluidframework/tree.InternalTreeNode"> {}
 
 export function toFlexTreeNode(node: InternalTreeNode): FlexTreeNode {
 	assert(isFlexTreeNode(node), 0x963 /* Invalid InternalTreeNode */);
