@@ -340,9 +340,26 @@ function composeMarksIgnoreChild(
 	} else if (!markHasCellEffect(baseMark)) {
 		return newMark;
 	} else if (!markHasCellEffect(newMark)) {
-		return isInsert(newMark)
-			? withCellId(newMark, getInputCellId(baseMark, undefined))
-			: baseMark;
+		if (isInsert(newMark)) {
+			// Since the new mark is an insert with no cell effect, it is a pin.
+			// The base mark has an effect, so it must be an attach (insert/revive or move-in).
+			// This effectively amounts to composing three effects: [attach, detach, restore].
+			// This composition amounts to a single attach.
+			// Attaches carry two pieces of information:
+			// - the cell ID of the cell being targeted (if empty)
+			// - the ID of the source (which for move-ins is the corresponding move-out).
+			// We must keep the cell ID of the attach (i.e., the baseMark) since that is the correct ID for that cell in the input context.
+			// For the source ID however, we must keep the source ID of the restore (i.e, the newMark) in order to be consistent
+			// with compositions where the attach and detach are composed first and cancel out.
+			// This is also a reasonable choice since our merge semantics for node destinations is LWW, it seems logical to prefer the source ID of the second mark.
+			// We can do that when baseMark is an insert/revive, but unfortunately we can't do that when it's a move-in because
+			// we do not have a way of linking the move-out of baseMark to the attach of newMark. In that specific case, we therefore
+			// preserve the source ID of baseMark.
+			return isMoveIn(baseMark)
+				? baseMark
+				: withCellId(newMark, getInputCellId(baseMark, undefined));
+		}
+		return baseMark;
 	} else if (areInputCellsEmpty(baseMark)) {
 		assert(isDetach(newMark), 0x71c /* Unexpected mark type */);
 		assert(isAttach(baseMark), 0x71d /* Expected generative mark */);
@@ -424,7 +441,7 @@ function composeMarksIgnoreChild(
 			detach,
 		});
 	} else {
-		// D+...+D cancels out (leaves a tombstones)
+		// D+...+D => D
 		// A+...+D cancels out (leaves a tombstones)
 		// D+...+A leaves a pin but which change's details should be used?
 		// A+...+A must use the details of the last attach because the earlier attaches are cancelled out (see A+...+D)
