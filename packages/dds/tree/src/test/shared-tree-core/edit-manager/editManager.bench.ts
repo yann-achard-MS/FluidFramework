@@ -6,6 +6,7 @@
 import { strict as assert } from "assert";
 
 import { type BenchmarkTimer, BenchmarkType, benchmark } from "@fluid-tools/benchmark";
+import type { SessionId } from "@fluidframework/id-compressor";
 
 import {
 	type ChangeFamily,
@@ -252,7 +253,7 @@ describe("EditManager - Bench", () => {
 	}
 
 	describe("No concurrency", () => {
-		describe("Many local edits", () => {
+		describe.only("Many local edits", () => {
 			for (const [type, count] of [
 				[BenchmarkType.Perspective, 1],
 				[BenchmarkType.Perspective, 10],
@@ -276,11 +277,11 @@ describe("EditManager - Bench", () => {
 							const sequencedEdits: Commit<TestChange>[] = [];
 							for (let iChange = 0; iChange < count; iChange++) {
 								const revision = mintRevisionTag();
-								manager.localBranch.apply(TestChange.emptyChange, revision);
+								// manager.localBranch.apply(TestChange.emptyChange, revision);
 								sequencedEdits.push({
 									change: TestChange.emptyChange,
 									revision,
-									sessionId: manager.localSessionId,
+									sessionId: "I'm different" as SessionId,
 								});
 							}
 
