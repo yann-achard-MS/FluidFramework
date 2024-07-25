@@ -341,15 +341,12 @@ function composeMarksIgnoreChild(
 			// This composition amounts to a single attach.
 			// Attaches carry two pieces of information:
 			// - the cell ID of the cell being targeted (if empty)
-			// - the ID of the source (which for move-ins is the corresponding move-out).
+			// - the move ID (for inserts the "move ID" is the insert's own ID).
 			// We must keep the cell ID of the attach (i.e., the baseMark) since that is the correct ID for that cell in the input context.
-			// For the source ID however, we must keep the source ID of the restore (i.e, the newMark) in order to be consistent
-			// with compositions where the attach and detach are composed first and cancel out.
-			// This is also a reasonable choice since our merge semantics for node destinations is LWW, it seems logical to prefer the source ID of the second mark.
-			// We can do that when baseMark is an insert/revive, but unfortunately we can't do that when it's a move-in because
-			// we do not have a way of linking the move-out of baseMark to the attach of newMark. In that specific case, we therefore
-			// preserve the source ID of baseMark.
-			return isMoveIn(baseMark) ? baseMark : withCellId(newMark, getInputCellId(baseMark));
+			// For the move ID however, it does not matter what move ID we pick so long as move-in and move-out marks remain pairwise consistent.
+			// This is because the move ID is only used to capture the link between a move-out and its corresponding move-in.
+			// This prompts us to pick the move ID of the base mark since it may be a move-in. This way we don't need to update the corresponding move-out mark.
+			return baseMark;
 		}
 		return baseMark;
 	} else if (areInputCellsEmpty(baseMark)) {
