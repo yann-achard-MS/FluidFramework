@@ -693,7 +693,7 @@ const fieldRebaser: BoundFieldChangeRebaser<WrappedChange> = {
 		const pruned1 = pruneDeep(change1.change);
 		const pruned2 = pruneDeep(change2.change);
 
-		return assertWrappedChangesetsEqual(pruned1, pruned2);
+		return assertWrappedChangesetsEqual(pruned1, pruned2, true);
 	},
 	isEmpty: (change): boolean => {
 		return withoutTombstonesDeep(pruneDeep(change)).fieldChange.length === 0;
@@ -706,6 +706,7 @@ const fieldRebaser: BoundFieldChangeRebaser<WrappedChange> = {
 		return assertWrappedChangesetsEqual(
 			withoutTombstonesDeep(pruned1),
 			withoutTombstonesDeep(pruned2),
+			true,
 		);
 	},
 };
