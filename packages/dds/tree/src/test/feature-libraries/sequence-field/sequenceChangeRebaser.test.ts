@@ -768,7 +768,13 @@ export function testSandwichRebasing() {
 			const inverseB = tagChangeInline(invert(insertB), tag4, insertB.revision);
 
 			const composed = compose([inverseB, inverseA, insertA, insertB]);
-			assertChangesetsEqual(composed, []);
+
+			const expected = [
+				Mark.pin(1, { revision: tag1, localId: brand(0) }),
+				Mark.pin(1, { revision: tag2, localId: brand(0) }),
+				Mark.pin(1, { revision: tag1, localId: brand(1) }),
+			];
+			assertChangesetsEqual(composed, expected);
 		});
 
 		it("Nested inserts ↷ adjacent insert", () => {
@@ -800,7 +806,14 @@ export function testSandwichRebasing() {
 			const revAC4 = rebaseTagged(revAC3, delAC2);
 			// The rebased versions of the local edits should still cancel-out
 			const actual = compose([delAC2, revAC4]);
-			assertChangesetsEqual(actual, []);
+
+			const expected = [
+				Mark.pin(1, { revision: tag4, localId: brand(0) }),
+				Mark.skip(1),
+				Mark.pin(1, { revision: tag4, localId: brand(1) }),
+			];
+
+			assertChangesetsEqual(actual, expected);
 		});
 
 		// See bug 4104
@@ -886,7 +899,7 @@ export function testSandwichComposing() {
 
 			const composed = compose([uninsertA, redundantRemoveT, insertA]);
 			const expected = [
-				Mark.skip(1),
+				Mark.pin(1, { revision: tag3, localId: brand(0) }),
 				Mark.remove(
 					1,
 					{ revision: tag2, localId: brand(0) },
@@ -918,6 +931,7 @@ export function testSandwichComposing() {
 			const expected = [
 				Mark.remove(1, { revision: tag1, localId: brand(0) }),
 				Mark.insert(1, { revision: tag3, localId: brand(0) }),
+				Mark.pin(1, { revision: tag2, localId: brand(0) }),
 			];
 
 			assertChangesetsEqual(AiTAB, expected);
@@ -939,11 +953,16 @@ export function testSandwichComposing() {
 			const inverseReviveA = tagChangeInline(invert(reviveA), tag7, reviveA.revision);
 
 			// The composition computation is broken up is steps that force us down more challenging code paths.
-			// Specifically, the composition of reviveB with the composition of parts 3 to 6.
+			// Specifically, the composition of inverseReviveB with the composition of parts 3 to 6.
 			const sandwichParts3to6 = compose([inverseRemoveB, removeB, reviveB, reviveA]);
 			const sandwichParts2to6 = compose([inverseReviveB, makeAnonChange(sandwichParts3to6)]);
 			const sandwichParts1to6 = compose([inverseReviveA, makeAnonChange(sandwichParts2to6)]);
-			assertChangesetsEqual(sandwichParts1to6, []);
+
+			const expected = [
+				Mark.pin(1, { revision: tag4, localId: brand(0) }),
+				Mark.pin(1, { revision: tag3, localId: brand(1) }),
+			];
+			assertChangesetsEqual(sandwichParts1to6, expected);
 		});
 		it("[move, move, modify, move] ↷ [del]", () => {
 			const nodeId: NodeId = { localId: brand(4) };
@@ -962,10 +981,12 @@ export function testSandwichComposing() {
 			const move1Rebased = rebaseTagged(move1, del);
 			const changes = [return3, unMod, return2, return1, del, move1Rebased, move2, mod, move3];
 
+			const expected = [Mark.pin(1, { revision: tag4, localId: brand(3) })];
+
 			const sandwich = composeShallow(changes);
 			const pruned = prune(sandwich, (id) => undefined);
 			const noTombstones = withoutTombstones(pruned);
-			assertChangesetsEqual(noTombstones, []);
+			assertChangesetsEqual(noTombstones, expected);
 		});
 	});
 }

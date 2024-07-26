@@ -692,7 +692,7 @@ export function testCompose() {
 			const reviveA = Change.revive(0, 2, { revision: tag1, localId: brand(0) });
 			const reviveB = Change.pin(0, 2, { revision: tag1, localId: brand(0) });
 			const expected = [
-				Mark.revive(2, { revision: tag1, localId: brand(0) }, { revision: tag3 }),
+				Mark.revive(2, { revision: tag1, localId: brand(0) }, { revision: tag2 }),
 			];
 			const actual = shallowCompose([
 				tagChangeInline(reviveA, tag2),
@@ -782,7 +782,8 @@ export function testCompose() {
 			);
 			const actual = shallowCompose([return1, return2]);
 			const expected = [
-				{ count: 4 },
+				Mark.pin(1, { revision: tag4, localId: brand(0) }),
+				{ count: 3 },
 				Mark.rename(1, cellIdA, { revision: tag4, localId: brand(0) }),
 			];
 			assertChangesetsEqual(actual, expected);
@@ -1345,7 +1346,8 @@ export function testCompose() {
 
 			const composed = shallowCompose([move1, move2, return1]);
 			const expected = [
-				{ count: 2 },
+				Mark.pin(1, { revision: tag3, localId: brand(0) }),
+				{ count: 1 },
 				Mark.rename(
 					1,
 					{ revision: tag1, localId: brand(1) },
