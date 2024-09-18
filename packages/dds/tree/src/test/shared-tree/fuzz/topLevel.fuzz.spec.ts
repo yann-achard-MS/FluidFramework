@@ -43,9 +43,9 @@ const baseOptions: Partial<DDSFuzzSuiteOptions> = {
  * The fuzz tests should validate that the clients do not crash and that their document states do not diverge.
  * See the "Fuzz - Targeted" test suite for tests that validate more specific code paths or invariants.
  */
-describe("Fuzz - Top-Level", () => {
-	const runsPerBatch = 50;
-	const opsPerRun = 20;
+describe.only("Fuzz - Top-Level", () => {
+	const runsPerBatch = 10_000;
+	const opsPerRun = 31;
 	// TODO: Enable other types of ops.
 	// AB#11436: Currently manually disposing the view when applying the schema op is causing a double dispose issue. Once this issue has been resolved, re-enable schema ops.
 	const editGeneratorOpWeights: Partial<EditGeneratorOpWeights> = {
@@ -53,8 +53,8 @@ describe("Fuzz - Top-Level", () => {
 		clear: 1,
 		insert: 5,
 		remove: 5,
-		intraFieldMove: 5,
-		crossFieldMove: 5,
+		intraFieldMove: 20,
+		crossFieldMove: 50,
 		start: 1,
 		commit: 1,
 		abort: 1,
