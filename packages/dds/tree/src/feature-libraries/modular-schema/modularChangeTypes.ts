@@ -56,7 +56,14 @@ export interface ModularChangeset extends HasFieldChanges {
 	 */
 	readonly nodeAliases: ChangeAtomIdBTree<NodeId>;
 	readonly crossFieldKeys: CrossFieldKeyTable;
+	/**
+	 * The number of constraint violations that apply to the input context of the changeset, i.e., before this change is applied.
+	 */
 	readonly constraintViolationCount?: number;
+	/**
+	 * The number of constraint violations that apply to the output context of the changeset, i.e., after this change is applied.
+	 */
+	readonly outputConstraintViolationCount?: number;
 	readonly builds?: ChangeAtomIdBTree<TreeChunk>;
 	readonly destroys?: ChangeAtomIdBTree<number>;
 	readonly refreshers?: ChangeAtomIdBTree<TreeChunk>;
@@ -98,6 +105,7 @@ export interface NodeExistsConstraint {
  */
 export interface NodeChangeset extends HasFieldChanges {
 	nodeExistsConstraint?: NodeExistsConstraint;
+	outputNodeExistsConstraint?: NodeExistsConstraint;
 }
 
 export type NodeId = ChangeAtomId;

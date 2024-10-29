@@ -213,7 +213,7 @@ function makeModularChangeCodec(
 		context: FieldChangeEncodingContext,
 	): EncodedNodeChangeset {
 		const encodedChange: EncodedNodeChangeset = {};
-		const { fieldChanges, nodeExistsConstraint } = change;
+		const { fieldChanges, nodeExistsConstraint, outputNodeExistsConstraint } = change;
 
 		if (fieldChanges !== undefined) {
 			encodedChange.fieldChanges = encodeFieldChangesForJsonI(fieldChanges, context);
@@ -221,6 +221,10 @@ function makeModularChangeCodec(
 
 		if (nodeExistsConstraint !== undefined) {
 			encodedChange.nodeExistsConstraint = nodeExistsConstraint;
+		}
+
+		if (outputNodeExistsConstraint !== undefined) {
+			encodedChange.outputNodeExistsConstraint = outputNodeExistsConstraint;
 		}
 
 		return encodedChange;
@@ -299,7 +303,7 @@ function makeModularChangeCodec(
 		idAllocator: IdAllocator,
 	): NodeChangeset {
 		const decodedChange: NodeChangeset = {};
-		const { fieldChanges, nodeExistsConstraint } = encodedChange;
+		const { fieldChanges, nodeExistsConstraint, outputNodeExistsConstraint } = encodedChange;
 
 		if (fieldChanges !== undefined) {
 			decodedChange.fieldChanges = decodeFieldChangesFromJson(
@@ -313,6 +317,10 @@ function makeModularChangeCodec(
 
 		if (nodeExistsConstraint !== undefined) {
 			decodedChange.nodeExistsConstraint = nodeExistsConstraint;
+		}
+
+		if (outputNodeExistsConstraint !== undefined) {
+			decodedChange.outputNodeExistsConstraint = outputNodeExistsConstraint;
 		}
 
 		return decodedChange;

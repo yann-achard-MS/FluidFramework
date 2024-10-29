@@ -67,6 +67,7 @@ export const EncodedNodeChangeset = Type.Object(
 	{
 		fieldChanges: Type.Optional(EncodedFieldChangeMap),
 		nodeExistsConstraint: Type.Optional(EncodedNodeExistsConstraint),
+		outputNodeExistsConstraint: Type.Optional(EncodedNodeExistsConstraint),
 	},
 	noAdditionalProps,
 );

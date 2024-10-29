@@ -62,11 +62,13 @@ describe("treeApi", () => {
 				view: TreeView<typeof TestObject>,
 				transaction: (root: TestObject) => TResult | typeof rollback,
 				preconditions?: TransactionConstraint[],
+				undoPreconditions?: TransactionConstraint[],
 			) {
 				return runTransaction(
 					inputType === "view" ? view : view.root,
 					transaction,
 					preconditions,
+					undoPreconditions,
 				);
 			}
 
@@ -145,6 +147,53 @@ describe("treeApi", () => {
 					);
 				});
 				assert.equal(view.root.content, 42);
+			});
+
+			it("undo constraint violated by rebased changes", () => {
+				const view = getTestObjectView({});
+				const childB = view.root.child;
+				assert(childB !== undefined);
+
+				const branch = view.checkout.branch();
+				const branchView = branch.viewWith(new TreeViewConfiguration({ schema: TestObject }));
+				branchView.root.child = undefined;
+
+				run(
+					view,
+					(root) => {
+						root.content = 43;
+					},
+					[{ type: "nodeInDocument", node: view.root }],
+					[{ type: "nodeInDocument", node: childB }],
+				);
+
+				assert.doesNotThrow(() => {
+					view.checkout.rebaseOnto(branch);
+				});
+			});
+
+			it.only("undo constraint violated by original change", () => {
+				const view = getTestObjectView({});
+				const childB = view.root.child;
+				assert(childB !== undefined);
+
+				const branch = view.checkout.branch();
+				const branchView = branch.viewWith(new TreeViewConfiguration({ schema: TestObject }));
+				branchView.root.content = 100;
+
+				run(
+					view,
+					(root) => {
+						root.content = 43;
+						root.child = undefined;
+					},
+					[{ type: "nodeInDocument", node: childB }],
+					[{ type: "nodeInDocument", node: childB }],
+				);
+
+				assert.doesNotThrow(() => {
+					view.checkout.rebaseOnto(branch);
+				});
 			});
 
 			it("respects a violated node existence constraint after sequencing", () => {
