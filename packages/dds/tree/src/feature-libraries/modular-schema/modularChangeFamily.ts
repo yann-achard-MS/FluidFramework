@@ -841,6 +841,10 @@ export class ModularChangeFamily
 	): NodeChangeset {
 		const inverse: NodeChangeset = {};
 
+		if (change.outputNodeExistsConstraint !== undefined) {
+			inverse.nodeExistsConstraint = change.outputNodeExistsConstraint;
+		}
+
 		if (change.fieldChanges !== undefined) {
 			inverse.fieldChanges = this.invertFieldMap(
 				change.fieldChanges,
@@ -1424,10 +1428,7 @@ export class ModularChangeFamily
 		const node = nodes.get([nodeId.revision, nodeId.localId]) ?? fail("Unknown node ID");
 		if (node.nodeExistsConstraint !== undefined) {
 			const isNowViolated = attachState === NodeAttachState.Detached;
-			if (
-				constraintState !== undefined &&
-				node.nodeExistsConstraint.violated !== isNowViolated
-			) {
+			if (node.nodeExistsConstraint.violated !== isNowViolated) {
 				node.nodeExistsConstraint = {
 					...node.nodeExistsConstraint,
 					violated: isNowViolated,

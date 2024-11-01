@@ -473,6 +473,18 @@ function runTransactionInCheckout<TResult>(
 				unreachableCase(constraint.type);
 		}
 	}
+	for (const constraint of undoPreconditions) {
+		switch (constraint.type) {
+			case "nodeInDocument": {
+				const node = getOrCreateInnerNode(constraint.node);
+				checkout.editor.addUndoNodeExistsConstraint(node.anchorNode);
+				break;
+			}
+			default:
+				unreachableCase(constraint.type);
+		}
+	}
+
 	let result: ReturnType<typeof transaction>;
 	try {
 		result = transaction();
@@ -487,17 +499,6 @@ function runTransactionInCheckout<TResult>(
 		return result;
 	}
 
-	for (const constraint of undoPreconditions) {
-		switch (constraint.type) {
-			case "nodeInDocument": {
-				const node = getOrCreateInnerNode(constraint.node);
-				checkout.editor.addUndoNodeExistsConstraint(node.anchorNode);
-				break;
-			}
-			default:
-				unreachableCase(constraint.type);
-		}
-	}
 	checkout.transaction.commit();
 
 	return result;

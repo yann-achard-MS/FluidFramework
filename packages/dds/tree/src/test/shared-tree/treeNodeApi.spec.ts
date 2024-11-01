@@ -187,7 +187,7 @@ describe("treeApi", () => {
 						root.content = 43;
 						root.child = undefined;
 					},
-					[{ type: "nodeInDocument", node: childB }],
+					[{ type: "nodeInDocument", node: view.root }],
 					[{ type: "nodeInDocument", node: childB }],
 				);
 
