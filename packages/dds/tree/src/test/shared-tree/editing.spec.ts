@@ -24,7 +24,7 @@ import {
 } from "../../core/index.js";
 import { cursorForJsonableTreeNode } from "../../feature-libraries/index.js";
 import type { ITreeCheckout, TreeStoredContent } from "../../shared-tree/index.js";
-import { type JsonCompatible, brand, makeArray } from "../../util/index.js";
+import { type JsonCompatible, brand, fail, makeArray } from "../../util/index.js";
 import {
 	checkoutWithContent,
 	createTestUndoRedoStacks,
@@ -3122,6 +3122,101 @@ describe("Editing", () => {
 				tree2.rebaseOnto(tree);
 
 				expectJsonTree([tree, tree2], [{}]);
+			});
+		});
+
+		describe("Revert preconditions", () => {
+			it("revert constraint not violated by interim change", () => {
+				const tree = makeTreeFromJson({ foo: "A" });
+				const stack = createTestUndoRedoStacks(tree.events);
+
+				tree.transaction.start();
+				tree.editor
+					.valueField({ parent: rootNode, field: brand("foo") })
+					.set(singleJsonCursor("B"));
+				tree.editor.addUndoNodeExistsConstraint({
+					parent: rootNode,
+					parentField: brand("foo"),
+					parentIndex: 0,
+				});
+				tree.transaction.commit();
+
+				expectJsonTree(tree, [{ foo: "B" }]);
+
+				const changed42To43 = stack.undoStack[0] ?? fail("Missing undo");
+
+				// This change should not violate the constraint in the revert
+				tree.editor
+					.optionalField({ parent: rootNode, field: brand("bar") })
+					.set(singleJsonCursor("C"), true);
+
+				// This revert should apply nothing since its constraint has not been violated
+				changed42To43.revert();
+				expectJsonTree(tree, [{ foo: "A", bar: "C" }]);
+
+				stack.unsubscribe();
+			});
+
+			it("revert constraint violated by interim change", () => {
+				const tree = makeTreeFromJson({ foo: "A" });
+				const stack = createTestUndoRedoStacks(tree.events);
+
+				tree.transaction.start();
+				tree.editor
+					.valueField({ parent: rootNode, field: brand("foo") })
+					.set(singleJsonCursor("B"));
+				tree.editor.addUndoNodeExistsConstraint({
+					parent: rootNode,
+					parentField: brand("foo"),
+					parentIndex: 0,
+				});
+				tree.transaction.commit();
+
+				expectJsonTree(tree, [{ foo: "B" }]);
+
+				const changed42To43 = stack.undoStack[0] ?? fail("Missing undo");
+
+				// This change should violate the constraint in the revert
+				tree.editor
+					.valueField({ parent: rootNode, field: brand("foo") })
+					.set(singleJsonCursor("C"));
+
+				// This revert should do nothing since its constraint has been violated
+				changed42To43.revert();
+				expectJsonTree(tree, [{ foo: "C" }]);
+
+				stack.unsubscribe();
+			});
+
+			/**
+			 * This test fails because constraints that apply to the output context are not currently
+			 * updated when they are composed with a later change.
+			 */
+			it.skip("revert constraint violated by the original change", () => {
+				const tree = makeTreeFromJson({ foo: "A" });
+				const stack = createTestUndoRedoStacks(tree.events);
+
+				tree.transaction.start();
+				tree.editor.addUndoNodeExistsConstraint({
+					parent: rootNode,
+					parentField: brand("foo"),
+					parentIndex: 0,
+				});
+				// This change violates the above constraint
+				tree.editor
+					.valueField({ parent: rootNode, field: brand("foo") })
+					.set(singleJsonCursor("B"));
+				tree.transaction.commit();
+
+				expectJsonTree(tree, [{ foo: "B" }]);
+
+				const changed42To43 = stack.undoStack[0] ?? fail("Missing undo");
+
+				// This revert should do nothing since its constraint has been violated
+				changed42To43.revert();
+				expectJsonTree(tree, [{ foo: "B" }]);
+
+				stack.unsubscribe();
 			});
 		});
 

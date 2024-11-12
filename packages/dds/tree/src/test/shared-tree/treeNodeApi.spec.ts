@@ -31,7 +31,7 @@ import {
 
 // eslint-disable-next-line import/no-internal-modules
 import { hydrate } from "../simple-tree/utils.js";
-import type { requireAssignableTo } from "../../util/index.js";
+import { fail, type requireAssignableTo } from "../../util/index.js";
 // eslint-disable-next-line import/no-internal-modules
 import { runTransaction } from "../../shared-tree/treeApi.js";
 
@@ -149,51 +149,37 @@ describe("treeApi", () => {
 				assert.equal(view.root.content, 42);
 			});
 
-			it("undo constraint violated by rebased changes", () => {
+			/**
+			 * This test exercises the undo precondition constraints API with a representative scenario.
+			 * For more in-depth testing of undo precondition constraints, see editing.spec.ts.
+			 */
+			it("revert constraint violated by interim change", () => {
 				const view = getTestObjectView({});
-				const childB = view.root.child;
-				assert(childB !== undefined);
+				const child = view.root.child;
+				assert(child !== undefined);
 
-				const branch = view.checkout.branch();
-				const branchView = branch.viewWith(new TreeViewConfiguration({ schema: TestObject }));
-				branchView.root.child = undefined;
+				const stack = createTestUndoRedoStacks(view.events);
 
 				run(
 					view,
 					(root) => {
 						root.content = 43;
 					},
-					[{ type: "nodeInDocument", node: view.root }],
-					[{ type: "nodeInDocument", node: childB }],
+					undefined,
+					[{ type: "nodeInDocument", node: child }],
 				);
+				assert.equal(view.root.content, 43);
 
-				assert.doesNotThrow(() => {
-					view.checkout.rebaseOnto(branch);
-				});
-			});
+				const changed42To43 = stack.undoStack[0] ?? fail("Missing undo");
 
-			it.only("undo constraint violated by original change", () => {
-				const view = getTestObjectView({});
-				const childB = view.root.child;
-				assert(childB !== undefined);
+				// This change should violate the constraint in the revert
+				view.root.child = undefined;
 
-				const branch = view.checkout.branch();
-				const branchView = branch.viewWith(new TreeViewConfiguration({ schema: TestObject }));
-				branchView.root.content = 100;
+				// This revert should do nothing since its constraint has been violated
+				changed42To43.revert();
+				assert.equal(view.root.content, 43);
 
-				run(
-					view,
-					(root) => {
-						root.content = 43;
-						root.child = undefined;
-					},
-					[{ type: "nodeInDocument", node: view.root }],
-					[{ type: "nodeInDocument", node: childB }],
-				);
-
-				assert.doesNotThrow(() => {
-					view.checkout.rebaseOnto(branch);
-				});
+				stack.unsubscribe();
 			});
 
 			it("respects a violated node existence constraint after sequencing", () => {
