@@ -3150,7 +3150,7 @@ describe("Editing", () => {
 					.optionalField({ parent: rootNode, field: brand("bar") })
 					.set(singleJsonCursor("C"), true);
 
-				// This revert should apply nothing since its constraint has not been violated
+				// This revert should apply since its constraint has not been violated
 				changed42To43.revert();
 				expectJsonTree(tree, [{ foo: "A", bar: "C" }]);
 
