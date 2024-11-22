@@ -649,7 +649,18 @@ export class ModularChangeFamily
 		crossFieldTable: ComposeTable,
 		revisionMetadata: RevisionMetadataSource,
 	): NodeChangeset {
+		// WARNING: this composition logic assumes that we never make compositions of the following form:
+		// change1: a changeset that impact the existence of a node
+		// change2: a node-exists constraint on that node.
+		// This is currently enforced by the fact that constraints which apply to the input context are included first in the composition.
+		// If that weren't the case, we would need to rebase the status of the constraint backward over the changes from change1.
 		const nodeExistsConstraint = change1.nodeExistsConstraint ?? change2.nodeExistsConstraint;
+
+		// WARNING: this composition logic assumes that we never make compositions of the following form:
+		// change1: an output-node-exists constraint on a node
+		// change2: a changeset that impacts the existence of that node
+		// This is currently enforced by the fact that constraints which apply to the output context are included last in the composition.
+		// If that weren't the case, we would need to rebase the status of the constraint forward over the changes from change2.
 		const outputNodeExistsConstraint =
 			change1.outputNodeExistsConstraint ?? change2.outputNodeExistsConstraint;
 

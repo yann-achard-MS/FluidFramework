@@ -3187,37 +3187,6 @@ describe("Editing", () => {
 
 				stack.unsubscribe();
 			});
-
-			/**
-			 * This test fails because constraints that apply to the output context are not currently
-			 * updated when they are composed with a later change.
-			 */
-			it.skip("revert constraint violated by the original change", () => {
-				const tree = makeTreeFromJson({ foo: "A" });
-				const stack = createTestUndoRedoStacks(tree.events);
-
-				tree.transaction.start();
-				tree.editor.addUndoNodeExistsConstraint({
-					parent: rootNode,
-					parentField: brand("foo"),
-					parentIndex: 0,
-				});
-				// This change violates the above constraint
-				tree.editor
-					.valueField({ parent: rootNode, field: brand("foo") })
-					.set(singleJsonCursor("B"));
-				tree.transaction.commit();
-
-				expectJsonTree(tree, [{ foo: "B" }]);
-
-				const changed42To43 = stack.undoStack[0] ?? fail("Missing undo");
-
-				// This revert should do nothing since its constraint has been violated
-				changed42To43.revert();
-				expectJsonTree(tree, [{ foo: "B" }]);
-
-				stack.unsubscribe();
-			});
 		});
 
 		it("Rebase over conflicted change", () => {
