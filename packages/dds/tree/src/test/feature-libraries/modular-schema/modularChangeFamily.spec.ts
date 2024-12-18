@@ -416,14 +416,15 @@ const rootChange3: ModularChangeset = removeAliases(
 
 const rootChange4: ModularChangeset = removeAliases(
 	family.compose([
-		tagChangeInline(rootChange3, tag4),
 		makeAnonChange(buildExistsConstraint(pathA0)),
+		tagChangeInline(rootChange3, tag4),
 	]),
 );
 
 const dummyRevisionTag = mintRevisionTag();
 
 const rootChangeWithoutNodeFieldChanges: ModularChangeset = family.compose([
+	makeAnonChange(buildExistsConstraint(pathA0)),
 	tagChangeInline(
 		buildChangeset([
 			{
@@ -436,7 +437,6 @@ const rootChangeWithoutNodeFieldChanges: ModularChangeset = family.compose([
 		]),
 		dummyRevisionTag,
 	),
-	makeAnonChange(buildExistsConstraint(pathA0)),
 ]);
 
 const node1 = singleJsonCursor(1);
@@ -962,6 +962,8 @@ describe("ModularChangeFamily", () => {
 						[[undefined, brand(0)], node1Chunk],
 						[[tag2, brand(1)], node1Chunk],
 					]),
+					hasChanges: true,
+					hasInputConstraints: false,
 				},
 				tag1,
 			);
@@ -980,9 +982,11 @@ describe("ModularChangeFamily", () => {
 					[[tag2, brand(1)], 1],
 				]),
 				revisions: [{ revision: revisionForInvert, rollbackOf: tag1 }],
+				hasChanges: true,
+				hasInputConstraints: false,
 			};
 			const expectedUndo: ModularChangeset = tagChangeInline(
-				Change.empty(),
+				{ ...Change.empty(), hasChanges: true },
 				revisionForInvert,
 			).change;
 
@@ -1425,7 +1429,7 @@ describe("ModularChangeFamily", () => {
 		> = {
 			successes: [
 				["without constraint", inlineRevision(rootChange1a, tag1), context],
-				["with constraint", inlineRevision(rootChange3, tag1), context],
+				["with constraint", inlineRevision(rootChange4, tag1), context],
 				[
 					"with violated constraint",
 					inlineRevision({ ...buildChangeset([]), constraintViolationCount: 42 }, tag1),
@@ -1596,6 +1600,8 @@ function normalizeChangeset(change: ModularChangeset): ModularChangeset {
 		nodeToParent,
 		crossFieldKeys: crossFieldKeyTable,
 	};
+	delete normal.hasChanges;
+	delete normal.hasInputConstraints;
 
 	// The TreeChunk objects need to be deep cloned to avoid comparison issues on reference counting
 	if (change.builds !== undefined) {

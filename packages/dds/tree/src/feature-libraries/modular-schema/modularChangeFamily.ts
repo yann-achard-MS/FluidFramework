@@ -100,7 +100,10 @@ export class ModularChangeFamily
 		ChangeFamily<ModularEditBuilder, ModularChangeset>,
 		ChangeRebaser<ModularChangeset>
 {
-	public static readonly emptyChange: ModularChangeset = makeModularChangeset();
+	public static readonly emptyChange: ModularChangeset = makeModularChangeset({
+		hasChanges: false,
+		hasInputConstraints: false,
+	});
 
 	public readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>;
 
@@ -205,7 +208,7 @@ export class ModularChangeFamily
 		const idState: IdAllocationState = { maxId };
 
 		if (changes.length === 0) {
-			return makeModularChangeset();
+			return makeModularChangeset({ hasChanges: false, hasInputConstraints: false });
 		}
 
 		return changes
@@ -219,6 +222,12 @@ export class ModularChangeFamily
 		revInfos: RevisionInfo[],
 		idState: IdAllocationState,
 	): ModularChangeset {
+		if (change1.hasChanges === true) {
+			assert(
+				change2.hasInputConstraints !== true,
+				"Rebasing constraints backwards through compositions is not supported",
+			);
+		}
 		const { fieldChanges, nodeChanges, nodeToParent, nodeAliases, crossFieldKeys } =
 			this.composeAllFields(change1, change2, revInfos, idState);
 
@@ -238,6 +247,11 @@ export class ModularChangeFamily
 			builds: allBuilds,
 			destroys: allDestroys,
 			refreshers: allRefreshers,
+			hasChanges: composePresenceFlags(change1.hasChanges, change2.hasChanges),
+			hasInputConstraints: composePresenceFlags(
+				change1.hasInputConstraints,
+				change2.hasInputConstraints,
+			),
 		});
 	}
 
@@ -702,6 +716,8 @@ export class ModularChangeFamily
 				maxId: change.change.maxId as number,
 				revisions: revInfos,
 				destroys,
+				hasChanges: false,
+				hasInputConstraints: false,
 			});
 		}
 
@@ -780,6 +796,8 @@ export class ModularChangeFamily
 			revisions: revInfos,
 			constraintViolationCount: change.change.constraintViolationCount,
 			destroys,
+			hasChanges: change.change.hasChanges,
+			hasInputConstraints: false,
 		});
 	}
 
@@ -915,17 +933,13 @@ export class ModularChangeFamily
 		);
 
 		const rebased = makeModularChangeset({
+			...change,
 			fieldChanges: this.pruneFieldMap(rebasedFields, rebasedNodes),
 			nodeChanges: rebasedNodes,
 			nodeToParent: crossFieldTable.rebasedNodeToParent,
-			nodeAliases: change.nodeAliases,
 			crossFieldKeys: crossFieldTable.rebasedCrossFieldKeys,
 			maxId: idState.maxId,
-			revisions: change.revisions,
 			constraintViolationCount: constraintState.violationCount,
-			builds: change.builds,
-			destroys: change.destroys,
-			refreshers: change.refreshers,
 		});
 
 		return rebased;
@@ -1901,27 +1915,8 @@ export function updateRefreshers(
 		}
 	}
 
-	const {
-		fieldChanges,
-		nodeChanges,
-		maxId,
-		revisions,
-		constraintViolationCount,
-		builds,
-		destroys,
-	} = change;
-
 	return makeModularChangeset({
-		fieldChanges,
-		nodeChanges,
-		nodeToParent: change.nodeToParent,
-		nodeAliases: change.nodeAliases,
-		crossFieldKeys: change.crossFieldKeys,
-		maxId: maxId as number,
-		revisions,
-		constraintViolationCount,
-		builds,
-		destroys,
+		...change,
 		refreshers,
 	});
 }
@@ -2501,15 +2496,15 @@ function makeModularChangeset(
 		nodeToParent?: ChangeAtomIdBTree<FieldId>;
 		nodeAliases?: ChangeAtomIdBTree<NodeId>;
 		crossFieldKeys?: CrossFieldKeyTable;
-		maxId: number;
+		maxId?: number;
 		revisions?: readonly RevisionInfo[];
 		constraintViolationCount?: number;
 		builds?: ChangeAtomIdBTree<TreeChunk>;
 		destroys?: ChangeAtomIdBTree<number>;
 		refreshers?: ChangeAtomIdBTree<TreeChunk>;
-	} = {
-		maxId: -1,
-	},
+		hasChanges?: boolean;
+		hasInputConstraints?: boolean;
+	} = {},
 ): ModularChangeset {
 	const changeset: Mutable<ModularChangeset> = {
 		fieldChanges: props.fieldChanges ?? new Map(),
@@ -2522,7 +2517,7 @@ function makeModularChangeset(
 	if (props.revisions !== undefined && props.revisions.length > 0) {
 		changeset.revisions = props.revisions;
 	}
-	if (props.maxId >= 0) {
+	if (props.maxId !== undefined && props.maxId >= 0) {
 		changeset.maxId = brand(props.maxId);
 	}
 	if (props.constraintViolationCount !== undefined && props.constraintViolationCount > 0) {
@@ -2536,6 +2531,12 @@ function makeModularChangeset(
 	}
 	if (props.refreshers !== undefined && props.refreshers.size > 0) {
 		changeset.refreshers = props.refreshers;
+	}
+	if (props.hasInputConstraints !== undefined) {
+		changeset.hasInputConstraints = props.hasInputConstraints;
+	}
+	if (props.hasChanges !== undefined) {
+		changeset.hasChanges = props.hasChanges;
 	}
 	return changeset;
 }
@@ -2627,6 +2628,8 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 			idAllocator: this.idAllocator,
 			localCrossFieldKeys,
 			revision,
+			hasChanges: true,
+			hasInputConstraints: false,
 		});
 		this.applyChange(tagChange(modularChange, revision));
 	}
@@ -2646,6 +2649,8 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 							maxId: this.idAllocator.getMaxId(),
 							builds: change.builds,
 							revisions: [{ revision: change.revision }],
+							hasChanges: true,
+							hasInputConstraints: false,
 						})
 					: buildModularChangesetFromField({
 							path: change.field,
@@ -2662,6 +2667,8 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 								change.fieldKind,
 							).getCrossFieldKeys(change.change),
 							revision: change.revision,
+							hasChanges: true,
+							hasInputConstraints: false,
 						}),
 			);
 		});
@@ -2697,6 +2704,8 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 					crossFieldKeys: newCrossFieldKeyTable(),
 					idAllocator: this.idAllocator,
 					revision,
+					hasChanges: false,
+					hasInputConstraints: true,
 				}),
 				revision,
 			),
@@ -2714,11 +2723,12 @@ function buildModularChangesetFromField(props: {
 	revision: RevisionTag;
 	idAllocator?: IdAllocator;
 	childId?: NodeId;
+	hasInputConstraints?: boolean;
+	hasChanges?: boolean;
 }): ModularChangeset {
 	const {
 		path,
 		fieldChange,
-		nodeChanges,
 		nodeToParent,
 		crossFieldKeys,
 		idAllocator = idAllocatorFromMaxId(),
@@ -2741,10 +2751,8 @@ function buildModularChangesetFromField(props: {
 		}
 
 		return makeModularChangeset({
+			...props,
 			fieldChanges,
-			nodeChanges,
-			nodeToParent,
-			crossFieldKeys,
 			maxId: idAllocator.getMaxId(),
 			revisions: [{ revision }],
 		});
@@ -2768,13 +2776,10 @@ function buildModularChangesetFromField(props: {
 	}
 
 	return buildModularChangesetFromNode({
+		...props,
 		path: path.parent,
 		nodeChange: nodeChangeset,
-		nodeChanges,
-		nodeToParent,
-		crossFieldKeys,
 		idAllocator,
-		revision,
 		nodeId: parentId,
 	});
 }
@@ -2788,6 +2793,8 @@ function buildModularChangesetFromNode(props: {
 	idAllocator: IdAllocator;
 	revision: RevisionTag;
 	nodeId?: NodeId;
+	hasInputConstraints?: boolean;
+	hasChanges?: boolean;
 }): ModularChangeset {
 	const {
 		path,
@@ -3157,4 +3164,20 @@ function setInChangeAtomIdMap<T>(map: ChangeAtomIdBTree<T>, id: ChangeAtomId, va
 
 function areEqualFieldIds(a: FieldId, b: FieldId): boolean {
 	return areEqualChangeAtomIdOpts(a.nodeId, b.nodeId) && a.field === b.field;
+}
+
+function composePresenceFlags(
+	flag1: boolean | undefined,
+	flag2: boolean | undefined,
+): boolean | undefined {
+	// The `||` operator has exactly the behavior we desire here:
+	// +-----------+-----------+-----------+-----------+
+	// |           |   true    | undefined |   false   |
+	// +-----------+-----------+-----------+-----------+
+	// |      true |   true    |   true    |   true    |
+	// | undefined |   true    | undefined | undefined |
+	// |     false |   true    | undefined |   false   |
+	// +-----------+-----------+-----------+-----------+
+	// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions, @typescript-eslint/prefer-nullish-coalescing
+	return flag1 || flag2;
 }

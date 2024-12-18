@@ -32,6 +32,9 @@ export interface ModularChangeset extends HasFieldChanges {
 	readonly revisions?: readonly RevisionInfo[];
 	readonly fieldChanges: FieldChangeMap;
 
+	readonly hasInputConstraints?: boolean;
+	readonly hasChanges?: boolean;
+
 	/**
 	 * Maps from this changeset's canonical ID for a node (see comment on node aliases) to the changes for that node.
 	 */

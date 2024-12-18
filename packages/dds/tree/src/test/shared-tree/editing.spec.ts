@@ -2664,6 +2664,23 @@ describe("Editing", () => {
 	});
 
 	describe("Constraints", () => {
+		it("transactions do not support adding constraints after making change", () => {
+			const tree = makeTreeFromJson({ foo: "A" });
+
+			assert.throws(() => {
+				tree.transaction.start();
+				tree.editor
+					.valueField({ parent: rootNode, field: brand("foo") })
+					.set(singleJsonCursor("B"));
+				tree.editor.addNodeExistsConstraint({
+					parent: rootNode,
+					parentField: brand("foo"),
+					parentIndex: 0,
+				});
+				tree.transaction.commit();
+			}, /Rebasing constraints backwards through compositions is not supported/);
+		});
+
 		describe("Node existence constraint", () => {
 			it("handles ancestor revive", () => {
 				const tree = checkoutWithContent(emptyJsonContent);

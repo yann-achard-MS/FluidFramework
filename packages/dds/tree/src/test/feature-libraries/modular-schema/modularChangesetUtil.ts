@@ -78,6 +78,8 @@ function empty(): ModularChangeset {
 		nodeToParent: newTupleBTree(),
 		nodeAliases: newTupleBTree(),
 		crossFieldKeys: newCrossFieldKeyTable(),
+		hasChanges: false,
+		hasInputConstraints: false,
 	};
 }
 
@@ -135,6 +137,8 @@ function build(args: BuildArgs, ...fields: FieldChangesetDescription[]): Modular
 		crossFieldKeys,
 		nodeAliases: newTupleBTree(),
 		maxId: brand(args.maxId ?? idAllocator.getMaxId()),
+		hasChanges: true,
+		hasInputConstraints: false,
 	};
 
 	if (args.revisions !== undefined) {
