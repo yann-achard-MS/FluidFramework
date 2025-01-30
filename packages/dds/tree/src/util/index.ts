@@ -136,3 +136,8 @@ export {
 	throwIfBroken,
 	breakingClass,
 } from "./breakable.js";
+
+export {
+	type TupleBTree,
+	newTupleBTree,
+} from "./tupleBTree.js";

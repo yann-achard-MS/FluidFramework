@@ -49,6 +49,8 @@ import {
 	idAllocatorFromMaxId,
 	idAllocatorFromState,
 	type RangeQueryResult,
+	newTupleBTree,
+	type TupleBTree,
 } from "../../util/index.js";
 import {
 	type TreeChunk,
@@ -85,7 +87,6 @@ import type {
 	ModularChangeset,
 	NodeChangeset,
 	NodeId,
-	TupleBTree,
 } from "./modularChangeTypes.js";
 
 /**
@@ -2910,36 +2911,6 @@ function hasConflicts(change: ModularChangeset): boolean {
 
 export function newCrossFieldKeyTable(): CrossFieldKeyTable {
 	return newTupleBTree();
-}
-
-export function newTupleBTree<K extends readonly unknown[], V>(
-	entries?: [K, V][],
-): TupleBTree<K, V> {
-	return brand(new BTree<K, V>(entries, compareTuples));
-}
-
-// This assumes that the arrays are the same length.
-function compareTuples(arrayA: readonly unknown[], arrayB: readonly unknown[]): number {
-	for (let i = 0; i < arrayA.length; i++) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const a = arrayA[i] as any;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const b = arrayB[i] as any;
-
-		// Less-than and greater-than always return false if either value is undefined,
-		// so we handle undefined separately, treating it as less than all other values.
-		if (a === undefined && b !== undefined) {
-			return -1;
-		} else if (b === undefined && a !== undefined) {
-			return 1;
-		} else if (a < b) {
-			return -1;
-		} else if (a > b) {
-			return 1;
-		}
-	}
-
-	return 0;
 }
 
 interface ModularChangesetContent {

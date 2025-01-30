@@ -10,10 +10,12 @@ import {
 	type IdAllocator,
 	type JsonCompatibleReadOnly,
 	type NestedMap,
+	type TupleBTree,
 	brand,
 	deleteFromNestedMap,
 	forEachInNestedMap,
 	idAllocatorFromMaxId,
+	newTupleBTree,
 	populateNestedMap,
 	setInNestedMap,
 	tryGetFromNestedMap,
@@ -40,7 +42,7 @@ export class DetachedFieldIndex {
 	/**
 	 * A mapping from detached node ids to detached fields.
 	 */
-	private detachedNodeToField: NestedMap<Major, Minor, DetachedField> = new Map();
+	private detachedNodeToField: TupleBTree<[Major, Minor], DetachedField>;
 	/**
 	 * A map from revisions to all detached fields for which the revision is the latest relevant revision.
 	 * See {@link DetachedField.latestRelevantRevision}.
@@ -71,15 +73,38 @@ export class DetachedFieldIndex {
 	 * @param name - A name for the index, used as a prefix for the generated field keys.
 	 * @param rootIdAllocator - An ID allocator used to generate unique field keys.
 	 */
-	public constructor(
+	private constructor(
 		private readonly name: string,
 		private rootIdAllocator: IdAllocator<ForestRootId>,
 		private readonly revisionTagCodec: RevisionTagCodec,
 		private readonly idCompressor: IIdCompressor,
+		detachedNodeToField: TupleBTree<[Major, Minor], DetachedField>,
 		options?: ICodecOptions,
 	) {
 		this.options = options ?? { jsonValidator: noopValidator };
 		this.codec = makeDetachedNodeToFieldCodec(revisionTagCodec, this.options, idCompressor);
+		this.detachedNodeToField = detachedNodeToField;
+	}
+
+	/**
+	 * @param name - A name for the index, used as a prefix for the generated field keys.
+	 * @param rootIdAllocator - An ID allocator used to generate unique field keys.
+	 */
+	public static createEmpty(
+		name: string,
+		rootIdAllocator: IdAllocator<ForestRootId>,
+		revisionTagCodec: RevisionTagCodec,
+		idCompressor: IIdCompressor,
+		options?: ICodecOptions,
+	): DetachedFieldIndex {
+		return new DetachedFieldIndex(
+			name,
+			rootIdAllocator,
+			revisionTagCodec,
+			idCompressor,
+			newTupleBTree(),
+			options,
+		);
 	}
 
 	public clone(): DetachedFieldIndex {
@@ -88,9 +113,9 @@ export class DetachedFieldIndex {
 			idAllocatorFromMaxId(this.rootIdAllocator.getMaxId()) as IdAllocator<ForestRootId>,
 			this.revisionTagCodec,
 			this.idCompressor,
+			brand(this.detachedNodeToField.clone()),
 			this.options,
 		);
-		populateNestedMap(this.detachedNodeToField, clone.detachedNodeToField, true);
 		populateNestedMap(
 			this.latestRelevantRevisionToFields,
 			clone.latestRelevantRevisionToFields,
@@ -104,19 +129,18 @@ export class DetachedFieldIndex {
 			id: Delta.DetachedNodeId;
 		}
 	> {
-		for (const [major, innerMap] of this.detachedNodeToField) {
+		for (const [
+			[major, minor],
+			{ root, latestRelevantRevision },
+		] of this.detachedNodeToField.entries()) {
 			if (major !== undefined) {
-				for (const [minor, { root, latestRelevantRevision }] of innerMap) {
-					yield latestRelevantRevision !== undefined
-						? { id: { major, minor }, root, latestRelevantRevision }
-						: { id: { major, minor }, root };
-				}
+				yield latestRelevantRevision !== undefined
+					? { id: { major, minor }, root, latestRelevantRevision }
+					: { id: { major, minor }, root };
 			} else {
-				for (const [minor, { root, latestRelevantRevision }] of innerMap) {
-					yield latestRelevantRevision !== undefined
-						? { id: { minor }, root, latestRelevantRevision }
-						: { id: { minor }, root };
-				}
+				yield latestRelevantRevision !== undefined
+					? { id: { minor }, root, latestRelevantRevision }
+					: { id: { minor }, root };
 			}
 		}
 	}
@@ -135,16 +159,12 @@ export class DetachedFieldIndex {
 			const inner = this.latestRelevantRevisionToFields.get(current);
 			if (inner !== undefined) {
 				for (const nodeId of inner.values()) {
-					const entry = tryGetFromNestedMap(
-						this.detachedNodeToField,
-						nodeId.major,
-						nodeId.minor,
-					);
+					const entry = this.detachedNodeToField.get([nodeId.major, nodeId.minor]);
 					assert(
 						entry !== undefined,
 						0x9b8 /* Inconsistent data: missing detached node entry */,
 					);
-					setInNestedMap(this.detachedNodeToField, nodeId.major, nodeId.minor, {
+					this.detachedNodeToField.set([nodeId.major, nodeId.minor], {
 						...entry,
 						latestRelevantRevision: updated,
 					});
