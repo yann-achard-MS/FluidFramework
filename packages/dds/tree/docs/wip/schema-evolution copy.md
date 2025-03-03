@@ -1,0 +1,52 @@
+
+The first table gives a detailed explanation of the columns used in the second table.
+
+| Column Header                                          | Column Meaning                                                                                                                                                                                       | Additional Notes                                                                                                                                                 |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Change to Stored Schema                                | The schema change under consideration                                                                                                                                                                |                                                                                                                                                                  |
+| Data Migration                                         | Whether making the change the stored schema would require a data migration                                                                                                                           |                                                                                                                                                                  |
+| Read Back-Compatibility                                | Whether making the change the stored schema would break document reading on clients whose view schema matched the old stored schema                                                                  | Broken if clients with a view schema that matches the old stored schema may read data that is invalid for their view schema.                                     |
+| Write Back-Compatibility                               | Whether making the change the stored schema would break document writing on clients whose view schema matched the old stored schema                                                                  | Broken if clients with a view schema that matches the old stored schema may write data that is invalid for the new stored schema.                                |
+| Avoidable Through Backward-Compatible View Schema Mods | Whether and how the stored schema upgrade can be avoided by using modifiers on the desired view schema to make it backward-compatible with the unchanged stored schema.                               | Pushing a stored schema upgrade using a view schema will not lead to stored schema changes where these modifiers are used.                                       |
+| Tolerable Through Forward-Compatible View Schema Mods  | Whether and how the upgrade can be tolerated by clients with a view schema that matches the old schema thanks to modifiers that make their view schema forward-compatible with the new stored schema | Aside from "runtime check on write", pushing a stored schema upgrade using a view schema may lead to stored schema changes even though these modifiers are used. |
+| Recommended Path                                       | The recommended approach to enable app code to use a view schema that reflects the change.                                                                                                           |                                                                                                                                                                  |
+| Difficulty                                             | How challenging the recommended path may be.                                                                                                                                                         |                                                                                                                                                                  |
+
+| Change to Stored Schema      | Data Migration | Read Back-Compatibility | Write Back-Compatibility | Avoidable Through Backward-Compatible View Schema Mods | Tolerable Through Forward-Compatible View Schema Mods | Recommended Path                                                                         | Difficulty |
+| ---------------------------- | -------------- | ----------------------- | ------------------------ | ------------------------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------- |
+| Rename Node Type             | ❕ Required     | ❌ Broken                | ❌ Broken                 | ⌛ aliasType                                            | ❌ Never                                               | Backward-compatible view schema mod                                                      | 🌶         |
+| Rename Field Key             | ❕ Required     | ❌ Broken                | ❌ Broken                 | ⌛ aliasField                                           | ❌ Never                                               | Backward-compatible view schema mod                                                      | 🌶         |
+| Map Node → Object Node       | ✔ None         | ✔ Maintained            | ❌ Broken                 | ⌛ asObject                                             | ⌛ Runtime check on write                              | Backward-compatible view schema mod                                                      | 🌶         |
+| Object Node → Map Node       | ✔ None         | ❌ Broken                | ✔ Maintained             | ⌛ Runtime check on write                               | ✅ allowUnknownOptionalFields                          | Forward-compatible view schema mod                                                       | 🌶🌶       |
+| Add Allowed Type in Field    | ✔ None         | ❌ Broken                | ✔ Maintained             | ⌛ Runtime check on write                               | ⌛ allowUknownType                                     | Forward-compatible view schema mod                                                       | 🌶🌶       |
+| Remove Allowed Type in Field | ❕ Required     | ✔ Maintained            | ❌ Broken                 | ⌛ retireType                                           | ⌛ Runtime check on write                              | Backward-compatible view schema mod                                                      | 🌶         |
+| Add Non-Required Field       | ✔ None         | ❌ Broken                | ✔ Maintained             | ⌛ Runtime check on write                               | ✅ allowUnknownOptionalFields                          | Forward-compatible view schema mod                                                       | 🌶🌶       |
+| Remove Non-Required Field    | ❕ Required     | ✔ Maintained            | ❌ Broken                 | ⌛ retireField                                          | ⌛ Runtime check on write                              | Backward-compatible view schema mod                                                      | 🌶         |
+| Add Required Field           | ❕ Required     | ❌ Broken                | ❌ Broken                 | ❌ Never                                                | ⌛ allowUnknownRequiredFields (RO)                     | Read-only forward-compatible view schema mod OR Staged schema upgrade w/ data migration | 🌶🌶🌶   |
+| Remove Required Field        | ❕ Required     | ❌ Broken                | ❌ Broken                 | ⌛ retireField (RO)                                     | ❌ Never                                               | Read-only backward-compatible view schema mod OR staged schema upgrade w/ data migration | 🌶🌶🌶     |
+
+```mermaid
+---
+title: Schema Change Decision Tree
+---
+flowchart TD
+A[I want a different view schema] --> C{Can it be done by adding a modifier to the view schema that keeps it backward-compatible with the stored schema?}
+C -->|Yes| D(Rollout 1/1: Add backward-compatible modifier to the view schema. No change to the stored schema is necessary.)
+C -->|No| E[⚠️ Going down this path will require updating the stored schema.]
+E --> F{Do existing app versions have a view schema modifier that makes them forward-compatible with the updated stored schema?}
+F -->|Yes| W(⌛ Wait for these app versions to saturate)
+W -->X(Rollout 1/1: Publish a new version of the app with the desired view schema.</br>💣This will break any remainging clients whose view schema does not does not have the required modifiers to make it forward-compatible with the change.)
+F -->|No| G[⚠️ Going down this path will require a staged rollout.]
+G -->H{Can a schema modifier be added to make new app versions forward-compatible with the change?}
+H -->|Yes| I(Rollout 1/2: Publish a new version of the app with the modifiers that enable forward-compatitibility.)
+I --> J(⌛ Wait for the new app version to saturate)
+J --> K(Rollout 2/2: Publish a new version of the app with the modified view schema that it pushes to the document as the new stored schema.</br>💣This will break any remainging clients whose view schema does not does not have the required modifiers to make it forward-compatible with the change.)
+H -->|No| H2{Can you refactor your schema change into the addition or removal of an allowed type in a field instead?}
+H2 -->|Yes| A
+H2 -->|No| L[⚠️ Going down this path will require the new app to work with two schemas.]
+L --> Z{Does the schema change require a data migration?}
+Z -->|No| M(Rollout 1/2: Publish a new version of the app that can work with both the old and new schema.</br>🚧The new schema should be shipped dark.)
+M --> N(⌛ Wait for the new app version to saturate)
+N --> O(Rollout 2/2: Enable the feature gate that will enable the app to use the new schema and push it to the document as the new stored schema.</br>💣This will break any old remainging clients.)
+Z -->|Yes| ZZ[This is not supported yet.]
+```
