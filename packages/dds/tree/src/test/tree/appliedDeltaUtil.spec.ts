@@ -7,16 +7,16 @@ import { strict as assert } from "node:assert";
 
 import {
 	EmptyKey,
-	initializeForest,
+	makeDetachedFieldIndex,
 	rootFieldKey,
+	type DeltaDetachedNodeChanges,
 	type DeltaFieldChanges,
 	type DeltaFieldMap,
 	type DeltaRoot,
 	type FieldKey,
-	type TreeNodeSchemaIdentifier,
 } from "../../core/index.js";
 import { brand, type JsonCompatible } from "../../util/index.js";
-import { buildForest, cursorForMapTreeNode } from "../../feature-libraries/index.js";
+import { buildForest } from "../../feature-libraries/index.js";
 // eslint-disable-next-line import/no-internal-modules
 import { appliedDeltaFromForest } from "../../core/tree/appliedDeltaUtil.js";
 import type {
@@ -33,12 +33,13 @@ import type {
 import { JsonArray, JsonObject, singleJsonCursor } from "../json/index.js";
 import { testIdCompressor, testRevisionTagCodec } from "../utils.js";
 
-const type: TreeNodeSchemaIdentifier = brand("Node");
-const emptyMap = new Map();
-const nodeX = { type, value: "X", fields: emptyMap };
-const nodeXCursor = cursorForMapTreeNode(nodeX);
+const nodeXCursor = singleJsonCursor("X");
+const nodeYCursor = singleJsonCursor("Y");
+const nodeZCursor = singleJsonCursor("Z");
+const trueInBazCursor = singleJsonCursor({ baz: true });
 const fooKey = brand<FieldKey>("foo");
 const barKey = brand<FieldKey>("bar");
+const bazKey = brand<FieldKey>("baz");
 
 const content: JsonCompatible = {
 	foo: [{ bar: "A" }, 1, 2, 3, 4],
@@ -47,13 +48,19 @@ const content: JsonCompatible = {
 describe("AppliedDeltaUtils", () => {
 	describe("appliedDeltaFromForest", () => {
 		it("forest and delta", () => {
+			const index = makeDetachedFieldIndex("", testRevisionTagCodec, testIdCompressor);
+			const fieldWithObj = index.toFieldKey(index.createEntry({ minor: 10 }));
+			const fieldWithX = index.toFieldKey(index.createEntry({ minor: 20 }));
+			const fieldWithY = index.toFieldKey(index.createEntry({ minor: 30 }));
+			const fieldWithZ = index.toFieldKey(index.createEntry({ minor: 40 }));
 			const forest = buildForest();
-			initializeForest(
-				forest,
-				[singleJsonCursor(content)],
-				testRevisionTagCodec,
-				testIdCompressor,
-			);
+			const visitor = forest.acquireVisitor();
+			visitor.create([singleJsonCursor(content)], rootFieldKey);
+			visitor.create([trueInBazCursor], fieldWithObj);
+			visitor.create([nodeXCursor], fieldWithX);
+			visitor.create([nodeYCursor], fieldWithY);
+			visitor.create([nodeZCursor], fieldWithZ);
+			visitor.free();
 			const fields: DeltaFieldMap = new Map<FieldKey, DeltaFieldChanges>([
 				[
 					rootFieldKey,
@@ -92,8 +99,26 @@ describe("AppliedDeltaUtils", () => {
 					],
 				],
 			]);
+			const detachedNodeChanges: DeltaDetachedNodeChanges[] = [
+				{
+					id: { minor: 20 },
+					fields: new Map<FieldKey, DeltaFieldChanges>([
+						[
+							bazKey,
+							[
+								{
+									count: 1,
+									detach: { minor: 21 },
+								},
+							],
+						],
+					]),
+				},
+			];
 			const delta: DeltaRoot = {
 				build: [{ id: { minor: 10 }, trees: [nodeXCursor] }],
+				refreshers: [{ id: { minor: 20 }, trees: [trueInBazCursor] }],
+				destroy: [{ id: { minor: 30 }, count: 1 }],
 				rename: [
 					{
 						count: 2,
@@ -101,11 +126,46 @@ describe("AppliedDeltaUtils", () => {
 						newId: { minor: 3 },
 					},
 				],
+				global: detachedNodeChanges,
 				fields,
 			};
 			const actual = appliedDeltaFromForest(delta, forest);
 			const expected: AppliedDeltaRoot = {
-				detachedNodes: [],
+				detachedNodes: [
+					{
+						id: [{ minor: 10 }, { minor: 10 }],
+						src: "refresher",
+						nodes: [
+							{
+								nodeType: brand(JsonObject.identifier),
+								fields: {
+									[bazKey]: [
+										{
+											changeType: "detach",
+											detach: [{ minor: 11 }, { minor: 11 }],
+											nodes: [true],
+										},
+									],
+								},
+							},
+						],
+					},
+					{
+						id: [{ minor: 20 }, { minor: 20 }],
+						src: "build",
+						dst: "attach",
+						nodes: ["X"],
+					},
+					{
+						id: [{ minor: 30 }, { minor: 30 }],
+						dst: "destroy",
+						nodes: ["Y"],
+					},
+					{
+						id: [{ minor: 40 }, { minor: 40 }],
+						nodes: ["Z"],
+					},
+				],
 				detachedFields: {
 					[rootFieldKey]: [
 						{
@@ -148,7 +208,7 @@ describe("AppliedDeltaUtils", () => {
 																	changeType: "replace",
 																	nodes: [1, 2],
 																	detach: [{ minor: 1 }, { minor: 3 }],
-																	attach: [{ minor: 10 }, { minor: 10 }],
+																	attach: [{ minor: 20 }, { minor: 20 }],
 																},
 																{
 																	changeType: "noop",
