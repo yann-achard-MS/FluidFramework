@@ -5,15 +5,18 @@
 
 import { strict as assert } from "node:assert";
 
-import type {
-	DeltaFieldChanges,
-	DeltaFieldMap,
-	DeltaRoot,
-	FieldKey,
-	TreeNodeSchemaIdentifier,
+import {
+	EmptyKey,
+	initializeForest,
+	rootFieldKey,
+	type DeltaFieldChanges,
+	type DeltaFieldMap,
+	type DeltaRoot,
+	type FieldKey,
+	type TreeNodeSchemaIdentifier,
 } from "../../core/index.js";
-import { brand } from "../../util/index.js";
-import { cursorForMapTreeNode } from "../../feature-libraries/index.js";
+import { brand, type JsonCompatible } from "../../util/index.js";
+import { buildForest, cursorForMapTreeNode } from "../../feature-libraries/index.js";
 // eslint-disable-next-line import/no-internal-modules
 import { appliedDeltaFromForest } from "../../core/tree/appliedDeltaUtil.js";
 import type {
@@ -27,45 +30,64 @@ import type {
 	// InteriorNode,
 	// eslint-disable-next-line import/no-internal-modules
 } from "../../core/tree/appliedDelta.js";
+import { JsonArray, JsonObject, singleJsonCursor } from "../json/index.js";
+import { testIdCompressor, testRevisionTagCodec } from "../utils.js";
 
 const type: TreeNodeSchemaIdentifier = brand("Node");
 const emptyMap = new Map();
 const nodeX = { type, value: "X", fields: emptyMap };
 const nodeXCursor = cursorForMapTreeNode(nodeX);
 const fooKey = brand<FieldKey>("foo");
+const barKey = brand<FieldKey>("bar");
+
+const content: JsonCompatible = {
+	foo: [{ bar: "A" }, 1, 2, 3, 4],
+};
 
 describe("AppliedDeltaUtils", () => {
 	describe("appliedDeltaFromForest", () => {
-		it("no forest", () => {
+		it("forest and delta", () => {
+			const forest = buildForest();
+			initializeForest(
+				forest,
+				[singleJsonCursor(content)],
+				testRevisionTagCodec,
+				testIdCompressor,
+			);
 			const fields: DeltaFieldMap = new Map<FieldKey, DeltaFieldChanges>([
 				[
-					fooKey,
+					rootFieldKey,
 					[
-						{ count: 2 },
 						{
 							count: 1,
-							detach: { minor: 0 }, // rename to 2
 							fields: new Map<FieldKey, DeltaFieldChanges>([
 								[
 									fooKey,
 									[
 										{
 											count: 1,
-											attach: { minor: 10 },
+											detach: { minor: 0 },
+											fields: new Map<FieldKey, DeltaFieldChanges>([
+												[
+													EmptyKey,
+													[
+														{
+															count: 1,
+															attach: { minor: 4 },
+														},
+														{ count: 1 },
+														{
+															count: 2,
+															detach: { minor: 1 },
+															attach: { minor: 10 },
+														},
+													],
+												],
+											]),
 										},
-										{ count: 1 },
 									],
 								],
 							]),
-						},
-						{
-							count: 1,
-							detach: { minor: 1 }, // rename to 3
-							attach: { minor: 2 }, // renamed from 0
-						},
-						{
-							count: 1,
-							attach: { minor: 3 },
 						},
 					],
 				],
@@ -75,51 +97,72 @@ describe("AppliedDeltaUtils", () => {
 				rename: [
 					{
 						count: 2,
-						oldId: { minor: 0 },
-						newId: { minor: 2 },
+						oldId: { minor: 1 },
+						newId: { minor: 3 },
 					},
 				],
 				fields,
 			};
-			const actual = appliedDeltaFromForest(delta, undefined);
+			const actual = appliedDeltaFromForest(delta, forest);
 			const expected: AppliedDeltaRoot = {
 				detachedNodes: [],
 				detachedFields: {
-					[fooKey]: [
+					[rootFieldKey]: [
 						{
-							type: "noop",
-							nodes: ["<no data>", "<no data>"],
-						},
-						{
-							type: "detach",
+							changeType: "noop",
 							nodes: [
 								{
-									type: undefined,
+									nodeType: brand(JsonObject.identifier),
 									fields: {
 										[fooKey]: [
 											{
-												type: "attach",
-												attach: [{ minor: 10 }, { minor: 10 }],
-											},
-											{
-												type: "noop",
-												nodes: ["<no data>"],
+												changeType: "detach",
+												detach: [{ minor: 0 }, { minor: 0 }],
+												nodes: [
+													{
+														nodeType: brand(JsonArray.identifier),
+														fields: {
+															[EmptyKey]: [
+																{
+																	changeType: "attach",
+																	count: 1,
+																	attach: [{ minor: 2 }, { minor: 4 }],
+																},
+																{
+																	changeType: "noop",
+																	nodes: [
+																		{
+																			nodeType: brand(JsonObject.identifier),
+																			fields: {
+																				[barKey]: [
+																					{
+																						changeType: "noop",
+																						nodes: ["A"],
+																					},
+																				],
+																			},
+																		},
+																	],
+																},
+																{
+																	changeType: "replace",
+																	nodes: [1, 2],
+																	detach: [{ minor: 1 }, { minor: 3 }],
+																	attach: [{ minor: 10 }, { minor: 10 }],
+																},
+																{
+																	changeType: "noop",
+																	nodes: [3, 4],
+																},
+															],
+														},
+													},
+												],
 											},
 										],
 									},
 								},
 							],
-							detach: [{ minor: 0 }, { minor: 2 }],
-						},
-						{
-							type: "replace",
-							nodes: ["<no data>"],
-							detach: [{ minor: 1 }, { minor: 3 }],
-							attach: [{ minor: 0 }, { minor: 2 }],
-						},
-						{
-							type: "attach",
-							attach: [{ minor: 1 }, { minor: 3 }],
 						},
 					],
 				},

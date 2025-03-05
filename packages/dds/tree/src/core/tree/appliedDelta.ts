@@ -5,6 +5,7 @@
 
 import type { IFluidHandle } from "@fluidframework/core-interfaces";
 import type { DetachedNodeId } from "./delta.js";
+import type { TreeNodeSchemaIdentifier } from "../schema-stored/index.js";
 
 /**
  * Represents the change made to a document.
@@ -18,30 +19,31 @@ export interface Root {
 export type Mark = Noop | Replace | Attach | Detach;
 
 export interface Noop {
-	readonly type: "noop";
+	readonly changeType: "noop";
 	readonly nodes: readonly Node[];
 }
 
 export interface Replace {
-	readonly type: "replace";
+	readonly changeType: "replace";
 	readonly nodes: readonly Node[];
 	readonly detach: DetachedNodeIdPair;
 	readonly attach: DetachedNodeIdPair;
 }
 
 export interface Attach {
-	readonly type: "attach";
+	readonly changeType: "attach";
+	readonly count: number;
 	readonly attach: DetachedNodeIdPair;
 }
 
 export interface Detach {
-	readonly type: "detach";
+	readonly changeType: "detach";
 	readonly nodes: readonly Node[];
 	readonly detach: DetachedNodeIdPair;
 }
 
 export interface InteriorNode {
-	readonly type?: string;
+	readonly nodeType?: TreeNodeSchemaIdentifier;
 	readonly fields: FieldMap;
 }
 

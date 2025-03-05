@@ -24,7 +24,7 @@ import type {
 	InteriorNode,
 } from "./appliedDelta.js";
 import type { RevisionTag } from "../rebase/index.js";
-import { forEachField, type ITreeCursor } from "./cursor.js";
+import { CursorLocationType, forEachField, type ITreeCursor } from "./cursor.js";
 
 export type NodeIdTuple = [RevisionTag | undefined, number];
 export type NodeIdBTree<V> = TupleBTree<NodeIdTuple, V>;
@@ -64,56 +64,74 @@ export function appliedDeltaFromForest(
 
 	function appliedDeltaMarkList(
 		markList: DeltaFieldChanges | undefined,
-		fieldCursor: ITreeCursor | undefined,
+		cursor: ITreeCursor | undefined,
 	): AppliedDeltaMarkList {
+		assert(
+			!cursor || cursor.mode === CursorLocationType.Fields,
+			"Expected cursor to be in fields",
+		);
 		const list: AppliedDeltaMark[] = [];
-		fieldCursor?.firstNode();
+		const length = cursor?.getFieldLength();
+		cursor?.firstNode();
 		for (const mark of markList ?? []) {
-			const appliedMark = appliedDeltaMark(mark, fieldCursor);
+			const appliedMark = appliedDeltaMark(mark, cursor);
 			list.push(appliedMark);
 		}
-		if (fieldCursor !== undefined) {
-			const length = fieldCursor.getFieldLength();
-			const currentIndex = fieldCursor.fieldIndex;
-			const remaining = length - currentIndex;
+		// If processing the marks above has moved the cursor over all the nodes in the field,
+		// then the cursor will automatically be put back into fields mode.
+		// Only if the cursor is still in nodes mode is there more forest data to consume.
+		if (cursor?.mode === CursorLocationType.Nodes) {
+			const currentIndex = cursor.fieldIndex;
+			// If `cursor` is defined, `length` is also defined.
+			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+			const remaining = length! - currentIndex;
 			if (remaining > 0) {
 				const noop: DeltaMark = { count: remaining };
-				const appliedMark = appliedDeltaMark(noop, fieldCursor);
+				const appliedMark = appliedDeltaMark(noop, cursor);
 				list.push(appliedMark);
 			}
 		}
-		fieldCursor?.exitNode();
+		// We should be back in fields mode now since we consumed all the nodes in the field.
+		assert(
+			!cursor || cursor.mode === CursorLocationType.Fields,
+			"Expected cursor to be in fields",
+		);
 		return list;
 	}
 
 	function appliedDeltaMark(
 		mark: DeltaMark,
-		fieldCursor: ITreeCursor | undefined,
+		cursor: ITreeCursor | undefined,
 	): AppliedDeltaMark {
+		assert(
+			!cursor || cursor.mode === CursorLocationType.Nodes,
+			"Expected cursor to be in nodes",
+		);
 		if (mark.detach !== undefined && mark.attach !== undefined) {
-			const nodes = appliedDeltaNodes(mark.count, mark.fields, fieldCursor);
+			const nodes = appliedDeltaNodes(mark.count, mark.fields, cursor);
 			return {
-				type: "replace",
+				changeType: "replace",
 				nodes,
 				detach: idPairFromOldId(mark.detach),
 				attach: idPairFromNewId(mark.attach),
 			};
 		} else if (mark.detach !== undefined) {
-			const nodes = appliedDeltaNodes(mark.count, mark.fields, fieldCursor);
+			const nodes = appliedDeltaNodes(mark.count, mark.fields, cursor);
 			return {
-				type: "detach",
+				changeType: "detach",
 				nodes,
 				detach: idPairFromOldId(mark.detach),
 			};
 		} else if (mark.attach !== undefined) {
 			return {
-				type: "attach",
+				changeType: "attach",
+				count: mark.count,
 				attach: idPairFromNewId(mark.attach),
 			};
 		} else {
-			const nodes = appliedDeltaNodes(mark.count, mark.fields, fieldCursor);
+			const nodes = appliedDeltaNodes(mark.count, mark.fields, cursor);
 			return {
-				type: "noop",
+				changeType: "noop",
 				nodes,
 			};
 		}
@@ -125,10 +143,14 @@ export function appliedDeltaFromForest(
 		cursor: ITreeCursor | undefined,
 	): AppliedDeltaNode[] {
 		assert(count > 0, "count must be greater than zero");
+		assert(
+			!cursor || cursor.mode === CursorLocationType.Nodes,
+			"Expected cursor to be in nodes",
+		);
 		if (nestedChanges !== undefined) {
 			assert(count === 1, "nested changes must apply to a single node");
 			const interiorNode: InteriorNode = {
-				type: cursor?.type,
+				nodeType: cursor?.type,
 				fields: appliedDeltaFieldMap(nestedChanges, cursor),
 			};
 			cursor?.nextNode();
@@ -144,7 +166,7 @@ export function appliedDeltaFromForest(
 						nodes.push(value);
 					} else {
 						const interiorNode: InteriorNode = {
-							type: cursor?.type,
+							nodeType: cursor?.type,
 							fields: appliedDeltaFieldMap(undefined, cursor),
 						};
 						nodes.push(interiorNode);
@@ -158,20 +180,22 @@ export function appliedDeltaFromForest(
 
 	function appliedDeltaFieldMap(
 		nestedChanges: DeltaFieldMap | undefined,
-		fieldCursor: ITreeCursor | undefined,
+		cursor: ITreeCursor | undefined,
 	): AppliedDeltaFieldMap {
+		assert(
+			!cursor || cursor.mode === CursorLocationType.Nodes,
+			"Expected cursor to be in nodes",
+		);
 		const deltaFields = new Map(nestedChanges ?? []);
 		const map: Mutable<AppliedDeltaFieldMap> = {};
-		if (fieldCursor !== undefined) {
-			forEachField(fieldCursor, (field) => {
-				const fieldKey = field.getFieldKey();
+		if (cursor !== undefined) {
+			forEachField(cursor, () => {
+				const fieldKey = cursor.getFieldKey();
 				const fieldChanges = deltaFields.get(fieldKey);
 				if (fieldChanges !== undefined) {
 					deltaFields.delete(fieldKey);
 				}
-				fieldCursor?.enterField(fieldKey);
-				const markList = appliedDeltaMarkList(fieldChanges, fieldCursor);
-				fieldCursor?.exitField();
+				const markList = appliedDeltaMarkList(fieldChanges, cursor);
 				map[fieldKey] = markList;
 			});
 		}
