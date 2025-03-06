@@ -12,7 +12,7 @@ import type { TreeNodeSchemaIdentifier } from "../schema-stored/index.js";
  * Immutable, therefore safe to retain for async processing.
  */
 export interface Root {
-	readonly detachedFields: FieldMap;
+	readonly rootField: MarkList;
 	readonly detachedNodes: readonly DetachedNode[];
 }
 
@@ -51,7 +51,7 @@ export interface DetachedNode {
 	readonly id: DetachedNodeIdPair;
 	readonly src?: "build" | "refresher";
 	readonly dst?: "attach" | "destroy";
-	readonly nodes: readonly Node[];
+	readonly node: Node;
 }
 
 export type DetachedNodeIdPair = [DetachedNodeId, DetachedNodeId];

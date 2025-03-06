@@ -5,7 +5,11 @@
 
 import { assert } from "@fluidframework/core-utils/internal";
 import { makeArray, newTupleBTree, type Mutable, type TupleBTree } from "../../util/index.js";
-import type { IForestSubscription } from "../forest/index.js";
+import {
+	TreeNavigationResult,
+	type IForestSubscription,
+	type ITreeSubscriptionCursor,
+} from "../forest/index.js";
 import type {
 	FieldChanges as DeltaFieldChanges,
 	FieldMap as DeltaFieldMap,
@@ -21,19 +25,37 @@ import type {
 	Root as AppliedDeltaRoot,
 	DetachedNodeIdPair,
 	Node as AppliedDeltaNode,
-	InteriorNode,
+	InteriorNode as AppliedDeltaInteriorNode,
 } from "./appliedDelta.js";
 import type { RevisionTag } from "../rebase/index.js";
-import { CursorLocationType, forEachField, type ITreeCursor } from "./cursor.js";
+import {
+	CursorLocationType,
+	forEachField,
+	type ITreeCursor,
+	type ITreeCursorSynchronous,
+} from "./cursor.js";
+import type { DetachedFieldIndex } from "./detachedFieldIndex.js";
+import type { ForestRootId } from "./detachedFieldIndexTypes.js";
+import { offsetDetachId } from "./deltaUtil.js";
+import { rootFieldKey } from "./types.js";
 
-export type NodeIdTuple = [RevisionTag | undefined, number];
-export type NodeIdBTree<V> = TupleBTree<NodeIdTuple, V>;
+type NodeIdTuple = [RevisionTag | undefined, number];
+type NodeIdBTree<V> = TupleBTree<NodeIdTuple, V>;
 
 type IdPairLookup = (id: DetachedNodeId) => DetachedNodeIdPair;
+interface DetachedNodeData {
+	readonly oldId: DetachedNodeId;
+	readonly forestId?: ForestRootId;
+	buildData?: ITreeCursorSynchronous;
+	changeData?: DeltaFieldMap;
+	src?: "build" | "refresher";
+	dst?: "attach" | "destroy";
+}
 
 export function appliedDeltaFromForest(
 	delta: DeltaRoot,
-	forest: IForestSubscription | undefined,
+	forest?: IForestSubscription,
+	detached?: DetachedFieldIndex,
 ): AppliedDeltaRoot {
 	const newIdFromOldId = newTupleBTree(
 		delta.rename?.flatMap((rename) =>
@@ -61,6 +83,7 @@ export function appliedDeltaFromForest(
 		const oldTuple = oldIdFromNewId.get(newTuple);
 		return [oldTuple !== undefined ? nodeIdObj(oldTuple) : newId, newId];
 	};
+	const detachedRootsById: NodeIdBTree<DetachedNodeData> = newTupleBTree();
 
 	function appliedDeltaMarkList(
 		markList: DeltaFieldChanges | undefined,
@@ -103,10 +126,14 @@ export function appliedDeltaFromForest(
 		mark: DeltaMark,
 		cursor: ITreeCursor | undefined,
 	): AppliedDeltaMark {
-		assert(
-			!cursor || cursor.mode === CursorLocationType.Nodes,
-			"Expected cursor to be in nodes",
-		);
+		if (mark.attach !== undefined) {
+			const newTuple = nodeIdTuple(mark.attach);
+			const oldTuple = oldIdFromNewId.get(newTuple) ?? newTuple;
+			const detachedRoot = detachedRootsById.get(oldTuple);
+			if (detachedRoot !== undefined) {
+				detachedRoot.dst = "attach";
+			}
+		}
 		if (mark.detach !== undefined && mark.attach !== undefined) {
 			const nodes = appliedDeltaNodes(mark.count, mark.fields, cursor);
 			return {
@@ -141,7 +168,7 @@ export function appliedDeltaFromForest(
 		count: number,
 		nestedChanges: DeltaFieldMap | undefined,
 		cursor: ITreeCursor | undefined,
-	): AppliedDeltaNode[] {
+	): [AppliedDeltaNode, ...AppliedDeltaNode[]] {
 		assert(count > 0, "count must be greater than zero");
 		assert(
 			!cursor || cursor.mode === CursorLocationType.Nodes,
@@ -149,7 +176,7 @@ export function appliedDeltaFromForest(
 		);
 		if (nestedChanges !== undefined) {
 			assert(count === 1, "nested changes must apply to a single node");
-			const interiorNode: InteriorNode = {
+			const interiorNode: AppliedDeltaInteriorNode = {
 				nodeType: cursor?.type,
 				fields: appliedDeltaFieldMap(nestedChanges, cursor),
 			};
@@ -157,7 +184,10 @@ export function appliedDeltaFromForest(
 			return [interiorNode];
 		} else {
 			if (cursor === undefined) {
-				return makeArray(count, () => "<no data>");
+				return makeArray(count, () => "<no data>") as [
+					AppliedDeltaNode,
+					...AppliedDeltaNode[],
+				];
 			} else {
 				const nodes: AppliedDeltaNode[] = [];
 				for (let i = 0; i < count; i++) {
@@ -165,7 +195,7 @@ export function appliedDeltaFromForest(
 					if (value !== undefined) {
 						nodes.push(value);
 					} else {
-						const interiorNode: InteriorNode = {
+						const interiorNode: AppliedDeltaInteriorNode = {
 							nodeType: cursor?.type,
 							fields: appliedDeltaFieldMap(undefined, cursor),
 						};
@@ -173,7 +203,7 @@ export function appliedDeltaFromForest(
 					}
 					cursor.nextNode();
 				}
-				return nodes;
+				return nodes as [AppliedDeltaNode, ...AppliedDeltaNode[]];
 			}
 		}
 	}
@@ -207,10 +237,126 @@ export function appliedDeltaFromForest(
 		return map;
 	}
 
-	const rootCursor = forest?.getCursorAboveDetachedFields();
-	const detachedFields = appliedDeltaFieldMap(delta.fields, rootCursor);
+	const detachedRootsByFieldKey: Map<ForestRootId, DetachedNodeData> = new Map();
+	for (const { id, root } of detached?.entries() ?? []) {
+		const idTuple = nodeIdTuple(id);
+		const data: DetachedNodeData = {
+			oldId: id,
+			forestId: root,
+		};
+		detachedRootsByFieldKey.set(root, data);
+		detachedRootsById.set(idTuple, data);
+	}
+	for (const { id, trees } of delta.build ?? []) {
+		for (let iTree = 0; iTree < trees.length; iTree += 1) {
+			const offsetId = offsetDetachId(id, iTree);
+			const idTuple = nodeIdTuple(offsetId);
+			const data: DetachedNodeData = {
+				oldId: offsetId,
+				src: "build",
+				buildData: trees[iTree],
+			};
+			detachedRootsById.set(idTuple, data);
+		}
+	}
+	for (const { id, trees } of delta.refreshers ?? []) {
+		for (let iTree = 0; iTree < trees.length; iTree += 1) {
+			const offsetId = offsetDetachId(id, iTree);
+			const idTuple = nodeIdTuple(offsetId);
+			const existing = detachedRootsById.get(idTuple);
+			if (existing !== undefined) {
+				existing.src = "refresher";
+				existing.buildData = trees[iTree];
+			} else {
+				const data: DetachedNodeData = {
+					oldId: offsetId,
+					src: "refresher",
+					buildData: trees[iTree],
+				};
+				detachedRootsById.set(idTuple, data);
+			}
+		}
+	}
+	for (const { id, count } of delta.destroy ?? []) {
+		for (let iTree = 0; iTree < count; iTree += 1) {
+			const offsetId = offsetDetachId(id, iTree);
+			const idTuple = nodeIdTuple(offsetId);
+			const existing = detachedRootsById.get(idTuple);
+			if (existing !== undefined) {
+				existing.dst = "destroy";
+			} else {
+				const data: DetachedNodeData = {
+					oldId: offsetId,
+					dst: "destroy",
+				};
+				detachedRootsById.set(idTuple, data);
+			}
+		}
+	}
+	for (const { id, fields } of delta.global ?? []) {
+		const idTuple = nodeIdTuple(id);
+		const existing = detachedRootsById.get(idTuple);
+		assert(existing !== undefined, "Invalid edit operation on unknown node");
+		existing.changeData = fields;
+	}
+
+	let rootField: ITreeSubscriptionCursor | undefined;
+	if (forest !== undefined) {
+		const cursor = forest.allocateCursor();
+		const navigationResult = forest.tryMoveCursorToField(
+			{ parent: undefined, fieldKey: rootFieldKey },
+			cursor,
+		);
+		if (navigationResult === TreeNavigationResult.Ok) {
+			rootField = cursor;
+		}
+	}
+
+	// The checks below ensure that the delta follows the expected format.
+	// This whole function should be updated if the format changes.
+	const detachedFieldKeys = Array.from(delta.fields?.keys() ?? []);
+	assert(
+		detachedFieldKeys.length <= 1,
+		"At most one detached field is expected to be edited by path",
+	);
+	assert(
+		detachedFieldKeys[0] === rootFieldKey || detachedFieldKeys[0] === undefined,
+		"Ont the root field may be edited by path",
+	);
+
+	const rootMarkList = appliedDeltaMarkList(delta.fields?.get(rootFieldKey), rootField);
+	rootField?.free();
+
 	const detachedNodes: AppliedDeltaDetachedNode[] = [];
-	return { detachedFields, detachedNodes };
+	for (const data of detachedRootsById.values()) {
+		let forestNodeCursor: ITreeSubscriptionCursor | undefined;
+		if (forest !== undefined && data.forestId !== undefined && detached !== undefined) {
+			const forestFieldKey = detached.toFieldKey(data.forestId);
+			const cursor = forest.allocateCursor();
+			const navigationResult = forest.tryMoveCursorToField(
+				{ parent: undefined, fieldKey: forestFieldKey },
+				cursor,
+			);
+			if (navigationResult === TreeNavigationResult.Ok) {
+				cursor.firstNode();
+				forestNodeCursor = cursor;
+			}
+		}
+		const nodes = appliedDeltaNodes(1, data.changeData, forestNodeCursor ?? data.buildData);
+		forestNodeCursor?.free();
+		const appliedDelta: Mutable<AppliedDeltaDetachedNode> = {
+			id: idPairFromOldId(data.oldId),
+			node: nodes[0],
+		};
+		if (data.src !== undefined) {
+			appliedDelta.src = data.src;
+		}
+		if (data.dst !== undefined) {
+			appliedDelta.dst = data.dst;
+		}
+		detachedNodes.push(appliedDelta);
+	}
+	return { rootField: rootMarkList, detachedNodes };
 }
 
 function nodeIdTuple(detachedNodeId: DetachedNodeId): NodeIdTuple {
