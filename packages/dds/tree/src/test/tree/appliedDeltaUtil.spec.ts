@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import fs from "node:fs";
 import { strict as assert } from "node:assert";
 
 import {
@@ -14,8 +15,11 @@ import {
 } from "../../core/index.js";
 import { brand } from "../../util/index.js";
 import { buildForest } from "../../feature-libraries/index.js";
-// eslint-disable-next-line import/no-internal-modules
-import { appliedDeltaFromForest } from "../../core/tree/appliedDeltaUtil.js";
+import {
+	appliedDeltaFromForest,
+	htmlFromAppliedDelta,
+	// eslint-disable-next-line import/no-internal-modules
+} from "../../core/tree/appliedDeltaUtil.js";
 import type {
 	Root as AppliedDeltaRoot,
 	// DetachedNode as AppliedDeltaDetachedNode,
@@ -31,6 +35,11 @@ import { JsonObject, singleJsonCursor } from "../json/index.js";
 import { testIdCompressor, testRevisionTagCodec } from "../utils.js";
 
 const fooKey = brand<FieldKey>("foo");
+
+export function writeAppliedDelta(delta: AppliedDeltaRoot, path: string): void {
+	const html = htmlFromAppliedDelta(delta);
+	fs.writeFileSync(path, html, "utf8");
+}
 
 describe("AppliedDeltaUtils", () => {
 	describe("appliedDeltaFromForest", () => {
@@ -433,6 +442,63 @@ describe("AppliedDeltaUtils", () => {
 				],
 			};
 			assert.deepEqual(actual, expected);
+		});
+	});
+	describe("htmlFromAppliedDelta", () => {
+		it("move object", () => {
+			const delta: AppliedDeltaRoot = {
+				detachedNodes: [],
+				rootField: [
+					{
+						changeType: "detach",
+						detach: [{ minor: 0 }, { minor: 0 }],
+						nodes: [
+							{
+								nodeType: brand(JsonObject.identifier),
+								fields: {
+									[fooKey]: [
+										{
+											changeType: "noop",
+											nodes: [true],
+										},
+									],
+								},
+							},
+							false,
+							null,
+						],
+					},
+					{
+						changeType: "attach",
+						count: 2,
+						attach: [{ minor: 1 }, { minor: 1 }],
+					},
+					{
+						changeType: "attach",
+						count: 1,
+						attach: [{ minor: 0 }, { minor: 0 }],
+					},
+					{
+						changeType: "replace",
+						detach: [{ minor: 10 }, { minor: 10 }],
+						attach: [{ minor: 0 }, { minor: 0 }],
+						nodes: [
+							{
+								nodeType: brand(JsonObject.identifier),
+								fields: {
+									[fooKey]: [
+										{
+											changeType: "noop",
+											nodes: [false],
+										},
+									],
+								},
+							},
+						],
+					},
+				],
+			};
+			writeAppliedDelta(delta, "move object.html");
 		});
 	});
 });

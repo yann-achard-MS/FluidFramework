@@ -1,9 +1,10 @@
+/* eslint-disable unicorn/no-array-push-push */
 /*!
  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
  * Licensed under the MIT License.
  */
 
-import { assert } from "@fluidframework/core-utils/internal";
+import { assert, unreachableCase } from "@fluidframework/core-utils/internal";
 import { makeArray, newTupleBTree, type Mutable, type TupleBTree } from "../../util/index.js";
 import {
 	TreeNavigationResult,
@@ -36,8 +37,9 @@ import {
 } from "./cursor.js";
 import type { DetachedFieldIndex } from "./detachedFieldIndex.js";
 import type { ForestRootId } from "./detachedFieldIndexTypes.js";
-import { offsetDetachId } from "./deltaUtil.js";
+import { areDetachedNodeIdsEqual, offsetDetachId } from "./deltaUtil.js";
 import { rootFieldKey } from "./types.js";
+import { isFluidHandle } from "@fluidframework/runtime-utils";
 
 type NodeIdTuple = [RevisionTag | undefined, number];
 type NodeIdBTree<V> = TupleBTree<NodeIdTuple, V>;
@@ -365,4 +367,380 @@ function nodeIdTuple(detachedNodeId: DetachedNodeId): NodeIdTuple {
 
 function nodeIdObj(id: NodeIdTuple): DetachedNodeId {
 	return id[0] !== undefined ? { major: id[0], minor: id[1] } : { minor: id[1] };
+}
+
+type NodeDestiny =
+	| { type: "noop" }
+	| { type: "attach"; dst: DetachedNodeIdPair }
+	| { type: "replace"; dst: DetachedNodeIdPair; src: DetachedNodeIdPair }
+	| { type: "destroy" };
+
+function collectAttachedNodes(delta: AppliedDeltaRoot): NodeIdBTree<AppliedDeltaNode> {
+	const nodesByOldId: NodeIdBTree<AppliedDeltaNode> = newTupleBTree();
+	function collectFromMarkList(markList: AppliedDeltaMarkList): void {
+		for (const mark of markList) {
+			collectFromMark(mark);
+		}
+	}
+	function collectFromMark(mark: AppliedDeltaMark): void {
+		if (mark.changeType === "attach") {
+			return;
+		}
+		for (const [index, node] of mark.nodes.entries()) {
+			if (mark.changeType === "detach" || mark.changeType === "replace") {
+				const offsetId = offsetDetachId(mark.detach[0], index);
+				nodesByOldId.set(nodeIdTuple(offsetId), node);
+			}
+			collectFromNode(node);
+		}
+	}
+	function collectFromNode(mark: AppliedDeltaNode): void {
+		if (typeof mark !== "object" || mark === null || isFluidHandle(mark)) {
+			return;
+		}
+		for (const fieldList of Object.values(mark.fields)) {
+			collectFromMarkList(fieldList);
+		}
+	}
+	for (const detachedNode of delta.detachedNodes) {
+		if (detachedNode.dst === "attach") {
+			nodesByOldId.set(nodeIdTuple(detachedNode.id[0]), detachedNode.node);
+		}
+	}
+	collectFromMarkList(delta.rootField);
+	return nodesByOldId;
+}
+
+export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
+	const nodesByOldId = collectAttachedNodes(delta);
+
+	const lines: string[] = [];
+	lines.push(`<div class="delta">`);
+	{
+		lines.push(`<div><span>Detached Root Nodes:</span><ul>`);
+		{
+			for (const detachedNode of delta.detachedNodes) {
+				lines.push(
+					`<li><div id="src${nodeIdPairToString(detachedNode.id)}" class="${detachedNode.src ?? "prior"}">`,
+				);
+				{
+					const destiny: NodeDestiny = detachedNode.dst
+						? detachedNode.dst === "destroy"
+							? { type: "destroy" }
+							: { type: "attach", dst: detachedNode.id }
+						: { type: "noop" };
+					lines.push(htmlFromNode(detachedNode.node, destiny, nodesByOldId));
+				}
+				lines.push(`</div></li>`);
+			}
+		}
+		lines.push(`</ul></div>`);
+		lines.push(`<div><span>Root Field:</span>`);
+		{
+			lines.push(htmlFromMarkList(delta.rootField, nodesByOldId));
+		}
+		lines.push(`</div>`);
+	}
+	lines.push(`</div>`);
+	lines.push(`
+		<style>
+		:root {
+			/* space toggles */
+			--on: initial;
+			--off: /*!*/;
+
+			--bg1: rgb(35, 35, 40);
+			--bg2: rgb(55, 55, 55);
+
+			/* initialize toggles */
+			--_1: var(--on);
+			--_2: var(--off);
+		}
+
+		.delta {
+			font-family: 'consolas';
+			padding: 0 0px;
+			margin: 0px;
+			color: white;
+			display: flex;
+		}
+
+		.delta ul {
+			list-style-type: none;
+			padding-right: 10px;
+		}
+
+		.destiny-out, .destiny-in, .cell {
+			margin-left: 1em;
+			font-style: italic;
+			font-size: small;
+			color: gray;
+		}
+		.destiny-out::before {
+			content: " ⭢ ";
+		}
+		.destiny-in::before {
+			content: "⭠ ";
+		}
+
+		.delta li > * {
+			/* rotate toggles */
+			--_1: var(--2);
+			--_2: var(--1);
+		}
+
+		.delta li {
+			/* promote toggles */
+			--1: var(--_1);
+			--2: var(--_2);
+			--bgIn: var(--1,var(--bg1)) var(--2, var(--bg2));
+			--bgOut: var(--1,var(--bg2)) var(--2, var(--bg1));
+
+			background: var(--bgIn);
+			padding: 0.1em 0.2em;
+			margin-left: -1em;
+			border: 2px solid var(--bgOut);
+		}
+		/* unvisited link */
+		.delta a:link {
+			color: rgb(255, 255, 255);
+		}
+		/* visited link */
+		.delta a:visited {
+			color: rgb(146, 190, 255);
+		}
+		/* mouse over link */
+		.delta a:hover {
+			color: rgb(146, 190, 255);
+		}
+		/* selected link */
+		.delta a:active {
+			color: rgb(146, 190, 255);
+		}
+		.preview {
+			display: inline-block;
+			text-decoration: underline;
+		}
+		.delta {
+			display: block;
+		}
+		.noop::before, .attach::before, .detach::before, .replace::before {
+			border-radius: 1em;
+			border: solid .1em #999;
+			margin: .5em;
+			padding: .0em .4em;
+			font-size: .8em;
+		}
+		.noop::before {
+			content: "no-op";
+			background: gray;
+		}
+		.attach::before {
+			content: "attach";
+			background: #070;
+		}
+		.detach::before {
+			content: "detach";
+			background: #811;
+		}
+		.replace::before {
+			content: "replace";
+			background: #048;
+		}
+		</style>`);
+	return lines.join("\n");
+}
+
+function dstId(id: DetachedNodeIdPair): string {
+	return `dst${nodeIdToString(id[1])}`;
+}
+
+function nodeIdPairToString(id: DetachedNodeIdPair): string {
+	if (areDetachedNodeIdsEqual(id[0], id[1])) {
+		return nodeIdToString(id[0]);
+	}
+	return `${nodeIdToString(id[0])}->${nodeIdToString(id[1])}`;
+}
+
+function nodeIdToString(id: DetachedNodeId): string {
+	if (id.major === undefined) {
+		return `${id.minor}`;
+	}
+	return `${id.major}_${id.minor}`;
+}
+
+function htmlFromDestiny(
+	destiny: NodeDestiny,
+	nodesByOldId: NodeIdBTree<AppliedDeltaNode>,
+): string {
+	switch (destiny.type) {
+		case "noop":
+			return "";
+		case "attach":
+			return `<span class="destiny-out">sent to ${nodeDstLink(destiny.dst)}</span>`;
+		case "replace":
+			return `<span class="destiny-out">sent to ${nodeDstLink(destiny.dst)} and replaced by ${nodeSrcLink(destiny.src, htmlPreview(destiny.src, nodesByOldId))}</span>`;
+		case "destroy":
+			return `<span class="destiny-out">destroyed</span>`;
+		default:
+			unreachableCase(destiny);
+	}
+}
+
+function htmlPreview(
+	id: DetachedNodeIdPair,
+	nodesByOldId: NodeIdBTree<AppliedDeltaNode>,
+): string {
+	const node = nodesByOldId.get(nodeIdTuple(id[0]));
+	assert(node !== undefined, "Preview node not found");
+	const lines: string[] = [];
+	lines.push(`<div class="preview">`);
+	{
+		if (typeof node === "string") {
+			lines.push(`<span>"${node}"</span>`);
+		} else if (typeof node === "number" || typeof node === "boolean") {
+			lines.push(`<span>${node}</span>`);
+		} else if (node === null) {
+			lines.push(`<span>null</span>`);
+		} else if (isFluidHandle(node)) {
+			lines.push(`<span><fluid-handle></span>`);
+		} else {
+			lines.push(`<span>${node.nodeType ?? "<Object>"}</span>`);
+		}
+	}
+	lines.push(`</div>`);
+	return lines.join("\n");
+}
+
+function htmlFromNode(
+	node: AppliedDeltaNode,
+	destiny: NodeDestiny,
+	nodesByOldId: NodeIdBTree<AppliedDeltaNode>,
+): string {
+	const lines: string[] = [];
+	lines.push(`<div>`);
+	{
+		const edit = htmlFromDestiny(destiny, nodesByOldId);
+		if (typeof node === "string") {
+			lines.push(`<span>"${node}"</span>${edit}`);
+		} else if (typeof node === "number" || typeof node === "boolean") {
+			lines.push(`<span>${node}</span>${edit}`);
+		} else if (node === null) {
+			lines.push(`<span>null</span>${edit}`);
+		} else if (isFluidHandle(node)) {
+			lines.push(`<span><fluid-handle></span>${edit}`);
+		} else {
+			if (node.nodeType !== undefined) {
+				lines.push(`<span>type: ${node.nodeType}</span>${edit}`);
+			}
+			lines.push(`<ul>`);
+			{
+				for (const [key, value] of Object.entries(node.fields)) {
+					lines.push(`<li><span>${key}:</span>`);
+					lines.push(htmlFromMarkList(value, nodesByOldId));
+					lines.push(`</li>`);
+				}
+			}
+			lines.push(`</ul>`);
+		}
+	}
+	lines.push(`</div>`);
+	return lines.join("\n");
+}
+
+function htmlFromMarkList(
+	marklist: AppliedDeltaMarkList,
+	nodesByOldId: NodeIdBTree<AppliedDeltaNode>,
+): string {
+	const lines: string[] = [];
+	lines.push(`<ul>`);
+	for (const mark of marklist) {
+		lines.push(htmlFromMark(mark, nodesByOldId));
+	}
+	lines.push(`</ul>`);
+	return lines.join("\n");
+}
+
+function htmlFromMark(
+	mark: AppliedDeltaMark,
+	nodesByOldId: NodeIdBTree<AppliedDeltaNode>,
+): string {
+	const lines: string[] = [];
+	switch (mark.changeType) {
+		case "noop":
+			lines.push(`<li class="noop">`);
+			lines.push(`(x${mark.nodes.length})`);
+			lines.push(htmlFromNodes(mark.nodes, nodesByOldId));
+			break;
+		case "attach":
+			lines.push(`<li class="attach">`);
+			lines.push(`(x${mark.count})`);
+			lines.push(`<ul>`);
+			for (let i = 0; i < mark.count; i++) {
+				const id = offsetDetachIdPair(mark.attach, i);
+				lines.push(
+					`<li class="cell" id=${dstId(id)}>@${nodeIdToString(id[1])}<span class="destiny-in">attaching ${nodeSrcLink(id, htmlPreview(id, nodesByOldId))}</span></li>`,
+				);
+			}
+			lines.push(`</ul>`);
+
+			break;
+		case "detach":
+			lines.push(`<li class="detach">`);
+			lines.push(`(x${mark.nodes.length})`);
+			lines.push(htmlFromNodes(mark.nodes, nodesByOldId, mark.detach));
+			break;
+		case "replace":
+			lines.push(`<li class="replace">`);
+			lines.push(`(x${mark.nodes.length})`);
+			lines.push(htmlFromNodes(mark.nodes, nodesByOldId, mark.detach, mark.attach));
+			break;
+		default:
+			unreachableCase(mark);
+	}
+	lines.push(`</li>`);
+	return lines.join("\n");
+}
+
+function htmlFromNodes(
+	nodes: readonly AppliedDeltaNode[],
+	nodesByOldId: NodeIdBTree<AppliedDeltaNode>,
+	detachId?: DetachedNodeIdPair,
+	attachId?: DetachedNodeIdPair,
+): string {
+	const lines: string[] = [];
+	lines.push(`<ul>`);
+	{
+		lines.push(`<li>`);
+		for (const [index, node] of nodes.entries()) {
+			const destiny: NodeDestiny =
+				detachId && attachId
+					? {
+							type: "replace",
+							dst: offsetDetachIdPair(detachId, index),
+							src: offsetDetachIdPair(attachId, index),
+						}
+					: detachId
+						? { type: "attach", dst: offsetDetachIdPair(detachId, index) }
+						: { type: "noop" };
+			lines.push(htmlFromNode(node, destiny, nodesByOldId));
+		}
+		lines.push(`</li>`);
+	}
+	lines.push(`</ul>`);
+	return lines.join("\n");
+}
+
+function nodeSrcLink(id: DetachedNodeIdPair, linkContent?: string): string {
+	const idString = nodeIdToString(id[0]);
+	return `<a href="#src${idString}">${linkContent ?? `#${idString}`}</a>`;
+}
+
+function nodeDstLink(id: DetachedNodeIdPair): string {
+	const idString = nodeIdToString(id[1]);
+	return `<a href="#dst${idString}">@${idString}</a>`;
+}
+
+function offsetDetachIdPair(idPair: DetachedNodeIdPair, offset: number): DetachedNodeIdPair {
+	return [offsetDetachId(idPair[0], offset), offsetDetachId(idPair[1], offset)];
 }
