@@ -450,7 +450,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			--off: /*!*/;
 
 			--bg1: rgb(35, 35, 40);
-			--bg2: rgb(55, 55, 55);
+			--bg2: rgb(45, 45, 45);
 
 			/* initialize toggles */
 			--_1: var(--on);
@@ -497,7 +497,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			--bgOut: var(--1,var(--bg2)) var(--2, var(--bg1));
 
 			background: var(--bgIn);
-			padding: 0.1em 0.2em;
+			padding: 0.0em 0.4em;
 			margin-left: -1em;
 			border: 2px solid var(--bgOut);
 		}
@@ -527,9 +527,14 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		.noop::before, .attach::before, .detach::before, .replace::before {
 			border-radius: 1em;
 			border: solid .1em #999;
-			margin: .5em;
+			margin-left: .2em;
 			padding: .0em .4em;
+			font-size: small;
+			color: rgb(210, 210, 210);
+		}
+		.multiplier {
 			font-size: .8em;
+			color: gray;
 		}
 		.noop::before {
 			content: "no-op";
@@ -553,6 +558,10 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 
 function dstId(id: DetachedNodeIdPair): string {
 	return `dst${nodeIdToString(id[1])}`;
+}
+
+function srcId(id: DetachedNodeIdPair): string {
+	return `src${nodeIdToString(id[0])}`;
 }
 
 function nodeIdPairToString(id: DetachedNodeIdPair): string {
@@ -621,17 +630,20 @@ function htmlFromNode(
 	lines.push(`<div>`);
 	{
 		const edit = htmlFromDestiny(destiny, nodesByOldId);
+		const id =
+			destiny.type === "attach" || destiny.type === "replace" ? destiny.dst : undefined;
+		const htmlId = id !== undefined ? ` id="${srcId(id)}"` : "";
 		if (typeof node === "string") {
-			lines.push(`<span>"${node}"</span>${edit}`);
+			lines.push(`<span${htmlId}>"${node}"</span>${edit}`);
 		} else if (typeof node === "number" || typeof node === "boolean") {
-			lines.push(`<span>${node}</span>${edit}`);
+			lines.push(`<span${htmlId}>${node}</span>${edit}`);
 		} else if (node === null) {
-			lines.push(`<span>null</span>${edit}`);
+			lines.push(`<span${htmlId}>null</span>${edit}`);
 		} else if (isFluidHandle(node)) {
-			lines.push(`<span><fluid-handle></span>${edit}`);
+			lines.push(`<span${htmlId}><fluid-handle></span>${edit}`);
 		} else {
 			if (node.nodeType !== undefined) {
-				lines.push(`<span>type: ${node.nodeType}</span>${edit}`);
+				lines.push(`<span${htmlId}>${node.nodeType}</span>${edit}`);
 			}
 			lines.push(`<ul>`);
 			{
@@ -669,12 +681,12 @@ function htmlFromMark(
 	switch (mark.changeType) {
 		case "noop":
 			lines.push(`<li class="noop">`);
-			lines.push(`(x${mark.nodes.length})`);
+			lines.push(`<span class="multiplier">(x${mark.nodes.length})</span>`);
 			lines.push(htmlFromNodes(mark.nodes, nodesByOldId));
 			break;
 		case "attach":
 			lines.push(`<li class="attach">`);
-			lines.push(`(x${mark.count})`);
+			lines.push(`<span class="multiplier">(x${mark.count})</span>`);
 			lines.push(`<ul>`);
 			for (let i = 0; i < mark.count; i++) {
 				const id = offsetDetachIdPair(mark.attach, i);
@@ -687,12 +699,12 @@ function htmlFromMark(
 			break;
 		case "detach":
 			lines.push(`<li class="detach">`);
-			lines.push(`(x${mark.nodes.length})`);
+			lines.push(`<span class="multiplier">(x${mark.nodes.length})</span>`);
 			lines.push(htmlFromNodes(mark.nodes, nodesByOldId, mark.detach));
 			break;
 		case "replace":
 			lines.push(`<li class="replace">`);
-			lines.push(`(x${mark.nodes.length})`);
+			lines.push(`<span class="multiplier">(x${mark.nodes.length})</span>`);
 			lines.push(htmlFromNodes(mark.nodes, nodesByOldId, mark.detach, mark.attach));
 			break;
 		default:
@@ -711,8 +723,8 @@ function htmlFromNodes(
 	const lines: string[] = [];
 	lines.push(`<ul>`);
 	{
-		lines.push(`<li>`);
 		for (const [index, node] of nodes.entries()) {
+			lines.push(`<li>`);
 			const destiny: NodeDestiny =
 				detachId && attachId
 					? {
@@ -724,8 +736,8 @@ function htmlFromNodes(
 						? { type: "attach", dst: offsetDetachIdPair(detachId, index) }
 						: { type: "noop" };
 			lines.push(htmlFromNode(node, destiny, nodesByOldId));
+			lines.push(`</li>`);
 		}
-		lines.push(`</li>`);
 	}
 	lines.push(`</ul>`);
 	return lines.join("\n");
