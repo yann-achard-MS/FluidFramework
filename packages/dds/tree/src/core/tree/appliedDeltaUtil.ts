@@ -653,7 +653,7 @@ function htmlFromNode(
 		lines.push(`<ul>`);
 		{
 			for (const [key, value] of Object.entries(node.fields)) {
-				lines.push(`<li><span>${key}:</span>`);
+				lines.push(`<li><span>"${key}":</span>`);
 				lines.push(htmlFromMarkList(value, metadata));
 				lines.push(`</li>`);
 			}
