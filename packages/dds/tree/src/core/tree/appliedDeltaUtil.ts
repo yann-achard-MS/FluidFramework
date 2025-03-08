@@ -480,17 +480,23 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			padding-right: 10px;
 		}
 
-		.destiny-out, .destiny-in, .cell {
+		.idx {
+			margin-left: 1em;
+			font-size: small;
+			color: gray;
+		}
+		
+		.destiny-out, .destiny-in {
 			margin-left: 1em;
 			font-style: italic;
 			font-size: small;
 			color: gray;
 		}
 		.destiny-out::before {
-			content: " ⭢ ";
+			content: " 🠪 ";
 		}
 		.destiny-in::before {
-			content: "⭠ ";
+			content: "🠬 ";
 		}
 
 		.delta li > * {
@@ -631,53 +637,74 @@ function htmlFromNode(
 	metadata: Metadata,
 ): string {
 	const lines: string[] = [];
-	lines.push(`<div>`);
-	{
-		const edit = htmlFromDestiny(destiny, metadata);
-		if (typeof node === "string") {
-			lines.push(`<span>"${node}"</span>${edit}`);
-		} else if (typeof node === "number" || typeof node === "boolean") {
-			lines.push(`<span>${node}</span>${edit}`);
-		} else if (node === null) {
-			lines.push(`<span>null</span>${edit}`);
-		} else if (isFluidHandle(node)) {
-			lines.push(`<span><fluid-handle></span>${edit}`);
-		} else {
-			if (node.nodeType !== undefined) {
-				lines.push(`<span>${node.nodeType}</span>${edit}`);
-			}
-			lines.push(`<ul>`);
-			{
-				for (const [key, value] of Object.entries(node.fields)) {
-					lines.push(`<li><span>${key}:</span>`);
-					lines.push(htmlFromMarkList(value, metadata));
-					lines.push(`</li>`);
-				}
-			}
-			lines.push(`</ul>`);
+	const edit = htmlFromDestiny(destiny, metadata);
+	if (typeof node === "string") {
+		lines.push(`<span>"${node}"</span>${edit}`);
+	} else if (typeof node === "number" || typeof node === "boolean") {
+		lines.push(`<span>${node}</span>${edit}`);
+	} else if (node === null) {
+		lines.push(`<span>null</span>${edit}`);
+	} else if (isFluidHandle(node)) {
+		lines.push(`<span><fluid-handle></span>${edit}`);
+	} else {
+		if (node.nodeType !== undefined) {
+			lines.push(`<span>${node.nodeType}</span>${edit}`);
 		}
+		lines.push(`<ul>`);
+		{
+			for (const [key, value] of Object.entries(node.fields)) {
+				lines.push(`<li><span>${key}:</span>`);
+				lines.push(htmlFromMarkList(value, metadata));
+				lines.push(`</li>`);
+			}
+		}
+		lines.push(`</ul>`);
 	}
-	lines.push(`</div>`);
 	return lines.join("\n");
 }
 
-function htmlFromMarkList(marklist: AppliedDeltaMarkList, metadata: Metadata): string {
+function htmlFromMarkList(markList: AppliedDeltaMarkList, metadata: Metadata): string {
 	const lines: string[] = [];
 	lines.push(`<ul>`);
-	for (const mark of marklist) {
-		lines.push(htmlFromMark(mark, metadata));
+	let oldIndex = 0;
+	let newIndex = 0;
+	for (const mark of markList) {
+		lines.push(htmlFromMark(mark, metadata, oldIndex, newIndex));
+		switch (mark.changeType) {
+			case "noop":
+			case "replace": {
+				oldIndex += mark.nodes.length;
+				newIndex += mark.nodes.length;
+				break;
+			}
+			case "attach": {
+				newIndex += mark.count;
+				break;
+			}
+			case "detach": {
+				oldIndex += mark.nodes.length;
+				break;
+			}
+			default:
+				unreachableCase(mark);
+		}
 	}
 	lines.push(`</ul>`);
 	return lines.join("\n");
 }
 
-function htmlFromMark(mark: AppliedDeltaMark, metadata: Metadata): string {
+function htmlFromMark(
+	mark: AppliedDeltaMark,
+	metadata: Metadata,
+	oldIndex: number,
+	newIndex: number,
+): string {
 	const lines: string[] = [];
 	switch (mark.changeType) {
 		case "noop":
 			lines.push(`<li class="noop">`);
 			lines.push(`<span class="multiplier">(x${mark.nodes.length})</span>`);
-			lines.push(htmlFromNodes(mark.nodes, metadata));
+			lines.push(htmlFromNodes(mark.nodes, metadata, oldIndex, newIndex));
 			break;
 		case "attach":
 			lines.push(`<li class="attach">`);
@@ -685,9 +712,11 @@ function htmlFromMark(mark: AppliedDeltaMark, metadata: Metadata): string {
 			lines.push(`<ul>`);
 			for (let i = 0; i < mark.count; i++) {
 				const id = offsetDetachIdPair(mark.attach, i);
-				lines.push(
-					`<li class="cell" id=${dstId(id)}>@${nodeIdToString(id[1])}<span class="destiny-in">attaching ${htmlPreview(id, metadata)}</span></li>`,
-				);
+				lines.push(`<li class="cell" id=${dstId(id)}>`);
+				lines.push(indexHtml(undefined, newIndex + i));
+				lines.push(`@${nodeIdToString(id[1])}`);
+				lines.push(`<span class="destiny-in">attaching ${htmlPreview(id, metadata)}</span>`);
+				lines.push(`</li>`);
 			}
 			lines.push(`</ul>`);
 
@@ -695,12 +724,14 @@ function htmlFromMark(mark: AppliedDeltaMark, metadata: Metadata): string {
 		case "detach":
 			lines.push(`<li class="detach">`);
 			lines.push(`<span class="multiplier">(x${mark.nodes.length})</span>`);
-			lines.push(htmlFromNodes(mark.nodes, metadata, mark.detach));
+			lines.push(htmlFromNodes(mark.nodes, metadata, oldIndex, newIndex, mark.detach));
 			break;
 		case "replace":
 			lines.push(`<li class="replace">`);
 			lines.push(`<span class="multiplier">(x${mark.nodes.length})</span>`);
-			lines.push(htmlFromNodes(mark.nodes, metadata, mark.detach, mark.attach));
+			lines.push(
+				htmlFromNodes(mark.nodes, metadata, oldIndex, newIndex, mark.detach, mark.attach),
+			);
 			break;
 		default:
 			unreachableCase(mark);
@@ -712,12 +743,15 @@ function htmlFromMark(mark: AppliedDeltaMark, metadata: Metadata): string {
 function htmlFromNodes(
 	nodes: readonly AppliedDeltaNode[],
 	metadata: Metadata,
+	oldIndex: number,
+	newIndex: number,
 	detachId?: DetachedNodeIdPair,
 	attachId?: DetachedNodeIdPair,
 ): string {
 	const lines: string[] = [];
 	lines.push(`<ul>`);
 	{
+		const isDetachOnly = detachId !== undefined && attachId === undefined;
 		for (const [index, node] of nodes.entries()) {
 			const destiny: NodeDestiny =
 				detachId && attachId
@@ -732,12 +766,17 @@ function htmlFromNodes(
 			const htmlId =
 				detachId !== undefined ? ` id="${srcId(offsetDetachIdPair(detachId, index))}"` : "";
 			lines.push(`<li${htmlId}>`);
+			lines.push(indexHtml(oldIndex, isDetachOnly ? undefined : newIndex + index));
 			lines.push(htmlFromNode(node, destiny, metadata));
 			lines.push(`</li>`);
 		}
 	}
 	lines.push(`</ul>`);
 	return lines.join("\n");
+}
+
+function indexHtml(oldIndex?: number, newIndex?: number): string {
+	return `<span class="idx">[${oldIndex ?? "ⁿ/ₐ"}]🠪[${newIndex ?? "ⁿ/ₐ"}]</span>`;
 }
 
 function nodeSrcLink(id: DetachedNodeIdPair, linkContent?: string): string {
