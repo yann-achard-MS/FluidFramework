@@ -37,7 +37,7 @@ import {
 } from "./cursor.js";
 import type { DetachedFieldIndex } from "./detachedFieldIndex.js";
 import type { ForestRootId } from "./detachedFieldIndexTypes.js";
-import { areDetachedNodeIdsEqual, offsetDetachId } from "./deltaUtil.js";
+import { offsetDetachId } from "./deltaUtil.js";
 import { rootFieldKey } from "./types.js";
 import { isFluidHandle } from "@fluidframework/runtime-utils";
 
@@ -375,8 +375,14 @@ type NodeDestiny =
 	| { type: "replace"; dst: DetachedNodeIdPair; src: DetachedNodeIdPair }
 	| { type: "destroy" };
 
-function collectAttachedNodes(delta: AppliedDeltaRoot): NodeIdBTree<AppliedDeltaNode> {
+interface Metadata {
+	readonly nodesByOldId: NodeIdBTree<AppliedDeltaNode>;
+	readonly attachDstIds: NodeIdBTree<DetachedNodeIdPair>;
+}
+
+function collectMetadata(delta: AppliedDeltaRoot): Metadata {
 	const nodesByOldId: NodeIdBTree<AppliedDeltaNode> = newTupleBTree();
+	const attachDstIds: NodeIdBTree<DetachedNodeIdPair> = newTupleBTree();
 	function collectFromMarkList(markList: AppliedDeltaMarkList): void {
 		for (const mark of markList) {
 			collectFromMark(mark);
@@ -384,6 +390,10 @@ function collectAttachedNodes(delta: AppliedDeltaRoot): NodeIdBTree<AppliedDelta
 	}
 	function collectFromMark(mark: AppliedDeltaMark): void {
 		if (mark.changeType === "attach") {
+			for (let index = 0; index < mark.count; index += 1) {
+				const offsetId = offsetDetachIdPair(mark.attach, index);
+				attachDstIds.set(nodeIdTuple(offsetId[1]), offsetId);
+			}
 			return;
 		}
 		for (const [index, node] of mark.nodes.entries()) {
@@ -408,11 +418,11 @@ function collectAttachedNodes(delta: AppliedDeltaRoot): NodeIdBTree<AppliedDelta
 		}
 	}
 	collectFromMarkList(delta.rootField);
-	return nodesByOldId;
+	return { nodesByOldId, attachDstIds };
 }
 
 export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
-	const nodesByOldId = collectAttachedNodes(delta);
+	const metadata = collectMetadata(delta);
 
 	const lines: string[] = [];
 	lines.push(`<div class="delta">`);
@@ -421,7 +431,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		{
 			for (const detachedNode of delta.detachedNodes) {
 				lines.push(
-					`<li><div id="src${nodeIdPairToString(detachedNode.id)}" class="${detachedNode.src ?? "prior"}">`,
+					`<li id="${srcId(detachedNode.id)}><div" class="${detachedNode.src ?? "prior"}">`,
 				);
 				{
 					const destiny: NodeDestiny = detachedNode.dst
@@ -429,7 +439,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 							? { type: "destroy" }
 							: { type: "attach", dst: detachedNode.id }
 						: { type: "noop" };
-					lines.push(htmlFromNode(detachedNode.node, destiny, nodesByOldId));
+					lines.push(htmlFromNode(detachedNode.node, destiny, metadata));
 				}
 				lines.push(`</div></li>`);
 			}
@@ -437,13 +447,13 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		lines.push(`</ul></div>`);
 		lines.push(`<div><span>Root Field:</span>`);
 		{
-			lines.push(htmlFromMarkList(delta.rootField, nodesByOldId));
+			lines.push(htmlFromMarkList(delta.rootField, metadata));
 		}
 		lines.push(`</div>`);
 	}
 	lines.push(`</div>`);
+	lines.push(`<style>`);
 	lines.push(`
-		<style>
 		:root {
 			/* space toggles */
 			--on: initial;
@@ -497,7 +507,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			--bgOut: var(--1,var(--bg2)) var(--2, var(--bg1));
 
 			background: var(--bgIn);
-			padding: 0.0em 0.4em;
+			padding: 0.1em 0.4em;
 			margin-left: -1em;
 			border: 2px solid var(--bgOut);
 		}
@@ -551,72 +561,66 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		.replace::before {
 			content: "replace";
 			background: #048;
-		}
-		</style>`);
+		}`);
+	lines.push(`${Array.from(metadata.attachDstIds.values())
+		.map((id) => `.delta:has(.pv${srcId(id)}:hover) #${srcId(id)}`)
+		.join(", ")} {
+		background-color: rgb(51, 72, 101);
+	}`);
+	lines.push(`${Array.from(metadata.attachDstIds.values())
+		.map((id) => `.delta:has(.pv${dstId(id)}:hover) #${dstId(id)}`)
+		.join(", ")} {
+		background-color: rgb(51, 72, 101);
+	}`);
+	lines.push(`</style>`);
 	return lines.join("\n");
 }
 
-function dstId(id: DetachedNodeIdPair): string {
-	return `dst${nodeIdToString(id[1])}`;
-}
-
-function srcId(id: DetachedNodeIdPair): string {
-	return `src${nodeIdToString(id[0])}`;
-}
-
-function nodeIdPairToString(id: DetachedNodeIdPair): string {
-	if (areDetachedNodeIdsEqual(id[0], id[1])) {
-		return nodeIdToString(id[0]);
+function htmlFromDestiny(destiny: NodeDestiny, metadata: Metadata): string {
+	if (destiny.type === "noop") {
+		return "";
 	}
-	return `${nodeIdToString(id[0])}->${nodeIdToString(id[1])}`;
-}
-
-function nodeIdToString(id: DetachedNodeId): string {
-	if (id.major === undefined) {
-		return `${id.minor}`;
+	let outbound = "";
+	let inbound = "";
+	if (destiny.type === "replace") {
+		inbound = ` and replaced by ${htmlPreview(destiny.src, metadata)}`;
 	}
-	return `${id.major}_${id.minor}`;
-}
-
-function htmlFromDestiny(
-	destiny: NodeDestiny,
-	nodesByOldId: NodeIdBTree<AppliedDeltaNode>,
-): string {
 	switch (destiny.type) {
-		case "noop":
-			return "";
 		case "attach":
-			return `<span class="destiny-out">sent to ${nodeDstLink(destiny.dst)}</span>`;
 		case "replace":
-			return `<span class="destiny-out">sent to ${nodeDstLink(destiny.dst)} and replaced by ${nodeSrcLink(destiny.src, htmlPreview(destiny.src, nodesByOldId))}</span>`;
+			outbound = metadata.attachDstIds.has(nodeIdTuple(destiny.dst[1]))
+				? `sent to ${nodeDstLink(destiny.dst)}`
+				: `removed as #${nodeIdToString(destiny.dst[1])}`;
+			break;
 		case "destroy":
-			return `<span class="destiny-out">destroyed</span>`;
+			outbound = "destroyed";
+			break;
 		default:
 			unreachableCase(destiny);
 	}
+	return `<span class="destiny-out">${outbound}${inbound}</span>`;
 }
 
-function htmlPreview(
-	id: DetachedNodeIdPair,
-	nodesByOldId: NodeIdBTree<AppliedDeltaNode>,
-): string {
-	const node = nodesByOldId.get(nodeIdTuple(id[0]));
+function htmlPreview(id: DetachedNodeIdPair, metadata: Metadata): string {
+	const node = metadata.nodesByOldId.get(nodeIdTuple(id[0]));
 	assert(node !== undefined, "Preview node not found");
 	const lines: string[] = [];
-	lines.push(`<div class="preview">`);
+	lines.push(`<div class="preview pv${srcId(id)}">`);
+	let previewContent: string;
 	{
 		if (typeof node === "string") {
-			lines.push(`<span>"${node}"</span>`);
+			previewContent = `<span>"${node}"</span>`;
 		} else if (typeof node === "number" || typeof node === "boolean") {
-			lines.push(`<span>${node}</span>`);
+			previewContent = `<span>${node}</span>`;
 		} else if (node === null) {
-			lines.push(`<span>null</span>`);
+			previewContent = `<span>null</span>`;
 		} else if (isFluidHandle(node)) {
-			lines.push(`<span><fluid-handle></span>`);
+			previewContent = `<span><fluid-handle></span>`;
 		} else {
-			lines.push(`<span>${node.nodeType ?? "<Object>"}</span>`);
+			previewContent = `<span>${node.nodeType ?? "<Object>"}</span>`;
 		}
 	}
+	lines.push(nodeSrcLink(id, previewContent));
 	lines.push(`</div>`);
 	return lines.join("\n");
 }
@@ -624,32 +628,29 @@ function htmlPreview(
 function htmlFromNode(
 	node: AppliedDeltaNode,
 	destiny: NodeDestiny,
-	nodesByOldId: NodeIdBTree<AppliedDeltaNode>,
+	metadata: Metadata,
 ): string {
 	const lines: string[] = [];
 	lines.push(`<div>`);
 	{
-		const edit = htmlFromDestiny(destiny, nodesByOldId);
-		const id =
-			destiny.type === "attach" || destiny.type === "replace" ? destiny.dst : undefined;
-		const htmlId = id !== undefined ? ` id="${srcId(id)}"` : "";
+		const edit = htmlFromDestiny(destiny, metadata);
 		if (typeof node === "string") {
-			lines.push(`<span${htmlId}>"${node}"</span>${edit}`);
+			lines.push(`<span>"${node}"</span>${edit}`);
 		} else if (typeof node === "number" || typeof node === "boolean") {
-			lines.push(`<span${htmlId}>${node}</span>${edit}`);
+			lines.push(`<span>${node}</span>${edit}`);
 		} else if (node === null) {
-			lines.push(`<span${htmlId}>null</span>${edit}`);
+			lines.push(`<span>null</span>${edit}`);
 		} else if (isFluidHandle(node)) {
-			lines.push(`<span${htmlId}><fluid-handle></span>${edit}`);
+			lines.push(`<span><fluid-handle></span>${edit}`);
 		} else {
 			if (node.nodeType !== undefined) {
-				lines.push(`<span${htmlId}>${node.nodeType}</span>${edit}`);
+				lines.push(`<span>${node.nodeType}</span>${edit}`);
 			}
 			lines.push(`<ul>`);
 			{
 				for (const [key, value] of Object.entries(node.fields)) {
 					lines.push(`<li><span>${key}:</span>`);
-					lines.push(htmlFromMarkList(value, nodesByOldId));
+					lines.push(htmlFromMarkList(value, metadata));
 					lines.push(`</li>`);
 				}
 			}
@@ -660,29 +661,23 @@ function htmlFromNode(
 	return lines.join("\n");
 }
 
-function htmlFromMarkList(
-	marklist: AppliedDeltaMarkList,
-	nodesByOldId: NodeIdBTree<AppliedDeltaNode>,
-): string {
+function htmlFromMarkList(marklist: AppliedDeltaMarkList, metadata: Metadata): string {
 	const lines: string[] = [];
 	lines.push(`<ul>`);
 	for (const mark of marklist) {
-		lines.push(htmlFromMark(mark, nodesByOldId));
+		lines.push(htmlFromMark(mark, metadata));
 	}
 	lines.push(`</ul>`);
 	return lines.join("\n");
 }
 
-function htmlFromMark(
-	mark: AppliedDeltaMark,
-	nodesByOldId: NodeIdBTree<AppliedDeltaNode>,
-): string {
+function htmlFromMark(mark: AppliedDeltaMark, metadata: Metadata): string {
 	const lines: string[] = [];
 	switch (mark.changeType) {
 		case "noop":
 			lines.push(`<li class="noop">`);
 			lines.push(`<span class="multiplier">(x${mark.nodes.length})</span>`);
-			lines.push(htmlFromNodes(mark.nodes, nodesByOldId));
+			lines.push(htmlFromNodes(mark.nodes, metadata));
 			break;
 		case "attach":
 			lines.push(`<li class="attach">`);
@@ -691,7 +686,7 @@ function htmlFromMark(
 			for (let i = 0; i < mark.count; i++) {
 				const id = offsetDetachIdPair(mark.attach, i);
 				lines.push(
-					`<li class="cell" id=${dstId(id)}>@${nodeIdToString(id[1])}<span class="destiny-in">attaching ${nodeSrcLink(id, htmlPreview(id, nodesByOldId))}</span></li>`,
+					`<li class="cell" id=${dstId(id)}>@${nodeIdToString(id[1])}<span class="destiny-in">attaching ${htmlPreview(id, metadata)}</span></li>`,
 				);
 			}
 			lines.push(`</ul>`);
@@ -700,12 +695,12 @@ function htmlFromMark(
 		case "detach":
 			lines.push(`<li class="detach">`);
 			lines.push(`<span class="multiplier">(x${mark.nodes.length})</span>`);
-			lines.push(htmlFromNodes(mark.nodes, nodesByOldId, mark.detach));
+			lines.push(htmlFromNodes(mark.nodes, metadata, mark.detach));
 			break;
 		case "replace":
 			lines.push(`<li class="replace">`);
 			lines.push(`<span class="multiplier">(x${mark.nodes.length})</span>`);
-			lines.push(htmlFromNodes(mark.nodes, nodesByOldId, mark.detach, mark.attach));
+			lines.push(htmlFromNodes(mark.nodes, metadata, mark.detach, mark.attach));
 			break;
 		default:
 			unreachableCase(mark);
@@ -716,7 +711,7 @@ function htmlFromMark(
 
 function htmlFromNodes(
 	nodes: readonly AppliedDeltaNode[],
-	nodesByOldId: NodeIdBTree<AppliedDeltaNode>,
+	metadata: Metadata,
 	detachId?: DetachedNodeIdPair,
 	attachId?: DetachedNodeIdPair,
 ): string {
@@ -724,7 +719,6 @@ function htmlFromNodes(
 	lines.push(`<ul>`);
 	{
 		for (const [index, node] of nodes.entries()) {
-			lines.push(`<li>`);
 			const destiny: NodeDestiny =
 				detachId && attachId
 					? {
@@ -735,7 +729,10 @@ function htmlFromNodes(
 					: detachId
 						? { type: "attach", dst: offsetDetachIdPair(detachId, index) }
 						: { type: "noop" };
-			lines.push(htmlFromNode(node, destiny, nodesByOldId));
+			const htmlId =
+				detachId !== undefined ? ` id="${srcId(offsetDetachIdPair(detachId, index))}"` : "";
+			lines.push(`<li${htmlId}>`);
+			lines.push(htmlFromNode(node, destiny, metadata));
 			lines.push(`</li>`);
 		}
 	}
@@ -750,9 +747,24 @@ function nodeSrcLink(id: DetachedNodeIdPair, linkContent?: string): string {
 
 function nodeDstLink(id: DetachedNodeIdPair): string {
 	const idString = nodeIdToString(id[1]);
-	return `<a href="#dst${idString}">@${idString}</a>`;
+	return `<a href="#${dstId(id)}" class="pv${dstId(id)}">@${idString}</a>`;
 }
 
 function offsetDetachIdPair(idPair: DetachedNodeIdPair, offset: number): DetachedNodeIdPair {
 	return [offsetDetachId(idPair[0], offset), offsetDetachId(idPair[1], offset)];
+}
+
+function dstId(id: DetachedNodeIdPair): string {
+	return `dst${nodeIdToString(id[1])}`;
+}
+
+function srcId(id: DetachedNodeIdPair): string {
+	return `src${nodeIdToString(id[0])}`;
+}
+
+function nodeIdToString(id: DetachedNodeId): string {
+	if (id.major === undefined) {
+		return `${id.minor}`;
+	}
+	return `${id.major}_${id.minor}`;
 }
