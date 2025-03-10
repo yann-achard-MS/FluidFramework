@@ -129,10 +129,10 @@ export class OrderedClientCollection
 	private _youngestClient: LinkNode = this.rootNode;
 	private readonly logger: ITelemetryLoggerExt;
 
-	public get count() {
+	public get count(): number {
 		return this.clientMap.size;
 	}
-	public get oldestClient() {
+	public get oldestClient(): ILinkedClient | undefined {
 		return this.rootNode.youngerClient;
 	}
 
@@ -271,8 +271,7 @@ export interface IOrderedClientElectionEvents extends IEvent {
 
 /**
  * Serialized state of IOrderedClientElection.
- * @legacy
- * @alpha
+ * @internal
  */
 export interface ISerializedElection {
 	/**
@@ -355,10 +354,10 @@ export class OrderedClientElection
 	private _electedParent: ILinkedClient | undefined;
 	private _electionSequenceNumber: number;
 
-	public get eligibleCount() {
+	public get eligibleCount(): number {
 		return this._eligibleCount;
 	}
-	public get electionSequenceNumber() {
+	public get electionSequenceNumber(): number {
 		return this._electionSequenceNumber;
 	}
 
@@ -398,10 +397,10 @@ export class OrderedClientElection
 	 *
 	 * vii. SummaryManager running on B spawns a summarizer client, B'. electedParent === B, electedClient === B'
 	 */
-	public get electedClient() {
+	public get electedClient(): ILinkedClient | undefined {
 		return this._electedClient;
 	}
-	public get electedParent() {
+	public get electedParent(): ILinkedClient | undefined {
 		return this._electedParent;
 	}
 
@@ -603,8 +602,15 @@ export class OrderedClientElection
 			this._eligibleCount--;
 			if (this._electedClient === client) {
 				// Removing the _electedClient. There are 2 possible cases:
-				if (this._electedParent !== client) {
-					// 1. The _electedClient is a summarizer that we've been allowing to finish its work.
+				if (this._electedParent === client) {
+					// 1. The _electedClient is an interactive client that has left the quorum.
+					// Automatically shift to next oldest client.
+					const nextClient =
+						this.findFirstEligibleParent(this._electedParent?.youngerClient) ??
+						this.findFirstEligibleParent(this.orderedClientCollection.oldestClient);
+					this.tryElectingClient(nextClient, sequenceNumber, "RemoveClient");
+				} else {
+					// 2. The _electedClient is a summarizer that we've been allowing to finish its work.
 					// Let the _electedParent become the _electedClient so that it can start its own summarizer.
 					if (this._electedClient.client.details.type !== summarizerClientType) {
 						throw new UsageError("Elected client should be a summarizer client 1");
@@ -614,13 +620,6 @@ export class OrderedClientElection
 						sequenceNumber,
 						"RemoveSummarizerClient",
 					);
-				} else {
-					// 2. The _electedClient is an interactive client that has left the quorum.
-					// Automatically shift to next oldest client.
-					const nextClient =
-						this.findFirstEligibleParent(this._electedParent?.youngerClient) ??
-						this.findFirstEligibleParent(this.orderedClientCollection.oldestClient);
-					this.tryElectingClient(nextClient, sequenceNumber, "RemoveClient");
 				}
 			} else if (this._electedParent === client) {
 				// Removing the _electedParent (but not _electedClient).
@@ -638,7 +637,9 @@ export class OrderedClientElection
 	}
 
 	public getAllEligibleClients(): ITrackedClient[] {
-		return this.orderedClientCollection.getAllClients().filter(this.isEligibleFn);
+		return this.orderedClientCollection
+			.getAllClients()
+			.filter((client) => this.isEligibleFn(client));
 	}
 
 	/**
@@ -679,7 +680,7 @@ export class OrderedClientElection
 		sequenceNumber: number,
 		forceSend: boolean = false,
 		reason?: string,
-	) {
+	): void {
 		if (this.recordPerformanceEvents || forceSend) {
 			this.logger.sendPerformanceEvent({
 				eventName,
@@ -687,7 +688,7 @@ export class OrderedClientElection
 				sequenceNumber,
 				electedClientId: this.electedClient?.clientId,
 				electedParentId: this.electedParent?.clientId,
-				isEligible: client !== undefined ? this.isEligibleFn(client) : false,
+				isEligible: client === undefined ? false : this.isEligibleFn(client),
 				isSummarizerClient: client?.client.details.type === summarizerClientType,
 				reason,
 			});
