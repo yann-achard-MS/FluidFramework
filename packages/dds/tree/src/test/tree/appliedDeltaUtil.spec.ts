@@ -161,7 +161,7 @@ describe("AppliedDeltaUtils", () => {
 			const index = makeDetachedFieldIndex("", testRevisionTagCodec, testIdCompressor);
 			const forest = buildForest();
 			const delta: DeltaRoot = {
-				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
+				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees([{ foo: true }]) }],
 				global: [
 					{
 						id: { minor: 0 },
