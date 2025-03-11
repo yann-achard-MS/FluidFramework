@@ -31,6 +31,7 @@ const fooKey = brand<FieldKey>("foo");
 export function writeAppliedDelta(delta: AppliedDeltaRoot, path: string): void {
 	const html = htmlFromAppliedDelta(delta);
 	fs.writeFileSync(path, html, "utf8");
+	console.log(`Wrote Delta to "./${path}"`);
 }
 
 describe("AppliedDeltaUtils", () => {
@@ -490,7 +491,7 @@ describe("AppliedDeltaUtils", () => {
 					},
 				],
 			};
-			writeAppliedDelta(delta, "move object.html");
+			writeAppliedDelta(delta, "move-object.html");
 		});
 	});
 });
