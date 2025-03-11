@@ -32,6 +32,7 @@ import type { RevisionTag } from "../rebase/index.js";
 import {
 	CursorLocationType,
 	forEachField,
+	forEachNode,
 	type ITreeCursor,
 	type ITreeCursorSynchronous,
 } from "./cursor.js";
@@ -250,34 +251,38 @@ export function appliedDeltaFromForest(
 		detachedRootsById.set(idTuple, data);
 	}
 	for (const { id, trees } of delta.build ?? []) {
-		for (let iTree = 0; iTree < trees.length; iTree += 1) {
+		let iTree = 0;
+		forEachNode(trees.cursor(), (c) => {
 			const offsetId = offsetDetachId(id, iTree);
 			const idTuple = nodeIdTuple(offsetId);
 			const data: DetachedNodeData = {
 				oldId: offsetId,
 				src: "build",
-				buildData: trees[iTree],
+				buildData: c.fork(),
 			};
 			detachedRootsById.set(idTuple, data);
-		}
+			iTree += 1;
+		});
 	}
 	for (const { id, trees } of delta.refreshers ?? []) {
-		for (let iTree = 0; iTree < trees.length; iTree += 1) {
+		let iTree = 0;
+		forEachNode(trees.cursor(), (c) => {
 			const offsetId = offsetDetachId(id, iTree);
 			const idTuple = nodeIdTuple(offsetId);
 			const existing = detachedRootsById.get(idTuple);
 			if (existing !== undefined) {
 				existing.src = "refresher";
-				existing.buildData = trees[iTree];
+				existing.buildData = c.fork();
 			} else {
 				const data: DetachedNodeData = {
 					oldId: offsetId,
 					src: "refresher",
-					buildData: trees[iTree],
+					buildData: c.fork(),
 				};
 				detachedRootsById.set(idTuple, data);
 			}
-		}
+			iTree += 1;
+		});
 	}
 	for (const { id, count } of delta.destroy ?? []) {
 		for (let iTree = 0; iTree < count; iTree += 1) {

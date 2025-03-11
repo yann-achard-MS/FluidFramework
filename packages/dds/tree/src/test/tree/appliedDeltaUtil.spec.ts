@@ -20,19 +20,11 @@ import {
 	htmlFromAppliedDelta,
 	// eslint-disable-next-line import/no-internal-modules
 } from "../../core/tree/appliedDeltaUtil.js";
-import type {
-	Root as AppliedDeltaRoot,
-	// DetachedNode as AppliedDeltaDetachedNode,
-	// FieldMap as AppliedDeltaFieldMap,
-	// Mark as AppliedDeltaMark,
-	// MarkList as AppliedDeltaMarkList,
-	// DetachedNodeIdPair,
-	// Node as AppliedDeltaNode,
-	// InteriorNode,
-	// eslint-disable-next-line import/no-internal-modules
-} from "../../core/tree/appliedDelta.js";
-import { JsonObject, singleJsonCursor } from "../json/index.js";
-import { testIdCompressor, testRevisionTagCodec } from "../utils.js";
+// eslint-disable-next-line import/no-internal-modules
+import type { Root as AppliedDeltaRoot } from "../../core/tree/appliedDelta.js";
+import { singleJsonCursor } from "../json/index.js";
+import { chunkFromJsonTrees, testIdCompressor, testRevisionTagCodec } from "../utils.js";
+import { JsonAsTree } from "../../jsonDomainSchema.js";
 
 const fooKey = brand<FieldKey>("foo");
 
@@ -47,7 +39,7 @@ describe("AppliedDeltaUtils", () => {
 			const index = makeDetachedFieldIndex("", testRevisionTagCodec, testIdCompressor);
 			const forest = buildForest();
 			const delta: DeltaRoot = {
-				build: [{ id: { minor: 0 }, trees: [singleJsonCursor("X")] }],
+				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
 			};
 			const actual = appliedDeltaFromForest(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
@@ -66,7 +58,7 @@ describe("AppliedDeltaUtils", () => {
 			const index = makeDetachedFieldIndex("", testRevisionTagCodec, testIdCompressor);
 			const forest = buildForest();
 			const delta: DeltaRoot = {
-				refreshers: [{ id: { minor: 0 }, trees: [singleJsonCursor("X")] }],
+				refreshers: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
 			};
 			const actual = appliedDeltaFromForest(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
@@ -90,7 +82,7 @@ describe("AppliedDeltaUtils", () => {
 			visitor.free();
 
 			const delta: DeltaRoot = {
-				refreshers: [{ id: { minor: 0 }, trees: [singleJsonCursor("X")] }],
+				refreshers: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
 			};
 			const actual = appliedDeltaFromForest(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
@@ -169,7 +161,7 @@ describe("AppliedDeltaUtils", () => {
 			const index = makeDetachedFieldIndex("", testRevisionTagCodec, testIdCompressor);
 			const forest = buildForest();
 			const delta: DeltaRoot = {
-				build: [{ id: { minor: 0 }, trees: [singleJsonCursor("X")] }],
+				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
 				global: [
 					{
 						id: { minor: 0 },
@@ -194,7 +186,7 @@ describe("AppliedDeltaUtils", () => {
 						id: [{ minor: 0 }, { minor: 0 }],
 						src: "build",
 						node: {
-							nodeType: brand(JsonObject.identifier),
+							nodeType: brand(JsonAsTree.JsonObject.identifier),
 							fields: {
 								[fooKey]: [
 									{
@@ -251,7 +243,7 @@ describe("AppliedDeltaUtils", () => {
 						detach: [{ minor: 0 }, { minor: 0 }],
 						nodes: [
 							{
-								nodeType: brand(JsonObject.identifier),
+								nodeType: brand(JsonAsTree.JsonObject.identifier),
 								fields: {
 									[fooKey]: [
 										{
@@ -300,7 +292,7 @@ describe("AppliedDeltaUtils", () => {
 					{
 						id: [{ minor: 0 }, { minor: 0 }],
 						node: {
-							nodeType: brand(JsonObject.identifier),
+							nodeType: brand(JsonAsTree.JsonObject.identifier),
 							fields: {
 								[fooKey]: [
 									{
@@ -454,7 +446,7 @@ describe("AppliedDeltaUtils", () => {
 						detach: [{ minor: 0 }, { minor: 0 }],
 						nodes: [
 							{
-								nodeType: brand(JsonObject.identifier),
+								nodeType: brand(JsonAsTree.JsonObject.identifier),
 								fields: {
 									[fooKey]: [
 										{
@@ -484,7 +476,7 @@ describe("AppliedDeltaUtils", () => {
 						attach: [{ minor: 0 }, { minor: 0 }],
 						nodes: [
 							{
-								nodeType: brand(JsonObject.identifier),
+								nodeType: brand(JsonAsTree.JsonObject.identifier),
 								fields: {
 									[fooKey]: [
 										{
