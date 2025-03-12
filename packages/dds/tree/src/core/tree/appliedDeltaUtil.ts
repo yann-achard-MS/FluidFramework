@@ -467,21 +467,9 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 	lines.push(`</div>`);
 	lines.push(`<style>`);
 	lines.push(`
-		:root {
-			/* space toggles */
-			--on: initial;
-			--off: /*!*/;
-
-			--bg1: rgb(35, 35, 40);
-			--bg2: rgb(45, 45, 45);
-
-			/* initialize toggles */
-			--_1: var(--on);
-			--_2: var(--off);
-		}
-
 		.delta {
 			font-family: 'consolas';
+			font-size: small;
 			padding: 0 0px;
 			margin: 0px;
 			color: white;
@@ -496,14 +484,14 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 
 		.idx {
 			margin-left: 1em;
-			font-size: small;
+			font-size: x-small;
 			color: gray;
 		}
 		
 		.destiny-out, .destiny-in {
 			margin-left: 1em;
 			font-style: italic;
-			font-size: small;
+			font-size: x-small;
 			color: gray;
 		}
 		.destiny-out::before {
@@ -513,23 +501,17 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			content: "🠬 ";
 		}
 
-		.delta li > * {
-			/* rotate toggles */
-			--_1: var(--2);
-			--_2: var(--1);
-		}
-
 		.delta li {
-			/* promote toggles */
-			--1: var(--_1);
-			--2: var(--_2);
-			--bgIn: var(--1,var(--bg1)) var(--2, var(--bg2));
-			--bgOut: var(--1,var(--bg2)) var(--2, var(--bg1));
-
-			background: var(--bgIn);
+			background: rgb(35, 35, 40);
 			padding: 0.1em 0.4em;
 			margin-left: -1em;
-			border: 2px solid var(--bgOut);
+			border-left: 2px solid rgb(45, 45, 45);
+		}
+
+		li.attach, li.detach, li.replace {
+			padding: 0.1em 0.4em;
+			margin-left: -1em;
+			background: rgb(45, 45, 45);
 		}
 		/* unvisited link */
 		.delta a:link {
@@ -560,7 +542,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			border: solid .1em #999;
 			margin-left: .2em;
 			padding: .0em .4em;
-			font-size: small;
+			font-size: x-small;
 			color: rgb(210, 210, 210);
 		}
 		.multiplier {
