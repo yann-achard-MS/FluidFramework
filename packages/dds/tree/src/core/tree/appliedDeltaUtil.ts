@@ -422,15 +422,12 @@ function collectMetadata(delta: AppliedDeltaRoot): Metadata {
 		}
 	}
 	for (const detachedNode of delta.detachedNodes) {
+		collectFromNode(detachedNode.node);
 		if (detachedNode.dst === "attach") {
 			nodesByOldId.set(nodeIdTuple(detachedNode.id[0]), detachedNode.node);
 		}
 	}
 	collectFromMarkList(delta.rootField);
-	for (const detachedNode of delta.detachedNodes) {
-		collectFromNode(detachedNode.node);
-		nodesByOldId.set(nodeIdTuple(detachedNode.id[0]), detachedNode.node);
-	}
 	return { nodesByOldId, attachDstIds };
 }
 
