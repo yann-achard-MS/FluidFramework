@@ -562,7 +562,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		}
 		.detach::before {
 			content: "detach";
-			background: #811;
+			background: rgb(136, 17, 17);
 		}
 		.replace::before {
 			content: "replace";
@@ -571,12 +571,12 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 	lines.push(`${Array.from(metadata.attachDstIds.values())
 		.map((id) => `.delta:has(.pv${srcId(id)}:hover) #${srcId(id)}`)
 		.join(", ")} {
-		background-color: rgb(101, 24, 17);
+		background-color: rgb(136, 17, 17);
 	}`);
 	lines.push(`${Array.from(metadata.attachDstIds.values())
 		.map((id) => `.delta:has(.pv${dstId(id)}:hover) #${dstId(id)}`)
 		.join(", ")} {
-		background-color: rgb(24, 65, 30);
+		background-color: rgb(32, 97, 147);
 	}`);
 	lines.push(`</style>`);
 	return lines.join("\n");
