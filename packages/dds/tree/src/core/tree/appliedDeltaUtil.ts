@@ -472,6 +472,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			color: white;
 			display: flex;
 			background: rgb(20, 20, 20);
+			border-radius: 0.5em;
 		}
 
 		.delta ul {
@@ -502,6 +503,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			padding: 0.2em 0.8em;
 			background: rgb(35, 35, 40);
 			border-left: 2px solid rgb(45, 45, 45);
+			border-radius: 0.5em;
 		}
 
 		li.attach, li.detach, li.replace {
