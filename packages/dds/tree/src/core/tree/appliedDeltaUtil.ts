@@ -532,6 +532,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		.preview {
 			display: inline-block;
 			text-decoration: underline;
+			padding: .2em 1em;
 		}
 		.delta {
 			display: block;
@@ -604,7 +605,7 @@ function htmlPreview(id: DetachedNodeIdPair, metadata: Metadata): string {
 	const node = metadata.nodesByOldId.get(nodeIdTuple(id[0]));
 	assert(node !== undefined, "Preview node not found");
 	const lines: string[] = [];
-	lines.push(`<div class="preview pv${srcId(id)}">`);
+	lines.push(`<div id="${dstId(id)}" class="preview pv${srcId(id)}">`);
 	let previewContent: string;
 	{
 		if (typeof node === "string") {
