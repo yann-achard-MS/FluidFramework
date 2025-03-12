@@ -7,6 +7,7 @@ import fs from "node:fs";
 import { strict as assert } from "node:assert";
 
 import {
+	EmptyKey,
 	makeDetachedFieldIndex,
 	rootFieldKey,
 	type DeltaFieldChanges,
@@ -467,9 +468,56 @@ describe("AppliedDeltaUtils", () => {
 						attach: [{ minor: 1 }, { minor: 1 }],
 					},
 					{
-						changeType: "attach",
-						count: 1,
-						attach: [{ minor: 0 }, { minor: 0 }],
+						changeType: "noop",
+						nodes: [
+							{
+								nodeType: brand(JsonAsTree.Array.identifier),
+								fields: {
+									[EmptyKey]: [
+										{
+											changeType: "noop",
+											nodes: [
+												{
+													nodeType: brand(JsonAsTree.JsonObject.identifier),
+													fields: {
+														[fooKey]: [
+															{
+																changeType: "noop",
+																nodes: [1],
+															},
+														],
+													},
+												},
+												{
+													nodeType: brand(JsonAsTree.JsonObject.identifier),
+													fields: {
+														[fooKey]: [
+															{
+																changeType: "noop",
+																nodes: [2],
+															},
+														],
+													},
+												},
+												{
+													nodeType: brand(JsonAsTree.JsonObject.identifier),
+													fields: {
+														[fooKey]: [
+															{
+																changeType: "noop",
+																nodes: [3],
+															},
+														],
+													},
+												},
+											],
+										},
+									],
+								},
+							},
+							false,
+							null,
+						],
 					},
 					{
 						changeType: "replace",

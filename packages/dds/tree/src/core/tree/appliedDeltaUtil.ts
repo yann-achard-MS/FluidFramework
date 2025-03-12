@@ -479,8 +479,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 
 		.delta ul {
 			list-style-type: none;
-			padding-right: 10px;
-			margin-left: -1.0em;
+			padding-inline-start: 0px;
 		}
 
 		.idx {
@@ -503,17 +502,24 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		}
 
 		.delta li {
+			padding: 0.2em 0.8em;
 			background: rgb(35, 35, 40);
-			padding: 0.1em 0.4em;
-			margin-left: -1em;
 			border-left: 2px solid rgb(45, 45, 45);
 		}
 
 		li.attach, li.detach, li.replace {
-			padding: 0.1em 0.4em;
-			margin-left: -1em;
-			background: rgb(45, 45, 45);
+			padding: 0.2em 0.8em 0.4em 0.8em;
 		}
+		li.attach {
+			background: rgb(31, 59, 80);
+		}
+		li.detach {
+			background: rgb(77, 17, 17);
+		}
+		li.replace {
+			background: rgb(60, 20, 80);
+		}
+
 		/* unvisited link */
 		.delta a:link {
 			color: rgb(255, 255, 255);
@@ -539,7 +545,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			display: block;
 			padding: 1em;
 		}
-		.attach::before, .detach::before, .replace::before {
+		.noop::before, .attach::before, .detach::before, .replace::before {
 			border-radius: 1em;
 			border: solid .1em #999;
 			margin-left: .2em;
@@ -553,7 +559,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		}
 		.attach::before {
 			content: "attach";
-			background: #070;
+			background: rgb(32, 97, 147);
 		}
 		.detach::before {
 			content: "detach";
@@ -561,7 +567,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		}
 		.replace::before {
 			content: "replace";
-			background: #048;
+			background: rgb(109, 32, 147);
 		}`);
 	lines.push(`${Array.from(metadata.attachDstIds.values())
 		.map((id) => `.delta:has(.pv${srcId(id)}:hover) #${srcId(id)}`)
@@ -697,7 +703,9 @@ function htmlFromMark(
 	const lines: string[] = [];
 	switch (mark.changeType) {
 		case "noop":
+			lines.push(`<li class="noop">`);
 			lines.push(htmlFromNodes(mark.nodes, metadata, oldIndex, newIndex));
+			lines.push(`</li>`);
 			break;
 		case "attach":
 			lines.push(`<li class="attach">`);
