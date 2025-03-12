@@ -11,7 +11,7 @@ import {
 	UsageError,
 	type ITelemetryLoggerExt,
 } from "@fluidframework/telemetry-utils/internal";
-import { noopValidator } from "../codec/index.js";
+import { noopValidator, type ICodecFamily } from "../codec/index.js";
 import {
 	type Anchor,
 	type AnchorLocator,
@@ -42,9 +42,16 @@ import {
 	type RevertibleAlpha,
 	type GraphCommit,
 	isAncestor,
+	makeAnonChange,
+	type TaggedChange,
+	htmlFromAppliedDelta,
+	appliedDeltaFromForest,
+	type ChangeEncodingContext,
 } from "../core/index.js";
 import {
+	DefaultChangeFamily,
 	type FieldBatchCodec,
+	type ModularChangeset,
 	type TreeCompressionStrategy,
 	buildForest,
 	createNodeKeyManager,
@@ -499,6 +506,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 					? this.#transaction.activeBranch.getHead().revision
 					: event.change.revision;
 
+			const dataChanges: TaggedChange<ModularChangeset>[] = [];
 			// Conflicts due to schema will be empty and thus are not applied.
 			for (const change of event.change.change.changes) {
 				if (change.type === "data") {
@@ -506,6 +514,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 					this.withCombinedVisitor((visitor) => {
 						visitDelta(delta, visitor, this.removedRoots, revision);
 					});
+					dataChanges.push(tagChange(change.innerChange, revision));
 				} else if (change.type === "schema") {
 					// Schema changes from a current to a new schema are expected to be backwards compatible.
 					// This guarantees that all data in the forest (which is valid before the schema change)
@@ -526,6 +535,17 @@ export class TreeCheckout implements ITreeCheckoutFork {
 				} else {
 					fail(0xad1 /* Unknown Shared Tree change type. */);
 				}
+			}
+			if (this.#changeTacker !== undefined) {
+				this.#changeTacker.changeCount += 1;
+				this.#changeTacker.changeCountSinceLastRead += 1;
+				const newChange = family.rebaser.compose(dataChanges);
+				const taggedNewChange = makeAnonChange(newChange);
+				const totalChange = family.rebaser.compose([
+					this.#changeTacker.changes,
+					taggedNewChange,
+				]);
+				this.#changeTacker.changes = makeAnonChange(totalChange);
 			}
 		}
 		this.#events.emit("afterBatch");
@@ -971,6 +991,51 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	}
 
 	// #endregion Commit Validation
+
+	// #region Change Tracking
+
+	#changeTacker?: {
+		readonly forest: IEditableForest;
+		readonly fieldIndex: DetachedFieldIndex;
+		changes: TaggedChange<ModularChangeset>;
+		changeCountSinceLastRead: number;
+		changeCount: number;
+	};
+	public startTrackingChanges(): void {
+		this.#changeTacker = {
+			forest: this.forest.clone(this.storedSchema.clone(), new AnchorSet()),
+			fieldIndex: this.removedRoots.clone(),
+			changes: makeAnonChange(family.rebaser.compose([])),
+			changeCountSinceLastRead: 0,
+			changeCount: 0,
+		};
+	}
+	public stopTrackingChanges(): void {
+		this.#changeTacker = undefined;
+	}
+	public getTrackedChangesHtml(): string {
+		if (this.#changeTacker === undefined) {
+			return "";
+		}
+		this.#changeTacker.changeCountSinceLastRead = 0;
+		const delta = intoDelta(this.#changeTacker.changes);
+		const appliedDelta = appliedDeltaFromForest(
+			delta,
+			this.#changeTacker.forest,
+			this.#changeTacker.fieldIndex,
+		);
+		const html = htmlFromAppliedDelta(appliedDelta);
+		return html;
+	}
+
+	public getTrackedChangesCount(): number {
+		return this.#changeTacker?.changeCount ?? 0;
+	}
+	public getTrackedChangesCountSinceLastRead(): number {
+		return this.#changeTacker?.changeCountSinceLastRead ?? 0;
+	}
+
+	// #endregion Change Tracking
 }
 
 /**
@@ -1099,3 +1164,7 @@ function trackForksForDisposal(checkout: TreeCheckout): () => void {
 		disposed = true;
 	};
 }
+
+const family = new DefaultChangeFamily(
+	{} as unknown as ICodecFamily<ModularChangeset, ChangeEncodingContext>,
+);

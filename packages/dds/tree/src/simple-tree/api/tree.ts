@@ -643,6 +643,12 @@ export interface TreeViewAlpha<
 		transaction: () => VoidTransactionCallbackStatus | void,
 		params?: RunTransactionParams,
 	): TransactionResult;
+
+	startTrackingChanges(): void;
+	stopTrackingChanges(): void;
+	getTrackedChangesCount(): number;
+	getTrackedChangesCountSinceLastRead(): number;
+	getTrackedChangesHtml(): string;
 }
 
 /**

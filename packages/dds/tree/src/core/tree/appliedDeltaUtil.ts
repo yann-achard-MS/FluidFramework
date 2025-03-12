@@ -402,9 +402,13 @@ function collectMetadata(delta: AppliedDeltaRoot): Metadata {
 			return;
 		}
 		for (const [index, node] of mark.nodes.entries()) {
-			if (mark.changeType === "detach" || mark.changeType === "replace") {
+			if ("detach" in mark) {
 				const offsetId = offsetDetachId(mark.detach[0], index);
 				nodesByOldId.set(nodeIdTuple(offsetId), node);
+			}
+			if ("attach" in mark) {
+				const offsetId = offsetDetachIdPair(mark.attach, index);
+				attachDstIds.set(nodeIdTuple(offsetId[1]), offsetId);
 			}
 			collectFromNode(node);
 		}
@@ -423,6 +427,10 @@ function collectMetadata(delta: AppliedDeltaRoot): Metadata {
 		}
 	}
 	collectFromMarkList(delta.rootField);
+	for (const detachedNode of delta.detachedNodes) {
+		collectFromNode(detachedNode.node);
+		nodesByOldId.set(nodeIdTuple(detachedNode.id[0]), detachedNode.node);
+	}
 	return { nodesByOldId, attachDstIds };
 }
 
@@ -436,7 +444,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		{
 			for (const detachedNode of delta.detachedNodes) {
 				lines.push(
-					`<li id="${srcId(detachedNode.id)}><div" class="${detachedNode.src ?? "prior"}">`,
+					`<li id="${srcId(detachedNode.id)}"><div class="${detachedNode.src ?? "prior"}">`,
 				);
 				{
 					const destiny: NodeDestiny = detachedNode.dst
@@ -478,6 +486,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			margin: 0px;
 			color: white;
 			display: flex;
+			background: rgb(20, 20, 20);
 		}
 
 		.delta ul {
@@ -544,8 +553,9 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		}
 		.delta {
 			display: block;
+			padding: 1em;
 		}
-		.noop::before, .attach::before, .detach::before, .replace::before {
+		.attach::before, .detach::before, .replace::before {
 			border-radius: 1em;
 			border: solid .1em #999;
 			margin-left: .2em;
@@ -556,10 +566,6 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		.multiplier {
 			font-size: .8em;
 			color: gray;
-		}
-		.noop::before {
-			content: "no-op";
-			background: gray;
 		}
 		.attach::before {
 			content: "attach";
@@ -576,12 +582,12 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 	lines.push(`${Array.from(metadata.attachDstIds.values())
 		.map((id) => `.delta:has(.pv${srcId(id)}:hover) #${srcId(id)}`)
 		.join(", ")} {
-		background-color: rgb(51, 72, 101);
+		background-color: rgb(101, 24, 17);
 	}`);
 	lines.push(`${Array.from(metadata.attachDstIds.values())
 		.map((id) => `.delta:has(.pv${dstId(id)}:hover) #${dstId(id)}`)
 		.join(", ")} {
-		background-color: rgb(51, 72, 101);
+		background-color: rgb(24, 65, 30);
 	}`);
 	lines.push(`</style>`);
 	return lines.join("\n");
@@ -707,8 +713,6 @@ function htmlFromMark(
 	const lines: string[] = [];
 	switch (mark.changeType) {
 		case "noop":
-			lines.push(`<li class="noop">`);
-			lines.push(`<span class="multiplier">(x${mark.nodes.length})</span>`);
 			lines.push(htmlFromNodes(mark.nodes, metadata, oldIndex, newIndex));
 			break;
 		case "attach":
@@ -724,12 +728,13 @@ function htmlFromMark(
 				lines.push(`</li>`);
 			}
 			lines.push(`</ul>`);
-
+			lines.push(`</li>`);
 			break;
 		case "detach":
 			lines.push(`<li class="detach">`);
 			lines.push(`<span class="multiplier">(x${mark.nodes.length})</span>`);
 			lines.push(htmlFromNodes(mark.nodes, metadata, oldIndex, newIndex, mark.detach));
+			lines.push(`</li>`);
 			break;
 		case "replace":
 			lines.push(`<li class="replace">`);
@@ -737,11 +742,11 @@ function htmlFromMark(
 			lines.push(
 				htmlFromNodes(mark.nodes, metadata, oldIndex, newIndex, mark.detach, mark.attach),
 			);
+			lines.push(`</li>`);
 			break;
 		default:
 			unreachableCase(mark);
 	}
-	lines.push(`</li>`);
 	return lines.join("\n");
 }
 
@@ -771,7 +776,7 @@ function htmlFromNodes(
 			const htmlId =
 				detachId !== undefined ? ` id="${srcId(offsetDetachIdPair(detachId, index))}"` : "";
 			lines.push(`<li${htmlId}>`);
-			lines.push(indexHtml(oldIndex, isDetachOnly ? undefined : newIndex + index));
+			lines.push(indexHtml(oldIndex + index, isDetachOnly ? undefined : newIndex + index));
 			lines.push(htmlFromNode(node, destiny, metadata));
 			lines.push(`</li>`);
 		}

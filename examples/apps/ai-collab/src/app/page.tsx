@@ -16,7 +16,7 @@ import {
 	Tabs,
 	Typography,
 } from "@mui/material";
-import type { IFluidContainer, TreeView } from "fluid-framework";
+import type { IFluidContainer } from "fluid-framework";
 import React, { useEffect, useState } from "react";
 
 import { PresenceManager } from "./presence";
@@ -36,6 +36,7 @@ import { useSharedTreeRerender } from "@/useSharedTreeRerender";
 // Uncomment the import line that corresponds to the server you want to use
 // import { createContainer, loadContainer, postAttach, containerIdFromUrl } from "./spe"; // eslint-disable-line import/order
 import { createContainer, loadContainer, postAttach, containerIdFromUrl } from "./tinylicious"; // eslint-disable-line import/order
+import { asTreeViewAlpha, type TreeViewAlpha } from "@fluidframework/tree/alpha";
 
 export async function createAndInitializeContainer(): Promise<
 	IFluidContainer<typeof CONTAINER_SCHEMA>
@@ -50,8 +51,9 @@ export async function createAndInitializeContainer(): Promise<
 // eslint-disable-next-line import/no-default-export -- NextJS uses default exports
 export default function TasksListPage(): JSX.Element {
 	const [selectedTaskGroup, setSelectedTaskGroup] = useState<SharedTreeTaskGroup>();
-	const [treeView, setTreeView] = useState<TreeView<typeof SharedTreeAppState>>();
+	const [treeView, setTreeView] = useState<TreeViewAlpha<typeof SharedTreeAppState>>();
 	const [presenceManagerContext, setPresenceManagerContext] = useState<PresenceManager>();
+	const [updateTrackedChange, setUpdateTrackedChange] = useState<number>(0);
 
 	const { container, isFluidInitialized, data } = useFluidContainerNextJs(
 		containerIdFromUrl(),
@@ -60,8 +62,15 @@ export default function TasksListPage(): JSX.Element {
 		async (id) => loadContainer(CONTAINER_SCHEMA, id),
 		// Get data from existing container
 		(fluidContainer) => {
-			const _treeView = fluidContainer.initialObjects.appState.viewWith(TREE_CONFIGURATION);
+			const _treeView = asTreeViewAlpha(
+				fluidContainer.initialObjects.appState.viewWith(TREE_CONFIGURATION),
+			);
 			setTreeView(_treeView);
+			_treeView.events.on("commitApplied", () => {
+				if (_treeView.getTrackedChangesCountSinceLastRead() > 0) {
+					setUpdateTrackedChange(updateTrackedChange + 1);
+				}
+			});
 
 			const presence = acquirePresenceViaDataObject(fluidContainer.initialObjects.presence);
 			setPresenceManagerContext(new PresenceManager(presence));
@@ -100,38 +109,73 @@ export default function TasksListPage(): JSX.Element {
 				treeView !== undefined &&
 				taskGroups !== undefined &&
 				selectedTaskGroup !== undefined && (
-					<React.Fragment>
-						<Stack direction="row" spacing={2} alignItems="center">
-							<Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-								<Tabs
-									value={selectedTaskGroup.id}
-									sx={{ mb: 2 }}
-									aria-label="basic tabs example"
-									onChange={(e, newSelectedTaskGroupId) => {
-										const foundTaskGroup = taskGroups.find(
-											(taskGroup) => taskGroup.id === newSelectedTaskGroupId,
-										);
-										setSelectedTaskGroup(foundTaskGroup);
-									}}
-								>
-									{taskGroups?.map((taskGroup) => (
-										<Tab label={taskGroup.title} value={taskGroup.id} key={taskGroup.id} />
-									))}
-								</Tabs>
-							</Box>
+					<div>
+						{/* <SplitPane split="vertical" minSize={50} defaultSize={100}> */}
+						<div>
+							<React.Fragment>
+								<Stack direction="row" spacing={2} alignItems="center">
+									<Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+										<Tabs
+											value={selectedTaskGroup.id}
+											sx={{ mb: 2 }}
+											aria-label="basic tabs example"
+											onChange={(e, newSelectedTaskGroupId) => {
+												const foundTaskGroup = taskGroups.find(
+													(taskGroup) => taskGroup.id === newSelectedTaskGroupId,
+												);
+												setSelectedTaskGroup(foundTaskGroup);
+											}}
+										>
+											{taskGroups?.map((taskGroup) => (
+												<Tab label={taskGroup.title} value={taskGroup.id} key={taskGroup.id} />
+											))}
+										</Tabs>
+									</Box>
 
-							<Button
-								variant="contained"
-								size="small"
-								color="success"
-								onClick={() => taskGroups.insertAtEnd(getNewTaskGroup(taskGroups.length))}
-							>
-								New Group
-							</Button>
-						</Stack>
+									<Button
+										variant="contained"
+										size="small"
+										color="success"
+										onClick={() => taskGroups.insertAtEnd(getNewTaskGroup(taskGroups.length))}
+									>
+										New Group
+									</Button>
+								</Stack>
 
-						<TaskGroup treeView={treeView} sharedTreeTaskGroup={selectedTaskGroup} />
-					</React.Fragment>
+								<TaskGroup treeView={treeView} sharedTreeTaskGroup={selectedTaskGroup} />
+							</React.Fragment>
+						</div>
+						<div>
+							<Stack spacing={2}>
+								<Stack direction="row" spacing={2}>
+									<Button
+										variant="contained"
+										size="small"
+										color="success"
+										onClick={() => {
+											treeView.startTrackingChanges();
+											setUpdateTrackedChange(updateTrackedChange + 1);
+										}}
+									>
+										Start Tracking Changes
+									</Button>
+									<Button
+										variant="contained"
+										size="small"
+										color="success"
+										onClick={() => {
+											treeView.startTrackingChanges();
+											setUpdateTrackedChange(updateTrackedChange + 1);
+										}}
+									>
+										Stop Tracking Changes
+									</Button>{" "}
+								</Stack>
+								<div dangerouslySetInnerHTML={{ __html: treeView.getTrackedChangesHtml() }} />
+							</Stack>
+						</div>
+					</div>
+					// </SplitPane>
 				)}
 		</Container>
 	);

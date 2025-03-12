@@ -115,3 +115,8 @@ export {
 
 export { DetachedFieldIndex } from "./detachedFieldIndex.js";
 export { type ForestRootId } from "./detachedFieldIndexTypes.js";
+
+export {
+	appliedDeltaFromForest,
+	htmlFromAppliedDelta,
+} from "./appliedDeltaUtil.js";

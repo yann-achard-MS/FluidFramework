@@ -472,6 +472,26 @@ export class SchematizingSimpleTreeView<
 		);
 	}
 
+	// #region Change Tracking
+
+	public startTrackingChanges(): void {
+		this.checkout.startTrackingChanges();
+	}
+	public stopTrackingChanges(): void {
+		this.checkout.stopTrackingChanges();
+	}
+	public getTrackedChangesHtml(): string {
+		return this.checkout.getTrackedChangesHtml();
+	}
+	public getTrackedChangesCount(): number {
+		return this.checkout.getTrackedChangesCount();
+	}
+	public getTrackedChangesCountSinceLastRead(): number {
+		return this.checkout.getTrackedChangesCount();
+	}
+
+	// #endregion Change Tracking
+
 	// #region Branching
 
 	public fork(): ReturnType<TreeBranch["fork"]> & SchematizingSimpleTreeView<TRootSchema> {

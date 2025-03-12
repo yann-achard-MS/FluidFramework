@@ -1046,12 +1046,22 @@ export interface TreeViewAlpha<in out TSchema extends ImplicitFieldSchema | Unsa
     // (undocumented)
     fork(): ReturnType<TreeBranch["fork"]> & TreeViewAlpha<TSchema>;
     // (undocumented)
+    getTrackedChangesCount(): number;
+    // (undocumented)
+    getTrackedChangesCountSinceLastRead(): number;
+    // (undocumented)
+    getTrackedChangesHtml(): string;
+    // (undocumented)
     initialize(content: InsertableField<TSchema>): void;
     // (undocumented)
     get root(): ReadableField<TSchema>;
     set root(newRoot: InsertableField<TSchema>);
     runTransaction<TSuccessValue, TFailureValue>(transaction: () => TransactionCallbackStatus<TSuccessValue, TFailureValue>, params?: RunTransactionParams): TransactionResultExt<TSuccessValue, TFailureValue>;
     runTransaction(transaction: () => VoidTransactionCallbackStatus | void, params?: RunTransactionParams): TransactionResult;
+    // (undocumented)
+    startTrackingChanges(): void;
+    // (undocumented)
+    stopTrackingChanges(): void;
 }
 
 // @public @sealed
