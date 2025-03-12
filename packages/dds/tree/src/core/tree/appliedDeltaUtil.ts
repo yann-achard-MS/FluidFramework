@@ -506,6 +506,8 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 
 		li.attach, li.detach, li.replace {
 			padding: 0.2em 0.8em 0.4em 0.8em;
+			border-top: 1px solid rgb(45, 45, 45);
+			border-bottom: 1px solid rgb(45, 45, 45);
 		}
 		li.attach {
 			background: rgb(31, 59, 80);
