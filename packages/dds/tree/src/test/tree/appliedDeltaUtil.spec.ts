@@ -441,8 +441,72 @@ describe("AppliedDeltaUtils", () => {
 	describe("htmlFromAppliedDelta", () => {
 		it("move object", () => {
 			const delta: AppliedDeltaRoot = {
-				detachedNodes: [],
+				detachedNodes: [
+					{
+						id: [{ minor: 40 }, { minor: 40 }],
+						node: "X",
+					},
+					{
+						id: [{ minor: 41 }, { minor: 41 }],
+						src: "build",
+						node: "Y",
+					},
+					{
+						id: [{ minor: 42 }, { minor: 42 }],
+						src: "refresher",
+						node: "Z",
+					},
+					{
+						id: [{ minor: 46 }, { minor: 46 }],
+						node: "X",
+						dst: "destroy",
+					},
+					{
+						id: [{ minor: 47 }, { minor: 47 }],
+						src: "build",
+						dst: "destroy",
+						node: "Y",
+					},
+					{
+						id: [{ minor: 48 }, { minor: 48 }],
+						src: "refresher",
+						dst: "destroy",
+						node: "Z",
+					},
+					{
+						id: [{ minor: 50 }, { minor: 51 }],
+						node: "X",
+						dst: "attach",
+					},
+					{
+						id: [{ minor: 52 }, { minor: 53 }],
+						src: "build",
+						dst: "attach",
+						node: "Y",
+					},
+					{
+						id: [{ minor: 54 }, { minor: 55 }],
+						src: "refresher",
+						dst: "attach",
+						node: "Z",
+					},
+				],
 				rootField: [
+					{
+						changeType: "attach",
+						count: 1,
+						attach: [{ minor: 50 }, { minor: 51 }],
+					},
+					{
+						changeType: "attach",
+						count: 1,
+						attach: [{ minor: 52 }, { minor: 53 }],
+					},
+					{
+						changeType: "attach",
+						count: 1,
+						attach: [{ minor: 54 }, { minor: 55 }],
+					},
 					{
 						changeType: "detach",
 						detach: [{ minor: 0 }, { minor: 0 }],
@@ -483,29 +547,7 @@ describe("AppliedDeltaUtils", () => {
 														[fooKey]: [
 															{
 																changeType: "noop",
-																nodes: [1],
-															},
-														],
-													},
-												},
-												{
-													nodeType: brand(JsonAsTree.JsonObject.identifier),
-													fields: {
-														[fooKey]: [
-															{
-																changeType: "noop",
-																nodes: [2],
-															},
-														],
-													},
-												},
-												{
-													nodeType: brand(JsonAsTree.JsonObject.identifier),
-													fields: {
-														[fooKey]: [
-															{
-																changeType: "noop",
-																nodes: [3],
+																nodes: [1, 2, 3],
 															},
 														],
 													},
