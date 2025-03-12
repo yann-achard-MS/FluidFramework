@@ -778,7 +778,9 @@ function htmlFromNodes(
 }
 
 function indexHtml(oldIndex?: number, newIndex?: number): string {
-	return `<span class="idx">[${oldIndex ?? "ⁿ/ₐ"}]🠪[${newIndex ?? "ⁿ/ₐ"}]</span>`;
+	return oldIndex === newIndex
+		? `<span class="idx">[${oldIndex ?? "ⁿ/ₐ"}]</span>`
+		: `<span class="idx">[${oldIndex ?? "ⁿ/ₐ"}]🠪[${newIndex ?? "ⁿ/ₐ"}]</span>`;
 }
 
 function nodeSrcLink(id: DetachedNodeIdPair, linkContent?: string): string {
