@@ -480,6 +480,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		.delta ul {
 			list-style-type: none;
 			padding-right: 10px;
+			margin-left: -1.0em;
 		}
 
 		.idx {
