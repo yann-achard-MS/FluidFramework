@@ -544,6 +544,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			display: inline-block;
 			text-decoration: underline;
 			padding: .2em 1em;
+			border-radius: 0.5em;
 		}
 		.delta {
 			display: block;
