@@ -473,6 +473,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			display: flex;
 			background: rgb(20, 20, 20);
 			border-radius: 0.5em;
+			line-height: 1em;
 		}
 
 		.delta ul {
@@ -481,12 +482,14 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		}
 
 		.idx {
+			vertical-align: middle;
 			margin-left: 1em;
 			font-size: x-small;
 			color: gray;
 		}
 		
 		.destiny-out, .destiny-in {
+			vertical-align: middle;
 			margin-left: 1em;
 			font-style: italic;
 			font-size: x-small;
@@ -518,7 +521,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			background: rgb(77, 17, 17);
 		}
 		li.replace {
-			background: rgb(60, 20, 80);
+			background: rgb(58, 37, 69);
 		}
 
 		/* unvisited link */
@@ -546,10 +549,16 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			display: block;
 			padding: 1em;
 		}
-		.noop::before, .attach::before, .detach::before, .replace::before {
+		
+		.noop::before,
+		.attach > .multiplier::before,
+		.detach > .multiplier::before,
+		.replace > .multiplier::before {
+			vertical-align: middle;
 			border-radius: 1em;
 			border: solid .1em #999;
 			margin-left: .2em;
+			margin-right: .2em;
 			padding: .0em .4em;
 			font-size: x-small;
 			color: rgb(210, 210, 210);
@@ -557,18 +566,20 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		.multiplier {
 			font-size: .8em;
 			color: gray;
+			display: inline-block;
+			padding: 0em 0em .2em 0em;
 		}
-		.attach::before {
+		.attach > .multiplier::before {
 			content: "attach";
 			background: rgb(32, 97, 147);
 		}
-		.detach::before {
+		.detach > .multiplier::before {
 			content: "detach";
 			background: rgb(136, 17, 17);
 		}
-		.replace::before {
+		.replace > .multiplier::before {
 			content: "replace";
-			background: rgb(109, 32, 147);
+			background: rgb(97, 45, 123);
 		}`);
 	lines.push(`${Array.from(metadata.attachDstIds.values())
 		.map((id) => `.delta:has(.pv${srcId(id)}:hover) #${srcId(id)}`)
