@@ -440,8 +440,10 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		lines.push(`<div><span>Detached Root Nodes:</span><ul>`);
 		{
 			for (const detachedNode of delta.detachedNodes) {
+				const srcClass = detachedNode.src ?? "prior";
+				const dstClass = detachedNode.dst === "attach" ? "detach" : (detachedNode.dst ?? "");
 				lines.push(
-					`<li id="${srcId(detachedNode.id)}"><div class="${detachedNode.src ?? "prior"}">`,
+					`<li id="${srcId(detachedNode.id)}" class="${dstClass}"><div class="${srcClass}">`,
 				);
 				{
 					const destiny: NodeDestiny = detachedNode.dst
