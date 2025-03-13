@@ -616,11 +616,23 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		.map((id) => `.delta:has(.pv${srcId(id)}:hover) #${srcId(id)}`)
 		.join(", ")} {
 		background-color: rgb(136, 17, 17);
+		transition: background-color 0.5s ease-out;
 	}`);
 	lines.push(`${Array.from(metadata.attachDstIds.values())
 		.map((id) => `.delta:has(.pv${dstId(id)}:hover) #${dstId(id)}`)
 		.join(", ")} {
 		background-color: rgb(32, 97, 147);
+		transition: background-color 0.5s ease-out;
+	}`);
+	lines.push(`${Array.from(metadata.attachDstIds.values())
+		.map((id) => `.delta:has(.pv${srcId(id)}:not(:hover)) #${srcId(id)}`)
+		.join(", ")} {
+		transition: background-color 3s ease-out;
+	}`);
+	lines.push(`${Array.from(metadata.attachDstIds.values())
+		.map((id) => `.delta:has(.pv${dstId(id)}:not(:hover)) #${dstId(id)}`)
+		.join(", ")} {
+		transition: background-color 3s ease-out;
 	}`);
 	lines.push(`</style>`);
 	return lines.join("\n");

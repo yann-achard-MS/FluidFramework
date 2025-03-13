@@ -368,8 +368,16 @@
 		}
 .delta:has(.pvsrc0:hover) #src0, .delta:has(.pvsrc1:hover) #src1, .delta:has(.pvsrc2:hover) #src2, .delta:has(.pvsrc50:hover) #src50, .delta:has(.pvsrc52:hover) #src52, .delta:has(.pvsrc54:hover) #src54 {
 		background-color: rgb(136, 17, 17);
+		transition: background-color 0.5s ease-out;
 	}
 .delta:has(.pvdst0:hover) #dst0, .delta:has(.pvdst1:hover) #dst1, .delta:has(.pvdst2:hover) #dst2, .delta:has(.pvdst51:hover) #dst51, .delta:has(.pvdst53:hover) #dst53, .delta:has(.pvdst55:hover) #dst55 {
 		background-color: rgb(32, 97, 147);
+		transition: background-color 0.5s ease-out;
+	}
+.delta:has(.pvsrc0:not(:hover)) #src0, .delta:has(.pvsrc1:not(:hover)) #src1, .delta:has(.pvsrc2:not(:hover)) #src2, .delta:has(.pvsrc50:not(:hover)) #src50, .delta:has(.pvsrc52:not(:hover)) #src52, .delta:has(.pvsrc54:not(:hover)) #src54 {
+		transition: background-color 3s ease-out;
+	}
+.delta:has(.pvdst0:not(:hover)) #dst0, .delta:has(.pvdst1:not(:hover)) #dst1, .delta:has(.pvdst2:not(:hover)) #dst2, .delta:has(.pvdst51:not(:hover)) #dst51, .delta:has(.pvdst53:not(:hover)) #dst53, .delta:has(.pvdst55:not(:hover)) #dst55 {
+		transition: background-color 3s ease-out;
 	}
 </style>
