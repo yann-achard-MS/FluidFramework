@@ -164,12 +164,12 @@ export default function TasksListPage(): JSX.Element {
 										size="small"
 										color="success"
 										onClick={() => {
-											treeView.startTrackingChanges();
+											treeView.stopTrackingChanges();
 											setUpdateTrackedChange(updateTrackedChange + 1);
 										}}
 									>
 										Stop Tracking Changes
-									</Button>{" "}
+									</Button>
 								</Stack>
 								<div dangerouslySetInnerHTML={{ __html: treeView.getTrackedChangesHtml() }} />
 							</Stack>
