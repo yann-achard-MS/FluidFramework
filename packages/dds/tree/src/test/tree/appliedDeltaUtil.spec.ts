@@ -67,7 +67,7 @@ describe("AppliedDeltaUtils", () => {
 				detachedNodes: [
 					{
 						id: [{ minor: 0 }, { minor: 0 }],
-						src: "refresher",
+						src: "refresh",
 						node: "X",
 					},
 				],
@@ -91,7 +91,7 @@ describe("AppliedDeltaUtils", () => {
 				detachedNodes: [
 					{
 						id: [{ minor: 0 }, { minor: 0 }],
-						src: "refresher",
+						src: "refresh",
 						node: "X",
 					},
 				],
@@ -453,7 +453,7 @@ describe("AppliedDeltaUtils", () => {
 					},
 					{
 						id: [{ minor: 42 }, { minor: 42 }],
-						src: "refresher",
+						src: "refresh",
 						node: "Z",
 					},
 					{
@@ -469,7 +469,7 @@ describe("AppliedDeltaUtils", () => {
 					},
 					{
 						id: [{ minor: 48 }, { minor: 48 }],
-						src: "refresher",
+						src: "refresh",
 						dst: "destroy",
 						node: "Z",
 					},
@@ -486,9 +486,19 @@ describe("AppliedDeltaUtils", () => {
 					},
 					{
 						id: [{ minor: 54 }, { minor: 55 }],
-						src: "refresher",
+						src: "refresh",
 						dst: "attach",
-						node: "Z",
+						node: {
+							nodeType: brand(JsonAsTree.JsonObject.identifier),
+							fields: {
+								[fooKey]: [
+									{
+										changeType: "noop",
+										nodes: [false],
+									},
+								],
+							},
+						},
 					},
 				],
 				rootField: [

@@ -51,7 +51,7 @@ interface DetachedNodeData {
 	readonly forestId?: ForestRootId;
 	buildData?: ITreeCursorSynchronous;
 	changeData?: DeltaFieldMap;
-	src?: "build" | "refresher";
+	src?: "build" | "refresh";
 	dst?: "attach" | "destroy";
 }
 
@@ -271,12 +271,12 @@ export function appliedDeltaFromForest(
 			const idTuple = nodeIdTuple(offsetId);
 			const existing = detachedRootsById.get(idTuple);
 			if (existing !== undefined) {
-				existing.src = "refresher";
+				existing.src = "refresh";
 				existing.buildData = c.fork();
 			} else {
 				const data: DetachedNodeData = {
 					oldId: offsetId,
-					src: "refresher",
+					src: "refresh",
 					buildData: c.fork(),
 				};
 				detachedRootsById.set(idTuple, data);
@@ -546,9 +546,35 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			padding: .2em 1em;
 			border-radius: 0.5em;
 		}
+
 		.delta {
 			display: block;
 			padding: 1em;
+		}
+
+		.prior::before,
+		.refresh::before,
+		.build::before {
+			vertical-align: middle;
+			text-align: center;
+			border-radius: 1em;
+			border: solid .1em #999;
+			font-size: x-small;
+			width: 4.8em;
+			color: rgb(210, 210, 210);
+			display: inline-block;
+		}
+		.build::before {
+			content: "build";
+			background: rgb(32, 97, 147);
+		}
+		.refresh::before {
+			content: "refresh";
+			background: rgb(32, 59, 147);
+		}
+		.prior::before {
+			content: "prior";
+			background: rgb(81, 81, 81);
 		}
 		
 		.noop::before,
@@ -560,7 +586,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			border: solid .1em #999;
 			margin-left: .2em;
 			margin-right: .2em;
-			padding: .0em .4em;
+			padding: .0em .5em;
 			font-size: x-small;
 			color: rgb(210, 210, 210);
 		}

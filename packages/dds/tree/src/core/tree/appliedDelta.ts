@@ -49,7 +49,7 @@ export interface InteriorNode {
 
 export interface DetachedNode {
 	readonly id: DetachedNodeIdPair;
-	readonly src?: "build" | "refresher";
+	readonly src?: "build" | "refresh";
 	readonly dst?: "attach" | "destroy";
 	readonly node: Node;
 }

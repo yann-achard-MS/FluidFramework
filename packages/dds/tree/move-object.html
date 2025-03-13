@@ -6,7 +6,7 @@
 <li id="src41"><div class="build">
 <span>"Y"</span>
 </div></li>
-<li id="src42"><div class="refresher">
+<li id="src42"><div class="refresh">
 <span>"Z"</span>
 </div></li>
 <li id="src46"><div class="prior">
@@ -15,7 +15,7 @@
 <li id="src47"><div class="build">
 <span>"Y"</span><span class="destiny-out">destroyed</span>
 </div></li>
-<li id="src48"><div class="refresher">
+<li id="src48"><div class="refresh">
 <span>"Z"</span><span class="destiny-out">destroyed</span>
 </div></li>
 <li id="src50"><div class="prior">
@@ -24,8 +24,22 @@
 <li id="src52"><div class="build">
 <span>"Y"</span><span class="destiny-out">sent to <a href="#dst53" class="pvdst53">@53</a></span>
 </div></li>
-<li id="src54"><div class="refresher">
-<span>"Z"</span><span class="destiny-out">sent to <a href="#dst55" class="pvdst55">@55</a></span>
+<li id="src54"><div class="refresh">
+<span>com.fluidframework.json.object</span><span class="destiny-out">sent to <a href="#dst55" class="pvdst55">@55</a></span>
+<ul>
+<li><span>"foo":</span>
+<ul>
+<li class="noop">
+<ul>
+<li>
+<span class="idx">[0]</span>
+<span>false</span>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
 </div></li>
 </ul></div>
 <div><span>Root Field:</span>
@@ -61,7 +75,7 @@
 <span class="idx">[ⁿ/ₐ]🠪[2]</span>
 @55
 <span class="destiny-in">attaching <div id="dst55" class="preview pvsrc54">
-<a href="#src54"><span>"Z"</span></a>
+<a href="#src54"><span>com.fluidframework.json.object</span></a>
 </div></span>
 </li>
 </ul>
@@ -280,9 +294,35 @@
 			padding: .2em 1em;
 			border-radius: 0.5em;
 		}
+
 		.delta {
 			display: block;
 			padding: 1em;
+		}
+
+		.prior::before,
+		.refresh::before,
+		.build::before {
+			vertical-align: middle;
+			text-align: center;
+			border-radius: 1em;
+			border: solid .1em #999;
+			font-size: x-small;
+			width: 4.8em;
+			color: rgb(210, 210, 210);
+			display: inline-block;
+		}
+		.build::before {
+			content: "build";
+			background: rgb(32, 97, 147);
+		}
+		.refresh::before {
+			content: "refresh";
+			background: rgb(32, 59, 147);
+		}
+		.prior::before {
+			content: "prior";
+			background: rgb(81, 81, 81);
 		}
 		
 		.noop::before,
@@ -294,7 +334,7 @@
 			border: solid .1em #999;
 			margin-left: .2em;
 			margin-right: .2em;
-			padding: .0em .4em;
+			padding: .0em .5em;
 			font-size: x-small;
 			color: rgb(210, 210, 210);
 		}
