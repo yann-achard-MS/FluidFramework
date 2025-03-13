@@ -545,9 +545,9 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			color: rgb(146, 190, 255);
 		}
 		.preview {
+			font-style: normal;
 			display: inline-block;
-			text-decoration: underline;
-			padding: .2em 1em;
+			padding: .2em 0em;
 			border-radius: 0.5em;
 		}
 
@@ -656,21 +656,22 @@ function htmlPreview(id: DetachedNodeIdPair, metadata: Metadata): string {
 	assert(node !== undefined, "Preview node not found");
 	const lines: string[] = [];
 	lines.push(`<div id="${dstId(id)}" class="preview pv${srcId(id)}">`);
+	lines.push(nodeSrcLink(id));
 	let previewContent: string;
 	{
 		if (typeof node === "string") {
-			previewContent = `<span>"${node}"</span>`;
+			previewContent = `"${node}"`;
 		} else if (typeof node === "number" || typeof node === "boolean") {
-			previewContent = `<span>${node}</span>`;
+			previewContent = `${node}`;
 		} else if (node === null) {
-			previewContent = `<span>null</span>`;
+			previewContent = `null`;
 		} else if (isFluidHandle(node)) {
-			previewContent = `<span><fluid-handle></span>`;
+			previewContent = `&lt;fluid-handle&gt;`;
 		} else {
-			previewContent = `<span>${node.nodeType ?? "<Object>"}</span>`;
+			previewContent = `${node.nodeType ?? "<Object>"}`;
 		}
 	}
-	lines.push(nodeSrcLink(id, previewContent));
+	lines.push(`<span>(${previewContent})</span>`);
 	lines.push(`</div>`);
 	return lines.join("\n");
 }
@@ -689,7 +690,7 @@ function htmlFromNode(
 	} else if (node === null) {
 		lines.push(`<span>null</span>${edit}`);
 	} else if (isFluidHandle(node)) {
-		lines.push(`<span><fluid-handle></span>${edit}`);
+		lines.push(`<span>&lt;fluid-handle&gt;</span>${edit}`);
 	} else {
 		if (node.nodeType !== undefined) {
 			lines.push(`<span class="type">${node.nodeType}</span>${edit}`);
