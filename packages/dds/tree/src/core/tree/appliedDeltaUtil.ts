@@ -488,6 +488,10 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 			color: gray;
 		}
 		
+		.type {
+			color: rgb(180, 180, 180);
+		}
+		
 		.destiny-out, .destiny-in {
 			vertical-align: middle;
 			margin-left: 1em;
@@ -688,7 +692,7 @@ function htmlFromNode(
 		lines.push(`<span><fluid-handle></span>${edit}`);
 	} else {
 		if (node.nodeType !== undefined) {
-			lines.push(`<span>${node.nodeType}</span>${edit}`);
+			lines.push(`<span class="type">${node.nodeType}</span>${edit}`);
 		}
 		lines.push(`<ul>`);
 		{
