@@ -32,7 +32,7 @@
 <li class="noop">
 <ul>
 <li>
-<span class="idx">[0]</span>
+<span class="idx">[0]🠪[ⁿ/ₐ]</span>
 <span>false</span>
 </li>
 </ul>
@@ -50,7 +50,7 @@
 <li class="cell" id=dst51>
 <span class="idx">[ⁿ/ₐ]🠪[0]</span>
 @51
-<span class="destiny-in">attaching <div id="dst51" class="preview pvsrc50">
+<span class="destiny-in">attaching <div class="preview pvsrc50">
 <a href="#src50">#50</a>
 <span>("X")</span>
 </div></span>
@@ -63,7 +63,7 @@
 <li class="cell" id=dst53>
 <span class="idx">[ⁿ/ₐ]🠪[1]</span>
 @53
-<span class="destiny-in">attaching <div id="dst53" class="preview pvsrc52">
+<span class="destiny-in">attaching <div class="preview pvsrc52">
 <a href="#src52">#52</a>
 <span>("Y")</span>
 </div></span>
@@ -76,7 +76,7 @@
 <li class="cell" id=dst55>
 <span class="idx">[ⁿ/ₐ]🠪[2]</span>
 @55
-<span class="destiny-in">attaching <div id="dst55" class="preview pvsrc54">
+<span class="destiny-in">attaching <div class="preview pvsrc54">
 <a href="#src54">#54</a>
 <span>(com.fluidframework.json.object)</span>
 </div></span>
@@ -95,7 +95,7 @@
 <li class="noop">
 <ul>
 <li>
-<span class="idx">[0]</span>
+<span class="idx">[0]🠪[ⁿ/ₐ]</span>
 <span>true</span>
 </li>
 </ul>
@@ -120,7 +120,7 @@
 <li class="cell" id=dst1>
 <span class="idx">[ⁿ/ₐ]🠪[3]</span>
 @1
-<span class="destiny-in">attaching <div id="dst1" class="preview pvsrc1">
+<span class="destiny-in">attaching <div class="preview pvsrc1">
 <a href="#src1">#1</a>
 <span>(false)</span>
 </div></span>
@@ -128,7 +128,7 @@
 <li class="cell" id=dst2>
 <span class="idx">[ⁿ/ₐ]🠪[4]</span>
 @2
-<span class="destiny-in">attaching <div id="dst2" class="preview pvsrc2">
+<span class="destiny-in">attaching <div class="preview pvsrc2">
 <a href="#src2">#2</a>
 <span>(null)</span>
 </div></span>
@@ -138,7 +138,7 @@
 <li class="noop">
 <ul>
 <li>
-<span class="idx">[3]🠪[5]</span>
+<span class="idx">[3]🠪[ⁿ/ₐ]</span>
 <span class="type">com.fluidframework.json.array</span>
 <ul>
 <li><span>"":</span>
@@ -146,7 +146,7 @@
 <li class="noop">
 <ul>
 <li>
-<span class="idx">[0]</span>
+<span class="idx">[0]🠪[ⁿ/ₐ]</span>
 <span class="type">com.fluidframework.json.object</span>
 <ul>
 <li><span>"foo":</span>
@@ -154,15 +154,15 @@
 <li class="noop">
 <ul>
 <li>
-<span class="idx">[0]</span>
+<span class="idx">[0]🠪[ⁿ/ₐ]</span>
 <span>1</span>
 </li>
 <li>
-<span class="idx">[1]</span>
+<span class="idx">[1]🠪[ⁿ/ₐ]</span>
 <span>2</span>
 </li>
 <li>
-<span class="idx">[2]</span>
+<span class="idx">[2]🠪[ⁿ/ₐ]</span>
 <span>3</span>
 </li>
 </ul>
@@ -178,11 +178,11 @@
 </ul>
 </li>
 <li>
-<span class="idx">[4]🠪[6]</span>
+<span class="idx">[4]🠪[ⁿ/ₐ]</span>
 <span>false</span>
 </li>
 <li>
-<span class="idx">[5]🠪[7]</span>
+<span class="idx">[5]🠪[ⁿ/ₐ]</span>
 <span>null</span>
 </li>
 </ul>
@@ -190,19 +190,24 @@
 <li class="replace">
 <span class="multiplier">(x1)</span>
 <ul>
-<li id="src10">
-<span class="idx">[6]🠪[8]</span>
-<span class="type">com.fluidframework.json.object</span><span class="destiny-out">removed as #10 and replaced by <div id="dst0" class="preview pvsrc0">
+<li class="cell" id=dst0>
+<span class="idx">[ⁿ/ₐ]🠪[8]</span>
+@0
+<span class="destiny-in">attaching <div class="preview pvsrc0">
 <a href="#src0">#0</a>
 <span>(com.fluidframework.json.object)</span>
 </div></span>
+</li>
+<li id="src10">
+<span class="idx">[6]🠪[ⁿ/ₐ]</span>
+<span class="type">com.fluidframework.json.object</span><span class="destiny-out">removed as #10</span>
 <ul>
 <li><span>"foo":</span>
 <ul>
 <li class="noop">
 <ul>
 <li>
-<span class="idx">[0]</span>
+<span class="idx">[0]🠪[ⁿ/ₐ]</span>
 <span>false</span>
 </li>
 </ul>
@@ -263,7 +268,10 @@
 		.delta li {
 			padding: 0.2em 0.8em;
 			background: rgb(35, 35, 40);
-			border-left: 2px solid rgb(45, 45, 45);
+			border-top: 1px solid rgba(255,255,255,0);
+			border-bottom: 1px solid rgba(255,255,255,0);
+			border-right: 1px solid rgba(255,255,255,0);
+			border-left: 1px solid rgb(65, 65, 65);
 			border-radius: 0.5em;
 		}
 
@@ -367,10 +375,12 @@
 			background: rgb(97, 45, 123);
 		}
 .delta:has(.pvsrc0:hover) #src0, .delta:has(.pvsrc1:hover) #src1, .delta:has(.pvsrc2:hover) #src2, .delta:has(.pvsrc50:hover) #src50, .delta:has(.pvsrc52:hover) #src52, .delta:has(.pvsrc54:hover) #src54 {
+		border: 1px solid #fff;
 		background-color: rgb(136, 17, 17);
 		transition: background-color 0.5s ease-out;
 	}
 .delta:has(.pvdst0:hover) #dst0, .delta:has(.pvdst1:hover) #dst1, .delta:has(.pvdst2:hover) #dst2, .delta:has(.pvdst51:hover) #dst51, .delta:has(.pvdst53:hover) #dst53, .delta:has(.pvdst55:hover) #dst55 {
+		border: 1px solid #fff;
 		background-color: rgb(32, 97, 147);
 		transition: background-color 0.5s ease-out;
 	}

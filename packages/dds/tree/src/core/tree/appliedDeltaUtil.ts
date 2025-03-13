@@ -374,10 +374,9 @@ function nodeIdObj(id: NodeIdTuple): DetachedNodeId {
 	return id[0] !== undefined ? { major: id[0], minor: id[1] } : { minor: id[1] };
 }
 
-type NodeDestiny =
+type OutboundNode =
 	| { type: "noop" }
 	| { type: "attach"; dst: DetachedNodeIdPair }
-	| { type: "replace"; dst: DetachedNodeIdPair; src: DetachedNodeIdPair }
 	| { type: "destroy" };
 
 interface Metadata {
@@ -446,7 +445,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 					`<li id="${srcId(detachedNode.id)}" class="${dstClass}"><div class="${srcClass}">`,
 				);
 				{
-					const destiny: NodeDestiny = detachedNode.dst
+					const destiny: OutboundNode = detachedNode.dst
 						? detachedNode.dst === "destroy"
 							? { type: "destroy" }
 							: { type: "attach", dst: detachedNode.id }
@@ -511,7 +510,10 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		.delta li {
 			padding: 0.2em 0.8em;
 			background: rgb(35, 35, 40);
-			border-left: 2px solid rgb(45, 45, 45);
+			border-top: 1px solid rgba(255,255,255,0);
+			border-bottom: 1px solid rgba(255,255,255,0);
+			border-right: 1px solid rgba(255,255,255,0);
+			border-left: 1px solid rgb(65, 65, 65);
 			border-radius: 0.5em;
 		}
 
@@ -617,12 +619,14 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 	lines.push(`${Array.from(metadata.attachDstIds.values())
 		.map((id) => `.delta:has(.pv${srcId(id)}:hover) #${srcId(id)}`)
 		.join(", ")} {
+		border: 1px solid #fff;
 		background-color: rgb(136, 17, 17);
 		transition: background-color 0.5s ease-out;
 	}`);
 	lines.push(`${Array.from(metadata.attachDstIds.values())
 		.map((id) => `.delta:has(.pv${dstId(id)}:hover) #${dstId(id)}`)
 		.join(", ")} {
+		border: 1px solid #fff;
 		background-color: rgb(32, 97, 147);
 		transition: background-color 0.5s ease-out;
 	}`);
@@ -640,18 +644,13 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 	return lines.join("\n");
 }
 
-function htmlFromDestiny(destiny: NodeDestiny, metadata: Metadata): string {
+function htmlFromOutboundNode(destiny: OutboundNode, metadata: Metadata): string {
 	if (destiny.type === "noop") {
 		return "";
 	}
 	let outbound = "";
-	let inbound = "";
-	if (destiny.type === "replace") {
-		inbound = ` and replaced by ${htmlPreview(destiny.src, metadata)}`;
-	}
 	switch (destiny.type) {
 		case "attach":
-		case "replace":
 			outbound = metadata.attachDstIds.has(nodeIdTuple(destiny.dst[1]))
 				? `sent to ${nodeDstLink(destiny.dst)}`
 				: `removed as #${nodeIdToString(destiny.dst[1])}`;
@@ -662,14 +661,32 @@ function htmlFromDestiny(destiny: NodeDestiny, metadata: Metadata): string {
 		default:
 			unreachableCase(destiny);
 	}
-	return `<span class="destiny-out">${outbound}${inbound}</span>`;
+	return `<span class="destiny-out">${outbound}</span>`;
+}
+
+function htmlFromAttach(
+	attachId: DetachedNodeIdPair,
+	newIndex: number,
+	metadata: Metadata,
+): string {
+	const lines: string[] = [];
+	lines.push(`<li class="cell" id=${dstId(attachId)}>`);
+	lines.push(indexHtml(undefined, newIndex));
+	lines.push(`@${nodeIdToString(attachId[1])}`);
+	lines.push(htmlFromInboundNode(attachId, metadata));
+	lines.push(`</li>`);
+	return lines.join("\n");
+}
+
+function htmlFromInboundNode(attachId: DetachedNodeIdPair, metadata: Metadata): string {
+	return `<span class="destiny-in">attaching ${htmlPreview(attachId, metadata)}</span>`;
 }
 
 function htmlPreview(id: DetachedNodeIdPair, metadata: Metadata): string {
 	const node = metadata.nodesByOldId.get(nodeIdTuple(id[0]));
 	assert(node !== undefined, "Preview node not found");
 	const lines: string[] = [];
-	lines.push(`<div id="${dstId(id)}" class="preview pv${srcId(id)}">`);
+	lines.push(`<div class="preview pv${srcId(id)}">`);
 	lines.push(nodeSrcLink(id));
 	let previewContent: string;
 	{
@@ -692,11 +709,11 @@ function htmlPreview(id: DetachedNodeIdPair, metadata: Metadata): string {
 
 function htmlFromNode(
 	node: AppliedDeltaNode,
-	destiny: NodeDestiny,
+	destiny: OutboundNode,
 	metadata: Metadata,
 ): string {
 	const lines: string[] = [];
-	const edit = htmlFromDestiny(destiny, metadata);
+	const edit = htmlFromOutboundNode(destiny, metadata);
 	if (typeof node === "string") {
 		lines.push(`<span>"${node}"</span>${edit}`);
 	} else if (typeof node === "number" || typeof node === "boolean") {
@@ -771,11 +788,7 @@ function htmlFromMark(
 			lines.push(`<ul>`);
 			for (let i = 0; i < mark.count; i++) {
 				const id = offsetDetachIdPair(mark.attach, i);
-				lines.push(`<li class="cell" id=${dstId(id)}>`);
-				lines.push(indexHtml(undefined, newIndex + i));
-				lines.push(`@${nodeIdToString(id[1])}`);
-				lines.push(`<span class="destiny-in">attaching ${htmlPreview(id, metadata)}</span>`);
-				lines.push(`</li>`);
+				lines.push(htmlFromAttach(id, newIndex + i, metadata));
 			}
 			lines.push(`</ul>`);
 			lines.push(`</li>`);
@@ -811,22 +824,19 @@ function htmlFromNodes(
 	const lines: string[] = [];
 	lines.push(`<ul>`);
 	{
-		const isDetachOnly = detachId !== undefined && attachId === undefined;
 		for (const [index, node] of nodes.entries()) {
-			const destiny: NodeDestiny =
-				detachId && attachId
-					? {
-							type: "replace",
-							dst: offsetDetachIdPair(detachId, index),
-							src: offsetDetachIdPair(attachId, index),
-						}
-					: detachId
-						? { type: "attach", dst: offsetDetachIdPair(detachId, index) }
-						: { type: "noop" };
+			const destiny: OutboundNode = detachId
+				? { type: "attach", dst: offsetDetachIdPair(detachId, index) }
+				: { type: "noop" };
+
+			if (attachId !== undefined) {
+				lines.push(htmlFromAttach(attachId, newIndex + index, metadata));
+			}
+
 			const htmlId =
 				detachId !== undefined ? ` id="${srcId(offsetDetachIdPair(detachId, index))}"` : "";
 			lines.push(`<li${htmlId}>`);
-			lines.push(indexHtml(oldIndex + index, isDetachOnly ? undefined : newIndex + index));
+			lines.push(indexHtml(oldIndex + index, undefined));
 			lines.push(htmlFromNode(node, destiny, metadata));
 			lines.push(`</li>`);
 		}
