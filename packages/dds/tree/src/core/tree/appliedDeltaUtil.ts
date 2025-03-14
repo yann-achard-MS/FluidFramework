@@ -252,8 +252,21 @@ export function getAppliedDelta(
 		detachedRootsById.set(idTuple, data);
 	}
 
+	const detachIds = collectDetachIds(delta);
+	const attachIds = collectAttachIds(delta);
+	for (const newIdTuple of attachIds.keys()) {
+		const oldIdTuple = newIdFromOldId.get(newIdTuple) ?? newIdTuple;
+		// An attach that affects a node that is not being detached betrays the existence of a pre-existing detached root.
+		// These should already be in the detachedRootsById map when the DetachedFieldIndex is provided.
+		if (!detachIds.has(oldIdTuple)) {
+			const data: DetachedNodeData = {
+				oldId: nodeIdObj(oldIdTuple),
+			};
+			detachedRootsById.set(newIdTuple, data);
+		}
+	}
+
 	if (delta.rename !== undefined) {
-		const detachIds = collectDetachIds(delta);
 		for (const { oldId, count } of delta.rename) {
 			for (let iTree = 0; iTree < count; iTree += 1) {
 				const offsetId = offsetDetachId(oldId, iTree);
@@ -415,8 +428,11 @@ function collectDetachIds(delta: DeltaRoot): NodeIdBTree<true> {
 	function collectDetachIdsFromFieldChanges(fieldChanges: DeltaFieldChanges): void {
 		for (const mark of fieldChanges) {
 			if (mark.detach !== undefined) {
-				const idTuple = nodeIdTuple(mark.detach);
-				detachIds.set(idTuple, true);
+				for (let index = 0; index < mark.count; index += 1) {
+					const offsetId = offsetDetachId(mark.detach, index);
+					const idTuple = nodeIdTuple(offsetId);
+					detachIds.set(idTuple, true);
+				}
 			}
 		}
 	}
@@ -428,6 +444,36 @@ function collectDetachIds(delta: DeltaRoot): NodeIdBTree<true> {
 		collectDetachIdsFromFieldMap(delta.fields);
 	}
 	return detachIds;
+}
+
+function collectAttachIds(delta: DeltaRoot): NodeIdBTree<true> {
+	const attachIds: NodeIdBTree<true> = newTupleBTree();
+
+	function collectDetachIdsFromFieldMap(fieldMap: DeltaFieldMap): void {
+		for (const [_fieldKey, fieldChanges] of fieldMap) {
+			collectDetachIdsFromFieldChanges(fieldChanges);
+		}
+	}
+
+	function collectDetachIdsFromFieldChanges(fieldChanges: DeltaFieldChanges): void {
+		for (const mark of fieldChanges) {
+			if (mark.attach !== undefined) {
+				for (let index = 0; index < mark.count; index += 1) {
+					const offsetId = offsetDetachId(mark.attach, index);
+					const idTuple = nodeIdTuple(offsetId);
+					attachIds.set(idTuple, true);
+				}
+			}
+		}
+	}
+
+	for (const { fields } of delta.global ?? []) {
+		collectDetachIdsFromFieldMap(fields);
+	}
+	if (delta.fields) {
+		collectDetachIdsFromFieldMap(delta.fields);
+	}
+	return attachIds;
 }
 
 type OutboundNode =
