@@ -17,7 +17,7 @@ import {
 import { brand } from "../../util/index.js";
 import { buildForest } from "../../feature-libraries/index.js";
 import {
-	appliedDeltaFromForest,
+	getAppliedDelta,
 	htmlFromAppliedDelta,
 	// eslint-disable-next-line import/no-internal-modules
 } from "../../core/tree/appliedDeltaUtil.js";
@@ -36,14 +36,14 @@ export function writeAppliedDelta(delta: AppliedDeltaRoot, path: string): void {
 }
 
 describe("AppliedDeltaUtils", () => {
-	describe("appliedDeltaFromForest", () => {
+	describe("getAppliedDelta (with state)", () => {
 		it("build leaf node", () => {
 			const index = makeDetachedFieldIndex("", testRevisionTagCodec, testIdCompressor);
 			const forest = buildForest();
 			const delta: DeltaRoot = {
 				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
 			};
-			const actual = appliedDeltaFromForest(delta, forest, index);
+			const actual = getAppliedDelta(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
 				detachedNodes: [
 					{
@@ -62,7 +62,7 @@ describe("AppliedDeltaUtils", () => {
 			const delta: DeltaRoot = {
 				refreshers: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
 			};
-			const actual = appliedDeltaFromForest(delta, forest, index);
+			const actual = getAppliedDelta(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
 				detachedNodes: [
 					{
@@ -86,7 +86,7 @@ describe("AppliedDeltaUtils", () => {
 			const delta: DeltaRoot = {
 				refreshers: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
 			};
-			const actual = appliedDeltaFromForest(delta, forest, index);
+			const actual = getAppliedDelta(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
 				detachedNodes: [
 					{
@@ -112,7 +112,7 @@ describe("AppliedDeltaUtils", () => {
 			const delta: DeltaRoot = {
 				destroy: [{ id: { minor: 0 }, count: 2 }],
 			};
-			const actual = appliedDeltaFromForest(delta, forest, index);
+			const actual = getAppliedDelta(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
 				detachedNodes: [
 					{
@@ -143,7 +143,7 @@ describe("AppliedDeltaUtils", () => {
 			const delta: DeltaRoot = {
 				rename: [{ oldId: { minor: 0 }, newId: { minor: 1 }, count: 2 }],
 			};
-			const actual = appliedDeltaFromForest(delta, forest, index);
+			const actual = getAppliedDelta(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
 				detachedNodes: [
 					{
@@ -181,7 +181,7 @@ describe("AppliedDeltaUtils", () => {
 					},
 				],
 			};
-			const actual = appliedDeltaFromForest(delta, forest, index);
+			const actual = getAppliedDelta(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
 				detachedNodes: [
 					{
@@ -236,7 +236,7 @@ describe("AppliedDeltaUtils", () => {
 					],
 				]),
 			};
-			const actual = appliedDeltaFromForest(delta, forest, index);
+			const actual = getAppliedDelta(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
 				detachedNodes: [],
 				rootField: [
@@ -288,7 +288,7 @@ describe("AppliedDeltaUtils", () => {
 					},
 				],
 			};
-			const actual = appliedDeltaFromForest(delta, forest, index);
+			const actual = getAppliedDelta(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
 				detachedNodes: [
 					{
@@ -332,7 +332,7 @@ describe("AppliedDeltaUtils", () => {
 					],
 				]),
 			};
-			const actual = appliedDeltaFromForest(delta, forest, index);
+			const actual = getAppliedDelta(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
 				detachedNodes: [
 					{
@@ -376,7 +376,7 @@ describe("AppliedDeltaUtils", () => {
 				]),
 				rename: [{ oldId: { minor: 0 }, newId: { minor: 1 }, count: 1 }],
 			};
-			const actual = appliedDeltaFromForest(delta, forest, index);
+			const actual = getAppliedDelta(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
 				detachedNodes: [],
 				rootField: [
@@ -417,7 +417,7 @@ describe("AppliedDeltaUtils", () => {
 					],
 				]),
 			};
-			const actual = appliedDeltaFromForest(delta, forest, index);
+			const actual = getAppliedDelta(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
 				detachedNodes: [
 					{

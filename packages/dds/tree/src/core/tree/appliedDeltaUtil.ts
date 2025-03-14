@@ -55,7 +55,7 @@ interface DetachedNodeData {
 	dst?: "attach" | "destroy";
 }
 
-export function appliedDeltaFromForest(
+export function getAppliedDelta(
 	delta: DeltaRoot,
 	forest?: IForestSubscription,
 	detached?: DetachedFieldIndex,
