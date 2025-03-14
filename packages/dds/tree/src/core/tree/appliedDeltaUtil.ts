@@ -179,11 +179,13 @@ export function getAppliedDelta(
 		);
 		if (nestedChanges !== undefined) {
 			assert(count === 1, "nested changes must apply to a single node");
-			const interiorNode: AppliedDeltaInteriorNode = {
-				nodeType: cursor?.type,
+			const interiorNode: Mutable<AppliedDeltaInteriorNode> = {
 				fields: appliedDeltaFieldMap(nestedChanges, cursor),
 			};
-			cursor?.nextNode();
+			if (cursor !== undefined) {
+				interiorNode.nodeType = cursor.type;
+				cursor.nextNode();
+			}
 			return [interiorNode];
 		} else {
 			if (cursor === undefined) {
@@ -195,10 +197,12 @@ export function getAppliedDelta(
 					if (value !== undefined) {
 						nodes.push(value);
 					} else {
-						const interiorNode: AppliedDeltaInteriorNode = {
-							nodeType: cursor?.type,
+						const interiorNode: Mutable<AppliedDeltaInteriorNode> = {
 							fields: appliedDeltaFieldMap(undefined, cursor),
 						};
+						if (cursor !== undefined) {
+							interiorNode.nodeType = cursor.type;
+						}
 						nodes.push(interiorNode);
 					}
 					cursor.nextNode();
@@ -319,8 +323,17 @@ export function getAppliedDelta(
 	for (const { id, fields } of delta.global ?? []) {
 		const idTuple = nodeIdTuple(id);
 		const existing = detachedRootsById.get(idTuple);
-		assert(existing !== undefined, "Invalid edit operation on unknown node");
-		existing.changeData = fields;
+		// A change that targets a detached root betrays the existence of that pre-existing detached root.
+		// These should already be in the detachedRootsById map when the DetachedFieldIndex is provided.
+		if (existing === undefined) {
+			const data: DetachedNodeData = {
+				oldId: id,
+				changeData: fields,
+			};
+			detachedRootsById.set(idTuple, data);
+		} else {
+			existing.changeData = fields;
+		}
 	}
 
 	let rootField: ITreeSubscriptionCursor | undefined;
