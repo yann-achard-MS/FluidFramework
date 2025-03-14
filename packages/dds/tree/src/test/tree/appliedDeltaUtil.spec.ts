@@ -438,6 +438,341 @@ describe("AppliedDeltaUtils", () => {
 			assert.deepEqual(actual, expected);
 		});
 	});
+	describe("getAppliedDelta (no state)", () => {
+		it("build leaf node", () => {
+			const delta: DeltaRoot = {
+				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
+			};
+			const actual = getAppliedDelta(delta);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [
+					{
+						id: [{ minor: 0 }, { minor: 0 }],
+						src: "build",
+						node: "X",
+					},
+				],
+				rootField: [],
+			};
+			assert.deepEqual(actual, expected);
+		});
+		it("refresh absent leaf node", () => {
+			const delta: DeltaRoot = {
+				refreshers: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
+			};
+			const actual = getAppliedDelta(delta);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [
+					{
+						id: [{ minor: 0 }, { minor: 0 }],
+						src: "refresh",
+						node: "X",
+					},
+				],
+				rootField: [],
+			};
+			assert.deepEqual(actual, expected);
+		});
+		it("refresh present leaf node", () => {
+			const delta: DeltaRoot = {
+				refreshers: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
+			};
+			const actual = getAppliedDelta(delta);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [
+					{
+						id: [{ minor: 0 }, { minor: 0 }],
+						src: "refresh",
+						node: "X",
+					},
+				],
+				rootField: [],
+			};
+			assert.deepEqual(actual, expected);
+		});
+		it("destroy detached nodes", () => {
+			const delta: DeltaRoot = {
+				destroy: [{ id: { minor: 0 }, count: 2 }],
+			};
+			const actual = getAppliedDelta(delta);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [
+					{
+						id: [{ minor: 0 }, { minor: 0 }],
+						dst: "destroy",
+						node: undefined,
+					},
+					{
+						id: [{ minor: 1 }, { minor: 1 }],
+						dst: "destroy",
+						node: undefined,
+					},
+				],
+				rootField: [],
+			};
+			assert.deepEqual(actual, expected);
+		});
+		it("rename detached nodes", () => {
+			const delta: DeltaRoot = {
+				rename: [{ oldId: { minor: 0 }, newId: { minor: 1 }, count: 2 }],
+			};
+			const actual = getAppliedDelta(delta);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [
+					{
+						id: [{ minor: 0 }, { minor: 1 }],
+						node: undefined,
+					},
+					{
+						id: [{ minor: 1 }, { minor: 2 }],
+						node: undefined,
+					},
+				],
+				rootField: [],
+			};
+			assert.deepEqual(actual, expected);
+		});
+		it("build and modify object node", () => {
+			const delta: DeltaRoot = {
+				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees([{ foo: true }]) }],
+				global: [
+					{
+						id: { minor: 0 },
+						fields: new Map<FieldKey, DeltaFieldChanges>([
+							[
+								fooKey,
+								[
+									{
+										count: 1,
+										detach: { minor: 1 },
+									},
+								],
+							],
+						]),
+					},
+				],
+			};
+			const actual = getAppliedDelta(delta);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [
+					{
+						id: [{ minor: 0 }, { minor: 0 }],
+						src: "build",
+						node: {
+							nodeType: brand(JsonAsTree.JsonObject.identifier),
+							fields: {
+								[fooKey]: [
+									{
+										changeType: "detach",
+										detach: [{ minor: 1 }, { minor: 1 }],
+										nodes: [true],
+									},
+								],
+							},
+						},
+					},
+				],
+				rootField: [],
+			};
+			assert.deepEqual(actual, expected);
+		});
+		it("modify attached node that is being detached", () => {
+			const delta: DeltaRoot = {
+				fields: new Map<FieldKey, DeltaFieldChanges>([
+					[
+						rootFieldKey,
+						[
+							{
+								count: 1,
+								detach: { minor: 0 },
+								fields: new Map<FieldKey, DeltaFieldChanges>([
+									[
+										fooKey,
+										[
+											{
+												count: 1,
+												detach: { minor: 1 },
+											},
+										],
+									],
+								]),
+							},
+						],
+					],
+				]),
+			};
+			const actual = getAppliedDelta(delta);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [],
+				rootField: [
+					{
+						changeType: "detach",
+						detach: [{ minor: 0 }, { minor: 0 }],
+						nodes: [
+							{
+								fields: {
+									[fooKey]: [
+										{
+											changeType: "detach",
+											detach: [{ minor: 1 }, { minor: 1 }],
+											nodes: [undefined],
+										},
+									],
+								},
+							},
+						],
+					},
+				],
+			};
+			assert.deepEqual(actual, expected);
+		});
+		it("modify detached node", () => {
+			const delta: DeltaRoot = {
+				global: [
+					{
+						id: { minor: 0 },
+						fields: new Map<FieldKey, DeltaFieldChanges>([
+							[
+								fooKey,
+								[
+									{
+										count: 1,
+										detach: { minor: 1 },
+									},
+								],
+							],
+						]),
+					},
+				],
+			};
+			const actual = getAppliedDelta(delta);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [
+					{
+						id: [{ minor: 0 }, { minor: 0 }],
+						node: {
+							fields: {
+								[fooKey]: [
+									{
+										changeType: "detach",
+										detach: [{ minor: 1 }, { minor: 1 }],
+										nodes: [undefined],
+									},
+								],
+							},
+						},
+					},
+				],
+				rootField: [],
+			};
+			assert.deepEqual(actual, expected);
+		});
+		it("attach detached node", () => {
+			const delta: DeltaRoot = {
+				fields: new Map<FieldKey, DeltaFieldChanges>([
+					[
+						rootFieldKey,
+						[
+							{
+								count: 1,
+								attach: { minor: 0 },
+							},
+						],
+					],
+				]),
+			};
+			const actual = getAppliedDelta(delta);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [
+					{
+						id: [{ minor: 0 }, { minor: 0 }],
+						node: undefined,
+						dst: "attach",
+					},
+				],
+				rootField: [
+					{
+						changeType: "attach",
+						count: 1,
+						attach: [{ minor: 0 }, { minor: 0 }],
+					},
+				],
+			};
+			assert.deepEqual(actual, expected);
+		});
+		it("detach -> rename -> attach", () => {
+			const delta: DeltaRoot = {
+				fields: new Map<FieldKey, DeltaFieldChanges>([
+					[
+						rootFieldKey,
+						[
+							{
+								count: 1,
+								detach: { minor: 0 },
+							},
+							{
+								count: 1,
+								attach: { minor: 1 },
+							},
+						],
+					],
+				]),
+				rename: [{ oldId: { minor: 0 }, newId: { minor: 1 }, count: 1 }],
+			};
+			const actual = getAppliedDelta(delta);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [],
+				rootField: [
+					{
+						changeType: "detach",
+						detach: [{ minor: 0 }, { minor: 1 }],
+						nodes: [undefined],
+					},
+					{
+						changeType: "attach",
+						count: 1,
+						attach: [{ minor: 0 }, { minor: 1 }],
+					},
+				],
+			};
+			assert.deepEqual(actual, expected);
+		});
+		it("replace", () => {
+			const delta: DeltaRoot = {
+				fields: new Map<FieldKey, DeltaFieldChanges>([
+					[
+						rootFieldKey,
+						[
+							{
+								count: 1,
+								detach: { minor: 0 },
+								attach: { minor: 1 },
+							},
+						],
+					],
+				]),
+			};
+			const actual = getAppliedDelta(delta);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [
+					{
+						dst: "attach",
+						id: [{ minor: 1 }, { minor: 1 }],
+						node: undefined,
+					},
+				],
+				rootField: [
+					{
+						changeType: "replace",
+						detach: [{ minor: 0 }, { minor: 0 }],
+						attach: [{ minor: 1 }, { minor: 1 }],
+						nodes: [undefined],
+					},
+				],
+			};
+			assert.deepEqual(actual, expected);
+		});
+	});
 	describe("htmlFromAppliedDelta", () => {
 		it("move object", () => {
 			const delta: AppliedDeltaRoot = {

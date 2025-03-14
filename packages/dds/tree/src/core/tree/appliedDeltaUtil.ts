@@ -187,10 +187,7 @@ export function getAppliedDelta(
 			return [interiorNode];
 		} else {
 			if (cursor === undefined) {
-				return makeArray(count, () => "<no data>") as [
-					AppliedDeltaNode,
-					...AppliedDeltaNode[],
-				];
+				return makeArray(count, () => undefined) as [AppliedDeltaNode, ...AppliedDeltaNode[]];
 			} else {
 				const nodes: AppliedDeltaNode[] = [];
 				for (let i = 0; i < count; i++) {
@@ -250,6 +247,25 @@ export function getAppliedDelta(
 		detachedRootsByFieldKey.set(root, data);
 		detachedRootsById.set(idTuple, data);
 	}
+
+	if (delta.rename !== undefined) {
+		const detachIds = collectDetachIds(delta);
+		for (const { oldId, count } of delta.rename) {
+			for (let iTree = 0; iTree < count; iTree += 1) {
+				const offsetId = offsetDetachId(oldId, iTree);
+				const idTuple = nodeIdTuple(offsetId);
+				// A rename that targets a node that is not being detached betrays the existence of a set of pre-existing detached roots.
+				// These should already be in the detachedRootsById map when the DetachedFieldIndex is provided.
+				if (!detachIds.has(idTuple) && !detachedRootsById.has(idTuple)) {
+					const data: DetachedNodeData = {
+						oldId: offsetId,
+					};
+					detachedRootsById.set(idTuple, data);
+				}
+			}
+		}
+	}
+
 	for (const { id, trees } of delta.build ?? []) {
 		let iTree = 0;
 		forEachNode(trees.cursor(), (c) => {
@@ -372,6 +388,33 @@ function nodeIdTuple(detachedNodeId: DetachedNodeId): NodeIdTuple {
 
 function nodeIdObj(id: NodeIdTuple): DetachedNodeId {
 	return id[0] !== undefined ? { major: id[0], minor: id[1] } : { minor: id[1] };
+}
+
+function collectDetachIds(delta: DeltaRoot): NodeIdBTree<true> {
+	const detachIds: NodeIdBTree<true> = newTupleBTree();
+
+	function collectDetachIdsFromFieldMap(fieldMap: DeltaFieldMap): void {
+		for (const [_fieldKey, fieldChanges] of fieldMap) {
+			collectDetachIdsFromFieldChanges(fieldChanges);
+		}
+	}
+
+	function collectDetachIdsFromFieldChanges(fieldChanges: DeltaFieldChanges): void {
+		for (const mark of fieldChanges) {
+			if (mark.detach !== undefined) {
+				const idTuple = nodeIdTuple(mark.detach);
+				detachIds.set(idTuple, true);
+			}
+		}
+	}
+
+	for (const { fields } of delta.global ?? []) {
+		collectDetachIdsFromFieldMap(fields);
+	}
+	if (delta.fields) {
+		collectDetachIdsFromFieldMap(delta.fields);
+	}
+	return detachIds;
 }
 
 type OutboundNode =
@@ -722,6 +765,8 @@ function htmlFromNode(
 		lines.push(`<span>${node}</span>${edit}`);
 	} else if (node === null) {
 		lines.push(`<span>null</span>${edit}`);
+	} else if (node === undefined) {
+		lines.push(`<span>?</span>${edit}`);
 	} else if (isFluidHandle(node)) {
 		lines.push(`<span>&lt;fluid-handle&gt;</span>${edit}`);
 	} else {

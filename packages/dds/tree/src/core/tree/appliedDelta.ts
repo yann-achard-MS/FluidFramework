@@ -61,6 +61,6 @@ export interface FieldMap {
 	readonly [key: string]: MarkList;
 }
 
-export type Node = LeafNode | InteriorNode;
+export type Node = LeafNode | InteriorNode | undefined;
 // eslint-disable-next-line @rushstack/no-new-null
 export type LeafNode = number | string | boolean | IFluidHandle | null;
