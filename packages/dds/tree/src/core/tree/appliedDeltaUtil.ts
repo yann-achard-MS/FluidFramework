@@ -255,10 +255,10 @@ export function getAppliedDelta(
 	const detachIds = collectDetachIds(delta);
 	const attachIds = collectAttachIds(delta);
 	for (const newIdTuple of attachIds.keys()) {
-		const oldIdTuple = newIdFromOldId.get(newIdTuple) ?? newIdTuple;
+		const oldIdTuple = oldIdFromNewId.get(newIdTuple) ?? newIdTuple;
 		// An attach that affects a node that is not being detached betrays the existence of a pre-existing detached root.
 		// These should already be in the detachedRootsById map when the DetachedFieldIndex is provided.
-		if (!detachIds.has(oldIdTuple)) {
+		if (!detachIds.has(oldIdTuple) && !detachedRootsById.has(oldIdTuple)) {
 			const data: DetachedNodeData = {
 				oldId: nodeIdObj(oldIdTuple),
 			};
