@@ -45,7 +45,7 @@ import {
 	makeAnonChange,
 	type TaggedChange,
 	htmlFromAppliedDelta,
-	appliedDeltaFromForest,
+	getAppliedDelta,
 	type ChangeEncodingContext,
 } from "../core/index.js";
 import {
@@ -1019,7 +1019,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 		}
 		this.#changeTacker.changeCountSinceLastRead = 0;
 		const delta = intoDelta(this.#changeTacker.changes);
-		const appliedDelta = appliedDeltaFromForest(
+		const appliedDelta = getAppliedDelta(
 			delta,
 			this.#changeTacker.forest,
 			this.#changeTacker.fieldIndex,
