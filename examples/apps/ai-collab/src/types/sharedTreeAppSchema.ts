@@ -157,24 +157,6 @@ export const INITIAL_APP_STATE = {
 					complexity: 1,
 					status: TaskStatuses.TODO,
 				},
-				{
-					assignee: "Bob",
-					title: "Task #2",
-					description:
-						"This is the second task.  Blah Blah blah Blah Blah blahBlah Blah blahBlah Blah blahBlah Blah blah",
-					priority: TaskPriorities.MEDIUM,
-					complexity: 2,
-					status: TaskStatuses.IN_PROGRESS,
-				},
-				{
-					assignee: "Charlie",
-					title: "Task #3",
-					description:
-						"This is the third task!  Blah Blah blah Blah Blah blahBlah Blah blahBlah Blah blahBlah Blah blah",
-					priority: TaskPriorities.HIGH,
-					complexity: 3,
-					status: TaskStatuses.DONE,
-				},
 			],
 			engineers: [
 				{
@@ -188,11 +170,6 @@ export const INITIAL_APP_STATE = {
 					maxCapacity: 12,
 					skills:
 						"Mid-level engineer capable of handling medium complexity tasks. Versed in React, Node.JS",
-				},
-				{
-					name: "Charlie",
-					maxCapacity: 7,
-					skills: "Junior engineer capable of handling simple tasks. Versed in Node.JS",
 				},
 			],
 		},

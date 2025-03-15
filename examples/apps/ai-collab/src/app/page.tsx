@@ -6,6 +6,7 @@
 "use client";
 
 import { acquirePresenceViaDataObject } from "@fluidframework/presence/alpha";
+import { asTreeViewAlpha, type TreeViewAlpha } from "@fluidframework/tree/alpha";
 import {
 	Box,
 	Button,
@@ -36,7 +37,6 @@ import { useSharedTreeRerender } from "@/useSharedTreeRerender";
 // Uncomment the import line that corresponds to the server you want to use
 // import { createContainer, loadContainer, postAttach, containerIdFromUrl } from "./spe"; // eslint-disable-line import/order
 import { createContainer, loadContainer, postAttach, containerIdFromUrl } from "./tinylicious"; // eslint-disable-line import/order
-import { asTreeViewAlpha, type TreeViewAlpha } from "@fluidframework/tree/alpha";
 
 export async function createAndInitializeContainer(): Promise<
 	IFluidContainer<typeof CONTAINER_SCHEMA>
@@ -196,24 +196,6 @@ const getNewTaskGroup = (groupLength: number) => {
 				complexity: 1,
 				status: "todo",
 			},
-			{
-				assignee: "Bob",
-				title: "Task #2",
-				description:
-					"This is the second task.  Blah Blah blah Blah Blah blahBlah Blah blahBlah Blah blahBlah Blah blah",
-				priority: "medium",
-				complexity: 2,
-				status: "in-progress",
-			},
-			{
-				assignee: "Charlie",
-				title: "Task #3",
-				description:
-					"This is the third task!  Blah Blah blah Blah Blah blahBlah Blah blahBlah Blah blahBlah Blah blah",
-				priority: "high",
-				complexity: 3,
-				status: "done",
-			},
 		],
 		engineers: [
 			{
@@ -226,11 +208,6 @@ const getNewTaskGroup = (groupLength: number) => {
 				maxCapacity: 12,
 				skills:
 					"Mid-level engineer capable of handling medium complexity tasks. Versed in React, Node.JS",
-			},
-			{
-				name: "Charlie",
-				maxCapacity: 7,
-				skills: "Junior engineer capable of handling simple tasks. Versed in Node.JS",
 			},
 		],
 	};
