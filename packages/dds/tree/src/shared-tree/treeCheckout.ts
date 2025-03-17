@@ -47,6 +47,10 @@ import {
 	htmlFromAppliedDelta,
 	getAppliedDelta,
 	type ChangeEncodingContext,
+	type AppliedDeltaRoot,
+	type DeltaRoot,
+	emptyDelta,
+	type AppliedDeltaWriter,
 } from "../core/index.js";
 import {
 	DefaultChangeFamily,
@@ -263,6 +267,16 @@ export interface ITreeCheckout extends AnchorLocator, ViewableTree, WithBreakabl
 	 * This is only intended for use in testing and exceptional code paths: it is not performant.
 	 */
 	getRemovedRoots(): [string | number | undefined, number, JsonableTree][];
+
+	startJournalingChanges(name: string, autoWrite: boolean): void;
+	stopJournalingChanges(): void;
+	getJournaledChanges(): readonly ChangeJournalEntry[];
+
+	startTrackingChanges(): void;
+	stopTrackingChanges(): void;
+	getTrackedChangesHtml(): string;
+	getTrackedChangesCount(): number;
+	getTrackedChangesCountSinceLastRead(): number;
 }
 
 /**
@@ -287,6 +301,7 @@ export function createTreeCheckout(
 		logger?: ITelemetryLoggerExt;
 		breaker?: Breakable;
 		disposeForksAfterTransaction?: boolean;
+		appliedDeltaWriter?: AppliedDeltaWriter;
 	},
 ): TreeCheckout {
 	const forest = args?.forest ?? buildForest();
@@ -327,6 +342,7 @@ export function createTreeCheckout(
 		args?.logger,
 		args?.breaker,
 		args?.disposeForksAfterTransaction,
+		args?.appliedDeltaWriter,
 	);
 }
 
@@ -406,6 +422,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 		private readonly logger?: ITelemetryLoggerExt,
 		public readonly breaker: Breakable = new Breakable("TreeCheckout"),
 		private readonly disposeForksAfterTransaction = true,
+		private readonly appliedDeltaWriter?: AppliedDeltaWriter,
 	) {
 		this.#transaction = new SquashingTransactionStack(
 			branch,
@@ -500,6 +517,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	private readonly onAfterChange = (event: SharedTreeBranchChange<SharedTreeChange>): void => {
 		this.editLock.lock();
 		this.#events.emit("beforeBatch", event);
+		this.journalChange(event);
 		if (event.change !== undefined) {
 			const revision =
 				event.type === "rebase"
@@ -536,16 +554,16 @@ export class TreeCheckout implements ITreeCheckoutFork {
 					fail(0xad1 /* Unknown Shared Tree change type. */);
 				}
 			}
-			if (this.#changeTacker !== undefined) {
-				this.#changeTacker.changeCount += 1;
-				this.#changeTacker.changeCountSinceLastRead += 1;
+			if (this.changeTacker !== undefined) {
+				this.changeTacker.changeCount += 1;
+				this.changeTacker.changeCountSinceLastRead += 1;
 				const newChange = family.rebaser.compose(dataChanges);
 				const taggedNewChange = makeAnonChange(newChange);
 				const totalChange = family.rebaser.compose([
-					this.#changeTacker.changes,
+					this.changeTacker.changes,
 					taggedNewChange,
 				]);
-				this.#changeTacker.changes = makeAnonChange(totalChange);
+				this.changeTacker.changes = makeAnonChange(totalChange);
 			}
 		}
 		this.#events.emit("afterBatch");
@@ -742,6 +760,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			this.logger,
 			this.breaker,
 			this.disposeForksAfterTransaction,
+			this.appliedDeltaWriter,
 		);
 		this.#events.emit("fork", checkout);
 		return checkout;
@@ -992,17 +1011,87 @@ export class TreeCheckout implements ITreeCheckoutFork {
 
 	// #endregion Commit Validation
 
+	// #region Change Journaling
+
+	public journalName = "UnnamedTree";
+	private changeJournal?: ChangeJournalEntry[];
+	private autoWriteJournalEntries?: boolean;
+
+	public startJournalingChanges(name: string, autoWrite: boolean): void {
+		this.journalName = name;
+		this.autoWriteJournalEntries = autoWrite;
+		this.changeJournal = [];
+	}
+
+	public stopJournalingChanges(): void {
+		this.changeJournal = undefined;
+	}
+
+	public getJournaledChanges(): readonly ChangeJournalEntry[] {
+		return this.changeJournal ?? [];
+	}
+
+	private journalChange(event: SharedTreeBranchChange<SharedTreeChange>): void {
+		if (this.changeJournal === undefined) {
+			return;
+		}
+
+		let delta: DeltaRoot | undefined;
+		let revision: RevisionTag | undefined = event.change?.revision;
+		if (event.change !== undefined) {
+			revision =
+				event.type === "rebase"
+					? this.#transaction.activeBranch.getHead().revision
+					: event.change.revision;
+
+			const dataChanges: TaggedChange<ModularChangeset>[] = [];
+			for (const change of event.change.change.changes) {
+				if (change.type === "data") {
+					dataChanges.push(tagChange(change.innerChange, revision));
+				}
+			}
+			const newChange = family.rebaser.compose(dataChanges);
+			delta = intoDelta(makeAnonChange(newChange));
+		} else {
+			delta = emptyDelta;
+		}
+		const appliedDelta = getAppliedDelta(delta, this.forest, this.removedRoots);
+
+		// eslint-disable-next-line unicorn/no-this-assignment, @typescript-eslint/no-this-alias
+		const checkout = this;
+
+		const newEntry = {
+			timestamp: Date.now(),
+			event,
+			appliedDelta,
+			get writeToFile() {
+				const revisionString = revision === undefined ? "" : `_Rev${revision}`;
+				const path = `${this.timestamp}_${checkout.journalName}${revisionString}_${event.type}.html`;
+				(checkout.appliedDeltaWriter ?? fail("No writer"))(this.appliedDelta, path);
+				return path;
+			},
+		};
+		this.changeJournal.push(newEntry);
+		if (this.autoWriteJournalEntries === true) {
+			// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+			newEntry.writeToFile;
+		}
+	}
+
+	// #endregion Change Journaling
+
 	// #region Change Tracking
 
-	#changeTacker?: {
+	private changeTacker?: {
 		readonly forest: IEditableForest;
 		readonly fieldIndex: DetachedFieldIndex;
 		changes: TaggedChange<ModularChangeset>;
 		changeCountSinceLastRead: number;
 		changeCount: number;
 	};
+
 	public startTrackingChanges(): void {
-		this.#changeTacker = {
+		this.changeTacker = {
 			forest: this.forest.clone(this.storedSchema.clone(), new AnchorSet()),
 			fieldIndex: this.removedRoots.clone(),
 			changes: makeAnonChange(family.rebaser.compose([])),
@@ -1011,28 +1100,28 @@ export class TreeCheckout implements ITreeCheckoutFork {
 		};
 	}
 	public stopTrackingChanges(): void {
-		this.#changeTacker = undefined;
+		this.changeTacker = undefined;
 	}
 	public getTrackedChangesHtml(): string {
-		if (this.#changeTacker === undefined) {
+		if (this.changeTacker === undefined) {
 			return "";
 		}
-		this.#changeTacker.changeCountSinceLastRead = 0;
-		const delta = intoDelta(this.#changeTacker.changes);
+		this.changeTacker.changeCountSinceLastRead = 0;
+		const delta = intoDelta(this.changeTacker.changes);
 		const appliedDelta = getAppliedDelta(
 			delta,
-			this.#changeTacker.forest,
-			this.#changeTacker.fieldIndex,
+			this.changeTacker.forest,
+			this.changeTacker.fieldIndex,
 		);
 		const html = htmlFromAppliedDelta(appliedDelta);
 		return html;
 	}
 
 	public getTrackedChangesCount(): number {
-		return this.#changeTacker?.changeCount ?? 0;
+		return this.changeTacker?.changeCount ?? 0;
 	}
 	public getTrackedChangesCountSinceLastRead(): number {
-		return this.#changeTacker?.changeCountSinceLastRead ?? 0;
+		return this.changeTacker?.changeCountSinceLastRead ?? 0;
 	}
 
 	// #endregion Change Tracking
@@ -1168,3 +1257,10 @@ function trackForksForDisposal(checkout: TreeCheckout): () => void {
 const family = new DefaultChangeFamily(
 	{} as unknown as ICodecFamily<ModularChangeset, ChangeEncodingContext>,
 );
+
+export interface ChangeJournalEntry {
+	readonly timestamp: number;
+	readonly event: SharedTreeBranchChange<SharedTreeChange>;
+	readonly appliedDelta: AppliedDeltaRoot;
+	readonly writeToFile: string;
+}

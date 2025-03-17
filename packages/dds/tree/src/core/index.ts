@@ -98,8 +98,10 @@ export {
 	cursorChunk,
 	tryGetChunk,
 	type ChunkedCursor,
+	type AppliedDeltaRoot,
 	getAppliedDelta,
 	htmlFromAppliedDelta,
+	type AppliedDeltaWriter,
 } from "./tree/index.js";
 
 export {

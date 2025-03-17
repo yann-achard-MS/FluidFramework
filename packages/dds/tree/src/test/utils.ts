@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import fs from "node:fs";
 import { strict as assert } from "node:assert";
 import type {
 	HasListeners,
@@ -93,6 +94,8 @@ import {
 	type DeltaDetachedNodeChanges,
 	type DeltaDetachedNodeRename,
 	type ExclusiveMapTree,
+	type AppliedDeltaRoot,
+	htmlFromAppliedDelta,
 } from "../core/index.js";
 import { typeboxValidator } from "../external-utilities/index.js";
 import {
@@ -172,6 +175,7 @@ import {
 	MockContainerRuntimeFactoryWithOpBunching,
 	type MockContainerRuntimeWithOpBunching,
 } from "./mocksForOpBunching.js";
+import type { ChangeJournalEntry } from "../shared-tree/treeCheckout.js";
 
 // Testing utilities
 
@@ -767,8 +771,10 @@ function createCheckoutWithContent(
 			forest,
 			schema: new TreeStoredSchemaRepository(content.schema),
 			logger,
+			appliedDeltaWriter: writeAppliedDelta,
 		},
 	);
+	checkout.journalName = "root";
 	return { checkout, logger };
 }
 
@@ -1237,6 +1243,30 @@ export class MockTreeCheckout implements ITreeCheckout {
 			editor?: ISharedTreeEditor;
 		},
 	) {}
+	public startJournalingChanges(name: string, autoWrite: boolean): void {
+		throw new Error("Method not implemented.");
+	}
+	public stopJournalingChanges(): void {
+		throw new Error("Method not implemented.");
+	}
+	public getJournaledChanges(): readonly ChangeJournalEntry[] {
+		throw new Error("Method not implemented.");
+	}
+	public startTrackingChanges(): void {
+		throw new Error("Method not implemented.");
+	}
+	public stopTrackingChanges(): void {
+		throw new Error("Method not implemented.");
+	}
+	public getTrackedChangesHtml(): string {
+		throw new Error("Method not implemented.");
+	}
+	public getTrackedChangesCount(): number {
+		throw new Error("Method not implemented.");
+	}
+	public getTrackedChangesCountSinceLastRead(): number {
+		throw new Error("Method not implemented.");
+	}
 
 	public viewWith<TRoot extends ImplicitFieldSchema>(
 		config: TreeViewConfiguration<TRoot>,
@@ -1355,4 +1385,10 @@ export function chunkToMapTreeField(chunk: TreeChunk): ExclusiveMapTree[] {
 
 export function nodeCursorsFromChunk(trees: TreeChunk): ITreeCursorSynchronous[] {
 	return mapCursorField(trees.cursor(), (c) => c.fork());
+}
+
+export function writeAppliedDelta(delta: AppliedDeltaRoot, path: string): void {
+	const html = htmlFromAppliedDelta(delta);
+	fs.writeFileSync(path, html, "utf8");
+	console.log(`Wrote "./${path}"`);
 }

@@ -50,6 +50,7 @@ import { toStoredSchema } from "../../simple-tree/toStoredSchema.js";
 import type { Transactor } from "../../shared-tree-core/index.js";
 import { Breakable } from "../../util/index.js";
 import { JsonAsTree } from "../../jsonDomainSchema.js";
+import type { ChangeJournalEntry } from "../../shared-tree/treeCheckout.js";
 
 const builder = new SchemaFactory("test");
 const root = builder.number;
@@ -188,6 +189,30 @@ describe("schematizeTree", () => {
 			viewWith<TRoot extends ImplicitFieldSchema>(
 				config: TreeViewConfiguration<TRoot>,
 			): TreeView<TRoot> {
+				throw new Error("Function not implemented.");
+			},
+			startJournalingChanges(name: string, autoWrite: boolean): void {
+				throw new Error("Function not implemented.");
+			},
+			stopJournalingChanges(): void {
+				throw new Error("Function not implemented.");
+			},
+			getJournaledChanges(): readonly ChangeJournalEntry[] {
+				throw new Error("Function not implemented.");
+			},
+			startTrackingChanges(): void {
+				throw new Error("Function not implemented.");
+			},
+			stopTrackingChanges(): void {
+				throw new Error("Function not implemented.");
+			},
+			getTrackedChangesHtml(): string {
+				throw new Error("Function not implemented.");
+			},
+			getTrackedChangesCount(): number {
+				throw new Error("Function not implemented.");
+			},
+			getTrackedChangesCountSinceLastRead(): number {
 				throw new Error("Function not implemented.");
 			},
 		};

@@ -30,6 +30,7 @@ export {
 	CursorMarker,
 	isCursor,
 } from "./cursor.js";
+export type { Root as AppliedDeltaRoot } from "./appliedDelta.js";
 export type {
 	ProtoNodes,
 	Root as DeltaRoot,
@@ -119,4 +120,5 @@ export { type ForestRootId } from "./detachedFieldIndexTypes.js";
 export {
 	getAppliedDelta,
 	htmlFromAppliedDelta,
+	type AppliedDeltaWriter,
 } from "./appliedDeltaUtil.js";

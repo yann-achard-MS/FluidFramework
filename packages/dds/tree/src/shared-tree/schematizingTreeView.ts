@@ -65,7 +65,7 @@ import {
 } from "../util/index.js";
 
 import { canInitialize, ensureSchema, initialize } from "./schematizeTree.js";
-import type { ITreeCheckout, TreeCheckout } from "./treeCheckout.js";
+import type { ChangeJournalEntry, ITreeCheckout, TreeCheckout } from "./treeCheckout.js";
 import { CheckoutFlexTreeView } from "./checkoutFlexTreeView.js";
 
 /**
@@ -471,6 +471,22 @@ export class SchematizingSimpleTreeView<
 			newRoot as InsertableContent | undefined,
 		);
 	}
+
+	// #region Change Journaling
+
+	public startJournalingChanges(name: string, autoWrite: boolean): void {
+		this.checkout.startJournalingChanges(name, autoWrite);
+	}
+
+	public stopJournalingChanges(): void {
+		this.checkout.stopJournalingChanges();
+	}
+
+	public getJournaledChanges(): readonly ChangeJournalEntry[] {
+		return this.checkout.getJournaledChanges();
+	}
+
+	// #endregion Change Journaling
 
 	// #region Change Tracking
 
