@@ -945,7 +945,12 @@ function htmlFromNodes(
 			const htmlId =
 				detachId !== undefined ? ` id="${srcId(offsetDetachIdPair(detachId, index))}"` : "";
 			lines.push(`<li${htmlId}>`);
-			lines.push(indexHtml(oldIndex + index, undefined));
+			lines.push(
+				indexHtml(
+					oldIndex + index,
+					detachId === undefined && attachId === undefined ? newIndex + index : undefined,
+				),
+			);
 			lines.push(htmlFromNode(node, destiny, metadata));
 			lines.push(`</li>`);
 		}
