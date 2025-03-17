@@ -3,7 +3,6 @@
  * Licensed under the MIT License.
  */
 
-import fs from "node:fs";
 import { strict as assert } from "node:assert";
 
 import {
@@ -18,30 +17,28 @@ import { brand } from "../../util/index.js";
 import { buildForest } from "../../feature-libraries/index.js";
 import {
 	getAppliedDelta,
-	htmlFromAppliedDelta,
 	// eslint-disable-next-line import/no-internal-modules
 } from "../../core/tree/appliedDeltaUtil.js";
 // eslint-disable-next-line import/no-internal-modules
 import type { Root as AppliedDeltaRoot } from "../../core/tree/appliedDelta.js";
 import { singleJsonCursor } from "../json/index.js";
-import { chunkFromJsonTrees, testIdCompressor, testRevisionTagCodec } from "../utils.js";
+import {
+	chunkFromJsonTrees,
+	testIdCompressor,
+	testRevisionTagCodec,
+	writeAppliedDelta,
+} from "../utils.js";
 import { JsonAsTree } from "../../jsonDomainSchema.js";
 
 const fooKey = brand<FieldKey>("foo");
 
-export function writeAppliedDelta(delta: AppliedDeltaRoot, path: string): void {
-	const html = htmlFromAppliedDelta(delta);
-	fs.writeFileSync(path, html, "utf8");
-	console.log(`Wrote Delta to "./${path}"`);
-}
-
 describe("AppliedDeltaUtils", () => {
 	describe("getAppliedDelta (with state)", () => {
-		it("build leaf node", () => {
+		it("build leaf nodes", () => {
 			const index = makeDetachedFieldIndex("", testRevisionTagCodec, testIdCompressor);
 			const forest = buildForest();
 			const delta: DeltaRoot = {
-				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
+				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X", "Y"]) }],
 			};
 			const actual = getAppliedDelta(delta, forest, index);
 			const expected: AppliedDeltaRoot = {
@@ -51,8 +48,56 @@ describe("AppliedDeltaUtils", () => {
 						src: "build",
 						node: "X",
 					},
+					{
+						id: [{ minor: 1 }, { minor: 1 }],
+						src: "build",
+						node: "Y",
+					},
 				],
 				rootField: [],
+			};
+			assert.deepEqual(actual, expected);
+		});
+		it("build and attach leaf nodes", () => {
+			const index = makeDetachedFieldIndex("", testRevisionTagCodec, testIdCompressor);
+			const forest = buildForest();
+			const delta: DeltaRoot = {
+				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X", "Y"]) }],
+				fields: new Map<FieldKey, DeltaFieldChanges>([
+					[
+						rootFieldKey,
+						[
+							{
+								count: 2,
+								attach: { minor: 0 },
+							},
+						],
+					],
+				]),
+			};
+			const actual = getAppliedDelta(delta, forest, index);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [
+					{
+						id: [{ minor: 0 }, { minor: 0 }],
+						src: "build",
+						dst: "attach",
+						node: "X",
+					},
+					{
+						id: [{ minor: 1 }, { minor: 1 }],
+						src: "build",
+						dst: "attach",
+						node: "Y",
+					},
+				],
+				rootField: [
+					{
+						changeType: "attach",
+						count: 2,
+						attach: [{ minor: 0 }, { minor: 0 }],
+					},
+				],
 			};
 			assert.deepEqual(actual, expected);
 		});
@@ -439,9 +484,9 @@ describe("AppliedDeltaUtils", () => {
 		});
 	});
 	describe("getAppliedDelta (no state)", () => {
-		it("build leaf node", () => {
+		it("build leaf nodes", () => {
 			const delta: DeltaRoot = {
-				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X"]) }],
+				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X", "Y"]) }],
 			};
 			const actual = getAppliedDelta(delta);
 			const expected: AppliedDeltaRoot = {
@@ -451,8 +496,54 @@ describe("AppliedDeltaUtils", () => {
 						src: "build",
 						node: "X",
 					},
+					{
+						id: [{ minor: 1 }, { minor: 1 }],
+						src: "build",
+						node: "Y",
+					},
 				],
 				rootField: [],
+			};
+			assert.deepEqual(actual, expected);
+		});
+		it("build and attach leaf nodes", () => {
+			const delta: DeltaRoot = {
+				build: [{ id: { minor: 0 }, trees: chunkFromJsonTrees(["X", "Y"]) }],
+				fields: new Map<FieldKey, DeltaFieldChanges>([
+					[
+						rootFieldKey,
+						[
+							{
+								count: 2,
+								attach: { minor: 0 },
+							},
+						],
+					],
+				]),
+			};
+			const actual = getAppliedDelta(delta);
+			const expected: AppliedDeltaRoot = {
+				detachedNodes: [
+					{
+						id: [{ minor: 0 }, { minor: 0 }],
+						src: "build",
+						dst: "attach",
+						node: "X",
+					},
+					{
+						id: [{ minor: 1 }, { minor: 1 }],
+						src: "build",
+						dst: "attach",
+						node: "Y",
+					},
+				],
+				rootField: [
+					{
+						changeType: "attach",
+						count: 2,
+						attach: [{ minor: 0 }, { minor: 0 }],
+					},
+				],
 			};
 			assert.deepEqual(actual, expected);
 		});

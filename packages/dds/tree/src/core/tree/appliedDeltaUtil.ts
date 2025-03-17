@@ -130,11 +130,14 @@ export function getAppliedDelta(
 		cursor: ITreeCursor | undefined,
 	): AppliedDeltaMark {
 		if (mark.attach !== undefined) {
-			const newTuple = nodeIdTuple(mark.attach);
-			const oldTuple = oldIdFromNewId.get(newTuple) ?? newTuple;
-			const detachedRoot = detachedRootsById.get(oldTuple);
-			if (detachedRoot !== undefined) {
-				detachedRoot.dst = "attach";
+			for (let iNode = 0; iNode < mark.count; iNode += 1) {
+				const offsetId = offsetDetachId(mark.attach, iNode);
+				const newTuple = nodeIdTuple(offsetId);
+				const oldTuple = oldIdFromNewId.get(newTuple) ?? newTuple;
+				const detachedRoot = detachedRootsById.get(oldTuple);
+				if (detachedRoot !== undefined) {
+					detachedRoot.dst = "attach";
+				}
 			}
 		}
 		if (mark.detach !== undefined && mark.attach !== undefined) {
@@ -985,3 +988,5 @@ function nodeIdToString(id: DetachedNodeId): string {
 	}
 	return `${id.major}_${id.minor}`;
 }
+
+export type AppliedDeltaWriter = (delta: AppliedDeltaRoot, path: string) => void;
