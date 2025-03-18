@@ -333,7 +333,7 @@ export function updateRefreshers(
 }
 
 export function composeDataChanges(
-	changes: TaggedChange<SharedTreeChange>[],
+	changes: readonly TaggedChange<SharedTreeChange>[],
 	family: ChangeFamily<SharedTreeEditBuilder, SharedTreeChange>,
 ): SharedTreeChange {
 	const dataChanges: TaggedChange<SharedTreeChange>[] = [];
@@ -349,7 +349,7 @@ export function composeDataChanges(
 }
 
 export function deltaFromDataChanges(
-	changes: TaggedChange<SharedTreeChange>[],
+	changes: readonly TaggedChange<SharedTreeChange>[],
 	family: ChangeFamily<SharedTreeEditBuilder, SharedTreeChange>,
 ): DeltaRoot {
 	const composed = composeDataChanges(changes, family);

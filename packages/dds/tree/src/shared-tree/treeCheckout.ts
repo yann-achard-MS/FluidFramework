@@ -555,15 +555,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 					fail(0xad1 /* Unknown Shared Tree change type. */);
 				}
 			}
-			if (this.changeTacker !== undefined) {
-				this.changeTacker.changeCount += 1;
-				this.changeTacker.changeCountSinceLastRead += 1;
-				const totalChange = composeDataChanges(
-					[this.changeTacker.changes, ...dataChanges],
-					this.changeFamily,
-				);
-				this.changeTacker.changes = makeAnonChange(totalChange);
-			}
+			this.ingestChangeForTracking(dataChanges);
 		}
 		this.#events.emit("afterBatch");
 		this.editLock.unlock();
@@ -1110,8 +1102,22 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	public getTrackedChangesCount(): number {
 		return this.changeTacker?.changeCount ?? 0;
 	}
+
 	public getTrackedChangesCountSinceLastRead(): number {
 		return this.changeTacker?.changeCountSinceLastRead ?? 0;
+	}
+
+	private ingestChangeForTracking(changes: readonly TaggedChange<SharedTreeChange>[]): void {
+		if (this.changeTacker === undefined || changes.length === 0) {
+			return;
+		}
+		this.changeTacker.changeCount += 1;
+		this.changeTacker.changeCountSinceLastRead += 1;
+		const totalChange = composeDataChanges(
+			[this.changeTacker.changes, ...changes],
+			this.changeFamily,
+		);
+		this.changeTacker.changes = makeAnonChange(totalChange);
 	}
 
 	// #endregion Change Tracking
