@@ -46,7 +46,6 @@ import type {
 	TransactionResultExt,
 	VoidTransactionCallbackStatus,
 } from "./transactionTypes.js";
-import type { ChangeJournalEntry } from "../../shared-tree/treeCheckout.js";
 /**
  * A tree from which a {@link TreeView} can be created.
  *
@@ -647,7 +646,6 @@ export interface TreeViewAlpha<
 
 	startJournalingChanges(name: string, autoWrite: boolean): void;
 	stopJournalingChanges(): void;
-	getJournaledChanges(): readonly ChangeJournalEntry[];
 
 	startTrackingChanges(): void;
 	stopTrackingChanges(): void;

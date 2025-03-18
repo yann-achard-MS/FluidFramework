@@ -129,6 +129,7 @@ import {
 	createTreeCheckout,
 	type ISharedTreeEditor,
 	type ITreeCheckoutFork,
+	type ChangeJournalEntry,
 } from "../shared-tree/index.js";
 // eslint-disable-next-line import/no-internal-modules
 import type { TreeStoredContent } from "../shared-tree/schematizeTree.js";
@@ -175,7 +176,6 @@ import {
 	MockContainerRuntimeFactoryWithOpBunching,
 	type MockContainerRuntimeWithOpBunching,
 } from "./mocksForOpBunching.js";
-import type { ChangeJournalEntry } from "../shared-tree/treeCheckout.js";
 
 // Testing utilities
 

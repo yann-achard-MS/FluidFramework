@@ -1059,7 +1059,11 @@ export interface TreeViewAlpha<in out TSchema extends ImplicitFieldSchema | Unsa
     runTransaction<TSuccessValue, TFailureValue>(transaction: () => TransactionCallbackStatus<TSuccessValue, TFailureValue>, params?: RunTransactionParams): TransactionResultExt<TSuccessValue, TFailureValue>;
     runTransaction(transaction: () => VoidTransactionCallbackStatus | void, params?: RunTransactionParams): TransactionResult;
     // (undocumented)
+    startJournalingChanges(name: string, autoWrite: boolean): void;
+    // (undocumented)
     startTrackingChanges(): void;
+    // (undocumented)
+    stopJournalingChanges(): void;
     // (undocumented)
     stopTrackingChanges(): void;
 }

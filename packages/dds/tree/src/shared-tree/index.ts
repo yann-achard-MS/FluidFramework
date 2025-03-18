@@ -31,6 +31,7 @@ export {
 	type ITreeCheckoutFork,
 	type BranchableTree,
 	type TreeBranchFork,
+	type ChangeJournalEntry,
 } from "./treeCheckout.js";
 
 export { type TreeStoredContent } from "./schematizeTree.js";

@@ -11,11 +11,15 @@ import {
 	type ChangeFamily,
 	type ChangeRebaser,
 	type DeltaDetachedNodeId,
+	type DeltaRoot,
 	type RevisionMetadataSource,
 	type RevisionTag,
 	type RevisionTagCodec,
 	type TaggedChange,
+	emptyDelta,
+	makeAnonChange,
 	mapTaggedChange,
+	tagChange,
 } from "../core/index.js";
 import {
 	type FieldBatchCodec,
@@ -25,6 +29,7 @@ import {
 	type TreeCompressionStrategy,
 	fieldKindConfigurations,
 	fieldKinds,
+	intoDelta,
 	makeModularChangeCodecFamily,
 } from "../feature-libraries/index.js";
 import {
@@ -33,11 +38,12 @@ import {
 	addToNestedSet,
 	fail,
 	hasSingle,
+	hasSome,
 	nestedSetContains,
 } from "../util/index.js";
 
 import { makeSharedTreeChangeCodecFamily } from "./sharedTreeChangeCodecs.js";
-import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
+import type { SharedTreeChange, SharedTreeInnerChange } from "./sharedTreeChangeTypes.js";
 import { SharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
 import type { IIdCompressor } from "@fluidframework/id-compressor";
 
@@ -324,4 +330,35 @@ export function updateRefreshers(
 			);
 		}
 	});
+}
+
+export function composeDataChanges(
+	changes: TaggedChange<SharedTreeChange>[],
+	family: ChangeFamily<SharedTreeEditBuilder, SharedTreeChange>,
+): SharedTreeChange {
+	const dataChanges: TaggedChange<SharedTreeChange>[] = [];
+	for (const { change, revision } of changes) {
+		for (const innerChange of change.changes) {
+			if (innerChange.type === "data") {
+				dataChanges.push(tagChange({ changes: [innerChange] }, revision));
+			}
+		}
+	}
+	const composed = family.rebaser.compose(dataChanges);
+	return composed;
+}
+
+export function deltaFromDataChanges(
+	changes: TaggedChange<SharedTreeChange>[],
+	family: ChangeFamily<SharedTreeEditBuilder, SharedTreeChange>,
+): DeltaRoot {
+	const composed = composeDataChanges(changes, family);
+	let delta = emptyDelta;
+	const innerChanges = composed.changes;
+	if (hasSome(innerChanges)) {
+		assert(hasSingle(innerChanges), "expected to find a single change");
+		assert(innerChanges[0].type === "data", "expected to find a data change");
+		delta = intoDelta(makeAnonChange(innerChanges[0].innerChange));
+	}
+	return delta;
 }

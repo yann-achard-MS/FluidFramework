@@ -11,7 +11,7 @@ import {
 	UsageError,
 	type ITelemetryLoggerExt,
 } from "@fluidframework/telemetry-utils/internal";
-import { noopValidator, type ICodecFamily } from "../codec/index.js";
+import { noopValidator } from "../codec/index.js";
 import {
 	type Anchor,
 	type AnchorLocator,
@@ -46,16 +46,12 @@ import {
 	type TaggedChange,
 	htmlFromAppliedDelta,
 	getAppliedDelta,
-	type ChangeEncodingContext,
 	type AppliedDeltaRoot,
-	type DeltaRoot,
 	emptyDelta,
 	type AppliedDeltaWriter,
 } from "../core/index.js";
 import {
-	DefaultChangeFamily,
 	type FieldBatchCodec,
-	type ModularChangeset,
 	type TreeCompressionStrategy,
 	buildForest,
 	createNodeKeyManager,
@@ -79,7 +75,12 @@ import {
 	type WithBreakable,
 } from "../util/index.js";
 
-import { SharedTreeChangeFamily, hasSchemaChange } from "./sharedTreeChangeFamily.js";
+import {
+	SharedTreeChangeFamily,
+	composeDataChanges,
+	deltaFromDataChanges,
+	hasSchemaChange,
+} from "./sharedTreeChangeFamily.js";
 import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
 import type { ISharedTreeEditor, SharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
 import type { IDisposable } from "@fluidframework/core-interfaces";
@@ -524,7 +525,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 					? this.#transaction.activeBranch.getHead().revision
 					: event.change.revision;
 
-			const dataChanges: TaggedChange<ModularChangeset>[] = [];
+			const dataChanges: TaggedChange<SharedTreeChange>[] = [];
 			// Conflicts due to schema will be empty and thus are not applied.
 			for (const change of event.change.change.changes) {
 				if (change.type === "data") {
@@ -532,7 +533,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 					this.withCombinedVisitor((visitor) => {
 						visitDelta(delta, visitor, this.removedRoots, revision);
 					});
-					dataChanges.push(tagChange(change.innerChange, revision));
+					dataChanges.push(tagChange({ changes: [change] }, revision));
 				} else if (change.type === "schema") {
 					// Schema changes from a current to a new schema are expected to be backwards compatible.
 					// This guarantees that all data in the forest (which is valid before the schema change)
@@ -557,12 +558,10 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			if (this.changeTacker !== undefined) {
 				this.changeTacker.changeCount += 1;
 				this.changeTacker.changeCountSinceLastRead += 1;
-				const newChange = family.rebaser.compose(dataChanges);
-				const taggedNewChange = makeAnonChange(newChange);
-				const totalChange = family.rebaser.compose([
-					this.changeTacker.changes,
-					taggedNewChange,
-				]);
+				const totalChange = composeDataChanges(
+					[this.changeTacker.changes, ...dataChanges],
+					this.changeFamily,
+				);
 				this.changeTacker.changes = makeAnonChange(totalChange);
 			}
 		}
@@ -1036,25 +1035,16 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			return;
 		}
 
-		let delta: DeltaRoot | undefined;
-		let revision: RevisionTag | undefined = event.change?.revision;
-		if (event.change !== undefined) {
-			revision =
-				event.type === "rebase"
-					? this.#transaction.activeBranch.getHead().revision
-					: event.change.revision;
+		const revision: RevisionTag | undefined =
+			event.type === "rebase"
+				? this.#transaction.activeBranch.getHead().revision
+				: event.change?.revision;
 
-			const dataChanges: TaggedChange<ModularChangeset>[] = [];
-			for (const change of event.change.change.changes) {
-				if (change.type === "data") {
-					dataChanges.push(tagChange(change.innerChange, revision));
-				}
-			}
-			const newChange = family.rebaser.compose(dataChanges);
-			delta = intoDelta(makeAnonChange(newChange));
-		} else {
-			delta = emptyDelta;
-		}
+		const delta =
+			event.change !== undefined
+				? deltaFromDataChanges([event.change], this.changeFamily)
+				: emptyDelta;
+
 		const appliedDelta = getAppliedDelta(delta, this.forest, this.removedRoots);
 
 		// eslint-disable-next-line unicorn/no-this-assignment, @typescript-eslint/no-this-alias
@@ -1085,7 +1075,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	private changeTacker?: {
 		readonly forest: IEditableForest;
 		readonly fieldIndex: DetachedFieldIndex;
-		changes: TaggedChange<ModularChangeset>;
+		changes: TaggedChange<SharedTreeChange>;
 		changeCountSinceLastRead: number;
 		changeCount: number;
 	};
@@ -1094,7 +1084,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 		this.changeTacker = {
 			forest: this.forest.clone(this.storedSchema.clone(), new AnchorSet()),
 			fieldIndex: this.removedRoots.clone(),
-			changes: makeAnonChange(family.rebaser.compose([])),
+			changes: makeAnonChange(this.changeFamily.rebaser.compose([])),
 			changeCountSinceLastRead: 0,
 			changeCount: 0,
 		};
@@ -1107,7 +1097,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			return "";
 		}
 		this.changeTacker.changeCountSinceLastRead = 0;
-		const delta = intoDelta(this.changeTacker.changes);
+		const delta = deltaFromDataChanges([this.changeTacker.changes], this.changeFamily);
 		const appliedDelta = getAppliedDelta(
 			delta,
 			this.changeTacker.forest,
@@ -1254,10 +1244,9 @@ function trackForksForDisposal(checkout: TreeCheckout): () => void {
 	};
 }
 
-const family = new DefaultChangeFamily(
-	{} as unknown as ICodecFamily<ModularChangeset, ChangeEncodingContext>,
-);
-
+/**
+ * @sealed @alpha
+ */
 export interface ChangeJournalEntry {
 	readonly timestamp: number;
 	readonly event: SharedTreeBranchChange<SharedTreeChange>;
