@@ -809,6 +809,24 @@ describe("Editing", () => {
 			assert.deepEqual(actual, expected);
 		});
 
+		it("undo([move, move])", () => {
+			const tree = makeTreeFromJsonSequence(["a", "b", "x"]);
+
+			const { undoStack } = createTestUndoRedoStacks(tree.events);
+
+			tree.transaction.start();
+			moveWithin(tree.editor, rootField, 2, 1, 1);
+			moveWithin(tree.editor, rootField, 1, 1, 0);
+			tree.transaction.commit();
+
+			expectJsonTree(tree, ["x", "a", "b"]);
+
+			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+			undoStack.pop()!.revert();
+
+			expectJsonTree(tree, ["a", "b", "x"]);
+		});
+
 		it("move adjacent nodes to separate destinations", () => {
 			const tree = makeTreeFromJsonSequence(["A", "B", "C", "D"]);
 			const tree2 = tree.branch();

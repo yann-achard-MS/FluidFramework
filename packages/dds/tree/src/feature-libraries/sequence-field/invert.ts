@@ -5,7 +5,7 @@
 
 import { assert, unreachableCase } from "@fluidframework/core-utils/internal";
 
-import type { RevisionTag } from "../../core/index.js";
+import type { ChangeAtomId, RevisionTag } from "../../core/index.js";
 import type { IdAllocator, Mutable } from "../../util/index.js";
 import type { InvertNodeManager, NodeId } from "../modular-schema/index.js";
 
@@ -138,17 +138,18 @@ function invertMark(
 		case "Insert": {
 			const inputId = getInputCellId(mark);
 			assert(inputId !== undefined, 0x80c /* Active inserts should target empty cells */);
+			const detachId = { revision: isRollback ? mark.revision : revision, localId: mark.id };
 			const removeMark: Mutable<CellMark<Remove>> = {
 				type: "Remove",
 				count: mark.count,
-				id: mark.id,
-				revision: isRollback ? mark.revision : revision,
+				id: detachId.localId,
+				revision: detachId.revision,
 			};
 
 			// XXX: Do we always need an override?
 			removeMark.idOverride = isRollback ? inputId : { revision, localId: mark.id };
 
-			return applyMovedChanges(removeMark, mark.revision, crossFieldManager, isRollback);
+			return applyMovedChanges(removeMark, mark.revision, crossFieldManager, detachId);
 		}
 		default:
 			unreachableCase(type);
@@ -159,9 +160,9 @@ function applyMovedChanges(
 	mark: CellMark<Detach>,
 	revision: RevisionTag | undefined,
 	manager: InvertNodeManager,
-	isRollback: boolean,
+	newDetachId: ChangeAtomId,
 ): Mark[] {
-	const entry = manager.invertAttach({ revision, localId: mark.id }, mark.count, isRollback);
+	const entry = manager.invertAttach({ revision, localId: mark.id }, mark.count, newDetachId);
 
 	if (entry.length < mark.count) {
 		const [mark1, mark2] = splitMark(mark, entry.length);
@@ -170,7 +171,7 @@ function applyMovedChanges(
 				? withNodeChange<CellMark<Detach>, Detach>(mark1, entry.value)
 				: mark1;
 
-		return [mark1WithChanges, ...applyMovedChanges(mark2, revision, manager, isRollback)];
+		return [mark1WithChanges, ...applyMovedChanges(mark2, revision, manager, newDetachId)];
 	}
 
 	if (entry.value !== undefined) {
