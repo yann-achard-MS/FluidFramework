@@ -13,7 +13,7 @@ import {
 } from "@fluid-tools/benchmark";
 import { FlushMode } from "@fluidframework/runtime-definitions/internal";
 
-import { EmptyKey, rootFieldKey } from "../../core/index.js";
+import { EmptyKey, rootFieldKey, type FieldUpPath, type UpPath } from "../../core/index.js";
 import { singleJsonCursor } from "../json/index.js";
 // eslint-disable-next-line import/no-internal-modules
 import { typeboxValidator } from "../../external-utilities/typeboxValidator.js";
@@ -21,7 +21,11 @@ import {
 	TreeCompressionStrategy,
 	jsonableTreeFromCursor,
 } from "../../feature-libraries/index.js";
-import { Tree, type CheckoutFlexTreeView } from "../../shared-tree/index.js";
+import {
+	Tree,
+	type CheckoutFlexTreeView,
+	type ITreePrivate,
+} from "../../shared-tree/index.js";
 import {
 	type JSDeepTree,
 	type JSWideTree,
@@ -50,9 +54,13 @@ import {
 	toJsonableTree,
 } from "../utils.js";
 import { insert } from "../sequenceRootUtils.js";
-import { cursorFromInsertable, TreeViewConfiguration } from "../../simple-tree/index.js";
+import {
+	cursorFromInsertable,
+	SchemaFactory,
+	TreeViewConfiguration,
+} from "../../simple-tree/index.js";
 import { TreeFactory } from "../../treeFactory.js";
-import { makeArray } from "../../util/index.js";
+import { brand, makeArray } from "../../util/index.js";
 
 // number of nodes in test for wide trees
 const nodesCountWide = [
@@ -510,51 +518,120 @@ describe("SharedTree benchmarks", () => {
 	});
 
 	describe("big transaction composition", () => {
-		const editCounts = isInPerformanceTestingMode ? [10, 100, 1000] : [5];
-		for (const editCount of editCounts) {
-			const test = benchmark({
-				type: BenchmarkType.Measurement,
-				title: `Compose ${editCount} sequence edits into a single transaction`,
-				benchmarkFnCustom: async <T>(state: BenchmarkTimer<T>) => {
-					let duration: number;
-					do {
-						// Since this setup one collects data from one iteration, assert that this is what is expected.
-						assert.equal(state.iterationsPerBatch, 1);
-						const provider = new TestTreeProviderLite(
-							1,
-							factory,
-							undefined /* useDeterministicSessionIds */,
-							FlushMode.TurnBased,
-						);
-						const tree = provider.trees[0];
-						tree.setConnected(false);
-						const view = provider.trees[0].viewWith(
-							new TreeViewConfiguration({
-								schema: StringArray,
-							}),
-						);
-						view.initialize([]);
+		describe("of shallow array edits", () => {
+			const editCounts = isInPerformanceTestingMode ? [10, 100, 1000] : [5];
+			for (const editCount of editCounts) {
+				const test = benchmark({
+					type: BenchmarkType.Measurement,
+					title: `Compose ${editCount} sequence edits into a single transaction`,
+					benchmarkFnCustom: async <T>(state: BenchmarkTimer<T>) => {
+						let duration: number;
+						do {
+							// Since this setup one collects data from one iteration, assert that this is what is expected.
+							assert.equal(state.iterationsPerBatch, 1);
+							const provider = new TestTreeProviderLite(
+								1,
+								factory,
+								undefined /* useDeterministicSessionIds */,
+								FlushMode.TurnBased,
+							);
+							const tree = provider.trees[0];
+							tree.setConnected(false);
+							const view = provider.trees[0].viewWith(
+								new TreeViewConfiguration({
+									schema: StringArray,
+								}),
+							);
+							view.initialize([]);
 
-						const before = state.timer.now();
-						Tree.runTransaction(view, () => {
-							for (let iEdit = 0; iEdit < editCount; iEdit++) {
-								view.root.insertAtEnd(`${iEdit}`);
-							}
-						});
-						const after = state.timer.now();
-						duration = state.timer.toSeconds(before, after);
+							const before = state.timer.now();
+							Tree.runTransaction(view, () => {
+								for (let iEdit = 0; iEdit < editCount; iEdit++) {
+									view.root.insertAtEnd(`${iEdit}`);
+								}
+							});
+							const after = state.timer.now();
+							duration = state.timer.toSeconds(before, after);
 
-						const actual = [...view.root];
-						const expected = makeArray(editCount, (index) => `${index}`);
-						assert.deepEqual(actual, expected);
-					} while (state.recordBatch(duration));
-				},
-				// Force batch size of 1
-				minBatchDurationSeconds: 0,
-			});
-			if (!isInPerformanceTestingMode) {
-				test.timeout(5000);
+							const actual = [...view.root];
+							const expected = makeArray(editCount, (index) => `${index}`);
+							assert.deepEqual(actual, expected);
+						} while (state.recordBatch(duration));
+					},
+					// Force batch size of 1
+					minBatchDurationSeconds: 0,
+				});
+				if (!isInPerformanceTestingMode) {
+					test.timeout(5000);
+				}
 			}
-		}
+		});
+		describe.only("of nested array edits", () => {
+			// const editCounts = isInPerformanceTestingMode ? [10, 100, 1000] : [5];
+			const editCounts = isInPerformanceTestingMode ? [10000] : [5];
+			const sf = new SchemaFactory("com.fluidframework.json");
+			const element = sf.map("element", [sf.number]);
+			const config = new TreeViewConfiguration({
+				schema: sf.array("array", element),
+			});
+			const rootNode: UpPath = {
+				parent: undefined,
+				parentField: rootFieldKey,
+				parentIndex: 0,
+			};
+			for (const editCount of editCounts) {
+				const test = benchmark({
+					type: BenchmarkType.Measurement,
+					title: `Compose ${editCount} sequence edits into a single transaction`,
+					benchmarkFnCustom: async <T>(state: BenchmarkTimer<T>) => {
+						let duration: number;
+						do {
+							// Since this setup one collects data from one iteration, assert that this is what is expected.
+							assert.equal(state.iterationsPerBatch, 1);
+							const provider = new TestTreeProviderLite(
+								1,
+								factory,
+								undefined /* useDeterministicSessionIds */,
+								FlushMode.TurnBased,
+							);
+							const tree = provider.trees[0];
+							tree.setConnected(false);
+
+							const view = provider.trees[0].viewWith(config);
+							view.initialize(makeArray(editCount, (index) => ({ id: index })));
+							// for (let iEdit = 0; iEdit < editCount; iEdit++) {
+							// 	view.root[iEdit];
+							// }
+
+							let before = state.timer.now();
+							let after = before;
+							Tree.runTransaction(view, () => {
+								// before = state.timer.now();
+								const editor = tree.kernel.checkout.editor;
+								for (let iEdit = 0; iEdit < editCount; iEdit++) {
+									// view.root[iEdit].delete("id");
+									const cellNode: UpPath = {
+										parent: rootNode,
+										parentField: brand(""),
+										parentIndex: iEdit,
+									};
+									const idField: FieldUpPath = { parent: cellNode, field: brand("id") };
+									const optionalFieldEditor = editor.optionalField(idField);
+									optionalFieldEditor.set(undefined, false);
+								}
+								// after = state.timer.now();
+							});
+							after = state.timer.now();
+							duration = state.timer.toSeconds(before, after);
+						} while (state.recordBatch(duration));
+					},
+					// Force batch size of 1
+					minBatchDurationSeconds: 0,
+				});
+				if (!isInPerformanceTestingMode) {
+					test.timeout(5000);
+				}
+			}
+		});
 	});
 });

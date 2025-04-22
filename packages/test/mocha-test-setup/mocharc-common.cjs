@@ -58,6 +58,7 @@ function getFluidTestMochaConfig(packageDir, additionalRequiredModules, testRepo
 			// Note that since "node-option" is explicitly set,
 			// these must be provided here and not via mocha's --v8-expose-gc.
 			"expose-gc",
+			"inspect-brk",
 		],
 	};
 
