@@ -16,6 +16,7 @@ export {
 
 export {
 	type DefaultChangeset,
+	type DetachedRootIds,
 	DefaultChangeFamily,
 	DefaultEditBuilder,
 	type IDefaultEditBuilder,

@@ -988,12 +988,20 @@ class EditLock {
 			get schema() {
 				return editor.schema;
 			},
+			hydrate(unhydrated) {
+				checkLock();
+				return editor.hydrate(unhydrated);
+			},
 			valueField(...fieldArgs) {
 				const valueField = editor.valueField(...fieldArgs);
 				return {
 					set(...editArgs) {
 						checkLock();
 						valueField.set(...editArgs);
+					},
+					attach(...editArgs) {
+						checkLock();
+						valueField.attach(...editArgs);
 					},
 				};
 			},
@@ -1004,6 +1012,14 @@ class EditLock {
 						checkLock();
 						optionalField.set(...editArgs);
 					},
+					attach(...editArgs) {
+						checkLock();
+						optionalField.attach(...editArgs);
+					},
+					clear(...editArgs) {
+						checkLock();
+						optionalField.clear(...editArgs);
+					},
 				};
 			},
 			sequenceField(...fieldArgs) {
@@ -1012,6 +1028,10 @@ class EditLock {
 					insert(...editArgs) {
 						checkLock();
 						sequenceField.insert(...editArgs);
+					},
+					attach(...editArgs) {
+						checkLock();
+						sequenceField.attach(...editArgs);
 					},
 					remove(...editArgs) {
 						checkLock();

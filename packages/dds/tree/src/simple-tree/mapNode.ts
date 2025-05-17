@@ -5,6 +5,7 @@
 
 import { Lazy } from "@fluidframework/core-utils/internal";
 import type {
+	FlexTreeDetachedRoots,
 	FlexTreeNode,
 	FlexTreeOptionalField,
 	OptionalFieldEditBuilder,
@@ -158,7 +159,9 @@ abstract class CustomMapNodeBase<const T extends ImplicitAllowedTypes> extends T
 		return getOrCreateInnerNode(this);
 	}
 
-	private editor(key: string): OptionalFieldEditBuilder<ExclusiveMapTree> {
+	private editor(
+		key: string,
+	): OptionalFieldEditBuilder<ExclusiveMapTree, FlexTreeDetachedRoots> {
 		const field = this.innerNode.getBoxed(brand(key)) as FlexTreeOptionalField;
 		return field.editor;
 	}

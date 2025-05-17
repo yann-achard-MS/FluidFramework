@@ -41,13 +41,16 @@ import {
 	type FlexTreeHydratedContext,
 	type FlexFieldKind,
 	FieldKinds,
-	type SequenceFieldEditBuilder,
 	cursorForMapTreeNode,
+	type SequenceFieldEditBuilder,
+	type FlexTreeDetachedRoots,
+	type OptionalFieldEditBuilder,
+	type ValueFieldEditBuilder,
 } from "../../feature-libraries/index.js";
 import type { Context } from "./context.js";
 
 interface UnhydratedTreeSequenceFieldEditBuilder
-	extends SequenceFieldEditBuilder<ExclusiveMapTree[]> {
+	extends SequenceFieldEditBuilder<ExclusiveMapTree[], FlexTreeDetachedRoots> {
 	/**
 	 * Issues a change which removes `count` elements starting at the given `index`.
 	 * @param index - The index of the first removed element.
@@ -431,7 +434,7 @@ class EagerMapTreeOptionalField
 	extends UnhydratedFlexTreeField
 	implements FlexTreeOptionalField
 {
-	public readonly editor = {
+	public readonly editor: OptionalFieldEditBuilder<ExclusiveMapTree, FlexTreeDetachedRoots> = {
 		set: (newContent: ExclusiveMapTree | undefined): void => {
 			// If the new content is a UnhydratedFlexTreeNode, it needs to have its parent pointer updated
 			if (newContent !== undefined) {
@@ -451,6 +454,12 @@ class EagerMapTreeOptionalField
 				}
 			});
 		},
+		attach: (content: FlexTreeDetachedRoots, wasEmpty: boolean): void => {
+			throw new UsageError("Unable to attach a detached root under an unhydrated parent.");
+		},
+		clear: (wasEmpty: boolean): void => {
+			this.editor.set(undefined, wasEmpty);
+		},
 	};
 
 	public get content(): FlexTreeUnknownUnboxed | undefined {
@@ -464,16 +473,37 @@ class EagerMapTreeOptionalField
 }
 
 class EagerMapTreeRequiredField
-	extends EagerMapTreeOptionalField
+	extends UnhydratedFlexTreeField
 	implements FlexTreeRequiredField
 {
-	public override get content(): FlexTreeUnknownUnboxed {
+	public readonly editor: ValueFieldEditBuilder<ExclusiveMapTree, FlexTreeDetachedRoots> = {
+		set: (newContent: ExclusiveMapTree): void => {
+			// If the new content is a UnhydratedFlexTreeNode, it needs to have its parent pointer updated
+			nodeCache.get(newContent)?.adoptBy(this, 0);
+
+			// If the old content is a UnhydratedFlexTreeNode, it needs to have its parent pointer unset
+			const oldContent = this.mapTrees[0];
+			if (oldContent !== undefined) {
+				nodeCache.get(oldContent)?.adoptBy(undefined);
+			}
+
+			this.edit((mapTrees) => {
+				mapTrees[0] = newContent;
+			});
+		},
+		attach: (content: FlexTreeDetachedRoots): void => {
+			throw new UsageError("Unable to attach a detached root under an unhydrated parent.");
+		},
+	};
+
+	public get content(): FlexTreeUnknownUnboxed {
+		const value = this.mapTrees[0];
 		// This cannot use ?? since null is a legal value here.
 		assert(
-			super.content !== undefined,
+			value !== undefined,
 			0xa57 /* Expected EagerMapTree required field to have a value */,
 		);
-		return super.content;
+		return this.unboxed(0);
 	}
 }
 
@@ -509,6 +539,9 @@ export class UnhydratedTreeSequenceField
 				removed = mapTrees.splice(index, count);
 			});
 			return removed ?? fail(0xb4a /* Expected removed to be set by edit */);
+		},
+		attach: (index: number, detachedContent: FlexTreeDetachedRoots): void => {
+			throw new UsageError("Unable to attach a detached root under an unhydrated parent.");
 		},
 	};
 

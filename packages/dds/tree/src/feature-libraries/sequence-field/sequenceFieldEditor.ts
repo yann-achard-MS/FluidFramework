@@ -22,7 +22,13 @@ import type {
 import { splitMark } from "./utils.js";
 
 export interface SequenceFieldEditor extends FieldEditor<Changeset> {
-	insert(index: number, count: number, firstId: CellId, revision: RevisionTag): Changeset;
+	insert(
+		index: number,
+		count: number,
+		firstId: CellId,
+		revision: RevisionTag,
+		moveId: ChangesetLocalId,
+	): Changeset;
 	remove(index: number, count: number, id: ChangesetLocalId, revision: RevisionTag): Changeset;
 	revive(
 		index: number,
@@ -93,10 +99,11 @@ export const sequenceFieldEditor = {
 		count: number,
 		firstId: CellId,
 		revision: RevisionTag | undefined,
+		moveId: ChangesetLocalId,
 	): Changeset => {
 		const mark: CellMark<Insert> = {
 			type: "Insert",
-			id: firstId.localId,
+			id: moveId,
 			count,
 			cellId: firstId,
 			revision,

@@ -327,10 +327,12 @@ export interface FlexTreeSequenceField extends FlexTreeField {
 	/**
 	 * Get an editor for this sequence.
 	 */
-	readonly editor: SequenceFieldEditBuilder<FlexibleFieldContent>;
+	readonly editor: SequenceFieldEditBuilder<FlexibleFieldContent, FlexTreeDetachedRoots>;
 
 	boxedIterator(): IterableIterator<FlexTreeNode>;
 }
+
+export type FlexTreeDetachedRoots = readonly FlexTreeNode[];
 
 /**
  * Field that stores exactly one child.
@@ -341,7 +343,7 @@ export interface FlexTreeSequenceField extends FlexTreeField {
 export interface FlexTreeRequiredField extends FlexTreeField {
 	get content(): FlexTreeUnknownUnboxed;
 
-	readonly editor: ValueFieldEditBuilder<FlexibleNodeContent>;
+	readonly editor: ValueFieldEditBuilder<FlexibleNodeContent, FlexTreeDetachedRoots>;
 }
 
 /**
@@ -360,7 +362,7 @@ export interface FlexTreeRequiredField extends FlexTreeField {
 export interface FlexTreeOptionalField extends FlexTreeField {
 	get content(): FlexTreeUnknownUnboxed | undefined;
 
-	readonly editor: OptionalFieldEditBuilder<FlexibleNodeContent>;
+	readonly editor: OptionalFieldEditBuilder<FlexibleNodeContent, FlexTreeDetachedRoots>;
 }
 
 // #endregion

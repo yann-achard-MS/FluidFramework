@@ -304,6 +304,13 @@ export function getDetachOutputCellId(mark: Detach | Rename): ChangeAtomId {
 }
 
 /**
+ * @returns the ID of the node to be attached in the input context of the given detach `mark`.
+ */
+export function getAttachedNodeId(mark: Attach): ChangeAtomId {
+	return makeChangeAtomId(mark.id, mark.revision);
+}
+
+/**
  * @returns the ID of the detached node in the output context of the given detach `mark`.
  */
 export function getDetachedNodeId(mark: Detach | Rename): ChangeAtomId {

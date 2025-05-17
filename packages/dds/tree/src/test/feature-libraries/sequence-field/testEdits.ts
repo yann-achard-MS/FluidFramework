@@ -81,12 +81,8 @@ function createInsertChangeset(
 	revision: RevisionTag | undefined,
 	firstId?: ChangeAtomId,
 ): SF.Changeset {
-	return SF.sequenceFieldEditor.insert(
-		index,
-		count,
-		firstId ?? { localId: brand(0), revision },
-		revision,
-	);
+	const cellId = firstId ?? { localId: brand(0), revision };
+	return SF.sequenceFieldEditor.insert(index, count, cellId, revision, cellId.localId);
 }
 
 function createRemoveChangeset(

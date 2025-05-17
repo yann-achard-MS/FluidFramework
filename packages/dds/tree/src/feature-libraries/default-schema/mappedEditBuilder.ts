@@ -15,23 +15,41 @@ import type {
 /**
  * An IDefaultEditBuilder implementation based on another IDefaultEditBuilder that uses a different content type for insertions.
  */
-export class MappedEditBuilder<TBase, TAdapted> implements IDefaultEditBuilder<TAdapted> {
+export class MappedEditBuilder<TBase, TAdapted, TDetachedRoots>
+	implements IDefaultEditBuilder<TAdapted, TDetachedRoots>
+{
 	public constructor(
-		private readonly baseBuilder: IDefaultEditBuilder<TBase>,
+		private readonly baseBuilder: IDefaultEditBuilder<TBase, TDetachedRoots>,
 		private readonly mapDelegate: (input: TAdapted) => TBase,
 	) {}
-	public valueField(field: NormalizedFieldUpPath): ValueFieldEditBuilder<TAdapted> {
+	public hydrate(unhydrated: TAdapted): TDetachedRoots {
+		return this.baseBuilder.hydrate(this.mapDelegate(unhydrated));
+	}
+	public valueField(
+		field: NormalizedFieldUpPath,
+	): ValueFieldEditBuilder<TAdapted, TDetachedRoots> {
 		const baseField = this.baseBuilder.valueField(field);
 		return {
+			attach: (newContent: TDetachedRoots): void => {
+				baseField.attach(newContent);
+			},
 			set: (newContent: TAdapted): void => {
 				const mappedContent = this.mapDelegate(newContent);
 				baseField.set(mappedContent);
 			},
 		};
 	}
-	public optionalField(field: NormalizedFieldUpPath): OptionalFieldEditBuilder<TAdapted> {
+	public optionalField(
+		field: NormalizedFieldUpPath,
+	): OptionalFieldEditBuilder<TAdapted, TDetachedRoots> {
 		const baseField = this.baseBuilder.optionalField(field);
 		return {
+			attach: (newContent: TDetachedRoots, wasEmpty: boolean): void => {
+				baseField.attach(newContent, wasEmpty);
+			},
+			clear: (wasEmpty: boolean): void => {
+				baseField.clear(wasEmpty);
+			},
 			set: (newContent: TAdapted | undefined, wasEmpty: boolean): void => {
 				const mappedContent =
 					newContent === undefined ? undefined : this.mapDelegate(newContent);
@@ -39,12 +57,17 @@ export class MappedEditBuilder<TBase, TAdapted> implements IDefaultEditBuilder<T
 			},
 		};
 	}
-	public sequenceField(field: NormalizedFieldUpPath): SequenceFieldEditBuilder<TAdapted> {
+	public sequenceField(
+		field: NormalizedFieldUpPath,
+	): SequenceFieldEditBuilder<TAdapted, TDetachedRoots> {
 		const baseField = this.baseBuilder.sequenceField(field);
 		return {
 			insert: (index: number, content: TAdapted): void => {
 				const mappedContent = this.mapDelegate(content);
 				baseField.insert(index, mappedContent);
+			},
+			attach: (index: number, content: TDetachedRoots): void => {
+				baseField.attach(index, content);
 			},
 			remove: (index: number, count: number): void => {
 				baseField.remove(index, count);

@@ -31,6 +31,7 @@ import {
 } from "./types.js";
 import {
 	extractMarkEffect,
+	getDetachedNodeId,
 	getDetachOutputCellId,
 	getEndpoint,
 	getInputCellId,
@@ -120,14 +121,15 @@ function invertMark(
 			assert(mark.revision !== undefined, 0x5a1 /* Unable to revert to undefined revision */);
 			const outputId = getOutputCellId(mark);
 			const inputId = getInputCellId(mark);
+			const nodeId = getDetachedNodeId(mark);
 			let inverse: Mutable<Mark>;
 			if (inputId === undefined) {
 				inverse = {
 					type: "Insert",
-					id: mark.id,
+					id: nodeId.localId,
 					cellId: outputId,
 					count: mark.count,
-					revision,
+					revision: nodeId.revision,
 				};
 			} else {
 				inverse = {

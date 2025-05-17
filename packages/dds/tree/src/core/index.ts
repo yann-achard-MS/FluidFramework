@@ -173,6 +173,7 @@ export {
 	RevisionTagCodec,
 	type ChangesetLocalId,
 	type ChangeAtomId,
+	type ChangeAtomIdWithRevision,
 	type ChangeAtomIdMap,
 	type TaggedChange,
 	makeAnonChange,

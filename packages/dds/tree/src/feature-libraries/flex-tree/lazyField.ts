@@ -25,6 +25,7 @@ import { disposeSymbol, getOrCreate } from "../../util/index.js";
 import {
 	FieldKinds,
 	MappedEditBuilder,
+	type DetachedRootIds,
 	type IDefaultEditBuilder,
 	type OptionalFieldEditBuilder,
 	type SequenceFieldEditBuilder,
@@ -34,6 +35,7 @@ import type { FlexFieldKind } from "../modular-schema/index.js";
 
 import type { Context } from "./context.js";
 import {
+	type FlexTreeDetachedRoots,
 	FlexTreeEntityKind,
 	type FlexTreeField,
 	type FlexTreeNode,
@@ -263,29 +265,36 @@ export class LazySequence extends LazyField implements FlexTreeSequenceField {
 		return this.map((x) => x);
 	}
 
-	public editor: SequenceFieldEditBuilder<ExclusiveMapTree[]> = {
+	public editor: SequenceFieldEditBuilder<ExclusiveMapTree[], unknown> = {
 		insert: (index, newContent) => {
 			this.sequenceEditor().insert(index, cursorForMapTreeField(newContent));
+		},
+		attach: (index, detachedContent) => {
+			this.sequenceEditor().attach(index, detachedContent);
 		},
 		remove: (index, count) => {
 			this.sequenceEditor().remove(index, count);
 		},
 	};
 
-	private sequenceEditor(): SequenceFieldEditBuilder<ITreeCursorSynchronous> {
+	private sequenceEditor(): SequenceFieldEditBuilder<ITreeCursorSynchronous, unknown> {
 		const fieldPath = this.getFieldPathForEditing();
 		return this.getEditor().sequenceField(fieldPath);
 	}
 }
 
+// <<<<<<< Updated upstream
 export class LazyValueField extends LazyField implements FlexTreeRequiredField {
-	public editor: ValueFieldEditBuilder<ExclusiveMapTree> = {
+	public editor: ValueFieldEditBuilder<ExclusiveMapTree, FlexTreeDetachedRoots> = {
 		set: (newContent) => {
 			this.valueFieldEditor().set(cursorForMapTreeField([newContent]));
 		},
+		attach: (content: FlexTreeDetachedRoots): void => {
+			throw new Error("Function not implemented.");
+		},
 	};
 
-	private valueFieldEditor(): ValueFieldEditBuilder<ITreeCursorSynchronous> {
+	private valueFieldEditor(): ValueFieldEditBuilder<ITreeCursorSynchronous, DetachedRootIds> {
 		const fieldPath = this.getFieldPathForEditing();
 		const fieldEditor = this.getEditor().valueField(fieldPath);
 		return fieldEditor;
@@ -297,16 +306,22 @@ export class LazyValueField extends LazyField implements FlexTreeRequiredField {
 }
 
 export class LazyOptionalField extends LazyField implements FlexTreeOptionalField {
-	public editor: OptionalFieldEditBuilder<ExclusiveMapTree> = {
+	public editor: OptionalFieldEditBuilder<ExclusiveMapTree, FlexTreeDetachedRoots> = {
 		set: (newContent, wasEmpty) => {
 			this.optionalEditor().set(
 				newContent !== undefined ? cursorForMapTreeField([newContent]) : newContent,
 				wasEmpty,
 			);
 		},
+		attach: (content: FlexTreeDetachedRoots, wasEmpty: boolean): void => {
+			throw new Error("Function not implemented.");
+		},
+		clear: (wasEmpty: boolean): void => {
+			this.optionalEditor().clear(wasEmpty);
+		},
 	};
 
-	private optionalEditor(): OptionalFieldEditBuilder<ITreeCursorSynchronous> {
+	private optionalEditor(): OptionalFieldEditBuilder<ITreeCursorSynchronous, DetachedRootIds> {
 		const fieldPath = this.getFieldPathForEditing();
 		const fieldEditor = this.getEditor().optionalField(fieldPath);
 		return fieldEditor;

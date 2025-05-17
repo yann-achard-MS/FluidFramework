@@ -56,7 +56,6 @@ export interface NoopMark {
 export interface HasRevisionTag {
 	/**
 	 * The revision this mark is part of.
-	 * Only set for marks in fields which are a composition of multiple revisions.
 	 */
 	revision?: RevisionTag;
 }

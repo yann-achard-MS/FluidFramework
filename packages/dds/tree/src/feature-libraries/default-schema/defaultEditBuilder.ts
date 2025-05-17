@@ -3,12 +3,13 @@
  * Licensed under the MIT License.
  */
 
-import { oob } from "@fluidframework/core-utils/internal";
+import { assert, oob } from "@fluidframework/core-utils/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
 import type { ICodecFamily } from "../../codec/index.js";
 import {
 	type ChangeAtomId,
+	type ChangeAtomIdWithRevision,
 	type ChangeEncodingContext,
 	type ChangeFamily,
 	type ChangeFamilyEditor,
@@ -25,7 +26,7 @@ import {
 	compareFieldUpPaths,
 	topDownPath,
 } from "../../core/index.js";
-import { brand } from "../../util/index.js";
+import { brand, hasSingle } from "../../util/index.js";
 import {
 	type EditDescription,
 	type FieldChangeset,
@@ -36,8 +37,6 @@ import {
 	intoDelta as intoModularDelta,
 	relevantRemovedRoots as relevantModularRemovedRoots,
 } from "../modular-schema/index.js";
-import type { OptionalChangeset } from "../optional-field/index.js";
-import type { CellId } from "../sequence-field/index.js";
 
 import {
 	fieldKinds,
@@ -45,6 +44,7 @@ import {
 	sequence,
 	required as valueFieldKind,
 } from "./defaultFieldKinds.js";
+import type { CellId } from "../sequence-field/index.js";
 
 export type DefaultChangeset = ModularChangeset;
 
@@ -103,6 +103,12 @@ export function relevantRemovedRoots(change: ModularChangeset): Iterable<DeltaDe
 	return relevantModularRemovedRoots(change, fieldKinds);
 }
 
+export type DetachedRootIds = readonly DeltaRootIdRange[];
+export interface DeltaRootIdRange {
+	readonly first: ChangeAtomIdWithRevision;
+	readonly count: number;
+}
+
 /**
  * Default editor for transactional tree data changes.
  * @privateRemarks
@@ -120,14 +126,15 @@ export function relevantRemovedRoots(change: ModularChangeset): Iterable<DeltaDe
  * If/when such a mechanism becomes available, an evaluation should be done to determine if any existing editing operations should be changed to leverage it
  * (Possibly by adding opt ins at the view schema layer).
  */
-export interface IDefaultEditBuilder<TContent = TreeChunk> {
+export interface IDefaultEditBuilder<TUnhydrated = TreeChunk, TDetachedRoots = DetachedRootIds>
+	extends CanHydrateNodes<TUnhydrated, TDetachedRoots> {
 	/**
 	 * @param field - the value field which is being edited under the parent node
 	 * @returns An object with methods to edit the given field of the given parent.
 	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
 	 * is bounded by the lifetime of this edit builder.
 	 */
-	valueField(field: NormalizedFieldUpPath): ValueFieldEditBuilder<TContent>;
+	valueField(field: NormalizedFieldUpPath): ValueFieldEditBuilder<TUnhydrated, TDetachedRoots>;
 
 	/**
 	 * @param field - the optional field which is being edited under the parent node
@@ -135,7 +142,9 @@ export interface IDefaultEditBuilder<TContent = TreeChunk> {
 	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
 	 * is bounded by the lifetime of this edit builder.
 	 */
-	optionalField(field: NormalizedFieldUpPath): OptionalFieldEditBuilder<TContent>;
+	optionalField(
+		field: NormalizedFieldUpPath,
+	): OptionalFieldEditBuilder<TUnhydrated, TDetachedRoots>;
 
 	/**
 	 * @param field - the sequence field which is being edited under the parent node
@@ -144,7 +153,9 @@ export interface IDefaultEditBuilder<TContent = TreeChunk> {
 	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
 	 * is bounded by the lifetime of this edit builder.
 	 */
-	sequenceField(field: NormalizedFieldUpPath): SequenceFieldEditBuilder<TContent>;
+	sequenceField(
+		field: NormalizedFieldUpPath,
+	): SequenceFieldEditBuilder<TUnhydrated, TDetachedRoots>;
 
 	/**
 	 * Moves a subsequence from one sequence field to another sequence field.
@@ -203,20 +214,43 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 		this.modularBuilder.addNodeExistsConstraintOnRevert(path, this.mintRevisionTag());
 	}
 
-	public valueField(field: FieldUpPath): ValueFieldEditBuilder<TreeChunk> {
-		return {
+	public hydrate(content: TreeChunk): DetachedRootIds {
+		const detachedRoots = [];
+		const count = content.topLevelLength;
+		if (count > 0) {
+			const buildRevision = this.mintRevisionTag();
+			const buildId = {
+				localId: this.modularBuilder.generateId(count),
+				revision: buildRevision,
+			};
+			const build = this.modularBuilder.buildTrees(buildId.localId, content, buildRevision);
+			this.modularBuilder.submitChanges([build], buildRevision);
+			detachedRoots.push({ first: buildId, count });
+		}
+		return detachedRoots;
+	}
+
+	public valueField(field: FieldUpPath): ValueFieldEditBuilder<TreeChunk, DetachedRootIds> {
+		const editBuilder = {
 			set: (newContent: TreeChunk): void => {
+				assert(newContent.topLevelLength === 1, "Expected exactly one node");
+				const root = this.hydrate(newContent);
+				editBuilder.attach(root);
+			},
+			attach: (newContent: DetachedRootIds): void => {
+				assert(
+					hasSingle(newContent) && newContent[0].count === 1,
+					"Expected exactly one node",
+				);
 				const revision = this.mintRevisionTag();
-				const fill: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
 				const detach: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
-				const build = this.modularBuilder.buildTrees(fill.localId, newContent, revision);
+				const fill: ChangeAtomId = newContent[0].first;
 				const change: FieldChangeset = brand(
 					valueFieldKind.changeHandler.editor.set({
 						fill,
 						detach,
 					}),
 				);
-
 				const edit: FieldEditDescription = {
 					type: "field",
 					field,
@@ -224,30 +258,37 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 					change,
 					revision,
 				};
-				this.modularBuilder.submitChanges([build, edit], revision);
+				this.modularBuilder.submitChanges([edit], revision);
 			},
 		};
+		return editBuilder;
 	}
 
-	public optionalField(field: FieldUpPath): OptionalFieldEditBuilder<TreeChunk> {
-		return {
+	public optionalField(
+		field: FieldUpPath,
+	): OptionalFieldEditBuilder<TreeChunk, DetachedRootIds> {
+		const editBuilder = {
 			set: (newContent: TreeChunk | undefined, wasEmpty: boolean): void => {
-				const edits: EditDescription[] = [];
-				let optionalChange: OptionalChangeset;
+				if (newContent === undefined) {
+					editBuilder.clear(wasEmpty);
+					return;
+				}
+				assert(newContent.topLevelLength === 1, "Expected exactly one node");
+				const root = this.hydrate(newContent);
+				editBuilder.attach(root, wasEmpty);
+			},
+			attach: (newContent: DetachedRootIds, wasEmpty: boolean): void => {
+				assert(
+					hasSingle(newContent) && newContent[0].count === 1,
+					"Expected exactly one node",
+				);
 				const revision = this.mintRevisionTag();
 				const detach: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
-				if (newContent !== undefined) {
-					const fill: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
-					const build = this.modularBuilder.buildTrees(fill.localId, newContent, revision);
-					edits.push(build);
-
-					optionalChange = optional.changeHandler.editor.set(wasEmpty, {
-						fill,
-						detach,
-					});
-				} else {
-					optionalChange = optional.changeHandler.editor.clear(wasEmpty, detach);
-				}
+				const fill: ChangeAtomId = newContent[0].first;
+				const optionalChange = optional.changeHandler.editor.set(wasEmpty, {
+					fill,
+					detach,
+				});
 
 				const change: FieldChangeset = brand(optionalChange);
 				const edit: FieldEditDescription = {
@@ -257,11 +298,24 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 					change,
 					revision,
 				};
-				edits.push(edit);
-
-				this.modularBuilder.submitChanges(edits, revision);
+				this.modularBuilder.submitChanges([edit], revision);
+			},
+			clear: (wasEmpty: boolean): void => {
+				const revision = this.mintRevisionTag();
+				const detach: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
+				const optionalChange = optional.changeHandler.editor.clear(wasEmpty, detach);
+				const change: FieldChangeset = brand(optionalChange);
+				const edit: FieldEditDescription = {
+					type: "field",
+					field,
+					fieldKind: optional.identifier,
+					change,
+					revision,
+				};
+				this.modularBuilder.submitChanges([edit], revision);
 			},
 		};
+		return editBuilder;
 	}
 
 	public move(
@@ -370,30 +424,52 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 		}
 	}
 
-	public sequenceField(field: FieldUpPath): SequenceFieldEditBuilder<TreeChunk> {
-		return {
+	public sequenceField(
+		field: FieldUpPath,
+	): SequenceFieldEditBuilder<TreeChunk, DetachedRootIds> {
+		const editBuilder = {
 			insert: (index: number, content: TreeChunk): void => {
-				const length = content.topLevelLength;
-				if (length === 0) {
+				const count = content.topLevelLength;
+				if (count === 0) {
 					return;
 				}
-
-				const revision = this.mintRevisionTag();
-				const firstId: CellId = { localId: this.modularBuilder.generateId(length), revision };
-				const build = this.modularBuilder.buildTrees(firstId.localId, content, revision);
-				const change: FieldChangeset = brand(
-					sequence.changeHandler.editor.insert(index, length, firstId, revision),
-				);
-				const attach: FieldEditDescription = {
-					type: "field",
-					field,
-					fieldKind: sequence.identifier,
-					change,
-					revision,
-				};
-				// The changes have to be submitted together, otherwise they will be assigned different revisions,
-				// which will prevent the build ID and the insert ID from matching.
-				this.modularBuilder.submitChanges([build, attach], revision);
+				const roots = this.hydrate(content);
+				editBuilder.attach(index, roots);
+			},
+			attach: (index: number, newContent: DetachedRootIds): void => {
+				const attachRevision = this.mintRevisionTag();
+				const edits: EditDescription[] = [];
+				let insertOffset = 0;
+				for (const { first, count } of newContent) {
+					if (count === 0) {
+						continue;
+					}
+					const cellId = {
+						localId: this.modularBuilder.generateId(count),
+						revision: attachRevision,
+					};
+					const change: FieldChangeset = brand(
+						sequence.changeHandler.editor.insert(
+							index + insertOffset,
+							count,
+							cellId,
+							first.revision,
+							first.localId,
+						),
+					);
+					const attach: FieldEditDescription = {
+						type: "field",
+						field,
+						fieldKind: sequence.identifier,
+						change,
+						revision: attachRevision,
+					};
+					edits.push(attach);
+					insertOffset += count;
+				}
+				if (edits.length > 0) {
+					this.modularBuilder.submitChanges(edits, attachRevision);
+				}
 			},
 			remove: (index: number, count: number): void => {
 				if (count === 0) {
@@ -407,39 +483,73 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 				this.modularBuilder.submitChange(field, sequence.identifier, change, revision);
 			},
 		};
+		return editBuilder;
 	}
 }
 
 /**
  */
-export interface ValueFieldEditBuilder<TContent> {
+export interface ValueFieldEditBuilder<TContent, TDetachedRoots> {
 	/**
-	 * Issues a change which replaces the current newContent of the field with `newContent`.
+	 * Issues a change which replaces the content of the field with the given detached node.
+	 * @param content - The content to be attached in the field in the given order.
+	 * Must represent a single detached node.
+	 * Must have been created in the same JS turn.
+	 */
+	attach(content: TDetachedRoots): void;
+
+	/**
+	 * Issues a change which replaces the content of the field with `newContent`.
 	 * @param newContent - the new content for the field.
 	 * The cursor can be in either Field or Node mode and must represent exactly one node.
+	 *
+	 * @deprecated Use {@link attach} instead.
 	 */
 	set(newContent: TContent): void;
 }
 
 /**
  */
-export interface OptionalFieldEditBuilder<TContent> {
+export interface OptionalFieldEditBuilder<TContent, TDetachedRoots> {
 	/**
-	 * Issues a change which replaces the current newContent of the field with `newContent`
-	 * @param newContent - the new content for the field.
-	 * If provided, the cursor can be in either Field or Node mode and must represent exactly one node.
+	 * Issues a change which replaces the content of the field with the given detached node.
+	 * @param content - The content to be attached in the field in the given order.
+	 * Must represent a single detached node.
+	 */
+	attach(content: TDetachedRoots, wasEmpty: boolean): void;
+
+	/**
+	 * Issues a change which clears content of the field.
 	 * @param wasEmpty - whether the field is empty when creating this change
+	 */
+	clear(wasEmpty: boolean): void;
+
+	/**
+	 * Issues a change which replaces the content of the field with `newContent`
+	 * @param newContent - the new content for the field.
+	 * @param wasEmpty - whether the field is empty when creating this change
+	 *
+	 * @deprecated Use {@link attach} or {@link clear} instead.
 	 */
 	set(newContent: TContent | undefined, wasEmpty: boolean): void;
 }
 
 /**
  */
-export interface SequenceFieldEditBuilder<TContent> {
+export interface SequenceFieldEditBuilder<TContent, TDetachedRoots> {
+	/**
+	 * Issues a change which attaches a sequence of detached nodes at the given `index`.
+	 * @param index - The index at which to attach the detached nodes.
+	 * @param detachedContent - The content to be attached in the field in the given order. Each node must be detached.
+	 */
+	attach(index: number, detachedContent: TDetachedRoots): void;
+
 	/**
 	 * Issues a change which inserts the `newContent` at the given `index`.
 	 * @param index - the index at which to insert the `newContent`.
-	 * @param newContent - the new content to be inserted in the field. Cursor can be in either Field or Node mode.
+	 * @param newContent - the new content to be inserted in the field.
+	 *
+	 * @deprecated Use {@link attach} instead.
 	 */
 	insert(index: number, newContent: TContent): void;
 
@@ -449,6 +559,10 @@ export interface SequenceFieldEditBuilder<TContent> {
 	 * @param count - The number of elements to remove.
 	 */
 	remove(index: number, count: number): void;
+}
+
+export interface CanHydrateNodes<TUnhydrated, TDetachedRoots> {
+	hydrate(unhydrated: TUnhydrated): TDetachedRoots;
 }
 
 /**

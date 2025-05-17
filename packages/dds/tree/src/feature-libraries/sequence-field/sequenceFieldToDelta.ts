@@ -19,9 +19,11 @@ import { type MarkList, NoopMarkType } from "./types.js";
 import {
 	areInputCellsEmpty,
 	areOutputCellsEmpty,
+	getAttachedNodeId,
 	getDetachedNodeId,
 	getEndpoint,
 	getInputCellId,
+	isAttach,
 	isAttachAndDetachEffect,
 } from "./utils.js";
 import type { FieldChangeDelta, ToDelta } from "../modular-schema/index.js";
@@ -36,7 +38,7 @@ export function sequenceFieldToDelta(
 
 	for (const mark of change) {
 		const deltaMark: Mutable<DeltaMark> = { count: mark.count };
-		const inputCellId = getInputCellId(mark);
+		const inputCellId = isAttach(mark) ? getAttachedNodeId(mark) : getInputCellId(mark);
 		const changes = mark.changes;
 		if (changes !== undefined) {
 			const nestedDelta = deltaFromChild(changes);
@@ -148,7 +150,7 @@ export function sequenceFieldToDelta(
 						inputCellId !== undefined,
 						0x821 /* Active Insert marks must have a CellId */,
 					);
-					const buildId = nodeIdFromChangeAtom(inputCellId);
+					const buildId = nodeIdFromChangeAtom(getAttachedNodeId(mark));
 					deltaMark.attach = buildId;
 					if (deltaMark.fields) {
 						// Nested changes are represented on the node in its starting location

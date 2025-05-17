@@ -157,6 +157,7 @@ export {
 	type FlexTreeContext,
 	type FlexTreeHydratedContext,
 	type FlexTreeTypedField,
+	type FlexTreeDetachedRoots,
 	type FlexTreeEntity,
 	type FlexTreeField,
 	type FlexTreeNode,

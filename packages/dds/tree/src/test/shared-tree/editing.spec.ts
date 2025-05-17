@@ -26,10 +26,15 @@ import {
 	expectNoRemovedRoots,
 	makeTreeFromJson,
 	moveWithin,
+	TestTreeProviderLite,
 	validateUsageError,
 } from "../utils.js";
 import { insert, makeTreeFromJsonSequence, remove } from "../sequenceRootUtils.js";
-import { SchemaFactory, toStoredSchema } from "../../simple-tree/index.js";
+import {
+	SchemaFactory,
+	toStoredSchema,
+	TreeViewConfiguration,
+} from "../../simple-tree/index.js";
 import { JsonAsTree } from "../../jsonDomainSchema.js";
 
 const rootField: NormalizedFieldUpPath = {
@@ -2215,6 +2220,29 @@ describe("Editing", () => {
 					}
 				});
 			}
+		});
+
+		it("reinsert hydrated node in hydrated array", () => {
+			const sf = new SchemaFactory(undefined);
+			class Child extends sf.object("Child", {}) {}
+			class Parent extends sf.object("Parent", {
+				children: sf.array(Child),
+			}) {}
+
+			const provider = new TestTreeProviderLite(1);
+			const config = new TreeViewConfiguration({
+				schema: Parent,
+			});
+			const view = provider.trees[0].viewWith(config);
+			view.initialize(new Parent({ children: [new Child({})] }));
+			const hydratedChild = view.root.children[0];
+			// Detach the child so it is insertable again
+			view.root.children.removeAt(0);
+			assert.equal(view.root.children.length, 0);
+
+			view.root.children.insertAtEnd(hydratedChild);
+			assert.equal(view.root.children.length, 1);
+			assert.equal(view.root.children[0], hydratedChild);
 		});
 	});
 
