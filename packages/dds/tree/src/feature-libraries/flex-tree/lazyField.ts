@@ -31,6 +31,7 @@ import {
 	type SequenceFieldEditBuilder,
 	type ValueFieldEditBuilder,
 } from "../default-schema/index.js";
+import { cursorForMapTreeField } from "../mapTreeCursor.js";
 import type { FlexFieldKind } from "../modular-schema/index.js";
 
 import type { Context } from "./context.js";
@@ -38,12 +39,14 @@ import {
 	type FlexTreeDetachedRoots,
 	FlexTreeEntityKind,
 	type FlexTreeField,
-	type FlexTreeNode,
 	type FlexTreeOptionalField,
 	type FlexTreeRequiredField,
 	type FlexTreeSequenceField,
 	type FlexTreeTypedField,
 	type FlexTreeUnknownUnboxed,
+	type FlexibleFieldContent,
+	type FlexibleNodeContent,
+	type HydratedFlexTreeNode,
 	TreeStatus,
 	flexTreeMarker,
 	flexTreeSlot,
@@ -51,7 +54,6 @@ import {
 import { LazyEntity } from "./lazyEntity.js";
 import { type LazyTreeNode, makeTree } from "./lazyNode.js";
 import { indexForAt, treeStatusFromAnchorCache } from "./utilities.js";
-import { cursorForMapTreeField } from "../mapTreeCursor.js";
 
 /**
  * Reuse fields.
@@ -161,7 +163,7 @@ export abstract class LazyField extends LazyEntity<FieldAnchor> implements FlexT
 		return this.schema === kind.identifier;
 	}
 
-	public get parent(): FlexTreeNode | undefined {
+	public get parent(): HydratedFlexTreeNode | undefined {
 		if (this.anchor.parent === undefined) {
 			return undefined;
 		}
@@ -195,7 +197,7 @@ export abstract class LazyField extends LazyEntity<FieldAnchor> implements FlexT
 		);
 	}
 
-	public boxedAt(index: number): FlexTreeNode | undefined {
+	public boxedAt(index: number): HydratedFlexTreeNode | undefined {
 		const finalIndex = indexForAt(index, this.length);
 
 		if (finalIndex === undefined) {
@@ -209,7 +211,7 @@ export abstract class LazyField extends LazyEntity<FieldAnchor> implements FlexT
 		return Array.from(this, callbackfn);
 	}
 
-	public boxedIterator(): IterableIterator<FlexTreeNode> {
+	public boxedIterator(): IterableIterator<HydratedFlexTreeNode> {
 		return iterateCursorField(this.cursor, (cursor) => makeTree(this.context, cursor));
 	}
 
@@ -265,7 +267,7 @@ export class LazySequence extends LazyField implements FlexTreeSequenceField {
 		return this.map((x) => x);
 	}
 
-	public editor: SequenceFieldEditBuilder<ExclusiveMapTree[], unknown> = {
+	public editor: SequenceFieldEditBuilder<FlexibleFieldContent, unknown> = {
 		insert: (index, newContent) => {
 			this.sequenceEditor().insert(index, cursorForMapTreeField(newContent));
 		},
@@ -285,7 +287,7 @@ export class LazySequence extends LazyField implements FlexTreeSequenceField {
 
 // <<<<<<< Updated upstream
 export class LazyValueField extends LazyField implements FlexTreeRequiredField {
-	public editor: ValueFieldEditBuilder<ExclusiveMapTree, FlexTreeDetachedRoots> = {
+	public editor: ValueFieldEditBuilder<FlexibleNodeContent, FlexTreeDetachedRoots> = {
 		set: (newContent) => {
 			this.valueFieldEditor().set(cursorForMapTreeField([newContent]));
 		},

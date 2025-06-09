@@ -18,6 +18,9 @@ export {
 	FlexTreeEntityKind,
 	isFlexTreeNode,
 	flexTreeSlot,
+	type FlexibleNodeContent,
+	type FlexibleFieldContent,
+	type HydratedFlexTreeNode,
 } from "./flexTreeTypes.js";
 
 export {
@@ -33,6 +36,7 @@ export {
 	type FlexTreeHydratedContext,
 	Context,
 	ContextSlot,
+	type FlexTreeHydratedContextMinimal,
 } from "./context.js";
 
 export { type FlexTreeNodeEvents } from "./treeEvents.js";

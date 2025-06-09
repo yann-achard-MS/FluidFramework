@@ -13,6 +13,7 @@ import {
 } from "../../core/index.js";
 import { getLast, hasSome, type Mutable } from "../../util/index.js";
 import { nodeIdFromChangeAtom } from "../deltaUtils.js";
+import type { FieldChangeDelta, ToDelta } from "../modular-schema/index.js";
 
 import { isMoveIn, isMoveOut } from "./moveEffectTable.js";
 import { type MarkList, NoopMarkType } from "./types.js";
@@ -26,7 +27,6 @@ import {
 	isAttach,
 	isAttachAndDetachEffect,
 } from "./utils.js";
-import type { FieldChangeDelta, ToDelta } from "../modular-schema/index.js";
 
 export function sequenceFieldToDelta(
 	change: MarkList,
