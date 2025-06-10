@@ -494,20 +494,16 @@ export class UnhydratedOptionalField
 	}
 }
 
-class UnhydratedRequiredField
-	extends UnhydratedOptionalField
+export class UnhydratedRequiredField
+	extends UnhydratedFlexTreeField
 	implements FlexTreeRequiredField
 {
 	public readonly editor: ValueFieldEditBuilder<FlexibleNodeContent, FlexTreeDetachedRoots> = {
 		set: (newContent: FlexibleNodeContent): void => {
-			// If the new content is a UnhydratedFlexTreeNode, it needs to have its parent pointer updated
-			nodeCache.get(newContent)?.adoptBy(this, 0);
-
-			// If the old content is a UnhydratedFlexTreeNode, it needs to have its parent pointer unset
-			const oldContent = this.mapTrees[0];
-			if (oldContent !== undefined) {
-				nodeCache.get(oldContent)?.adoptBy(undefined);
-			}
+			assert(
+				newContent instanceof UnhydratedFlexTreeNode,
+				0xbb7 /* Expected unhydrated node */,
+			);
 
 			this.edit((mapTrees) => {
 				mapTrees[0] = newContent;
@@ -519,7 +515,7 @@ class UnhydratedRequiredField
 	};
 
 	public get content(): FlexTreeUnknownUnboxed {
-		const value = this.mapTrees[0];
+		const value = this.children[0];
 		// This cannot use ?? since null is a legal value here.
 		assert(
 			value !== undefined,
