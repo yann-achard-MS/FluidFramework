@@ -24,14 +24,6 @@ export {
 } from "./flexTreeTypes.js";
 
 export {
-	visitBipartiteIterableTree,
-	Skip,
-	visitBipartiteIterableTreeWithState,
-	visitIterableTree,
-	visitIterableTreeWithState,
-} from "./navigation.js";
-
-export {
 	type FlexTreeContext,
 	type FlexTreeHydratedContext,
 	Context,
