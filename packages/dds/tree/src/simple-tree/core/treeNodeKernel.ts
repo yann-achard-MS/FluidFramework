@@ -340,16 +340,6 @@ export class TreeNodeKernel {
 
 		return this.#hydrationState.innerNode;
 	}
-
-	/**
-	 * Retrieves the {@link UnhydratedFlexTreeNode} if unhydrated. otherwise undefined.
-	 */
-	public getInnerNodeIfUnhydrated(): UnhydratedFlexTreeNode | undefined {
-		if (isHydrated(this.#hydrationState)) {
-			return undefined;
-		}
-		return this.#hydrationState.innerNode;
-	}
 }
 
 const kernelEvents = ["childrenChangedAfterBatch", "subtreeChangedAfterBatch"] as const;

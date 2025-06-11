@@ -22,7 +22,6 @@ import type {
 	MapTreeFieldViewGeneric,
 	MapTreeNodeViewGeneric,
 	MinimalFieldMap,
-	MinimalMapTreeNodeView,
 } from "../mapTreeCursor.js";
 import type { FlexFieldKind } from "../modular-schema/index.js";
 
@@ -309,7 +308,7 @@ export type FlexibleFieldContent = readonly FlexibleNodeContent[];
 /**
  * Tree for inserting as a node.
  */
-export type FlexibleNodeContent = MinimalMapTreeNodeView;
+export type FlexibleNodeContent = FlexTreeNode;
 
 /**
  * {@link FlexTreeField} that stores a sequence of children.

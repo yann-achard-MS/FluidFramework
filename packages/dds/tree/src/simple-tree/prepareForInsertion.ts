@@ -3,14 +3,15 @@
  * Licensed under the MIT License.
  */
 
-import type {
-	SchemaAndPolicy,
-	IForestSubscription,
-	UpPath,
-	NodeIndex,
-	FieldKey,
-	DetachedField,
-	TreeFieldStoredSchema,
+import {
+	type SchemaAndPolicy,
+	type IForestSubscription,
+	type UpPath,
+	type NodeIndex,
+	type FieldKey,
+	type DetachedField,
+	type TreeFieldStoredSchema,
+	dummyRoot,
 } from "../core/index.js";
 import {
 	type FlexTreeContext,
@@ -19,6 +20,8 @@ import {
 	FieldKinds,
 	type FlexibleFieldContent,
 	type FlexibleNodeContent,
+	type FlexTreeNode,
+	cursorForMapTreeField,
 } from "../feature-libraries/index.js";
 import {
 	normalizeFieldSchema,
@@ -27,14 +30,20 @@ import {
 } from "./schemaTypes.js";
 import {
 	type InsertableContent,
-	unhydratedFlexTreeFromInsertable,
+	flexTreeFromInsertable,
 } from "./unhydratedFlexTreeFromInsertable.js";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 import { brand } from "../util/index.js";
-import { getKernel, type TreeNode, type UnhydratedFlexTreeNode } from "./core/index.js";
+import { createField, getKernel, type TreeNode } from "./core/index.js";
 import { debugAssert, oob } from "@fluidframework/core-utils/internal";
 import { inSchemaOrThrow, isFieldInSchema } from "../feature-libraries/index.js";
 import { convertField } from "./toStoredSchema.js";
+import { getUnhydratedContext } from "./createContext.js";
+import {
+	type UnhydratedFlexTreeField,
+	UnhydratedFlexTreeNode,
+	// eslint-disable-next-line import/no-internal-modules
+} from "./core/unhydratedFlexTree.js";
 
 /**
  * Prepare content from a user for insertion into a tree.
@@ -75,17 +84,22 @@ export function prepareArrayContentForInsertion(
 	schema: ImplicitAllowedTypes,
 	destinationContext: FlexTreeContext,
 ): FlexibleFieldContent {
-	const mapTrees: UnhydratedFlexTreeNode[] = data.map((item) =>
-		unhydratedFlexTreeFromInsertable(item, schema),
-	);
+	const mapTrees: FlexTreeNode[] = data.map((item) => flexTreeFromInsertable(item, schema));
 
 	const fieldSchema = convertField(normalizeFieldSchema(schema));
+
+	const field = createField(
+		getUnhydratedContext(schema).flexContext,
+		fieldSchema.kind,
+		dummyRoot,
+		mapTrees,
+	);
 
 	validateAndPrepare(
 		getSchemaAndPolicy(destinationContext),
 		destinationContext.isHydrated() ? destinationContext : undefined,
 		{ kind: FieldKinds.sequence.identifier, types: fieldSchema.types },
-		mapTrees,
+		field,
 	);
 
 	return mapTrees;
@@ -106,11 +120,19 @@ export function prepareForInsertionContextless<TIn extends InsertableContent | u
 	schemaAndPolicy: SchemaAndPolicy,
 	hydratedData: FlexTreeHydratedContextMinimal | undefined,
 ): TIn extends undefined ? undefined : FlexibleNodeContent {
-	const mapTree = unhydratedFlexTreeFromInsertable(data, schema);
+	const mapTree = flexTreeFromInsertable(data, schema);
 
 	const contentArray = mapTree === undefined ? [] : [mapTree];
 	const fieldSchema = convertField(normalizeFieldSchema(schema));
-	validateAndPrepare(schemaAndPolicy, hydratedData, fieldSchema, contentArray);
+
+	const field = createField(
+		getUnhydratedContext(schema).flexContext,
+		fieldSchema.kind,
+		dummyRoot,
+		contentArray,
+	);
+
+	validateAndPrepare(schemaAndPolicy, hydratedData, fieldSchema, field);
 
 	return mapTree;
 }
@@ -125,13 +147,23 @@ function validateAndPrepare(
 	schemaAndPolicy: SchemaAndPolicy,
 	hydratedData: FlexTreeHydratedContextMinimal | undefined,
 	fieldSchema: TreeFieldStoredSchema,
-	mapTrees: readonly UnhydratedFlexTreeNode[],
+	mapTrees: UnhydratedFlexTreeField,
 ): void {
 	if (hydratedData !== undefined) {
+		// TODO: special field cursor for hybred trees that skips already hydrated content, records where it goes on the side, and usageErrors if not optional
+		// (and errors if additional parents)
+		const chunk = hydratedData.checkout.forest.chunkField(
+			cursorForMapTreeField(mapTrees.children),
+		);
+		hydratedData.checkout.editor.hydrate(chunk);
+
+		// TODO: do edits to move existing content into newly built tree.
+		// TODO: hydrate nodes as needed
+
 		// Run `prepareContentForHydration` before walking the tree in `isFieldInSchema`.
 		// This ensures that when `isFieldInSchema` requests identifiers (or any other contextual defaults),
 		// they were already creating used the more specific context we have access to from `hydratedData`.
-		prepareContentForHydration(mapTrees, hydratedData.checkout.forest, hydratedData);
+		prepareContentForHydration(mapTrees.children, hydratedData.checkout.forest, hydratedData);
 		if (schemaAndPolicy.policy.validateSchema === true) {
 			const maybeError = isFieldInSchema(mapTrees, fieldSchema, schemaAndPolicy);
 			inSchemaOrThrow(maybeError);
@@ -185,7 +217,7 @@ const placeholderKey: DetachedField & FieldKey = brand("placeholder" as const);
  * @param forest - the forest the content is being inserted into.
  */
 export function prepareContentForHydration(
-	content: readonly UnhydratedFlexTreeNode[],
+	content: readonly FlexTreeNode[],
 	forest: IForestSubscription,
 	context: FlexTreeHydratedContextMinimal,
 ): void {
@@ -214,7 +246,7 @@ export function prepareContentForHydration(
 }
 
 function walkMapTree(
-	root: UnhydratedFlexTreeNode,
+	root: FlexTreeNode,
 	path: UpPath,
 	onVisitTreeNode: (path: UpPath, treeNode: TreeNode) => void,
 	context: FlexTreeHydratedContextMinimal,
@@ -225,28 +257,31 @@ function walkMapTree(
 		);
 	}
 
-	type Next = [path: UpPath, tree: UnhydratedFlexTreeNode];
+	type Next = [path: UpPath, tree: FlexTreeNode];
 	const nexts: Next[] = [];
 	for (let next: Next | undefined = [path, root]; next !== undefined; next = nexts.pop()) {
 		const [p, node] = next;
-		if (node !== undefined) {
-			const treeNode = node.treeNode;
-			if (treeNode !== undefined) {
-				onVisitTreeNode(p, treeNode);
-			}
-		}
 
-		for (const [key, field] of node.allFieldsLazy) {
-			field.fillPendingDefaults(context);
-			for (const [i, child] of field.children.entries()) {
-				nexts.push([
-					{
-						parent: p,
-						parentField: key,
-						parentIndex: i,
-					},
-					child,
-				]);
+		if (node instanceof UnhydratedFlexTreeNode) {
+			if (node !== undefined) {
+				const treeNode = node.treeNode;
+				if (treeNode !== undefined) {
+					onVisitTreeNode(p, treeNode);
+				}
+			}
+
+			for (const [key, field] of node.allFieldsLazy) {
+				field.fillPendingDefaults(context);
+				for (const [i, child] of field.children.entries()) {
+					nexts.push([
+						{
+							parent: p,
+							parentField: key,
+							parentIndex: i,
+						},
+						child,
+					]);
+				}
 			}
 		}
 	}

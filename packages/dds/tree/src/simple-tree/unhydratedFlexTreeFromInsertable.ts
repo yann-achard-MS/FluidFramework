@@ -14,7 +14,12 @@ import {
 	type TreeValue,
 	type ValueSchema,
 } from "../core/index.js";
-import { FieldKinds, isTreeValue, valueSchemaAllows } from "../feature-libraries/index.js";
+import {
+	FieldKinds,
+	isTreeValue,
+	valueSchemaAllows,
+	type FlexTreeNode,
+} from "../feature-libraries/index.js";
 import { brand, isReadonlyArray, hasSingle } from "../util/index.js";
 
 import { nullSchema } from "./leafNodeSchema.js";
@@ -63,7 +68,7 @@ import { getUnhydratedContext } from "./createContext.js";
  */
 
 /**
- * Transforms an input {@link TypedNode} tree to an {@link UnhydratedFlexTreeNode}.
+ * Transforms an input {@link TypedNode} tree to a {@link FlexTreeNode}.
  * @param data - The input tree to be converted.
  * If the data is an unsupported value (e.g. NaN), a fallback value will be used when supported,
  * otherwise an error will be thrown.
@@ -88,10 +93,10 @@ import { getUnhydratedContext } from "./createContext.js";
  * Output should comply with the provided view schema, but this is not explicitly validated:
  * validation against stored schema (to guard against document corruption) is done elsewhere.
  */
-export function unhydratedFlexTreeFromInsertable<TIn extends InsertableContent | undefined>(
+export function flexTreeFromInsertable<TIn extends InsertableContent | undefined>(
 	data: TIn,
 	allowedTypes: ImplicitFieldSchema,
-): TIn extends undefined ? undefined : UnhydratedFlexTreeNode {
+): TIn extends undefined ? undefined : FlexTreeNode {
 	const normalizedFieldSchema = normalizeFieldSchema(allowedTypes);
 
 	if (data === undefined) {
@@ -99,34 +104,59 @@ export function unhydratedFlexTreeFromInsertable<TIn extends InsertableContent |
 		if (normalizedFieldSchema.kind !== FieldKind.Optional) {
 			throw new UsageError("Got undefined for non-optional field.");
 		}
-		return undefined as TIn extends undefined ? undefined : UnhydratedFlexTreeNode;
+		return undefined as TIn extends undefined ? undefined : FlexTreeNode;
 	}
 
-	const flexTree: UnhydratedFlexTreeNode = unhydratedFlexTreeFromInsertableNode(
+	const flexTree: FlexTreeNode = flexTreeFromInsertableNode(
 		data,
 		normalizedFieldSchema.allowedTypeSet,
 	);
 
-	return flexTree as TIn extends undefined ? undefined : UnhydratedFlexTreeNode;
+	return flexTree as TIn extends undefined ? undefined : FlexTreeNode;
 }
 
 /**
- * Copy content from `data` into a UnhydratedFlexTreeNode.
+ * Wrapper around {@link flexTreeFromInsertable} which always returns an unhydrated nodes (or undefined).
+ * @remarks
+ * This does not deeply check content is unhydrated.
+ *
+ * Once hybrid content is better supported, this should likely be removed as a simplification.
  */
-function unhydratedFlexTreeFromInsertableNode(
+export function unhydratedFlexTreeFromInsertable<TIn extends InsertableContent | undefined>(
+	data: TIn,
+	allowedTypes: ImplicitFieldSchema,
+): TIn extends undefined ? undefined : UnhydratedFlexTreeNode {
+	const result = flexTreeFromInsertable(data, allowedTypes);
+	if (result === undefined) {
+		return undefined as TIn extends undefined ? undefined : UnhydratedFlexTreeNode;
+	}
+	assert(result instanceof UnhydratedFlexTreeNode, "expected unhydrated node");
+	return result as TIn extends undefined ? undefined : UnhydratedFlexTreeNode;
+}
+
+/**
+ * Copy content from `data` into a UnhydratedFlexTreeNode or return an existing node if `data` is a TreeNode.
+ */
+function flexTreeFromInsertableNode(
 	data: InsertableContent,
 	allowedTypes: ReadonlySet<TreeNodeSchema>,
-): UnhydratedFlexTreeNode {
+): FlexTreeNode {
 	if (isTreeNode(data)) {
 		const kernel = getKernel(data);
-		const inner = kernel.getInnerNodeIfUnhydrated();
-		if (inner === undefined) {
-			// The node is already hydrated, meaning that it already got inserted into the tree previously
-			throw new UsageError("A node may not be inserted into the tree more than once");
+		const inner = kernel.getOrCreateInnerNode();
+		if (inner.parentField.parent.parent !== undefined) {
+			throw new UsageError(
+				"A node which already has a parent may not be used as part of a new tree.",
+			);
 		} else {
 			if (!allowedTypes.has(kernel.schema)) {
 				throw new UsageError("Invalid schema for this context.");
 			}
+
+			if (inner.isHydrated()) {
+				// TODO: hook up event bubbling from hydrated to unhydrated tree.
+			}
+
 			return inner;
 		}
 	}
@@ -246,7 +276,7 @@ function mapValueWithFallbacks(
 function arrayChildToFlexTree(
 	child: InsertableContent,
 	allowedTypes: ReadonlySet<TreeNodeSchema>,
-): UnhydratedFlexTreeNode {
+): FlexTreeNode {
 	// We do not support undefined sequence entries.
 	// If we encounter an undefined entry, use null instead if supported by the schema, otherwise throw.
 	let childWithFallback = child;
@@ -257,7 +287,7 @@ function arrayChildToFlexTree(
 			throw new TypeError(`Received unsupported array entry value: ${child}.`);
 		}
 	}
-	return unhydratedFlexTreeFromInsertableNode(childWithFallback, allowedTypes);
+	return flexTreeFromInsertableNode(childWithFallback, allowedTypes);
 }
 
 /**
@@ -336,7 +366,7 @@ function mapToFlexContent(data: FactoryContent, schema: TreeNodeSchema): FlexCon
 
 		// Omit undefined values - an entry with an undefined value is equivalent to one that has been removed or omitted
 		if (value !== undefined) {
-			const child = unhydratedFlexTreeFromInsertableNode(value, allowedChildTypes);
+			const child = flexTreeFromInsertableNode(value, allowedChildTypes);
 			const field = createField(context, FieldKinds.optional.identifier, brand(key), [child]);
 			transformedFields.set(brand(key), field);
 		}
@@ -372,7 +402,7 @@ function objectToFlexContent(data: FactoryContent, schema: TreeNodeSchema): Flex
 	for (const [key, fieldInfo] of schema.flexKeyMap) {
 		const value = getFieldProperty(data, key);
 
-		let children: UnhydratedFlexTreeNode[] | ContextualFieldProvider;
+		let children: FlexTreeNode[] | ContextualFieldProvider;
 		if (value === undefined) {
 			const defaultProvider =
 				fieldInfo.schema.props?.defaultProvider ??
@@ -380,9 +410,7 @@ function objectToFlexContent(data: FactoryContent, schema: TreeNodeSchema): Flex
 			const fieldProvider = extractFieldProvider(defaultProvider);
 			children = isConstant(fieldProvider) ? fieldProvider() : fieldProvider;
 		} else {
-			children = [
-				unhydratedFlexTreeFromInsertableNode(value, fieldInfo.schema.allowedTypeSet),
-			];
+			children = [flexTreeFromInsertableNode(value, fieldInfo.schema.allowedTypeSet)];
 		}
 
 		const kind =

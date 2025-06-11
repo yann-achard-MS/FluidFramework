@@ -9,7 +9,6 @@ import { UsageError } from "@fluidframework/telemetry-utils/internal";
 import {
 	type AnchorNode,
 	CursorLocationType,
-	type ExclusiveMapTree,
 	type FieldAnchor,
 	type FieldKey,
 	type FieldKindIdentifier,
@@ -32,7 +31,7 @@ import {
 	type SequenceFieldEditBuilder,
 	type ValueFieldEditBuilder,
 } from "../default-schema/index.js";
-import { cursorForMapTreeField } from "../mapTreeCursor.js";
+import { cursorForMapTreeField, type MinimalMapTreeNodeView } from "../mapTreeCursor.js";
 import type { FlexFieldKind } from "../modular-schema/index.js";
 
 import type { Context } from "./context.js";
@@ -282,7 +281,6 @@ export class LazySequence extends LazyField implements FlexTreeSequenceField {
 	}
 }
 
-// <<<<<<< Updated upstream
 export class LazyValueField extends LazyField implements FlexTreeRequiredField {
 	public editor: ValueFieldEditBuilder<FlexibleNodeContent, FlexTreeDetachedRoots> = {
 		set: (newContent) => {
@@ -305,7 +303,7 @@ export class LazyValueField extends LazyField implements FlexTreeRequiredField {
 }
 
 export class LazyOptionalField extends LazyField implements FlexTreeOptionalField {
-	public editor: OptionalFieldEditBuilder<ExclusiveMapTree, FlexTreeDetachedRoots> = {
+	public editor: OptionalFieldEditBuilder<MinimalMapTreeNodeView, FlexTreeDetachedRoots> = {
 		set: (newContent, wasEmpty) => {
 			this.optionalEditor().set(
 				newContent !== undefined ? cursorForMapTreeField([newContent]) : newContent,

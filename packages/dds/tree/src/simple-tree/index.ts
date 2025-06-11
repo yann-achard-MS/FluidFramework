@@ -207,7 +207,7 @@ export {
 	createUnknownOptionalFieldPolicy,
 } from "./node-kinds/index.js";
 export {
-	unhydratedFlexTreeFromInsertable,
+	flexTreeFromInsertable as unhydratedFlexTreeFromInsertable,
 	type InsertableContent,
 	type FactoryContent,
 	type FactoryContentObject,
