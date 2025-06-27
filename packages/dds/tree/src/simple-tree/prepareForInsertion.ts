@@ -35,7 +35,7 @@ import {
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 import { brand } from "../util/index.js";
 import { createField, getKernel, type TreeNode } from "./core/index.js";
-import { debugAssert, oob } from "@fluidframework/core-utils/internal";
+import { assert, debugAssert, oob } from "@fluidframework/core-utils/internal";
 import { inSchemaOrThrow, isFieldInSchema } from "../feature-libraries/index.js";
 import { convertField } from "./toStoredSchema.js";
 import { getUnhydratedContext } from "./createContext.js";
@@ -147,13 +147,13 @@ function validateAndPrepare(
 	schemaAndPolicy: SchemaAndPolicy,
 	hydratedData: FlexTreeHydratedContextMinimal | undefined,
 	fieldSchema: TreeFieldStoredSchema,
-	mapTrees: UnhydratedFlexTreeField,
+	field: UnhydratedFlexTreeField,
 ): void {
 	if (hydratedData !== undefined) {
-		// TODO: special field cursor for hybred trees that skips already hydrated content, records where it goes on the side, and usageErrors if not optional
+		// TODO: special field cursor for hybrid trees that skips already hydrated content, records where it goes on the side, and usageErrors if not optional
 		// (and errors if additional parents)
 		const chunk = hydratedData.checkout.forest.chunkField(
-			cursorForMapTreeField(mapTrees.children),
+			cursorForMapTreeField(field.children),
 		);
 		hydratedData.checkout.editor.buildRoots(chunk);
 
@@ -163,11 +163,17 @@ function validateAndPrepare(
 		// Run `prepareContentForHydration` before walking the tree in `isFieldInSchema`.
 		// This ensures that when `isFieldInSchema` requests identifiers (or any other contextual defaults),
 		// they were already creating used the more specific context we have access to from `hydratedData`.
-		prepareContentForHydration(mapTrees.children, hydratedData.checkout.forest, hydratedData);
+		prepareContentForHydration(field.children, hydratedData.checkout.forest, hydratedData);
 		if (schemaAndPolicy.policy.validateSchema === true) {
-			const maybeError = isFieldInSchema(mapTrees, fieldSchema, schemaAndPolicy);
+			const maybeError = isFieldInSchema(field, fieldSchema, schemaAndPolicy);
 			inSchemaOrThrow(maybeError);
 		}
+	}
+
+	// Discard the parent dummy field for the nodes before returning so they are unparented and can be inserted.
+	for (const child of field.children) {
+		assert(child instanceof UnhydratedFlexTreeNode, "TODO");
+		child.adoptBy(undefined);
 	}
 }
 

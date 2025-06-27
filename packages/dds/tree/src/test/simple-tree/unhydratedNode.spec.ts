@@ -392,7 +392,7 @@ describe("Unhydrated nodes", () => {
 		assert.throws(
 			() => view.map.set("key", leaf),
 			validateUsageError(
-				"Attempted to insert a node which is already under a parent. If this is desired, remove the node from its parent before inserting it elsewhere.",
+				"A node which already has a parent may not be used as part of a new tree.",
 			),
 		);
 	});
