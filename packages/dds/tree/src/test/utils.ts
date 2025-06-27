@@ -106,7 +106,7 @@ import {
 	mapTreeFromCursor,
 	MockNodeIdentifierManager,
 	cursorForMapTreeField,
-	type IDefaultEditBuilder,
+	type LowLevelDataEditor,
 	type TreeChunk,
 	mapTreeFieldFromCursor,
 	defaultChunkPolicy,
@@ -1419,7 +1419,7 @@ function normalizeNewFieldContent(
  * Convenience helper for performing a "move" edit where the source and destination field are the same.
  */
 export function moveWithin(
-	editor: IDefaultEditBuilder,
+	editor: LowLevelDataEditor,
 	field: NormalizedFieldUpPath,
 	sourceIndex: number,
 	count: number,

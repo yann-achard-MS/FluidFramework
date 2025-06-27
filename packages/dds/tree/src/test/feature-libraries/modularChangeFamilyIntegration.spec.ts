@@ -23,12 +23,12 @@ import {
 // eslint-disable-next-line import/no-internal-modules
 import { sequence } from "../../feature-libraries/default-schema/defaultFieldKinds.js";
 import {
-	DefaultEditBuilder,
 	type FieldKindWithEditor,
 	type ModularChangeset,
 	type SequenceField as SF,
 	type EditDescription,
 	genericFieldKind,
+	DefaultLowLevelDataEditor,
 } from "../../feature-libraries/index.js";
 import {
 	ModularChangeFamily,
@@ -82,7 +82,7 @@ describe("ModularChangeFamily integration", () => {
 	describe("rebase", () => {
 		it("remove over cross-field move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 
 			const rootPath = { parent: undefined, parentField: rootField, parentIndex: 0 };
 			editor.move(
@@ -139,7 +139,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("remove over cross-field move to edited field", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 
 			const rootPath = { parent: undefined, parentField: rootField, parentIndex: 0 };
 			editor.move(
@@ -195,7 +195,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("nested change over cross-field move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 
 			editor.move(
 				{ parent: undefined, field: fieldA },
@@ -239,7 +239,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("cross-field move over remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 			editor.sequenceField({ parent: undefined, field: fieldA }).remove(1, 1);
 			editor.move(
 				{ parent: undefined, field: fieldA },
@@ -272,7 +272,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("move over cross-field move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -305,7 +305,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("Nested moves both requiring a second pass", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 
@@ -400,7 +400,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("over change which moves node upward", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 			const nodeAPath: UpPath = { parent: undefined, parentField: fieldA, parentIndex: 0 };
 			const nodeBPath: UpPath = {
 				parent: nodeAPath,
@@ -447,7 +447,7 @@ describe("ModularChangeFamily integration", () => {
 		// This test demonstrates that a field may need three rebasing passes.
 		it("over change which moves into moved subtree", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 			const nodePath1: UpPath = { parent: undefined, parentField: fieldA, parentIndex: 1 };
 
 			// The base changeset consists of the following two move edits.
@@ -507,7 +507,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("prunes its output", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 			const nodeAPath: UpPath = { parent: undefined, parentField: fieldA, parentIndex: 0 };
 			const nodeBPath: UpPath = { parent: undefined, parentField: fieldB, parentIndex: 0 };
 
@@ -539,7 +539,7 @@ describe("ModularChangeFamily integration", () => {
 			 */
 
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 			const nodeAPath: UpPath = { parent: undefined, parentField: fieldA, parentIndex: 0 };
 
 			// Moves A to an adjacent cell to its right
@@ -602,7 +602,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("cross-field move and nested changes", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -649,7 +649,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("cross-field move and inverse with nested changes", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -705,7 +705,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("two cross-field moves of same node", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -745,7 +745,7 @@ describe("ModularChangeFamily integration", () => {
 	describe("invert", () => {
 		it("Cross-field move of edited node", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 
 			editor.enterTransaction();
 
@@ -803,7 +803,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("Nested moves both requiring a second pass", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultLowLevelDataEditor(family, mintRevisionTag, changeReceiver);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.enterTransaction();

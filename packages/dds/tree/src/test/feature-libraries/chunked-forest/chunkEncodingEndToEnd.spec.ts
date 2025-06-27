@@ -34,7 +34,6 @@ import {
 } from "../../../feature-libraries/chunked-forest/uniformChunk.js";
 import {
 	DefaultChangeFamily,
-	DefaultEditBuilder,
 	ForestSummarizer,
 	type ModularChangeset,
 	TreeCompressionStrategy,
@@ -46,6 +45,7 @@ import {
 	MockNodeIdentifierManager,
 	jsonableTreeFromCursor,
 	cursorForJsonableTreeNode,
+	DefaultLowLevelDataEditor,
 } from "../../../feature-libraries/index.js";
 import {
 	type ISharedTreeEditor,
@@ -154,7 +154,7 @@ describe("End to end chunked encoding", () => {
 			fieldBatchCodec,
 			{ jsonValidator: typeboxValidator },
 		);
-		const dummyEditor = new DefaultEditBuilder(
+		const dummyEditor = new DefaultLowLevelDataEditor(
 			new DefaultChangeFamily(codec),
 			mintRevisionTag,
 			changeReceiver,

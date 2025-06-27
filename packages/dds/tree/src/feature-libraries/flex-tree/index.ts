@@ -6,7 +6,6 @@
 export {
 	type FlexTreeField,
 	type FlexTreeNode,
-	type FlexTreeDetachedRoots,
 	type FlexTreeEntity,
 	type FlexTreeTypedField,
 	type FlexTreeOptionalField,

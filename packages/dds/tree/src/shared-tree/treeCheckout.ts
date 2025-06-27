@@ -992,9 +992,9 @@ class EditLock {
 			get schema() {
 				return editor.schema;
 			},
-			hydrate(unhydrated) {
+			buildRoots(unhydrated) {
 				checkLock();
-				return editor.hydrate(unhydrated);
+				return editor.buildRoots(unhydrated);
 			},
 			valueField(...fieldArgs) {
 				const valueField = editor.valueField(...fieldArgs);

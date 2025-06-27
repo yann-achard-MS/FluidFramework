@@ -10,8 +10,8 @@ import type {
 	TreeStoredSchema,
 } from "../core/index.js";
 import {
-	DefaultEditBuilder,
-	type IDefaultEditBuilder,
+	DefaultLowLevelDataEditor,
+	type LowLevelDataEditor,
 	type ModularChangeFamily,
 } from "../feature-libraries/index.js";
 
@@ -33,7 +33,7 @@ export interface ISchemaEditor {
 /**
  * SharedTree editor for transactional tree data and schema changes.
  */
-export interface ISharedTreeEditor extends IDefaultEditBuilder {
+export interface ISharedTreeEditor extends LowLevelDataEditor {
 	/**
 	 * Editor for schema changes.
 	 */
@@ -41,11 +41,11 @@ export interface ISharedTreeEditor extends IDefaultEditBuilder {
 }
 
 /**
- * Implementation of {@link IDefaultEditBuilder} based on the default set of supported field kinds.
+ * Implementation of {@link HighLevelDataEditor} based on the default set of supported field kinds.
  * @sealed
  */
 export class SharedTreeEditBuilder
-	extends DefaultEditBuilder
+	extends DefaultLowLevelDataEditor
 	implements ChangeFamilyEditor, ISharedTreeEditor
 {
 	public readonly schema: ISchemaEditor;

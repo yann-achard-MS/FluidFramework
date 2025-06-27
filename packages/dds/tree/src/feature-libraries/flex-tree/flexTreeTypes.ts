@@ -14,9 +14,9 @@ import {
 } from "../../core/index.js";
 import type {
 	FieldKinds,
-	SequenceFieldEditBuilder,
-	ValueFieldEditBuilder,
-	OptionalFieldEditBuilder,
+	HighLevelSequenceFieldEditor,
+	HighLevelRequiredFieldEditor,
+	HighLevelOptionalFieldEditor,
 } from "../default-schema/index.js";
 import type {
 	MapTreeFieldViewGeneric,
@@ -353,10 +353,8 @@ export interface FlexTreeSequenceField extends FlexTreeField {
 	/**
 	 * Get an editor for this sequence.
 	 */
-	readonly editor: SequenceFieldEditBuilder<FlexibleFieldContent, FlexTreeDetachedRoots>;
+	readonly editor: HighLevelSequenceFieldEditor<FlexibleFieldContent>;
 }
-
-export type FlexTreeDetachedRoots = readonly FlexTreeNode[];
 
 /**
  * Field that stores exactly one child.
@@ -367,7 +365,7 @@ export type FlexTreeDetachedRoots = readonly FlexTreeNode[];
 export interface FlexTreeRequiredField extends FlexTreeField {
 	get content(): FlexTreeUnknownUnboxed;
 
-	readonly editor: ValueFieldEditBuilder<FlexibleNodeContent, FlexTreeDetachedRoots>;
+	readonly editor: HighLevelRequiredFieldEditor<FlexibleNodeContent>;
 }
 
 /**
@@ -386,7 +384,7 @@ export interface FlexTreeRequiredField extends FlexTreeField {
 export interface FlexTreeOptionalField extends FlexTreeField {
 	get content(): FlexTreeUnknownUnboxed | undefined;
 
-	readonly editor: OptionalFieldEditBuilder<FlexibleNodeContent, FlexTreeDetachedRoots>;
+	readonly editor: HighLevelOptionalFieldEditor<FlexibleNodeContent>;
 }
 
 // #endregion

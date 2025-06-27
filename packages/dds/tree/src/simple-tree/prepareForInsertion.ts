@@ -155,7 +155,7 @@ function validateAndPrepare(
 		const chunk = hydratedData.checkout.forest.chunkField(
 			cursorForMapTreeField(mapTrees.children),
 		);
-		hydratedData.checkout.editor.hydrate(chunk);
+		hydratedData.checkout.editor.buildRoots(chunk);
 
 		// TODO: do edits to move existing content into newly built tree.
 		// TODO: hydrate nodes as needed

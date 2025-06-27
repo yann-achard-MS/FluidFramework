@@ -6,50 +6,32 @@
 import type { NormalizedFieldUpPath, NormalizedUpPath } from "../../core/index.js";
 
 import type {
-	IDefaultEditBuilder,
-	OptionalFieldEditBuilder,
-	SequenceFieldEditBuilder,
-	ValueFieldEditBuilder,
+	HighLevelDataEditor,
+	HighLevelOptionalFieldEditor,
+	HighLevelSequenceFieldEditor,
+	HighLevelRequiredFieldEditor,
 } from "./defaultEditBuilder.js";
 
 /**
  * An IDefaultEditBuilder implementation based on another IDefaultEditBuilder that uses a different content type for insertions.
  */
-export class MappedEditBuilder<TBase, TAdapted, TDetachedRoots>
-	implements IDefaultEditBuilder<TAdapted, TDetachedRoots>
-{
+export class MappedEditBuilder<TBase, TAdapted> implements HighLevelDataEditor<TAdapted> {
 	public constructor(
-		private readonly baseBuilder: IDefaultEditBuilder<TBase, TDetachedRoots>,
+		private readonly baseBuilder: HighLevelDataEditor<TBase>,
 		private readonly mapDelegate: (input: TAdapted) => TBase,
 	) {}
-	public hydrate(unhydrated: TAdapted): TDetachedRoots {
-		return this.baseBuilder.hydrate(this.mapDelegate(unhydrated));
-	}
-	public valueField(
-		field: NormalizedFieldUpPath,
-	): ValueFieldEditBuilder<TAdapted, TDetachedRoots> {
+	public valueField(field: NormalizedFieldUpPath): HighLevelRequiredFieldEditor<TAdapted> {
 		const baseField = this.baseBuilder.valueField(field);
 		return {
-			attach: (newContent: TDetachedRoots): void => {
-				baseField.attach(newContent);
-			},
 			set: (newContent: TAdapted): void => {
 				const mappedContent = this.mapDelegate(newContent);
 				baseField.set(mappedContent);
 			},
 		};
 	}
-	public optionalField(
-		field: NormalizedFieldUpPath,
-	): OptionalFieldEditBuilder<TAdapted, TDetachedRoots> {
+	public optionalField(field: NormalizedFieldUpPath): HighLevelOptionalFieldEditor<TAdapted> {
 		const baseField = this.baseBuilder.optionalField(field);
 		return {
-			attach: (newContent: TDetachedRoots, wasEmpty: boolean): void => {
-				baseField.attach(newContent, wasEmpty);
-			},
-			clear: (wasEmpty: boolean): void => {
-				baseField.clear(wasEmpty);
-			},
 			set: (newContent: TAdapted | undefined, wasEmpty: boolean): void => {
 				const mappedContent =
 					newContent === undefined ? undefined : this.mapDelegate(newContent);
@@ -57,17 +39,12 @@ export class MappedEditBuilder<TBase, TAdapted, TDetachedRoots>
 			},
 		};
 	}
-	public sequenceField(
-		field: NormalizedFieldUpPath,
-	): SequenceFieldEditBuilder<TAdapted, TDetachedRoots> {
+	public sequenceField(field: NormalizedFieldUpPath): HighLevelSequenceFieldEditor<TAdapted> {
 		const baseField = this.baseBuilder.sequenceField(field);
 		return {
 			insert: (index: number, content: TAdapted): void => {
 				const mappedContent = this.mapDelegate(content);
 				baseField.insert(index, mappedContent);
-			},
-			attach: (index: number, content: TDetachedRoots): void => {
-				baseField.attach(index, content);
 			},
 			remove: (index: number, count: number): void => {
 				baseField.remove(index, count);

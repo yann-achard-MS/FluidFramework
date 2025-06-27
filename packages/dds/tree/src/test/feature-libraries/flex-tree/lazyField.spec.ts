@@ -33,7 +33,6 @@ import {
 	defaultSchemaPolicy,
 	Context,
 	isFlexTreeNode,
-	mapTreeFromCursor,
 } from "../../../feature-libraries/index.js";
 import { brand, disposeSymbol } from "../../../util/index.js";
 import {
@@ -51,9 +50,10 @@ import {
 } from "./utils.js";
 import { numberSchema, SchemaFactory, stringSchema } from "../../../simple-tree/index.js";
 import { getStoredSchema, toStoredSchema } from "../../../simple-tree/toStoredSchema.js";
-import { fieldJsonCursor, singleJsonCursor } from "../../json/index.js";
+import { singleJsonCursor } from "../../json/index.js";
 import { JsonAsTree } from "../../../jsonDomainSchema.js";
-import type { TreeCheckout } from "../../../shared-tree/treeCheckout.js";
+import { unhydratedFlexTreeFromCursor } from "../../../simple-tree/api/create.js";
+import { getUnhydratedContext } from "../../../simple-tree/createContext.js";
 
 const detachedField: FieldKey = brand("detached");
 const detachedFieldAnchor: FieldAnchor = { parent: undefined, fieldKey: detachedField };
@@ -87,7 +87,7 @@ describe("LazyField", () => {
 		);
 		cursor.free();
 		assert.throws(
-			() => optionalField.editor.attach([], optionalField.length === undefined),
+			() => optionalField.editor.set(undefined, optionalField.length === undefined),
 			(e: Error) =>
 				validateAssertionError(e, /only allowed on fields with TreeStatus.InDocument status/),
 		);
@@ -363,23 +363,17 @@ describe("LazyField", () => {
 			});
 			assert(view.flexTree.is(FieldKinds.optional));
 			assert.equal(view.flexTree.content, 5);
-			const chunk = view.checkout.forest.chunkField(fieldJsonCursor([6]));
-			const detachedIds = view.checkout.editor.hydrate(chunk);
-			const checkout = view.checkout as TreeCheckout;
-			const detached = detachedIds.flatMap((id) => [
-				...view.context.detachedField(id, FieldKinds.sequence.identifier),
-			]);
-			view.flexTree.editor.attach(detached, view.flexTree.length === 0);
+			const context = getUnhydratedContext(JsonAsTree.Tree);
+			view.flexTree.editor.set(
+				unhydratedFlexTreeFromCursor(context, singleJsonCursor(6)),
+				view.flexTree.length === 0,
+			);
+
 			assert.equal(view.flexTree.content, 6);
 			view.flexTree.editor.set(undefined, view.flexTree.length === 0);
 			assert.equal(view.flexTree.content, undefined);
 			view.flexTree.editor.set(
-				mapTreeFromCursor(
-					cursorForJsonableTreeNode({
-						type: brand(numberSchema.identifier),
-						value: 7,
-					}),
-				),
+				unhydratedFlexTreeFromCursor(context, singleJsonCursor(7)),
 				view.flexTree.length === 0,
 			);
 			assert.equal(view.flexTree.content, 7);
@@ -428,13 +422,16 @@ describe("LazyField", () => {
 			});
 			assert(view.flexTree.is(FieldKinds.required));
 			assert.equal(view.flexTree.content, "X");
-			view.flexTree.editor.set(mapTreeFromCursor(singleJsonCursor("Y")));
+			const unhydratedContext = getUnhydratedContext(JsonAsTree.Tree);
+			view.flexTree.editor.set(
+				unhydratedFlexTreeFromCursor(unhydratedContext, singleJsonCursor("Y")),
+			);
 			assert.equal(view.flexTree.content, "Y");
 			const zCursor = cursorForJsonableTreeNode({
 				type: brand(stringSchema.identifier),
 				value: "Z",
 			});
-			view.flexTree.editor.set(mapTreeFromCursor(zCursor));
+			view.flexTree.editor.set(unhydratedFlexTreeFromCursor(unhydratedContext, zCursor));
 			assert.equal(view.flexTree.content, "Z");
 		});
 	});

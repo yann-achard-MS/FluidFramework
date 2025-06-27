@@ -21,7 +21,7 @@ import { typeboxValidator } from "../../external-utilities/index.js";
 // eslint-disable-next-line import/no-internal-modules
 import { optional } from "../../feature-libraries/default-schema/defaultFieldKinds.js";
 import {
-	DefaultEditBuilder,
+	DefaultLowLevelDataEditor,
 	ModularChangeFamily,
 	type ModularChangeset,
 	ModularEditBuilder,
@@ -61,8 +61,10 @@ const content: JsonCompatible = { x: 42 };
 const modularFamily = new ModularChangeFamily(fieldKinds, failCodecFamily);
 
 const dataChanges: ModularChangeset[] = [];
-const defaultEditor = new DefaultEditBuilder(modularFamily, mintRevisionTag, (taggedChange) =>
-	dataChanges.push(taggedChange.change),
+const defaultEditor = new DefaultLowLevelDataEditor(
+	modularFamily,
+	mintRevisionTag,
+	(taggedChange) => dataChanges.push(taggedChange.change),
 );
 const modularBuilder = new ModularEditBuilder(
 	modularFamily,

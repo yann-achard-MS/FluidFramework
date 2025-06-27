@@ -17,7 +17,7 @@ import {
 import {
 	DefaultChangeFamily,
 	type DefaultChangeset,
-	type DefaultEditBuilder,
+	type DefaultLowLevelDataEditor,
 } from "../../feature-libraries/index.js";
 import {
 	SharedTreeBranch,
@@ -29,7 +29,7 @@ import { chunkFromJsonableTrees, failCodecFamily, mintRevisionTag } from "../uti
 
 const defaultChangeFamily = new DefaultChangeFamily(failCodecFamily);
 
-type DefaultBranch = SharedTreeBranch<DefaultEditBuilder, DefaultChangeset>;
+type DefaultBranch = SharedTreeBranch<DefaultLowLevelDataEditor, DefaultChangeset>;
 
 describe("Branches", () => {
 	/** The tag used for the "origin commit" (the commit that all other commits share as a common ancestor) */

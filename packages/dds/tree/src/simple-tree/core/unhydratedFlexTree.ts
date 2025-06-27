@@ -39,16 +39,15 @@ import {
 	type FlexFieldKind,
 	FieldKinds,
 	cursorForMapTreeNode,
-	type SequenceFieldEditBuilder,
-	type FlexTreeDetachedRoots,
-	type ValueFieldEditBuilder,
+	type HighLevelSequenceFieldEditor,
+	type HighLevelRequiredFieldEditor,
 	type FlexTreeHydratedContextMinimal,
 	type FlexibleFieldContent,
 	type MapTreeFieldViewGeneric,
 	type MapTreeNodeViewGeneric,
 	type HydratedFlexTreeNode,
 	type FlexibleNodeContent,
-	type OptionalFieldEditBuilder,
+	type HighLevelOptionalFieldEditor,
 	cursorForMapTreeField,
 	type MinimalFieldMap,
 } from "../../feature-libraries/index.js";
@@ -59,7 +58,7 @@ import type { ContextualFieldProvider } from "../schemaTypes.js";
 import type { TreeNode } from "./treeNode.js";
 
 interface UnhydratedTreeSequenceFieldEditBuilder
-	extends SequenceFieldEditBuilder<FlexibleFieldContent, FlexTreeDetachedRoots> {}
+	extends HighLevelSequenceFieldEditor<FlexibleFieldContent> {}
 
 type UnhydratedFlexTreeNodeEvents = Pick<AnchorEvents, "childrenChangedAfterBatch">;
 
@@ -449,10 +448,7 @@ export class UnhydratedOptionalField
 	extends UnhydratedFlexTreeField
 	implements FlexTreeOptionalField
 {
-	public readonly editor: OptionalFieldEditBuilder<
-		FlexibleNodeContent,
-		FlexTreeDetachedRoots
-	> = {
+	public readonly editor: HighLevelOptionalFieldEditor<FlexibleNodeContent> = {
 		set: (newContent: FlexibleNodeContent | undefined): void => {
 			// If the new content is a UnhydratedFlexTreeNode, it needs to have its parent pointer updated
 			if (newContent !== undefined) {
@@ -470,12 +466,6 @@ export class UnhydratedOptionalField
 				}
 			});
 		},
-		attach: (content: FlexTreeDetachedRoots, wasEmpty: boolean): void => {
-			throw new UsageError("Unable to attach a detached root under an unhydrated parent.");
-		},
-		clear: (wasEmpty: boolean): void => {
-			this.editor.set(undefined, wasEmpty);
-		},
 	};
 
 	public get content(): FlexTreeUnknownUnboxed | undefined {
@@ -492,7 +482,7 @@ export class UnhydratedRequiredField
 	extends UnhydratedFlexTreeField
 	implements FlexTreeRequiredField
 {
-	public readonly editor: ValueFieldEditBuilder<FlexibleNodeContent, FlexTreeDetachedRoots> = {
+	public readonly editor: HighLevelRequiredFieldEditor<FlexibleNodeContent> = {
 		set: (newContent: FlexibleNodeContent): void => {
 			assert(
 				newContent instanceof UnhydratedFlexTreeNode,
@@ -502,9 +492,6 @@ export class UnhydratedRequiredField
 			this.edit((mapTrees) => {
 				mapTrees[0] = newContent;
 			});
-		},
-		attach: (content: FlexTreeDetachedRoots): void => {
-			throw new UsageError("Unable to attach a detached root under an unhydrated parent.");
 		},
 	};
 
@@ -553,9 +540,6 @@ export class UnhydratedSequenceField
 				removed = mapTrees.splice(index, count);
 			});
 			return removed ?? fail(0xb4a /* Expected removed to be set by edit */);
-		},
-		attach: (index: number, detachedContent: FlexTreeDetachedRoots): void => {
-			throw new UsageError("Unable to attach a detached root under an unhydrated parent.");
 		},
 	} satisfies UnhydratedTreeSequenceFieldEditBuilder;
 
