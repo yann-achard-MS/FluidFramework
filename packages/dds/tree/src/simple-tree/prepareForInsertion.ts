@@ -12,6 +12,7 @@ import {
 	type DetachedField,
 	type TreeFieldStoredSchema,
 	dummyRoot,
+	offsetChangeAtomId,
 } from "../core/index.js";
 import {
 	type FlexTreeContext,
@@ -155,7 +156,9 @@ function validateAndPrepare(
 		const chunk = hydratedData.checkout.forest.chunkField(
 			cursorForMapTreeField(field.children),
 		);
-		hydratedData.checkout.editor.buildRoots(chunk);
+		const rootIds = hydratedData.checkout.editor.buildRoots(chunk);
+		const fields = hydratedData.checkout.getRemovedRootsFields(rootIds);
+		console.log(`built nodes: ${JSON.stringify(fields)}`);
 
 		// TODO: do edits to move existing content into newly built tree.
 		// TODO: hydrate nodes as needed

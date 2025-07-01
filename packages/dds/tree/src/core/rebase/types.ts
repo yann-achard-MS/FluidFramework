@@ -125,7 +125,7 @@ export function taggedOptAtomId(
 	return taggedAtomId(id, revision);
 }
 
-export function offsetChangeAtomId(id: ChangeAtomId, offset: number): ChangeAtomId {
+export function offsetChangeAtomId<T extends ChangeAtomId = ChangeAtomId>(id: T, offset: number): T {
 	return { ...id, localId: brand(id.localId + offset) };
 }
 

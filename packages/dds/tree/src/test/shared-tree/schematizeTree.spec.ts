@@ -13,12 +13,14 @@ import {
 	type TreeStoredSchema,
 	TreeStoredSchemaRepository,
 	type AnchorSetRootEvents,
+	type FieldKey,
 } from "../../core/index.js";
 import { singleJsonCursor } from "../json/index.js";
 import {
 	FieldKinds,
 	allowsRepoSuperset,
 	defaultSchemaPolicy,
+	type DetachedRootIds,
 } from "../../feature-libraries/index.js";
 import type {
 	ITreeCheckout,
@@ -180,6 +182,9 @@ describe("schematizeTree", () => {
 			events: undefined as unknown as Listenable<CheckoutEvents>,
 			rootEvents: undefined as unknown as Listenable<AnchorSetRootEvents>,
 			getRemovedRoots(): [string | number | undefined, number, JsonableTree][] {
+				throw new Error("Function not implemented.");
+			},
+			getRemovedRootsFields(rootIds: DetachedRootIds): FieldKey[] {
 				throw new Error("Function not implemented.");
 			},
 			locate(anchor: Anchor): AnchorNode | undefined {

@@ -95,6 +95,7 @@ import {
 	type ExclusiveMapTree,
 	type MapTree,
 	SchemaVersion,
+	type FieldKey,
 } from "../core/index.js";
 import { typeboxValidator } from "../external-utilities/index.js";
 import {
@@ -117,6 +118,7 @@ import {
 	type MinimalMapTreeNodeView,
 	jsonableTreeFromCursor,
 	cursorForMapTreeNode,
+	type DetachedRootIds,
 } from "../feature-libraries/index.js";
 import {
 	type CheckoutEvents,
@@ -1376,6 +1378,10 @@ export class MockTreeCheckout implements ITreeCheckout {
 	public getRemovedRoots(): [string | number | undefined, number, JsonableTree][] {
 		throw new Error("Method 'getRemovedRoots' not implemented in MockTreeCheckout.");
 	}
+	public getRemovedRootsFields(rootIds: DetachedRootIds): FieldKey[] {
+		throw new Error("Method 'getRemovedRootPath' not implemented in MockTreeCheckout.");
+	}
+
 	public locate(anchor: Anchor): AnchorNode | undefined {
 		throw new Error("Method 'locate' not implemented in MockTreeCheckout.");
 	}

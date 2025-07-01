@@ -102,7 +102,7 @@ export {
 	posetLte,
 } from "./modular-schema/index.js";
 
-export { mapRootChanges } from "./deltaUtils.js";
+export { mapRootChanges, nodeIdFromChangeAtom } from "./deltaUtils.js";
 
 export {
 	type TreeChunk,
@@ -137,6 +137,7 @@ export {
 	type Identifier,
 	type Forbidden,
 	type DefaultChangeset,
+	type DetachedRootIds,
 	DefaultChangeFamily,
 	DefaultLowLevelDataEditor,
 	type LowLevelDataEditor,

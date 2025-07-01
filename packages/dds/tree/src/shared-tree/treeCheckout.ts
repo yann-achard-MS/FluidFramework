@@ -42,8 +42,11 @@ import {
 	type RevertibleAlpha,
 	type GraphCommit,
 	isAncestor,
+	type FieldKey,
+	offsetChangeAtomId,
 } from "../core/index.js";
 import {
+	type DetachedRootIds,
 	type FieldBatchCodec,
 	type TreeCompressionStrategy,
 	buildForest,
@@ -51,6 +54,7 @@ import {
 	intoDelta,
 	jsonableTreeFromCursor,
 	makeFieldBatchCodec,
+	nodeIdFromChangeAtom,
 } from "../feature-libraries/index.js";
 import {
 	SquashingTransactionStack,
@@ -241,6 +245,14 @@ export interface ITreeCheckout extends AnchorLocator, ViewableTree, WithBreakabl
 	 * Events about the root of the tree in this view.
 	 */
 	readonly rootEvents: Listenable<AnchorSetRootEvents>;
+
+	/**
+	 * Returns an array of `FieldKey`s where each entry corresponds to removed/detached root listed in the given `rootIds`.
+	 * The order of the returned `FieldKey`s matches the order of the given `rootIds`.
+	 *
+	 * @param rootIds - The IDs of the roots to get the `FieldKey`s for.
+	 */
+	getRemovedRootsFields(rootIds: DetachedRootIds): FieldKey[];
 
 	/**
 	 * Returns a JsonableTree for each tree that was removed from (and not restored to) the document.
@@ -798,6 +810,21 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			view.dispose();
 		}
 		this.#events.emit("dispose");
+	}
+
+	public getRemovedRootsFields(rootIds: DetachedRootIds): FieldKey[] {
+		this.checkNotDisposed();
+		return rootIds.flatMap((rootIdRange) => {
+			const fieldKeys: FieldKey[] = [];
+			for (let iNode = 0; iNode < rootIdRange.count; iNode++) {
+				const nodeId = offsetChangeAtomId(rootIdRange.first, iNode);
+				const detachedNodeId = nodeIdFromChangeAtom(nodeId);
+				const forestId = this.removedRoots.getEntry(detachedNodeId);
+				const fieldKey = this.removedRoots.toFieldKey(forestId);
+				fieldKeys.push(fieldKey);
+			}
+			return fieldKeys;
+		});
 	}
 
 	public getRemovedRoots(): [string | number | undefined, number, JsonableTree][] {
