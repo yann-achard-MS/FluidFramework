@@ -3276,11 +3276,86 @@ describe("Editing", () => {
 			const hydratedChild = view.root.child ?? fail("Expected child to be present");
 			assert.throws(() => new Parent({ child: hydratedChild }));
 		});
+
+		it("cannot be used in the hydration of an array", () => {
+			const sf = new SchemaFactory(undefined);
+			class Child extends sf.object("Child", {}) {}
+			class Parent extends sf.array("Parent", Child) {}
+			const provider = new TestTreeProviderLite(2);
+			const viewA = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
+			const viewB = provider.trees[1].viewWith(new TreeViewConfiguration({ schema: Parent }));
+			viewA.initialize(new Parent([new Child({})]));
+			provider.synchronizeMessages();
+			const childOnViewA = viewA.root[0];
+			const childOnViewB = viewB.root[0];
+
+			viewA.root.removeAt(0);
+			provider.synchronizeMessages();
+
+			// It is valid to create an unhydrated array with a hydrated detached child,
+			const unhydratedArray = new Parent([childOnViewA]);
+
+			viewB.root.insertAtEnd(childOnViewB);
+			provider.synchronizeMessages();
+
+			// This should throw because the hydrated child is now attached.
+			assert.throws(() => (viewA.root = unhydratedArray));
+		});
+
+		it("cannot be used in the hydration of a map", () => {
+			const sf = new SchemaFactory(undefined);
+			class Child extends sf.object("Child", {}) {}
+			class Parent extends sf.map("Parent", Child) {}
+			const provider = new TestTreeProviderLite(2);
+			const viewA = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
+			const viewB = provider.trees[1].viewWith(new TreeViewConfiguration({ schema: Parent }));
+			viewA.initialize(new Parent([["c1", new Child({})]]));
+			provider.synchronizeMessages();
+
+			const childOnViewA = viewA.root.get("c1") ?? fail("Expected child to be present");
+			const childOnViewB = viewB.root.get("c1") ?? fail("Expected child to be present");
+
+			// It is valid to create an unhydrated map with a hydrated detached child,
+			const unhydratedMap = new Parent([["c1", childOnViewA]]);
+
+			viewB.root.set("c2", childOnViewB);
+			provider.synchronizeMessages();
+
+			// This should throw because the hydrated child is now attached.
+			assert.throws(() => (viewA.root = unhydratedMap));
+		});
+
+		it("cannot be used in the hydration of an object", () => {
+			const sf = new SchemaFactory(undefined);
+			class Child extends sf.object("Child", {}) {}
+			class Parent extends sf.object("Parent", {
+				child: sf.optional(Child),
+			}) {}
+			const provider = new TestTreeProviderLite(1);
+			const viewA = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
+			const viewB = provider.trees[1].viewWith(new TreeViewConfiguration({ schema: Parent }));
+			viewA.initialize(new Parent({ child: new Child({}) }));
+			provider.synchronizeMessages();
+
+			const childOnViewA = viewA.root.child ?? fail("Expected child to be present");
+			const childOnViewB = viewB.root.child ?? fail("Expected child to be present");
+
+			// It is valid to create an unhydrated object with a hydrated detached child,
+			const unhydratedObject = new Parent({ child: childOnViewA });
+
+			viewB.root.child = childOnViewB;
+			provider.synchronizeMessages();
+
+			// This should throw because the hydrated child is now attached.
+			assert.throws(() => (viewA.root = unhydratedObject));
+		});
 	});
 
 	describe("Detached nodes", () => {
-		const containers = ["an array", "a map", "an object's optional field"] as const;
-		describe("can be reattached anywhere except in an object's required field ", () => {
+		const validSrcContainers = ["an array", "a map", "an object's optional field"] as const;
+		const validDstContainers = validSrcContainers;
+
+		describe("can be detached and reattached so long as neither the source nor the destination is an object's required field", () => {
 			const sf = new SchemaFactory(undefined);
 			class Child extends sf.object("Child", {}) {}
 			class ArrayParent extends sf.array("Array", Child) {}
@@ -3292,16 +3367,13 @@ describe("Editing", () => {
 				object: ObjParent,
 			}) {}
 
-			for (const src of containers) {
-				for (const dst of containers) {
+			for (const src of validSrcContainers) {
+				for (const dst of validDstContainers) {
 					it(`detach from ${src} and attach to ${dst}`, () => {
 						const provider = new TestTreeProviderLite(2);
-						const viewA = provider.trees[0].viewWith(
-							new TreeViewConfiguration({ schema: Root }),
-						);
-						const viewB = provider.trees[1].viewWith(
-							new TreeViewConfiguration({ schema: Root }),
-						);
+						const config = new TreeViewConfiguration({ schema: Root });
+						const viewA = provider.trees[0].viewWith(config);
+						const viewB = provider.trees[1].viewWith(config);
 						viewA.initialize(
 							new Root({
 								array: new ArrayParent([new Child({})]),
@@ -3382,7 +3454,7 @@ describe("Editing", () => {
 				map: MapParent,
 				object: ObjParent,
 			}) {}
-			for (const src of containers) {
+			for (const src of validSrcContainers) {
 				it(`detach from ${src} and attach to an object's required field throws`, () => {
 					const provider = new TestTreeProviderLite(2);
 					const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Root }));
@@ -3418,6 +3490,128 @@ describe("Editing", () => {
 					assert.throws(() => (view.root.object.reqChild = hydratedChild));
 				});
 			}
+		});
+
+		describe("cannot be reattached anywhere after being detached from an object's required field", () => {
+			const sf = new SchemaFactory(undefined);
+			class Child extends sf.object("Child", {}) {}
+			class ArrayParent extends sf.array("Array", Child) {}
+			class MapParent extends sf.map("MapParent", Child) {}
+			class ObjParent extends sf.object("ObjParent", {
+				reqChild: Child,
+				optChild: sf.optional(Child),
+			}) {}
+			class Root extends sf.object("Root", {
+				array: ArrayParent,
+				map: MapParent,
+				object: ObjParent,
+			}) {}
+			const config = new TreeViewConfiguration({ schema: Root });
+
+			for (const dst of [
+				"an array",
+				"a map",
+				"an object's optional field",
+				"an object's required field",
+			] as const) {
+				it(`detach from an object's required field and attach to ${dst}`, () => {
+					const provider = new TestTreeProviderLite(2);
+					const view = provider.trees[0].viewWith(config);
+					view.initialize(
+						new Root({
+							array: new ArrayParent([]),
+							map: new MapParent([]),
+							object: new ObjParent({ reqChild: new Child({}) }),
+						}),
+					);
+					provider.synchronizeMessages();
+
+					const hydratedChild = view.root.object.reqChild ?? fail("Missing child");
+
+					// Detach the child
+					view.root.object.reqChild = new Child({});
+					assert.equal(Tree.status(hydratedChild), TreeStatus.Removed);
+
+					switch (dst) {
+						case "an array": {
+							assert.throws(() => view.root.array.insertAtEnd(hydratedChild));
+							break;
+						}
+						case "a map": {
+							assert.throws(() => view.root.map.set("dst", hydratedChild));
+							break;
+						}
+						case "an object's optional field": {
+							assert.throws(() => (view.root.object.optChild = hydratedChild));
+							break;
+						}
+						case "an object's required field": {
+							assert.throws(() => (view.root.object.reqChild = hydratedChild));
+							break;
+						}
+						default:
+							fail(`Unexpected destination container: ${dst}`);
+					}
+				});
+			}
+		});
+
+		it("can be concurrently reattached in different locations", () => {
+			const sf = new SchemaFactory(undefined);
+			class Child extends sf.object("Child", {}) {}
+			class ArrayParent extends sf.array("Array", Child) {}
+			class MapParent extends sf.map("MapParent", Child) {}
+			class Root extends sf.object("Root", {
+				array: ArrayParent,
+				map: MapParent,
+				optChild: sf.optional(Child),
+			}) {}
+
+			const provider = new TestTreeProviderLite(2);
+			const config = new TreeViewConfiguration({ schema: Root });
+			const viewA = provider.trees[0].viewWith(config);
+			const viewB = provider.trees[1].viewWith(config);
+			viewA.initialize(
+				new Root({
+					array: new ArrayParent([]),
+					map: new MapParent([]),
+					optChild: new Child({}),
+				}),
+			);
+			provider.synchronizeMessages();
+
+			const hydratedChildOnA = viewA.root.optChild ?? fail("Missing child");
+			const hydratedChildOnB = viewB.root.optChild ?? fail("Missing child");
+
+			// Detach the child from both views
+			viewA.root.optChild = undefined;
+			viewB.root.optChild = undefined;
+
+			assert.equal(Tree.status(hydratedChildOnA), TreeStatus.Removed);
+			assert.equal(Tree.status(hydratedChildOnB), TreeStatus.Removed);
+
+			// Concurrent re-insertion into different locations
+			// Leads to a LWW resolution
+			viewA.root.array.insertAtEnd(hydratedChildOnA);
+			provider.trees[0].containerRuntime.flush();
+			viewB.root.map.set("dst", hydratedChildOnB);
+			provider.synchronizeMessages();
+
+			assert.equal(Tree.status(hydratedChildOnA), TreeStatus.InDocument);
+			assert.equal(Tree.status(hydratedChildOnB), TreeStatus.InDocument);
+			assert.equal(viewA.root.map.get("dst"), hydratedChildOnA);
+			assert.equal(viewA.root.array.length, 0);
+			const expected = [
+				{
+					array: [],
+					map: { dst: {} },
+					optChild: undefined,
+				},
+			];
+			expectJsonTree(
+				[provider.trees[0].kernel.checkout, provider.trees[1].kernel.checkout],
+				expected,
+			);
 		});
 
 		describe("can be edited while detached", () => {

@@ -947,8 +947,8 @@ export function jsonTreeFromForest(forest: IForestSubscription): JsonCompatible[
 }
 
 export function expectJsonTree(
-	actual: ITreeCheckout | ITreeCheckout[],
-	expected: JsonCompatible[],
+	actual: ITreeCheckout | readonly ITreeCheckout[],
+	expected: readonly JsonCompatible[],
 	expectRemovedRootsAreSynchronized = true,
 ): void {
 	const trees = Array.isArray(actual) ? actual : [actual];
