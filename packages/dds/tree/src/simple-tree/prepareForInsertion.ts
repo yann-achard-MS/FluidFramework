@@ -12,7 +12,6 @@ import {
 	type DetachedField,
 	type TreeFieldStoredSchema,
 	dummyRoot,
-	offsetChangeAtomId,
 } from "../core/index.js";
 import {
 	type FlexTreeContext,
