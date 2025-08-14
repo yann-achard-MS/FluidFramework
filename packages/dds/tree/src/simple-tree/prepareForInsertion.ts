@@ -83,7 +83,7 @@ export function prepareForInsertion<TIn extends InsertableContent | undefined>(
 	// TODO: when supporting back compat to not edit detached fields, caller will have to finalize after attaching to in document location.
 	content.finalize(content.toAttach);
 	return (
-		content.toAttach.length === 0 ? undefined : content.toAttach[1]
+		content.toAttach.length === 0 ? undefined : content.toAttach[0]
 	) as TIn extends undefined ? undefined : FlexibleNodeContent;
 }
 
@@ -327,7 +327,7 @@ function validateAndPrepare(
 			},
 		};
 	} else {
-		return { toAttach: field.children, finalize: cleanup };
+		return { toAttach: [...field.children], finalize: cleanup };
 	}
 }
 
