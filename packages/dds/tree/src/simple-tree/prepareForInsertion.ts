@@ -3,16 +3,17 @@
  * Licensed under the MIT License.
  */
 
-import {
-	type SchemaAndPolicy,
-	type IForestSubscription,
-	type UpPath,
-	type NodeIndex,
-	type FieldKey,
-	type DetachedField,
-	type TreeFieldStoredSchema,
-	dummyRoot,
+import type {
+	SchemaAndPolicy,
+	IForestSubscription,
+	UpPath,
+	NodeIndex,
+	FieldKey,
+	DetachedField,
+	TreeFieldStoredSchema,
+	TreeTypeSet,
 } from "../core/index.js";
+import { dummyRoot } from "../core/index.js";
 import {
 	type FlexTreeContext,
 	getSchemaAndPolicy,
@@ -22,28 +23,35 @@ import {
 	type FlexibleNodeContent,
 	type FlexTreeNode,
 	cursorForMapTreeField,
+	throwOutOfSchema,
 } from "../feature-libraries/index.js";
-import {
-	normalizeFieldSchema,
-	type ImplicitAllowedTypes,
-	type ImplicitFieldSchema,
-} from "./schemaTypes.js";
+import { normalizeFieldSchema, type ImplicitAnnotatedFieldSchema } from "./fieldSchema.js";
 import {
 	type InsertableContent,
 	flexTreeFromInsertable,
 } from "./unhydratedFlexTreeFromInsertable.js";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 import { brand } from "../util/index.js";
-import { createField, getKernel, type TreeNode } from "./core/index.js";
-import { assert, debugAssert, oob } from "@fluidframework/core-utils/internal";
-import { inSchemaOrThrow, isFieldInSchema } from "../feature-libraries/index.js";
-import { convertField } from "./toStoredSchema.js";
-import { getUnhydratedContext } from "./createContext.js";
 import {
-	type UnhydratedFlexTreeField,
+	createField,
+	getKernel,
 	UnhydratedFlexTreeNode,
-	// eslint-disable-next-line import/no-internal-modules
-} from "./core/unhydratedFlexTree.js";
+	type ImplicitAnnotatedAllowedTypes,
+	type TreeNode,
+	type UnhydratedFlexTreeField,
+} from "./core/index.js";
+import { assert, debugAssert, oob } from "@fluidframework/core-utils/internal";
+import { isFieldInSchema } from "../feature-libraries/index.js";
+import { getUnhydratedContext } from "./createContext.js";
+import { convertField, permissiveStoredSchemaGenerationOptions } from "./toStoredSchema.js";
+
+/**
+ * For now, schema validation for inserted content is always enabled.
+ * @remarks
+ * If this ends up being too much of a performance overhead, AND nothing depends on it (like staged allowed types likely will),
+ * this could be changed.
+ */
+const validateSchema = true;
 
 /**
  * Prepare content from a user for insertion into a tree.
@@ -55,14 +63,16 @@ import {
  */
 export function prepareForInsertion<TIn extends InsertableContent | undefined>(
 	data: TIn,
-	schema: ImplicitFieldSchema,
+	schema: ImplicitAnnotatedFieldSchema,
 	destinationContext: FlexTreeContext,
+	destinationSchema: TreeFieldStoredSchema,
 ): TIn extends undefined ? undefined : FlexibleNodeContent {
 	return prepareForInsertionContextless(
 		data,
 		schema,
 		getSchemaAndPolicy(destinationContext),
 		destinationContext.isHydrated() ? destinationContext : undefined,
+		destinationSchema,
 	);
 }
 
@@ -81,15 +91,20 @@ export function prepareForInsertion<TIn extends InsertableContent | undefined>(
  */
 export function prepareArrayContentForInsertion(
 	data: readonly InsertableContent[],
-	schema: ImplicitAllowedTypes,
+	schema: ImplicitAnnotatedAllowedTypes,
 	destinationContext: FlexTreeContext,
+	destinationSchema: TreeTypeSet,
 ): FlexibleFieldContent {
 	const mapTrees: FlexTreeNode[] = data.map((item) => flexTreeFromInsertable(item, schema));
 
-	const fieldSchema = convertField(normalizeFieldSchema(schema));
+	const fieldSchema = convertField(
+		normalizeFieldSchema(schema),
+		permissiveStoredSchemaGenerationOptions,
+	);
 
+	const normalizedFieldSchema = normalizeFieldSchema(schema);
 	const field = createField(
-		getUnhydratedContext(schema).flexContext,
+		getUnhydratedContext(normalizedFieldSchema).flexContext,
 		fieldSchema.kind,
 		dummyRoot,
 		mapTrees,
@@ -98,7 +113,11 @@ export function prepareArrayContentForInsertion(
 	validateAndPrepare(
 		getSchemaAndPolicy(destinationContext),
 		destinationContext.isHydrated() ? destinationContext : undefined,
-		{ kind: FieldKinds.sequence.identifier, types: fieldSchema.types },
+		{
+			kind: FieldKinds.sequence.identifier,
+			types: destinationSchema,
+			persistedMetadata: undefined,
+		},
 		field,
 	);
 
@@ -116,23 +135,28 @@ export function prepareArrayContentForInsertion(
  */
 export function prepareForInsertionContextless<TIn extends InsertableContent | undefined>(
 	data: TIn,
-	schema: ImplicitFieldSchema,
+	schema: ImplicitAnnotatedFieldSchema,
 	schemaAndPolicy: SchemaAndPolicy,
 	hydratedData: FlexTreeHydratedContextMinimal | undefined,
+	destinationSchema: TreeFieldStoredSchema,
 ): TIn extends undefined ? undefined : FlexibleNodeContent {
 	const mapTree = flexTreeFromInsertable(data, schema);
 
 	const contentArray = mapTree === undefined ? [] : [mapTree];
-	const fieldSchema = convertField(normalizeFieldSchema(schema));
+	const normalizedFieldSchema = normalizeFieldSchema(schema);
+	const fieldSchema = convertField(
+		normalizedFieldSchema,
+		permissiveStoredSchemaGenerationOptions,
+	);
 
 	const field = createField(
-		getUnhydratedContext(schema).flexContext,
+		getUnhydratedContext(normalizedFieldSchema).flexContext,
 		fieldSchema.kind,
 		dummyRoot,
 		contentArray,
 	);
 
-	validateAndPrepare(schemaAndPolicy, hydratedData, fieldSchema, field);
+	validateAndPrepare(schemaAndPolicy, hydratedData, destinationSchema, field);
 
 	return mapTree;
 }
@@ -166,9 +190,12 @@ function validateAndPrepare(
 		// This ensures that when `isFieldInSchema` requests identifiers (or any other contextual defaults),
 		// they were already creating used the more specific context we have access to from `hydratedData`.
 		prepareContentForHydration(field.children, hydratedData.checkout.forest, hydratedData);
-		if (schemaAndPolicy.policy.validateSchema === true) {
-			const maybeError = isFieldInSchema(field, fieldSchema, schemaAndPolicy);
-			inSchemaOrThrow(maybeError);
+		// TODO: AB#45723
+		// Now that staged schema rely on this validation, its a bit odd we don't do it for insertion into unhydrated contexts.
+		// We can't simply enable it for them however due to contextual default fields which would not have been created yet (see comment above).
+		// Specifically at least clone can result in unhydrated trees which can end up violating their stored schema (but not view schema) just using the type safe APIs.
+		if (validateSchema === true) {
+			isFieldInSchema(field, fieldSchema, schemaAndPolicy, throwOutOfSchema);
 		}
 	}
 

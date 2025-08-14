@@ -113,9 +113,12 @@ export {
 	type TreeNodeSchemaClass,
 	type SchemaCompatibilityStatus,
 	type FieldProps,
+	type FieldPropsAlpha,
+	normalizeFieldSchema,
 	type InternalTreeNode,
 	type WithType,
 	type NodeChangedData,
+	type SchemaUpgrade,
 	// Types not really intended for public use, but used in links.
 	// Can not be moved to internalTypes since doing so causes app code to throw errors like:
 	// Error: src/simple-tree/objectNode.ts:72:1 - (ae-unresolved-link) The @link reference could not be resolved: The package "@fluidframework/tree" does not have an export "TreeNodeApi"
@@ -129,6 +132,7 @@ export {
 	type FieldSchemaAlphaUnsafe,
 	type ArrayNodeCustomizableSchemaUnsafe,
 	type MapNodeCustomizableSchemaUnsafe,
+	type TreeRecordNodeUnsafe,
 	// System types (not in Internal types for various reasons, like doc links or cannot be named errors).
 	type typeSchemaSymbol,
 	type TreeNodeSchemaNonClass,
@@ -157,6 +161,7 @@ export {
 	type ImplicitAnnotatedFieldSchema,
 	type AnnotatedAllowedType,
 	type AnnotatedAllowedTypes,
+	type NormalizedAnnotatedAllowedTypes,
 	type AllowedTypeMetadata,
 	type AllowedTypesMetadata,
 	type InsertableObjectFromAnnotatedSchemaRecord,
@@ -164,9 +169,9 @@ export {
 	type UnannotateAllowedTypes,
 	type UnannotateAllowedType,
 	type UnannotateAllowedTypesList,
-	type UnannotateAllowedTypeOrLazyItem,
 	type UnannotateImplicitFieldSchema,
 	type UnannotateSchemaRecord,
+	type SchemaStaticsAlpha,
 	// Beta APIs
 	TreeBeta,
 	type TreeChangeEventsBeta,
@@ -194,10 +199,13 @@ export {
 	type JsonRefPath,
 	type JsonSchemaType,
 	type JsonLeafSchemaType,
+	type JsonRecordNodeSchema,
+	type JsonStringKeyPatternProperties,
 	getJsonSchema,
 	type LazyItem,
 	type Unenforced,
 	type SimpleNodeSchemaBase,
+	type SimpleNodeSchemaBaseAlpha,
 	type SimpleTreeSchema,
 	type SimpleNodeSchema,
 	type SimpleFieldSchema,
@@ -206,7 +214,12 @@ export {
 	type SimpleArrayNodeSchema,
 	type SimpleObjectNodeSchema,
 	type SimpleObjectFieldSchema,
+	type SimpleRecordNodeSchema,
 	normalizeAllowedTypes,
+	walkFieldSchema,
+	walkNodeSchema,
+	walkAllowedTypes,
+	type SchemaVisitor,
 	getSimpleSchema,
 	type ReadonlyArrayNode,
 	type InsertableTreeNodeFromAllowedTypes,
@@ -215,6 +228,7 @@ export {
 	type TreeBranchEvents,
 	asTreeViewAlpha,
 	type NodeSchemaOptions,
+	type NodeSchemaOptionsAlpha,
 	type NodeSchemaMetadata,
 	type SchemaStatics,
 	type ITreeAlpha,
@@ -245,6 +259,11 @@ export {
 	type ObjectFromSchemaRecord,
 	type ValidateRecursiveSchemaTemplate,
 	type FixRecursiveRecursionLimit,
+	RecordNodeSchema,
+	type RecordNodeCustomizableSchema,
+	type RecordNodeInsertableData,
+	type RecordNodePojoEmulationSchema,
+	type TreeRecordNode,
 } from "./simple-tree/index.js";
 export {
 	SharedTree,
@@ -282,6 +301,8 @@ export type {
 	PopUnion,
 	JsonCompatible,
 	JsonCompatibleObject,
+	JsonCompatibleReadOnly,
+	JsonCompatibleReadOnlyObject,
 } from "./util/index.js";
 export { cloneWithReplacements } from "./util/index.js";
 

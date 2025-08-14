@@ -522,8 +522,6 @@ export class DefaultLowLevelDataEditor implements ChangeFamilyEditor, LowLevelDa
 	}
 }
 
-/**
- */
 export interface HighLevelRequiredFieldEditor<TContent> {
 	/**
 	 * Issues a change which replaces the content of the field with `newContent`.
@@ -544,20 +542,17 @@ export interface LowLevelRequiredFieldEditor<TContent, TDetachedRoots> {
 	/**
 	 * Issues a change which replaces the content of the field with `newContent`.
 	 * @param newContent - the new content for the field.
-	 * The cursor can be in either Field or Node mode and must represent exactly one node.
 	 *
 	 * @deprecated Use {@link attach} instead.
 	 */
 	set(newContent: TContent): void;
 }
 
-/**
- */
 export interface HighLevelOptionalFieldEditor<TContent> {
 	/**
-	 * Issues a change which replaces the content of the field with `newContent`
+	 * Issues a change which replaces the content of the field with `newContent`.
 	 * @param newContent - the new content for the field.
-	 * @param wasEmpty - whether the field is empty when creating this change
+	 * @param wasEmpty - whether the field is empty when creating this change.
 	 */
 	set(newContent: TContent | undefined, wasEmpty: boolean): void;
 }

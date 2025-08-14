@@ -6,6 +6,7 @@
 import { strict as assert } from "node:assert";
 import type { SessionId } from "@fluidframework/id-compressor";
 import { createIdCompressor } from "@fluidframework/id-compressor/internal";
+import { SummaryType } from "@fluidframework/driver-definitions";
 
 import {
 	type ChangesetLocalId,
@@ -66,10 +67,8 @@ import {
 	SchemaFactory,
 	stringSchema,
 	TreeViewConfiguration,
+	toInitialSchema,
 } from "../../../simple-tree/index.js";
-// eslint-disable-next-line import/no-internal-modules
-import { toStoredSchema } from "../../../simple-tree/toStoredSchema.js";
-import { SummaryType } from "@fluidframework/driver-definitions";
 // eslint-disable-next-line import/no-internal-modules
 import type { Format } from "../../../feature-libraries/forest-summary/format.js";
 import type {
@@ -112,7 +111,7 @@ class HasIdentifier extends schemaFactory.object("parent", {
 function getIdentifierEncodingContext(id: string) {
 	const view = getView(new TreeViewConfiguration({ schema: HasIdentifier }));
 	view.initialize({ identifier: id });
-	const flexSchema = toStoredSchema(HasIdentifier);
+	const flexSchema = toInitialSchema(HasIdentifier);
 	const checkout = view.checkout;
 
 	const encoderContext: FieldBatchEncodingContext = {
@@ -194,7 +193,7 @@ describe("End to end chunked encoding", () => {
 		);
 
 		// This function is declared in the test to have access to the original uniform chunk for comparison.
-		function stringifier(content: unknown) {
+		function stringify(content: unknown) {
 			const insertedChunk = decode((content as Format).fields as EncodedFieldBatch, {
 				idCompressor,
 				originatorId: idCompressor.localSessionId,
@@ -203,7 +202,7 @@ describe("End to end chunked encoding", () => {
 			assert(chunk.isShared());
 			return JSON.stringify(content);
 		}
-		forestSummarizer.getAttachSummary(stringifier);
+		forestSummarizer.summarize({ stringify });
 	});
 
 	// See note on above test.
@@ -227,7 +226,7 @@ describe("End to end chunked encoding", () => {
 		);
 
 		// This function is declared in the test to have access to the original uniform chunk for comparison.
-		function stringifier(content: unknown) {
+		function stringify(content: unknown) {
 			const insertedChunk = decode((content as Format).fields as EncodedFieldBatch, {
 				idCompressor,
 				originatorId: idCompressor.localSessionId,
@@ -236,7 +235,7 @@ describe("End to end chunked encoding", () => {
 			assert(chunk.isShared());
 			return JSON.stringify(content);
 		}
-		forestSummarizer.getAttachSummary(stringifier);
+		forestSummarizer.summarize({ stringify });
 	});
 
 	describe("identifier field encoding", () => {
@@ -254,10 +253,7 @@ describe("End to end chunked encoding", () => {
 				testIdCompressor,
 			);
 
-			function stringifier(content: unknown) {
-				return JSON.stringify(content);
-			}
-			const { summary } = forestSummarizer.getAttachSummary(stringifier);
+			const { summary } = forestSummarizer.summarize({ stringify: JSON.stringify });
 			const tree = summary.tree.ForestTree;
 			assert(tree.type === SummaryType.Blob);
 			const treeContent = JSON.parse(tree.content as string);
@@ -284,10 +280,7 @@ describe("End to end chunked encoding", () => {
 				testIdCompressor,
 			);
 
-			function stringifier(content: unknown) {
-				return JSON.stringify(content);
-			}
-			const { summary } = forestSummarizer.getAttachSummary(stringifier);
+			const { summary } = forestSummarizer.summarize({ stringify: JSON.stringify });
 			const tree = summary.tree.ForestTree;
 			assert(tree.type === SummaryType.Blob);
 			const treeContent = JSON.parse(tree.content as string);
@@ -309,10 +302,7 @@ describe("End to end chunked encoding", () => {
 				testIdCompressor,
 			);
 
-			function stringifier(content: unknown) {
-				return JSON.stringify(content);
-			}
-			const { summary } = forestSummarizer.getAttachSummary(stringifier);
+			const { summary } = forestSummarizer.summarize({ stringify: JSON.stringify });
 			const tree = summary.tree.ForestTree;
 			assert(tree.type === SummaryType.Blob);
 			const treeContent = JSON.parse(tree.content as string);

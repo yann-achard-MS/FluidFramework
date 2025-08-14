@@ -7,6 +7,7 @@ import type {
 	OpSpaceCompressedId,
 	SessionId,
 	SessionSpaceCompressedId,
+	StableId,
 } from "@fluidframework/id-compressor";
 import { Type } from "@sinclair/typebox";
 
@@ -37,6 +38,9 @@ export const RevisionTagSchema = Type.Union([
 	Type.Literal("root"),
 	brandedNumberType<Exclude<EncodedRevisionTag, string>>(),
 ]);
+
+export type EncodedStableId = Brand<StableId, "EncodedStableId">;
+export const StableIdSchema = Type.String();
 
 /**
  * An ID which is unique within a revision of a `ModularChangeset`.
@@ -72,8 +76,6 @@ export interface ChangeAtomIdWithRevision extends ChangeAtomId {
 
 export type EncodedChangeAtomId = [ChangesetLocalId, EncodedRevisionTag] | ChangesetLocalId;
 
-/**
- */
 export type ChangeAtomIdMap<T> = NestedMap<RevisionTag | undefined, ChangesetLocalId, T>;
 
 /**
