@@ -947,7 +947,26 @@ abstract class CustomArrayNodeBase<const T extends ImplicitAllowedTypes>
 		const field = getSequenceField(this);
 		validateIndex(index, field, "insertAt", true);
 		const content = this.#mapTreesFromFieldData(value);
-		field.editor.insert(index, content);
+
+		// TODO: handling these two cases differently should not be necessary.
+		if (!field.context.isHydrated()) {
+			field.editor.insert(index, content);
+		} else {
+			// Workaround for underlying insert copying not attaching: instead use move:
+			for (const [sourceIndex, item] of content.entries()) {
+				const source = item.parentField;
+				assert(source.parent.parent === undefined, "expected detached field");
+				assert(source.index === 0, "expected detached field singleton");
+				// TODO: is using this array move out of a detached root valid?
+				field.context.checkout.editor.move(
+					{ field: source.parent.key, parent: undefined },
+					0,
+					1,
+					field.getFieldPath(),
+					index + sourceIndex,
+				);
+			}
+		}
 	}
 	public insertAtStart(...value: Insertable<T>): void {
 		this.insertAt(0, ...value);

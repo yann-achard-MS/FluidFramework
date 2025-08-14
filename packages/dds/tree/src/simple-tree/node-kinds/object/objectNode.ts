@@ -371,11 +371,13 @@ export function setField(
 		case FieldKinds.required.identifier: {
 			assert(mapTree !== undefined, 0xa04 /* Cannot set a required field to undefined */);
 			const typedField = field as FlexTreeRequiredField;
+			// TODO: this `set` copies instead of attaching for hydrated nodes, breaking hydration of TreeNodes.
 			typedField.editor.set(mapTree);
 			break;
 		}
 		case FieldKinds.optional.identifier: {
 			const typedField = field as FlexTreeOptionalField;
+			// TODO: this `set` copies instead of attaching for hydrated nodes, breaking hydration of TreeNodes.
 			typedField.editor.set(mapTree, typedField.length === 0);
 			break;
 		}

@@ -226,6 +226,7 @@ abstract class CustomMapNodeBase<const T extends ImplicitAllowedTypes> extends T
 
 		const field = node.getBoxed(brand(key));
 
+		// TODO: this `set` copies instead of attaching for hydrated nodes, breaking hydration of TreeNodes.
 		this.editor(key).set(mapTree, field.length === 0);
 		return this;
 	}

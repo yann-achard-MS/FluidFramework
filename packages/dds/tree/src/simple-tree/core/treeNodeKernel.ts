@@ -226,6 +226,12 @@ export class TreeNodeKernel {
 			!innerNode.anchorNode.slots.has(simpleTreeNodeSlot),
 			0x7f5 /* Cannot associate an flex node with multiple simple-tree nodes */,
 		);
+
+		assert(
+			innerNode.anchorNode.slots.get(flexTreeSlot) === innerNode,
+			"Expected flexTreeSlot to be associated with innerNode",
+		);
+
 		innerNode.anchorNode.slots.set(simpleTreeNodeSlot, this.node);
 		return {
 			anchorNode: innerNode.anchorNode,
