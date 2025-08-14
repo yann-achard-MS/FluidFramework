@@ -39,17 +39,22 @@ import {
 } from "../../simple-tree/unhydratedFlexTreeFromInsertable.js";
 import { brand } from "../../util/index.js";
 import {
+	defaultSchemaPolicy,
+	FieldKinds,
 	MockNodeIdentifierManager,
 	type FlexTreeHydratedContextMinimal,
 } from "../../feature-libraries/index.js";
-import { validateUsageError } from "../utils.js";
+import { fieldSchema, validateUsageError } from "../utils.js";
 // eslint-disable-next-line import/no-internal-modules
 import { UnhydratedFlexTreeNode } from "../../simple-tree/core/index.js";
 // eslint-disable-next-line import/no-internal-modules
 import { getUnhydratedContext } from "../../simple-tree/createContext.js";
-// eslint-disable-next-line import/no-internal-modules
-import { prepareContentForHydration } from "../../simple-tree/prepareForInsertion.js";
+
 import { hydrate } from "./utils.js";
+import {
+	prepareForInsertionContextless,
+	// eslint-disable-next-line import/no-internal-modules
+} from "../../simple-tree/prepareForInsertion.js";
 
 describe("unhydratedFlexTreeFromInsertable", () => {
 	it("string", () => {
@@ -1026,7 +1031,13 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 				checkout: dummyContext.checkout,
 				nodeKeyManager,
 			};
-			prepareContentForHydration([actual], context.checkout.forest, context);
+			prepareForInsertionContextless(
+				tree,
+				schema,
+				{ policy: defaultSchemaPolicy, schema: dummyContext.schema },
+				context,
+				fieldSchema(FieldKinds.required, [brand(schema.identifier)]),
+			);
 
 			const expected: MapTree = {
 				type: brand("test.object"),

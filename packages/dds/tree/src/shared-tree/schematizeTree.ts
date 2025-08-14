@@ -37,11 +37,11 @@ export function canInitialize(checkout: ITreeCheckout): boolean {
  * @privateRemarks
  * This takes in a checkout using a subset of the checkout interface to enable easier unit testing.
  */
-export function initialize(
+export function initialize<T>(
 	checkout: Pick<ITreeCheckout, "storedSchema" | "updateSchema">,
 	newSchema: TreeStoredSchema,
-	setInitialTree: () => void,
-): void {
+	setInitialTree: () => T,
+): T {
 	assert(
 		schemaDataIsEmpty(checkout.storedSchema),
 		0x743 /* cannot initialize after a schema is set */,
@@ -78,13 +78,15 @@ export function initialize(
 	);
 
 	checkout.updateSchema(intermediateSchema);
-	setInitialTree();
+	const result = setInitialTree();
 
 	// If intermediate schema is not final desired schema, update to the final schema:
 	if (intermediateSchema !== newSchema) {
 		// This makes the root more strict, so set allowNonSupersetSchema to true.
 		checkout.updateSchema(newSchema, true);
 	}
+
+	return result;
 }
 
 /**

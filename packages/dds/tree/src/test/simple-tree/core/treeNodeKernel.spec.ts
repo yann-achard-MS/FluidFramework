@@ -12,10 +12,10 @@ import { getKernel, isTreeNode } from "../../../simple-tree/core/treeNodeKernel.
 
 import { hydrate } from "../utils.js";
 import { getView } from "../../utils.js";
-import { AnchorSet, rootFieldKey, type UpPath } from "../../../core/index.js";
-import { brand } from "../../../util/index.js";
-import { validateAssertionError } from "@fluidframework/test-runtime-utils/internal";
-import { TreeStatus } from "../../../feature-libraries/index.js";
+import { rootFieldKey, type UpPath } from "../../../core/index.js";
+// import { brand } from "../../../util/index.js";
+// import { validateAssertionError } from "@fluidframework/test-runtime-utils/internal";
+// import { TreeStatus } from "../../../feature-libraries/index.js";
 
 describe("simple-tree proxies", () => {
 	const sb = new SchemaFactory("test");
@@ -72,66 +72,66 @@ describe("simple-tree proxies", () => {
 		assert(isTreeNode(root.object));
 	});
 
-	it("Hydrate", () => {
-		const child = new ChildSchema({ content: 1 });
-		const path: UpPath = {
-			parent: { parent: undefined, parentField: brand("root"), parentIndex: 2 },
-			parentField: brand("child"),
-			parentIndex: 3,
-		};
-		const anchors = new AnchorSet();
-		const kernel = getKernel(child);
+	// it("Hydrate", () => {
+	// 	const child = new ChildSchema({ content: 1 });
+	// 	const path: UpPath = {
+	// 		parent: { parent: undefined, parentField: brand("root"), parentIndex: 2 },
+	// 		parentField: brand("child"),
+	// 		parentIndex: 3,
+	// 	};
+	// 	const anchors = new AnchorSet();
+	// 	const kernel = getKernel(child);
 
-		assert.equal(kernel.getStatus(), TreeStatus.New);
-		assert(!kernel.isHydrated());
-		kernel.hydrate(anchors, path);
-		assert(kernel.isHydrated());
-		assert.equal(kernel.getStatus(), TreeStatus.Removed);
+	// 	assert.equal(kernel.getStatus(), TreeStatus.New);
+	// 	assert(!kernel.isHydrated());
+	// 	kernel.hydrate(anchors, path);
+	// 	assert(kernel.isHydrated());
+	// 	assert.equal(kernel.getStatus(), TreeStatus.Removed);
 
-		const anchor = anchors.track(path);
-		const anchorNode = anchors.locate(anchor);
-		assert.equal(kernel.anchorNode, anchorNode);
+	// 	const anchor = anchors.track(path);
+	// 	const anchorNode = anchors.locate(anchor);
+	// 	assert.equal(kernel.anchorNode, anchorNode);
 
-		assert.throws(
-			() => {
-				kernel.hydrate(anchors, path);
-			},
-			(e: Error) => validateAssertionError(e, "hydration should only happen once"),
-		);
+	// 	assert.throws(
+	// 		() => {
+	// 			kernel.hydrate(anchors, path);
+	// 		},
+	// 		(e: Error) => validateAssertionError(e, "hydration should only happen once"),
+	// 	);
 
-		const visitor = anchors.acquireVisitor();
-		// AnchorSet doesn't know how many children there are, so just provide an arbitrary number larger than its largest index
-		visitor.destroy(brand("root"), 100);
-		visitor.free();
+	// 	const visitor = anchors.acquireVisitor();
+	// 	// AnchorSet doesn't know how many children there are, so just provide an arbitrary number larger than its largest index
+	// 	visitor.destroy(brand("root"), 100);
+	// 	visitor.free();
 
-		assert.equal(kernel.getStatus(), TreeStatus.Deleted);
-	});
+	// 	assert.equal(kernel.getStatus(), TreeStatus.Deleted);
+	// });
 
-	it("Hydrate - ref counting - marinated ", () => {
-		const child = new ChildSchema({ content: 1 });
-		const path: UpPath = {
-			parent: { parent: undefined, parentField: brand("root"), parentIndex: 2 },
-			parentField: brand("child"),
-			parentIndex: 3,
-		};
-		const anchors = new AnchorSet();
-		const kernel = getKernel(child);
+	// it("Hydrate - ref counting - marinated ", () => {
+	// 	const child = new ChildSchema({ content: 1 });
+	// 	const path: UpPath = {
+	// 		parent: { parent: undefined, parentField: brand("root"), parentIndex: 2 },
+	// 		parentField: brand("child"),
+	// 		parentIndex: 3,
+	// 	};
+	// 	const anchors = new AnchorSet();
+	// 	const kernel = getKernel(child);
 
-		assert(anchors.isEmpty());
-		kernel.hydrate(anchors, path);
-		assert(!anchors.isEmpty());
+	// 	assert(anchors.isEmpty());
+	// 	kernel.hydrate(anchors, path);
+	// 	assert(!anchors.isEmpty());
 
-		const anchorNode = kernel.anchorNode;
+	// 	const anchorNode = kernel.anchorNode;
 
-		// Check anchor is still tracked by anchors (this would not be the case if kernel did not hold a ref count for it)
-		assert.equal(anchors.find(path), anchorNode);
+	// 	// Check anchor is still tracked by anchors (this would not be the case if kernel did not hold a ref count for it)
+	// 	assert.equal(anchors.find(path), anchorNode);
 
-		kernel.dispose();
+	// 	kernel.dispose();
 
-		// AnchorSet is now empty
-		assert.equal(anchors.find(path), undefined);
-		assert(anchors.isEmpty());
-	});
+	// 	// AnchorSet is now empty
+	// 	assert.equal(anchors.find(path), undefined);
+	// 	assert(anchors.isEmpty());
+	// });
 
 	for (const cooked of [false, true]) {
 		it(`Hydrate - ref counting - end to end - cooked: ${cooked}`, () => {

@@ -12,9 +12,7 @@ import {
 	anchorSlot,
 	type AnchorEvents,
 	type AnchorNode,
-	type AnchorSet,
 	type TreeValue,
-	type UpPath,
 } from "../../core/index.js";
 import { getOrCreateHydratedFlexTreeNode } from "../../feature-libraries/index.js";
 import {
@@ -81,7 +79,7 @@ interface UnhydratedState {
 /** The {@link HydrationState} of a {@link TreeNodeKernel} after the kernel is hydrated */
 interface HydratedState {
 	/** The flex node for this kernel (lazy - undefined if it has not yet been demanded) */
-	innerNode?: FlexTreeNode;
+	innerNode: HydratedFlexTreeNode;
 	/** The {@link AnchorNode} that this node is associated with. */
 	readonly anchorNode: AnchorNode;
 	/** All {@link Off | event deregistration functions} that should be run when the kernel is disposed. */
@@ -93,7 +91,7 @@ type HydrationState = UnhydratedState | HydratedState;
 
 /** True if and only if the given {@link HydrationState} is post-hydration */
 function isHydrated(state: HydrationState): state is HydratedState {
-	return (state as Partial<HydratedState>).anchorNode !== undefined;
+	return state.innerNode.isHydrated();
 }
 
 /**
@@ -179,7 +177,7 @@ export class TreeNodeKernel {
 			};
 		} else {
 			// Hydrated case
-			this.#hydrationState = this.createHydratedState(innerNode.anchorNode);
+			this.#hydrationState = this.createHydratedState(innerNode);
 			this.#hydrationState.innerNode = innerNode;
 		}
 	}
@@ -202,16 +200,11 @@ export class TreeNodeKernel {
 	 * Happens at most once for any given node.
 	 * Cleans up mappings to {@link UnhydratedFlexTreeNode} - it is assumed that they are no longer needed once this node has an anchor node.
 	 */
-	public hydrate(anchors: AnchorSet, path: UpPath): void {
+	public hydrate(inner: HydratedFlexTreeNode): void {
 		assert(!this.disposed, 0xa2a /* cannot hydrate a disposed node */);
 		assert(!isHydrated(this.#hydrationState), 0xa2b /* hydration should only happen once */);
 
-		const anchor = anchors.track(path);
-		const anchorNode =
-			anchors.locate(anchor) ?? fail(0xb42 /* Expected anchor node to be present */);
-
-		this.#hydrationState = this.createHydratedState(anchorNode);
-		this.#hydrationState.offAnchorNode.add(() => anchors.forget(anchor));
+		this.#hydrationState = this.createHydratedState(inner);
 
 		// If needed, register forwarding emitters for events from before hydration
 		if (this.#unhydratedEvents.evaluated) {
@@ -221,25 +214,26 @@ export class TreeNodeKernel {
 					this.#hydrationState.offAnchorNode.add(
 						// Argument is forwarded between matching events, so the type should be correct.
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						anchorNode.events.on(eventName, (arg: any) => events.emit(eventName, arg)),
+						inner.anchorNode.events.on(eventName, (arg: any) => events.emit(eventName, arg)),
 					);
 				}
 			}
 		}
 	}
 
-	private createHydratedState(anchorNode: AnchorNode): HydratedState {
+	private createHydratedState(innerNode: HydratedFlexTreeNode): HydratedState {
 		assert(
-			!anchorNode.slots.has(simpleTreeNodeSlot),
+			!innerNode.anchorNode.slots.has(simpleTreeNodeSlot),
 			0x7f5 /* Cannot associate an flex node with multiple simple-tree nodes */,
 		);
-		anchorNode.slots.set(simpleTreeNodeSlot, this.node);
+		innerNode.anchorNode.slots.set(simpleTreeNodeSlot, this.node);
 		return {
-			anchorNode,
+			anchorNode: innerNode.anchorNode,
+			innerNode,
 			offAnchorNode: new Set([
-				anchorNode.events.on("afterDestroy", () => this.dispose()),
+				innerNode.anchorNode.events.on("afterDestroy", () => this.dispose()),
 				// TODO: this should be triggered on change even for unhydrated nodes.
-				anchorNode.events.on("childrenChanging", () => {
+				innerNode.anchorNode.events.on("childrenChanging", () => {
 					this.generationNumber += 1;
 				}),
 			]),
@@ -269,7 +263,7 @@ export class TreeNodeKernel {
 	public get events(): Listenable<KernelEvents> {
 		// Retrieve the correct events object based on whether this node is pre or post hydration.
 		return isHydrated(this.#hydrationState)
-			? this.#hydrationState.anchorNode.events
+			? this.#hydrationState.innerNode.anchorNode.events
 			: this.#unhydratedEvents.value;
 	}
 

@@ -12,13 +12,16 @@ import type {
 import { assert, unreachableCase } from "@fluidframework/core-utils/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
-import { anchorSlot } from "../core/index.js";
+import { anchorSlot, rootFieldKey } from "../core/index.js";
 import {
 	type NodeIdentifierManager,
 	defaultSchemaPolicy,
-	cursorForMapTreeField,
 	TreeStatus,
 	Context,
+	FieldKinds,
+	type FlexTreeOptionalField,
+	type FlexTreeRequiredField,
+	type FlexTreeUnknownUnboxed,
 } from "../feature-libraries/index.js";
 import {
 	type ImplicitFieldSchema,
@@ -64,7 +67,7 @@ import {
 	type WithBreakable,
 } from "../util/index.js";
 
-import { canInitialize, initialize, initializerFromChunk } from "./schematizeTree.js";
+import { canInitialize, initialize } from "./schematizeTree.js";
 import type { ITreeCheckout, TreeCheckout } from "./treeCheckout.js";
 
 /**
@@ -174,29 +177,41 @@ export class SchematizingSimpleTreeView<
 
 		this.runSchemaEdit(() => {
 			const schema = toInitialSchema(this.config.schema);
-			const mapTree = prepareForInsertionContextless(
-				content as InsertableContent | undefined,
-				this.rootFieldSchema,
-				{
-					schema,
-					policy: defaultSchemaPolicy,
-				},
-				this,
-				schema.rootFieldSchema,
-			);
 
 			this.checkout.transaction.start();
+			initialize(this.checkout, schema, () => {
+				const preparedContent = prepareForInsertionContextless(
+					content as InsertableContent | undefined,
+					this.rootFieldSchema,
+					{
+						schema,
+						policy: defaultSchemaPolicy,
+					},
+					this,
+					schema.rootFieldSchema,
+				);
 
-			initialize(
-				this.checkout,
-				schema,
-				initializerFromChunk(this.checkout, () => {
-					// This must be done after initial schema is set!
-					return this.checkout.forest.chunkField(
-						cursorForMapTreeField(mapTree === undefined ? [] : [mapTree]),
-					);
-				}),
-			);
+				if (preparedContent.rootIds.length === 0) {
+					// If there's no content to attach, no work is needed
+					return undefined;
+				}
+
+				const field = { field: rootFieldKey, parent: undefined };
+				assert(
+					this.checkout.storedSchema.rootFieldSchema.kind === FieldKinds.optional.identifier,
+					"initializerFromChunk only supports optional roots",
+				);
+
+				assert(
+					preparedContent.rootIds.length === 1,
+					0x7f4 /* optional field content should normalize at most one item */,
+				);
+				const fieldEditor = this.checkout.editor.optionalField(field);
+				fieldEditor.attach(preparedContent.rootIds, true);
+
+				return preparedContent;
+			})?.finalize([...this.getFlexTreeContext().root]);
+
 			this.checkout.transaction.commit();
 		});
 	}
@@ -350,7 +365,14 @@ export class SchematizingSimpleTreeView<
 				// TODO: provide a better event: this.view.flexTree.on(????) and/or integrate with with the normal event code paths.
 
 				// Track what the root was before to be able to detect changes.
-				let lastRoot: ReadableField<TRootSchema> = this.root;
+				const getRoot = (): FlexTreeUnknownUnboxed | undefined => {
+					const rootField = this.getFlexTreeContext().root as
+						| FlexTreeOptionalField
+						| FlexTreeRequiredField;
+					return rootField.content;
+				};
+
+				let lastRoot: FlexTreeUnknownUnboxed | undefined = getRoot();
 
 				this.flexTreeViewUnregisterCallbacks.add(
 					this.checkout.events.on("afterBatch", () => {
@@ -359,8 +381,9 @@ export class SchematizingSimpleTreeView<
 						// - The rootChanged event will already be raised at the end of the current upgrade
 						// - It doesn't matter that `lastRoot` isn't updated in this case, because `update` will be called again before the upgrade
 						//   completes (at which point this callback and the `lastRoot` captured here will be out of scope anyway)
-						if (!this.midUpgrade && lastRoot !== this.root) {
-							lastRoot = this.root;
+						const newRoot = getRoot();
+						if (!this.midUpgrade && lastRoot !== newRoot) {
+							lastRoot = newRoot;
 							this.events.emit("rootChanged");
 						}
 					}),

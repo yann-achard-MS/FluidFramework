@@ -240,6 +240,7 @@ export {
 export {
 	prepareForInsertion,
 	prepareForInsertionContextless,
+	type PreparedContent,
 } from "./prepareForInsertion.js";
 export {
 	toStoredSchema,
