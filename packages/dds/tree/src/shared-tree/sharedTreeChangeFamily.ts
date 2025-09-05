@@ -43,7 +43,7 @@ import {
 } from "../util/index.js";
 
 import { makeSharedTreeChangeCodecFamily } from "./sharedTreeChangeCodecs.js";
-import type { SharedTreeChange, SharedTreeInnerChange } from "./sharedTreeChangeTypes.js";
+import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
 import { SharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
 import type { IIdCompressor } from "@fluidframework/id-compressor";
 

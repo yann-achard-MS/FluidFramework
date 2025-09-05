@@ -26,6 +26,7 @@ import type {
 	ITreeCheckoutFork,
 	CheckoutEvents,
 	ISharedTreeEditor,
+	ChangeJournalEntry,
 } from "../../shared-tree/index.js";
 import {
 	type TreeStoredContent,
@@ -50,7 +51,6 @@ import { toStoredSchema } from "../../simple-tree/toStoredSchema.js";
 import type { Transactor } from "../../shared-tree-core/index.js";
 import { Breakable } from "../../util/index.js";
 import { JsonAsTree } from "../../jsonDomainSchema.js";
-import type { ChangeJournalEntry } from "../../shared-tree/treeCheckout.js";
 
 const builder = new SchemaFactory("test");
 const root = builder.number;
