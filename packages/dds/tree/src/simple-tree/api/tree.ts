@@ -644,9 +644,6 @@ export interface TreeViewAlpha<
 		params?: RunTransactionParams,
 	): TransactionResult;
 
-	startJournalingChanges(name: string, autoWrite: boolean): void;
-	stopJournalingChanges(): void;
-
 	startTrackingChanges(): void;
 	stopTrackingChanges(): void;
 	getTrackedChangesCount(): number;
