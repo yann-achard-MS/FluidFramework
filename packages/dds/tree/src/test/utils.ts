@@ -95,7 +95,6 @@ import {
 	type DeltaDetachedNodeRename,
 	type ExclusiveMapTree,
 	type AppliedDeltaRoot,
-	htmlFromAppliedDelta,
 } from "../core/index.js";
 import { typeboxValidator } from "../external-utilities/index.js";
 import {
@@ -115,6 +114,7 @@ import {
 	cursorForJsonableTreeField,
 	initializeForest,
 	chunkFieldSingle,
+	htmlFromAppliedDelta,
 } from "../feature-libraries/index.js";
 // eslint-disable-next-line import/no-internal-modules
 import { makeSchemaCodec } from "../feature-libraries/schema-index/codec.js";

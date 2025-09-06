@@ -99,9 +99,14 @@ export {
 	tryGetChunk,
 	type ChunkedCursor,
 	type AppliedDeltaRoot,
-	getAppliedDelta,
-	htmlFromAppliedDelta,
 	type AppliedDeltaWriter,
+	type AppliedDeltaDetachedNode,
+	type AppliedDeltaFieldMap,
+	type AppliedDeltaMark,
+	type AppliedDeltaMarkList,
+	type AppliedDeltaNode,
+	type AppliedDeltaInteriorNode,
+	type DetachedNodeIdPair,
 } from "./tree/index.js";
 
 export {

@@ -195,3 +195,5 @@ export {
 } from "./indexing/index.js";
 
 export { initializeForest } from "./initializeForest.js";
+
+export { getAppliedDelta, htmlFromAppliedDelta } from "./appliedDeltaUtil.js";

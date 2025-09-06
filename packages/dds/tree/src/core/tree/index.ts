@@ -30,7 +30,17 @@ export {
 	CursorMarker,
 	isCursor,
 } from "./cursor.js";
-export type { Root as AppliedDeltaRoot } from "./appliedDelta.js";
+export type {
+	AppliedDeltaWriter,
+	Root as AppliedDeltaRoot,
+	DetachedNodeIdPair,
+	DetachedNode as AppliedDeltaDetachedNode,
+	FieldMap as AppliedDeltaFieldMap,
+	Mark as AppliedDeltaMark,
+	MarkList as AppliedDeltaMarkList,
+	Node as AppliedDeltaNode,
+	InteriorNode as AppliedDeltaInteriorNode,
+} from "./appliedDelta.js";
 export type {
 	ProtoNodes,
 	Root as DeltaRoot,
@@ -116,9 +126,3 @@ export {
 
 export { DetachedFieldIndex } from "./detachedFieldIndex.js";
 export { type ForestRootId } from "./detachedFieldIndexTypes.js";
-
-export {
-	getAppliedDelta,
-	htmlFromAppliedDelta,
-	type AppliedDeltaWriter,
-} from "./appliedDeltaUtil.js";

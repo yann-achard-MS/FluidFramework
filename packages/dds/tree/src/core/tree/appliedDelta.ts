@@ -64,3 +64,5 @@ export interface FieldMap {
 export type Node = LeafNode | InteriorNode | undefined;
 // eslint-disable-next-line @rushstack/no-new-null
 export type LeafNode = number | string | boolean | IFluidHandle | null;
+
+export type AppliedDeltaWriter = (delta: Root, path: string) => void;

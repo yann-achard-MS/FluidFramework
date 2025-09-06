@@ -5,49 +5,43 @@
  */
 
 import { assert, unreachableCase } from "@fluidframework/core-utils/internal";
-import { makeArray, newTupleBTree, type Mutable, type TupleBTree } from "../../util/index.js";
+import { isFluidHandle } from "@fluidframework/runtime-utils";
+import { makeArray, newTupleBTree, type Mutable, type TupleBTree } from "../util/index.js";
 import {
+	type AppliedDeltaDetachedNode,
 	TreeNavigationResult,
 	type IForestSubscription,
 	type ITreeSubscriptionCursor,
-} from "../forest/index.js";
-import type {
-	FieldChanges as DeltaFieldChanges,
-	FieldMap as DeltaFieldMap,
-	Root as DeltaRoot,
-	Mark as DeltaMark,
-	DetachedNodeId,
-} from "./delta.js";
-import type {
-	DetachedNode as AppliedDeltaDetachedNode,
-	FieldMap as AppliedDeltaFieldMap,
-	Mark as AppliedDeltaMark,
-	MarkList as AppliedDeltaMarkList,
-	Root as AppliedDeltaRoot,
-	DetachedNodeIdPair,
-	Node as AppliedDeltaNode,
-	InteriorNode as AppliedDeltaInteriorNode,
-} from "./appliedDelta.js";
-import type { RevisionTag } from "../rebase/index.js";
-import {
+	type DeltaFieldChanges,
+	type DeltaFieldMap,
+	type DeltaRoot,
+	type DeltaMark,
+	type DeltaDetachedNodeId,
+	type AppliedDeltaFieldMap,
+	type AppliedDeltaMark,
+	type AppliedDeltaMarkList,
+	type AppliedDeltaNode,
+	type AppliedDeltaInteriorNode,
+	type AppliedDeltaRoot,
+	type DetachedNodeIdPair,
+	type RevisionTag,
 	CursorLocationType,
 	forEachField,
 	forEachNode,
 	type ITreeCursor,
 	type ITreeCursorSynchronous,
-} from "./cursor.js";
-import type { DetachedFieldIndex } from "./detachedFieldIndex.js";
-import type { ForestRootId } from "./detachedFieldIndexTypes.js";
-import { offsetDetachId } from "./deltaUtil.js";
-import { rootFieldKey } from "./types.js";
-import { isFluidHandle } from "@fluidframework/runtime-utils";
+	type DetachedFieldIndex,
+	type ForestRootId,
+	offsetDetachId,
+	rootFieldKey,
+} from "../core/index.js";
 
 type NodeIdTuple = [RevisionTag | undefined, number];
 type NodeIdBTree<V> = TupleBTree<NodeIdTuple, V>;
 
-type IdPairLookup = (id: DetachedNodeId) => DetachedNodeIdPair;
+type IdPairLookup = (id: DeltaDetachedNodeId) => DetachedNodeIdPair;
 interface DetachedNodeData {
-	readonly oldId: DetachedNodeId;
+	readonly oldId: DeltaDetachedNodeId;
 	readonly forestId?: ForestRootId;
 	buildData?: ITreeCursorSynchronous;
 	changeData?: DeltaFieldMap;
@@ -76,12 +70,12 @@ export function getAppliedDelta(
 			]),
 		),
 	);
-	const idPairFromOldId: IdPairLookup = (oldId: DetachedNodeId) => {
+	const idPairFromOldId: IdPairLookup = (oldId: DeltaDetachedNodeId) => {
 		const oldTuple = nodeIdTuple(oldId);
 		const newTuple = newIdFromOldId.get(oldTuple);
 		return [oldId, newTuple !== undefined ? nodeIdObj(newTuple) : oldId];
 	};
-	const idPairFromNewId: IdPairLookup = (newId: DetachedNodeId) => {
+	const idPairFromNewId: IdPairLookup = (newId: DeltaDetachedNodeId) => {
 		const newTuple = nodeIdTuple(newId);
 		const oldTuple = oldIdFromNewId.get(newTuple);
 		return [oldTuple !== undefined ? nodeIdObj(oldTuple) : newId, newId];
@@ -411,11 +405,11 @@ export function getAppliedDelta(
 	return { rootField: rootMarkList, detachedNodes };
 }
 
-function nodeIdTuple(detachedNodeId: DetachedNodeId): NodeIdTuple {
+function nodeIdTuple(detachedNodeId: DeltaDetachedNodeId): NodeIdTuple {
 	return [detachedNodeId.major, detachedNodeId.minor];
 }
 
-function nodeIdObj(id: NodeIdTuple): DetachedNodeId {
+function nodeIdObj(id: NodeIdTuple): DeltaDetachedNodeId {
 	return id[0] !== undefined ? { major: id[0], minor: id[1] } : { minor: id[1] };
 }
 
@@ -987,11 +981,9 @@ function srcId(id: DetachedNodeIdPair): string {
 	return `src${nodeIdToString(id[0])}`;
 }
 
-function nodeIdToString(id: DetachedNodeId): string {
+function nodeIdToString(id: DeltaDetachedNodeId): string {
 	if (id.major === undefined) {
 		return `${id.minor}`;
 	}
 	return `${id.major}_${id.minor}`;
 }
-
-export type AppliedDeltaWriter = (delta: AppliedDeltaRoot, path: string) => void;

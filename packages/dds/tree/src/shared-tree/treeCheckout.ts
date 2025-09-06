@@ -44,8 +44,6 @@ import {
 	isAncestor,
 	makeAnonChange,
 	type TaggedChange,
-	htmlFromAppliedDelta,
-	getAppliedDelta,
 	type AppliedDeltaRoot,
 	emptyDelta,
 	type AppliedDeltaWriter,
@@ -53,6 +51,8 @@ import {
 import {
 	type FieldBatchCodec,
 	type TreeCompressionStrategy,
+	htmlFromAppliedDelta,
+	getAppliedDelta,
 	buildForest,
 	createNodeKeyManager,
 	intoDelta,

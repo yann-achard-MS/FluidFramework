@@ -18,7 +18,7 @@ import { buildForest } from "../../feature-libraries/index.js";
 import {
 	getAppliedDelta,
 	// eslint-disable-next-line import/no-internal-modules
-} from "../../core/tree/appliedDeltaUtil.js";
+} from "../../feature-libraries/appliedDeltaUtil.js";
 // eslint-disable-next-line import/no-internal-modules
 import type { Root as AppliedDeltaRoot } from "../../core/tree/appliedDelta.js";
 import { singleJsonCursor } from "../json/index.js";
