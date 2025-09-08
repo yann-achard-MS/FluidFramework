@@ -533,6 +533,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 	const metadata = collectMetadata(delta);
 
 	const lines: string[] = [];
+	lines.push(`<div>`);
 	lines.push(`<div class="delta">`);
 	{
 		lines.push(`<div><span>Detached Root Nodes:</span><ul>`);
@@ -742,6 +743,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 		transition: background-color 3s ease-out;
 	}`);
 	lines.push(`</style>`);
+	lines.push(`</div>`);
 	return lines.join("\n");
 }
 
@@ -771,7 +773,7 @@ function htmlFromAttach(
 	metadata: Metadata,
 ): string {
 	const lines: string[] = [];
-	lines.push(`<li class="cell" id=${dstId(attachId)}>`);
+	lines.push(`<li class="cell" id="${dstId(attachId)}">`);
 	lines.push(indexHtml(undefined, newIndex));
 	lines.push(`@${nodeIdToString(attachId[1])}`);
 	lines.push(htmlFromInboundNode(attachId, metadata));
