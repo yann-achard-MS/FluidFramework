@@ -533,7 +533,7 @@ export function htmlFromAppliedDelta(delta: AppliedDeltaRoot): string {
 	const metadata = collectMetadata(delta);
 
 	const lines: string[] = [];
-	lines.push(`<div>`);
+	lines.push(`<div style="border: 2px solid rgb(100, 100, 100); border-radius: 0.5em;">`);
 	lines.push(`<div class="delta">`);
 	{
 		lines.push(`<div><span>Detached Root Nodes:</span><ul>`);
