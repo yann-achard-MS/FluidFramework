@@ -9,25 +9,19 @@ import {
 	EmptyKey,
 	makeDetachedFieldIndex,
 	rootFieldKey,
+	type AppliedDeltaRoot,
 	type DeltaFieldChanges,
 	type DeltaRoot,
 	type FieldKey,
 } from "../../core/index.js";
 import { brand } from "../../util/index.js";
-import { buildForest } from "../../feature-libraries/index.js";
 import {
+	buildForest,
 	getAppliedDelta,
-	// eslint-disable-next-line import/no-internal-modules
-} from "../../feature-libraries/appliedDeltaUtil.js";
-// eslint-disable-next-line import/no-internal-modules
-import type { Root as AppliedDeltaRoot } from "../../core/tree/appliedDelta.js";
+	htmlFromAppliedDelta,
+} from "../../feature-libraries/index.js";
 import { singleJsonCursor } from "../json/index.js";
-import {
-	chunkFromJsonTrees,
-	testIdCompressor,
-	testRevisionTagCodec,
-	writeAppliedDelta,
-} from "../utils.js";
+import { chunkFromJsonTrees, testIdCompressor, testRevisionTagCodec } from "../utils.js";
 import { JsonAsTree } from "../../jsonDomainSchema.js";
 
 const fooKey = brand<FieldKey>("foo");
@@ -865,7 +859,7 @@ describe("AppliedDeltaUtils", () => {
 		});
 	});
 	describe("htmlFromAppliedDelta", () => {
-		it("move object", () => {
+		it("everything", () => {
 			const delta: AppliedDeltaRoot = {
 				detachedNodes: [
 					{
@@ -1017,7 +1011,8 @@ describe("AppliedDeltaUtils", () => {
 					},
 				],
 			};
-			writeAppliedDelta(delta, "move-object.html");
+			// writeAppliedDelta(delta, "htmlFromAppliedDelta-everything.html");
+			const _actual = htmlFromAppliedDelta(delta);
 		});
 	});
 });
