@@ -87,7 +87,11 @@ export {
 	isNeverTree,
 } from "./modular-schema/index.js";
 
-export { mapRootChanges, nodeIdFromChangeAtom } from "./deltaUtils.js";
+export {
+	mapRootChanges,
+	nodeIdFromChangeAtom,
+	changeAtomFromDetachedNodeId,
+} from "./deltaUtils.js";
 
 export {
 	type TreeChunk,

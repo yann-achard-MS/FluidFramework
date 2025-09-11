@@ -9,7 +9,6 @@ import { UsageError } from "@fluidframework/telemetry-utils/internal";
 import type { ICodecFamily } from "../../codec/index.js";
 import {
 	type ChangeAtomId,
-	type ChangeAtomIdWithRevision,
 	type ChangeEncodingContext,
 	type ChangeFamily,
 	type ChangeFamilyEditor,
@@ -105,55 +104,67 @@ export function relevantRemovedRoots(change: ModularChangeset): Iterable<DeltaDe
 
 export type DetachedRootIds = readonly DeltaRootIdRange[];
 export interface DeltaRootIdRange {
-	readonly first: ChangeAtomIdWithRevision;
+	readonly first: ChangeAtomId;
 	readonly count: number;
 }
 
-/**
- * Default editor for transactional tree data changes.
- * @privateRemarks
- * When taking into account not just the content of the tree,
- * but also how the merge identities (and thus anchors, flex-tree and simple-tree nodes) of nodes before and after the edits correspond,
- * some edits are currently impossible to express.
- * Examples of these non-expressible edits include:
- *
- * - Changing the type of a node while keeping its merge identity.
- * - Changing the value of a leaf while keeping its merge identity.
- * - Swapping subtrees between two value fields.
- * - Replacing a node in the middle of a tree while reusing some of the old nodes decedents that were under value fields.
- *
- * At some point it will likely be worth supporting at least some of these, possibly using a mechanism that could support all of them if desired.
- * If/when such a mechanism becomes available, an evaluation should be done to determine if any existing editing operations should be changed to leverage it
- * (Possibly by adding opt ins at the view schema layer).
- */
-export interface HighLevelDataEditor<TContent> extends DataEditor {
-	/**
-	 * @param field - the value field which is being edited under the parent node
-	 * @returns An object with methods to edit the given field of the given parent.
-	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
-	 * is bounded by the lifetime of this edit builder.
-	 */
-	valueField(field: NormalizedFieldUpPath): HighLevelRequiredFieldEditor<TContent>;
+// /**
+//  * Default editor for transactional tree data changes.
+//  * @privateRemarks
+//  * When taking into account not just the content of the tree,
+//  * but also how the merge identities (and thus anchors, flex-tree and simple-tree nodes) of nodes before and after the edits correspond,
+//  * some edits are currently impossible to express.
+//  * Examples of these non-expressible edits include:
+//  *
+//  * - Changing the type of a node while keeping its merge identity.
+//  * - Changing the value of a leaf while keeping its merge identity.
+//  * - Swapping subtrees between two value fields.
+//  * - Replacing a node in the middle of a tree while reusing some of the old nodes decedents that were under value fields.
+//  *
+//  * At some point it will likely be worth supporting at least some of these, possibly using a mechanism that could support all of them if desired.
+//  * If/when such a mechanism becomes available, an evaluation should be done to determine if any existing editing operations should be changed to leverage it
+//  * (Possibly by adding opt ins at the view schema layer).
+//  */
+// export interface HighLevelDataEditor<TContent, TDetachedRoot> extends DataEditor {
+// 	/**
+// 	 * @param field - the value field which is being edited under the parent node
+// 	 * @returns An object with methods to edit the given field of the given parent.
+// 	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
+// 	 * is bounded by the lifetime of this edit builder.
+// 	 */
+// 	valueField(
+// 		field: NormalizedFieldUpPath,
+// 	): HighLevelRequiredFieldEditor<TContent, TDetachedRoot>;
 
-	/**
-	 * @param field - the optional field which is being edited under the parent node
-	 * @returns An object with methods to edit the given field of the given parent.
-	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
-	 * is bounded by the lifetime of this edit builder.
-	 */
-	optionalField(field: NormalizedFieldUpPath): HighLevelOptionalFieldEditor<TContent>;
+// 	/**
+// 	 * @param field - the optional field which is being edited under the parent node
+// 	 * @returns An object with methods to edit the given field of the given parent.
+// 	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
+// 	 * is bounded by the lifetime of this edit builder.
+// 	 */
+// 	optionalField(
+// 		field: NormalizedFieldUpPath,
+// 	): HighLevelOptionalFieldEditor<TContent, TDetachedRoot>;
 
-	/**
-	 * @param field - the sequence field which is being edited under the parent node
-	 *
-	 * @returns An object with methods to edit the given field of the given parent.
-	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
-	 * is bounded by the lifetime of this edit builder.
-	 */
-	sequenceField(field: NormalizedFieldUpPath): HighLevelSequenceFieldEditor<TContent>;
-}
+// 	/**
+// 	 * @param field - the sequence field which is being edited under the parent node
+// 	 *
+// 	 * @returns An object with methods to edit the given field of the given parent.
+// 	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
+// 	 * is bounded by the lifetime of this edit builder.
+// 	 */
+// 	sequenceField(
+// 		field: NormalizedFieldUpPath,
+// 	): HighLevelSequenceFieldEditor<TContent, TDetachedRoot>;
+// }
 
-export interface LowLevelDataEditor<TContent = TreeChunk, TDetachedRoots = DetachedRootIds>
+export type HighLevelDataEditor<TContent, TDetachedRoot, TDetachedRoots> = LowLevelDataEditor<
+	TContent,
+	TDetachedRoot,
+	TDetachedRoots
+>;
+
+export interface LowLevelDataEditor<TContent, TDetachedRoot, TDetachedRoots>
 	extends DataEditor {
 	buildRoots(content: TContent): TDetachedRoots;
 
@@ -165,7 +176,7 @@ export interface LowLevelDataEditor<TContent = TreeChunk, TDetachedRoots = Detac
 	 */
 	valueField(
 		field: NormalizedFieldUpPath,
-	): LowLevelRequiredFieldEditor<TContent, TDetachedRoots>;
+	): LowLevelRequiredFieldEditor<TContent, TDetachedRoot>;
 
 	/**
 	 * @param field - the optional field which is being edited under the parent node
@@ -175,7 +186,7 @@ export interface LowLevelDataEditor<TContent = TreeChunk, TDetachedRoots = Detac
 	 */
 	optionalField(
 		field: NormalizedFieldUpPath,
-	): LowLevelOptionalFieldEditor<TContent, TDetachedRoots>;
+	): LowLevelOptionalFieldEditor<TContent, TDetachedRoot>;
 
 	/**
 	 * @param field - the sequence field which is being edited under the parent node
@@ -221,7 +232,9 @@ export interface DataEditor {
  * Implementation of {@link LowLevelDataEditor} based on the default set of supported field kinds.
  * @sealed
  */
-export class DefaultLowLevelDataEditor implements ChangeFamilyEditor, LowLevelDataEditor {
+export class DefaultLowLevelDataEditor
+	implements ChangeFamilyEditor, LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>
+{
 	private readonly modularBuilder: ModularEditBuilder;
 
 	public constructor(
@@ -263,23 +276,18 @@ export class DefaultLowLevelDataEditor implements ChangeFamilyEditor, LowLevelDa
 		return detachedRoots;
 	}
 
-	public valueField(
-		field: FieldUpPath,
-	): LowLevelRequiredFieldEditor<TreeChunk, DetachedRootIds> {
+	public valueField(field: FieldUpPath): LowLevelRequiredFieldEditor<TreeChunk, ChangeAtomId> {
 		const editBuilder = {
 			set: (newContent: TreeChunk): void => {
 				assert(newContent.topLevelLength === 1, "Expected exactly one node");
 				const root = this.buildRoots(newContent);
-				editBuilder.attach(root);
+				assert(hasSingle(root) && root[0].count === 1, "Expected exactly one root");
+				editBuilder.attach(root[0].first);
 			},
-			attach: (newContent: DetachedRootIds): void => {
-				assert(
-					hasSingle(newContent) && newContent[0].count === 1,
-					"Expected exactly one node",
-				);
+			attach: (newContent: ChangeAtomId): void => {
 				const revision = this.mintRevisionTag();
 				const detach: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
-				const fill: ChangeAtomId = newContent[0].first;
+				const fill: ChangeAtomId = newContent;
 				const change: FieldChangeset = brand(
 					valueFieldKind.changeHandler.editor.set({
 						fill,
@@ -301,7 +309,7 @@ export class DefaultLowLevelDataEditor implements ChangeFamilyEditor, LowLevelDa
 
 	public optionalField(
 		field: FieldUpPath,
-	): LowLevelOptionalFieldEditor<TreeChunk, DetachedRootIds> {
+	): LowLevelOptionalFieldEditor<TreeChunk, ChangeAtomId> {
 		const editBuilder = {
 			set: (newContent: TreeChunk | undefined, wasEmpty: boolean): void => {
 				if (newContent === undefined) {
@@ -309,17 +317,18 @@ export class DefaultLowLevelDataEditor implements ChangeFamilyEditor, LowLevelDa
 					return;
 				}
 				assert(newContent.topLevelLength === 1, "Expected exactly one node");
-				const root = this.buildRoots(newContent);
-				editBuilder.attach(root, wasEmpty);
+				const roots = this.buildRoots(newContent);
+				assert(hasSingle(roots) && roots[0].count === 1, "Expected exactly one root");
+				editBuilder.attach(roots[0].first, wasEmpty);
 			},
-			attach: (newContent: DetachedRootIds, wasEmpty: boolean): void => {
-				assert(
-					hasSingle(newContent) && newContent[0].count === 1,
-					"Expected exactly one node",
-				);
+			attach: (newContent: ChangeAtomId | undefined, wasEmpty: boolean): void => {
+				if (newContent === undefined) {
+					editBuilder.clear(wasEmpty);
+					return;
+				}
 				const revision = this.mintRevisionTag();
 				const detach: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
-				const fill: ChangeAtomId = newContent[0].first;
+				const fill: ChangeAtomId = newContent;
 				const optionalChange = optional.changeHandler.editor.set(wasEmpty, {
 					fill,
 					detach,
@@ -483,6 +492,7 @@ export class DefaultLowLevelDataEditor implements ChangeFamilyEditor, LowLevelDa
 						localId: this.modularBuilder.generateId(count),
 						revision: attachRevision,
 					};
+					assert(first.revision !== undefined, "Detached nodes ID must have a revision");
 					const change: FieldChangeset = brand(
 						sequence.changeHandler.editor.insert(
 							index + insertOffset,
@@ -522,22 +532,24 @@ export class DefaultLowLevelDataEditor implements ChangeFamilyEditor, LowLevelDa
 	}
 }
 
-export interface HighLevelRequiredFieldEditor<TContent> {
-	/**
-	 * Issues a change which replaces the content of the field with `newContent`.
-	 * @param newContent - the new content for the field.
-	 */
-	set(newContent: TContent): void;
-}
+export type HighLevelRequiredFieldEditor<TContent, TDetachedRoot> =
+	LowLevelRequiredFieldEditor<TContent, TDetachedRoot>;
+// export interface HighLevelRequiredFieldEditor<TContent> {
+// 	/**
+// 	 * Issues a change which replaces the content of the field with `newContent`.
+// 	 * @param newContent - the new content for the field.
+// 	 */
+// 	set(newContent: TContent): void;
+// }
 
-export interface LowLevelRequiredFieldEditor<TContent, TDetachedRoots> {
+export interface LowLevelRequiredFieldEditor<TContent, TDetachedRoot> {
 	/**
 	 * Issues a change which replaces the content of the field with the given detached node.
 	 * @param content - The content to be attached in the field in the given order.
 	 * Must represent a single detached node.
 	 * Must have been created in the same JS turn.
 	 */
-	attach(content: TDetachedRoots): void;
+	attach(content: TDetachedRoot): void;
 
 	/**
 	 * Issues a change which replaces the content of the field with `newContent`.
@@ -548,14 +560,32 @@ export interface LowLevelRequiredFieldEditor<TContent, TDetachedRoots> {
 	set(newContent: TContent): void;
 }
 
-export interface HighLevelOptionalFieldEditor<TContent> {
-	/**
-	 * Issues a change which replaces the content of the field with `newContent`.
-	 * @param newContent - the new content for the field.
-	 * @param wasEmpty - whether the field is empty when creating this change.
-	 */
-	set(newContent: TContent | undefined, wasEmpty: boolean): void;
-}
+export type HighLevelOptionalFieldEditor<TContent, TDetachedRoot> =
+	LowLevelOptionalFieldEditor<TContent, TDetachedRoot>;
+
+// export interface HighLevelOptionalFieldEditor<TContent, TDetachedRoot> {
+// 	/**
+// 	 * Issues a change which replaces the content of the field with the given detached node.
+// 	 * @param content - The content to be attached in the field in the given order.
+// 	 * Must represent a single detached node when not undefined.
+// 	 */
+// 	attach(content: TDetachedRoot | undefined, wasEmpty: boolean): void;
+
+// 	/**
+// 	 * Issues a change which clears content of the field.
+// 	 * @param wasEmpty - whether the field is empty when creating this change
+// 	 */
+// 	clear(wasEmpty: boolean): void;
+
+// 	/**
+// 	 * Issues a change which replaces the content of the field with `newContent`
+// 	 * @param newContent - the new content for the field.
+// 	 * @param wasEmpty - whether the field is empty when creating this change
+// 	 *
+// 	 * @deprecated Use {@link attach} or {@link clear} instead.
+// 	 */
+// 	set(newContent: TContent | undefined, wasEmpty: boolean): void;
+// }
 
 export interface LowLevelOptionalFieldEditor<TContent, TDetachedRoots> {
 	/**
@@ -563,7 +593,7 @@ export interface LowLevelOptionalFieldEditor<TContent, TDetachedRoots> {
 	 * @param content - The content to be attached in the field in the given order.
 	 * Must represent a single detached node.
 	 */
-	attach(content: TDetachedRoots, wasEmpty: boolean): void;
+	attach(content: TDetachedRoots | undefined, wasEmpty: boolean): void;
 
 	/**
 	 * Issues a change which clears content of the field.
@@ -581,24 +611,30 @@ export interface LowLevelOptionalFieldEditor<TContent, TDetachedRoots> {
 	set(newContent: TContent | undefined, wasEmpty: boolean): void;
 }
 
-/**
- * Editor for the sequence field kind.
- */
-export interface HighLevelSequenceFieldEditor<TContent, TRemoved = void> {
-	/**
-	 * Issues a change which inserts the `newContent` at the given `index`.
-	 * @param index - the index at which to insert the `newContent`.
-	 * @param newContent - the new content to be inserted in the field.
-	 */
-	insert(index: number, newContent: TContent): void;
+// /**
+//  * Editor for the sequence field kind.
+//  */
+// export interface HighLevelSequenceFieldEditor<TContent, TRemoved = void> {
+// 	/**
+// 	 * Issues a change which inserts the `newContent` at the given `index`.
+// 	 * @param index - the index at which to insert the `newContent`.
+// 	 * @param newContent - the new content to be inserted in the field.
+// 	 */
+// 	insert(index: number, newContent: TContent): void;
 
-	/**
-	 * Issues a change which removes `count` elements starting at the given `index`.
-	 * @param index - The index of the first removed element.
-	 * @param count - The number of elements to remove.
-	 */
-	remove(index: number, count: number): TRemoved;
-}
+// 	/**
+// 	 * Issues a change which removes `count` elements starting at the given `index`.
+// 	 * @param index - The index of the first removed element.
+// 	 * @param count - The number of elements to remove.
+// 	 */
+// 	remove(index: number, count: number): TRemoved;
+// }
+
+export type HighLevelSequenceFieldEditor<
+	TContent,
+	TDetachedRoots,
+	TRemoved = void,
+> = LowLevelSequenceFieldEditor<TContent, TDetachedRoots, TRemoved>;
 
 /**
  * Editor for the sequence field kind.

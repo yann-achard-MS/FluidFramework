@@ -99,6 +99,7 @@ import {
 	type FieldKindIdentifier,
 	type TreeNodeSchemaIdentifier,
 	type TreeFieldStoredSchema,
+	type ChangeAtomId,
 } from "../core/index.js";
 import { typeboxValidator } from "../external-utilities/index.js";
 import {
@@ -1422,7 +1423,7 @@ function normalizeNewFieldContent(
  * Convenience helper for performing a "move" edit where the source and destination field are the same.
  */
 export function moveWithin(
-	editor: LowLevelDataEditor,
+	editor: LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>,
 	field: NormalizedFieldUpPath,
 	sourceIndex: number,
 	count: number,

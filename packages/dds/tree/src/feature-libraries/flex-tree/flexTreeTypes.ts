@@ -351,7 +351,7 @@ export interface FlexTreeSequenceField extends FlexTreeField {
 	/**
 	 * Get an editor for this sequence.
 	 */
-	readonly editor: HighLevelSequenceFieldEditor<FlexibleFieldContent>;
+	readonly editor: HighLevelSequenceFieldEditor<FlexibleFieldContent, readonly FlexTreeNode[]>;
 }
 
 /**
@@ -363,7 +363,7 @@ export interface FlexTreeSequenceField extends FlexTreeField {
 export interface FlexTreeRequiredField extends FlexTreeField {
 	get content(): FlexTreeUnknownUnboxed;
 
-	readonly editor: HighLevelRequiredFieldEditor<FlexibleNodeContent>;
+	readonly editor: HighLevelRequiredFieldEditor<FlexibleNodeContent, FlexTreeNode>;
 }
 
 /**
@@ -382,7 +382,7 @@ export interface FlexTreeRequiredField extends FlexTreeField {
 export interface FlexTreeOptionalField extends FlexTreeField {
 	get content(): FlexTreeUnknownUnboxed | undefined;
 
-	readonly editor: HighLevelOptionalFieldEditor<FlexibleNodeContent>;
+	readonly editor: HighLevelOptionalFieldEditor<FlexibleNodeContent, FlexTreeNode>;
 }
 
 // #endregion

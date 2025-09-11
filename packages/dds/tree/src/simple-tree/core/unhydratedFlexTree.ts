@@ -58,7 +58,7 @@ import type { ContextualFieldProvider } from "../fieldSchema.js";
 import type { TreeNode } from "./treeNode.js";
 
 interface UnhydratedTreeSequenceFieldEditBuilder
-	extends HighLevelSequenceFieldEditor<FlexibleFieldContent> {}
+	extends HighLevelSequenceFieldEditor<FlexibleFieldContent, readonly FlexTreeNode[]> {}
 
 type UnhydratedFlexTreeNodeEvents = Pick<AnchorEvents, "childrenChangedAfterBatch">;
 
@@ -448,7 +448,7 @@ export class UnhydratedOptionalField
 	extends UnhydratedFlexTreeField
 	implements FlexTreeOptionalField
 {
-	public readonly editor: HighLevelOptionalFieldEditor<FlexibleNodeContent> = {
+	public readonly editor: HighLevelOptionalFieldEditor<FlexibleNodeContent, FlexTreeNode> = {
 		set: (newContent: FlexibleNodeContent | undefined): void => {
 			// If the new content is a UnhydratedFlexTreeNode, it needs to have its parent pointer updated
 			if (newContent !== undefined) {
@@ -466,6 +466,12 @@ export class UnhydratedOptionalField
 				}
 			});
 		},
+		clear: (): void => {
+			this.editor.set(undefined, true /* <- dummy wasEmpty argument */);
+		},
+		attach: (content): void => {
+			this.editor.set(content, true /* <- dummy wasEmpty argument */);
+		},
 	};
 
 	public get content(): FlexTreeUnknownUnboxed | undefined {
@@ -482,7 +488,7 @@ export class UnhydratedRequiredField
 	extends UnhydratedFlexTreeField
 	implements FlexTreeRequiredField
 {
-	public readonly editor: HighLevelRequiredFieldEditor<FlexibleNodeContent> = {
+	public readonly editor: HighLevelRequiredFieldEditor<FlexibleNodeContent, FlexTreeNode> = {
 		set: (newContent: FlexibleNodeContent): void => {
 			assert(
 				newContent instanceof UnhydratedFlexTreeNode,
@@ -492,6 +498,9 @@ export class UnhydratedRequiredField
 			this.edit((mapTrees) => {
 				mapTrees[0] = newContent;
 			});
+		},
+		attach: (content): void => {
+			this.editor.set(content);
 		},
 	};
 
@@ -513,7 +522,11 @@ export class UnhydratedSequenceField
 	extends UnhydratedFlexTreeField
 	implements FlexTreeSequenceField
 {
-	public readonly editor = {
+	public readonly editor: HighLevelSequenceFieldEditor<
+		readonly FlexibleNodeContent[],
+		readonly FlexTreeNode[],
+		FlexTreeNode[]
+	> = {
 		insert: (index, newContent): void => {
 			for (const c of newContent) {
 				assert(c !== undefined, 0xa0a /* Unexpected sparse array content */);
@@ -540,6 +553,9 @@ export class UnhydratedSequenceField
 				removed = mapTrees.splice(index, count);
 			});
 			return removed ?? fail(0xb4a /* Expected removed to be set by edit */);
+		},
+		attach: (index, content: readonly FlexTreeNode[]): void => {
+			this.editor.insert(index, content);
 		},
 	} satisfies UnhydratedTreeSequenceFieldEditBuilder;
 

@@ -4,13 +4,16 @@
  */
 
 import type {
+	ChangeAtomId,
 	ChangeFamilyEditor,
 	RevisionTag,
 	TaggedChange,
+	TreeChunk,
 	TreeStoredSchema,
 } from "../core/index.js";
 import {
 	DefaultLowLevelDataEditor,
+	type DetachedRootIds,
 	type LowLevelDataEditor,
 	type ModularChangeFamily,
 } from "../feature-libraries/index.js";
@@ -33,7 +36,8 @@ export interface ISchemaEditor {
 /**
  * SharedTree editor for transactional tree data and schema changes.
  */
-export interface ISharedTreeEditor extends LowLevelDataEditor {
+export interface ISharedTreeEditor
+	extends LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds> {
 	/**
 	 * Editor for schema changes.
 	 */

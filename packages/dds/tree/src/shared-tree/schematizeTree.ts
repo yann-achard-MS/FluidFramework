@@ -5,11 +5,17 @@
 
 import { assert } from "@fluidframework/core-utils/internal";
 
-import { type TreeStoredSchema, rootFieldKey, schemaDataIsEmpty } from "../core/index.js";
+import {
+	type ChangeAtomId,
+	type TreeStoredSchema,
+	rootFieldKey,
+	schemaDataIsEmpty,
+} from "../core/index.js";
 import {
 	FieldKinds,
 	allowsRepoSuperset,
 	defaultSchemaPolicy,
+	type DetachedRootIds,
 	type LowLevelDataEditor,
 	type TreeChunk,
 } from "../feature-libraries/index.js";
@@ -101,7 +107,7 @@ export function initialize<T>(
  */
 export function initializerFromChunk(
 	checkout: Pick<ITreeCheckout, "storedSchema"> & {
-		readonly editor: LowLevelDataEditor;
+		readonly editor: LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
 	},
 	contentFactory: () => TreeChunk,
 ): () => void {
@@ -110,7 +116,7 @@ export function initializerFromChunk(
 
 function initializeFromChunk(
 	checkout: Pick<ITreeCheckout, "storedSchema"> & {
-		readonly editor: LowLevelDataEditor;
+		readonly editor: LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
 	},
 	contentChunk: TreeChunk,
 ): void {

@@ -64,6 +64,7 @@ import {
 	type Breakable,
 	breakingClass,
 	disposeSymbol,
+	hasSingle,
 	type WithBreakable,
 } from "../util/index.js";
 
@@ -203,11 +204,11 @@ export class SchematizingSimpleTreeView<
 				);
 
 				assert(
-					preparedContent.rootIds.length === 1,
+					hasSingle(preparedContent.rootIds),
 					0x7f4 /* optional field content should normalize at most one item */,
 				);
 				const fieldEditor = this.checkout.editor.optionalField(field);
-				fieldEditor.attach(preparedContent.rootIds, true);
+				fieldEditor.attach(preparedContent.rootIds[0]?.first, true);
 
 				return preparedContent;
 			})?.finalize([...this.getFlexTreeContext().root]);
