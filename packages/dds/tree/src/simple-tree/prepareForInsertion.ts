@@ -24,7 +24,7 @@ import {
 	type HydratedFlexTreeNode,
 	type MinimalMapTreeNodeView,
 	type FlexTreeField,
-	type DetachedRootIds,
+	type DetachedRootsLocation,
 } from "../feature-libraries/index.js";
 import { normalizeFieldSchema, type ImplicitAnnotatedFieldSchema } from "./fieldSchema.js";
 import {
@@ -156,7 +156,7 @@ export interface PreparedContent {
 	 * This is redundant with `toAttach.key` but in a different format/type.
 	 * Only provided for hydrated destinations.
 	 */
-	readonly rootIds?: DetachedRootIds;
+	readonly rootsLocations?: DetachedRootsLocation;
 
 	/**
 	 * Finalizes the prepared content. Moves in missing subtrees from detached fields, and hydrates TreeNodes as needed.
@@ -179,7 +179,7 @@ export interface PreparedContentInitialize extends PreparedContent {
 	/**
 	 * {@inheritDoc PreparedContent.rootIds}
 	 */
-	readonly rootIds: DetachedRootIds;
+	readonly rootsLocations: DetachedRootsLocation;
 }
 
 /**
@@ -220,14 +220,14 @@ export function prepareForInsertionContextless<TIn extends InsertableContent | u
 		hydratedData,
 		destinationSchema,
 	);
-	assert(final.rootIds !== undefined, "Expected rootIds to be defined");
+	assert(final.rootsLocations !== undefined, "Expected rootIds to be defined");
 	assert(
-		final.rootIds.length <= 1,
+		final.rootsLocations.length <= 1,
 		"Expected at most one node to be returned from prepareForInsertionContextless",
 	);
 
-	// For some reason TypeScript can't figure out that final.rootIds is defined unless we handle is separately.
-	return { ...final, rootIds: final.rootIds };
+	// For some reason TypeScript can't figure out that final.rootsLocations is defined unless we handle is separately.
+	return { ...final, rootsLocations: final.rootsLocations };
 }
 
 /**
@@ -297,20 +297,19 @@ function validateAndPrepare(
 			isFieldInSchema(field, fieldSchema, schemaAndPolicy, throwOutOfSchema);
 		}
 
-		const rootIds = hydratedData.checkout.editor.buildRoots(chunk.chunk);
-		const fields = hydratedData.checkout.getRemovedRootsFields(rootIds);
-		console.log(`built nodes: ${JSON.stringify(fields)}`);
+		const rootsLocations = hydratedData.checkout.editor.buildRoots(chunk.chunk);
+		console.log(`built nodes: ${JSON.stringify(rootsLocations)}`);
 
 		const toAttach =
 			hydratedData.detachedField === undefined
 				? undefined
-				: fields.map((f) => {
+				: rootsLocations.map((f) => {
 						assert(
 							hydratedData.detachedField !== undefined,
 							"detachedField should not stop being defined",
 						);
 						const rootField = hydratedData.detachedField(
-							keyAsDetachedField(f),
+							keyAsDetachedField(f.field),
 							FieldKinds.optional.identifier,
 						);
 						assert(rootField.length === 1, "Expected single root in detached field");
@@ -319,7 +318,7 @@ function validateAndPrepare(
 
 		return {
 			toAttach,
-			rootIds,
+			rootsLocations,
 			finalize: (attached: readonly FlexTreeNode[]) => {
 				// do edits to move existing content into newly built tree and hydrate nodes as needed
 				attachAndHydratedNodes([...attached], chunk.attaches);

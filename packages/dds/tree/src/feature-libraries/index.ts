@@ -145,6 +145,12 @@ export {
 	isNodeInSchema,
 	isFieldInSchema,
 	throwOutOfSchema,
+	type DetachedRootLocation,
+	type DetachedRootsLocation,
+	type DetachedRootIdRange,
+	type Locator,
+	LocationBasedDataEditor,
+	type ILocationBasedDataEditor,
 } from "./default-schema/index.js";
 
 export {

@@ -102,8 +102,8 @@ export function relevantRemovedRoots(change: ModularChangeset): Iterable<DeltaDe
 	return relevantModularRemovedRoots(change, fieldKinds);
 }
 
-export type DetachedRootIds = readonly DeltaRootIdRange[];
-export interface DeltaRootIdRange {
+export type DetachedRootIds = readonly DetachedRootIdRange[];
+export interface DetachedRootIdRange {
 	readonly first: ChangeAtomId;
 	readonly count: number;
 }

@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { assert } from "@fluidframework/core-utils/internal";
+import { assert, fail } from "@fluidframework/core-utils/internal";
 import type { IIdCompressor } from "@fluidframework/id-compressor";
 
 import {
@@ -207,6 +207,16 @@ export class DetachedFieldIndex {
 	 */
 	public toFieldKey(id: ForestRootId): FieldKey {
 		return brand(`${this.name}-${id}`);
+	}
+
+	public fromFieldKey(field: FieldKey): Delta.DetachedNodeId {
+		// TODO: maintain a lookup table or use field keys that encode the detached node ID
+		for (const { id, root } of this.entries()) {
+			if (this.toFieldKey(root) === field) {
+				return id;
+			}
+		}
+		fail("No known detached roots in the given field");
 	}
 
 	/**

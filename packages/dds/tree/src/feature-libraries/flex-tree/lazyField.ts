@@ -8,7 +8,6 @@ import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
 import {
 	type AnchorNode,
-	type ChangeAtomId,
 	CursorLocationType,
 	type FieldAnchor,
 	type FieldKey,
@@ -33,7 +32,8 @@ import {
 	type LowLevelDataEditor,
 	type LowLevelRequiredFieldEditor,
 	type LowLevelOptionalFieldEditor,
-	type DetachedRootIds,
+	type DetachedRootLocation,
+	type DetachedRootsLocation,
 } from "../default-schema/index.js";
 import { cursorForMapTreeField, type MinimalMapTreeNodeView } from "../mapTreeCursor.js";
 import type { FlexFieldKind } from "../modular-schema/index.js";
@@ -58,7 +58,6 @@ import {
 import { LazyEntity } from "./lazyEntity.js";
 import { LazyTreeNode, getOrCreateHydratedFlexTreeNode } from "./lazyNode.js";
 import { indexForAt, treeStatusFromAnchorCache } from "./utilities.js";
-import { changeAtomFromDetachedNodeId } from "../deltaUtils.js";
 
 /**
  * Reuse fields.
@@ -252,8 +251,8 @@ export abstract class LazyField extends LazyEntity<FieldAnchor> implements FlexT
 
 	protected getEditor(): LowLevelDataEditor<
 		ITreeCursorSynchronous,
-		ChangeAtomId,
-		DetachedRootIds
+		DetachedRootLocation,
+		DetachedRootsLocation
 	> {
 		return new MappedEditBuilder(
 			this.context.checkout.editor,
@@ -262,13 +261,9 @@ export abstract class LazyField extends LazyEntity<FieldAnchor> implements FlexT
 	}
 }
 
-function changeAtomIdFromNode(node: FlexTreeNode): ChangeAtomId {
+function fieldFromNode(node: FlexTreeNode): FieldKey {
 	assert(node instanceof LazyTreeNode, "Invalid tree type");
-	assert(
-		node.anchorNode.detachedNodeId !== undefined,
-		"Cannot attach currently attached tree",
-	);
-	return changeAtomFromDetachedNodeId(node.anchorNode.detachedNodeId);
+	return node.anchorNode.parentField;
 }
 
 export class LazySequence extends LazyField implements FlexTreeSequenceField {
@@ -294,14 +289,17 @@ export class LazySequence extends LazyField implements FlexTreeSequenceField {
 				this.sequenceEditor().remove(index, count);
 			},
 			attach: (index, content) => {
-				const roots = content.map((node) => ({ first: changeAtomIdFromNode(node), count: 1 }));
-				this.sequenceEditor().attach(index, roots);
+				const contentLocations: DetachedRootsLocation = content.map((node) => ({
+					field: fieldFromNode(node),
+					count: 1,
+				}));
+				this.sequenceEditor().attach(index, contentLocations);
 			},
 		};
 
 	private sequenceEditor(): LowLevelSequenceFieldEditor<
 		ITreeCursorSynchronous,
-		DetachedRootIds
+		DetachedRootsLocation
 	> {
 		const fieldPath = this.getFieldPathForEditing();
 		return this.getEditor().sequenceField(fieldPath);
@@ -314,14 +312,14 @@ export class LazyValueField extends LazyField implements FlexTreeRequiredField {
 			this.valueFieldEditor().set(cursorForMapTreeField([newContent]));
 		},
 		attach: (content) => {
-			const root = changeAtomIdFromNode(content);
+			const root = fieldFromNode(content);
 			this.valueFieldEditor().attach(root);
 		},
 	};
 
 	private valueFieldEditor(): LowLevelRequiredFieldEditor<
 		ITreeCursorSynchronous,
-		ChangeAtomId
+		DetachedRootLocation
 	> {
 		const fieldPath = this.getFieldPathForEditing();
 		return this.getEditor().valueField(fieldPath);
@@ -344,7 +342,7 @@ export class LazyOptionalField extends LazyField implements FlexTreeOptionalFiel
 			if (content === undefined) {
 				this.optionalEditor().clear(wasEmpty);
 			} else {
-				const root = changeAtomIdFromNode(content);
+				const root = fieldFromNode(content);
 				this.optionalEditor().attach(root, wasEmpty);
 			}
 		},
@@ -353,7 +351,10 @@ export class LazyOptionalField extends LazyField implements FlexTreeOptionalFiel
 		},
 	};
 
-	private optionalEditor(): LowLevelOptionalFieldEditor<ITreeCursorSynchronous, ChangeAtomId> {
+	private optionalEditor(): LowLevelOptionalFieldEditor<
+		ITreeCursorSynchronous,
+		DetachedRootLocation
+	> {
 		const fieldPath = this.getFieldPathForEditing();
 		const fieldEditor = this.getEditor().optionalField(fieldPath);
 		return fieldEditor;

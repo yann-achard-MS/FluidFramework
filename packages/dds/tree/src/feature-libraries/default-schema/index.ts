@@ -17,6 +17,7 @@ export {
 export {
 	type DefaultChangeset,
 	type DetachedRootIds,
+	type DetachedRootIdRange,
 	DefaultChangeFamily,
 	DefaultLowLevelDataEditor,
 	type LowLevelDataEditor,
@@ -30,6 +31,14 @@ export {
 	intoDelta,
 	relevantRemovedRoots,
 } from "./defaultEditBuilder.js";
+
+export {
+	type DetachedRootLocation,
+	type DetachedRootsLocation,
+	type Locator,
+	LocationBasedDataEditor,
+	type ILocationBasedDataEditor,
+} from "./locationBasedEditBuilder.js";
 
 export {
 	SchemaValidationError,

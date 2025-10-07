@@ -42,20 +42,24 @@ import {
 	type RevertibleAlpha,
 	type GraphCommit,
 	isAncestor,
-	type FieldKey,
-	offsetChangeAtomId,
 	moveToDetachedField,
 	type ITreeCursor,
 	type TreeNodeSchemaIdentifier,
 	type TreeNodeStoredSchema,
 	LeafNodeStoredSchema,
+	type ChangeAtomId,
+	offsetChangeAtomId,
 } from "../core/index.js";
 import {
 	type DetachedRootIds,
+	type DetachedRootLocation,
+	type DetachedRootsLocation,
 	type FieldBatchCodec,
+	type Locator,
 	type TreeCompressionStrategy,
 	allowsRepoSuperset,
 	buildForest,
+	changeAtomFromDetachedNodeId,
 	createNodeIdentifierManager,
 	defaultSchemaPolicy,
 	intoDelta,
@@ -71,11 +75,22 @@ import {
 	type SharedTreeBranchChange,
 	type Transactor,
 } from "../shared-tree-core/index.js";
-import { Breakable, disposeSymbol, getOrCreate, type WithBreakable } from "../util/index.js";
+import {
+	Breakable,
+	disposeSymbol,
+	getOrCreate,
+	makeArray,
+	type WithBreakable,
+} from "../util/index.js";
 
 import { SharedTreeChangeFamily, hasSchemaChange } from "./sharedTreeChangeFamily.js";
 import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
-import type { ISharedTreeEditor, SharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
+import {
+	type IdBasedSharedTreeEditBuilder,
+	type ILocationBasedSharedTreeEditor,
+	type IIdBasedSharedTreeEditor,
+	LocationBasedSharedTreeEditBuilder,
+} from "./sharedTreeEditBuilder.js";
 import type { IDisposable } from "@fluidframework/core-interfaces";
 import {
 	type ImplicitFieldSchema,
@@ -226,7 +241,7 @@ export interface ITreeCheckout extends AnchorLocator, ViewableTree, WithBreakabl
 	 * Used to edit the state of the tree. Edits will be immediately applied locally to the tree.
 	 * If there is no transaction currently ongoing, then the edits will be submitted to Fluid immediately as well.
 	 */
-	readonly editor: ISharedTreeEditor;
+	readonly editor: ILocationBasedSharedTreeEditor;
 
 	/**
 	 * A collection of functions for managing transactions.
@@ -263,14 +278,6 @@ export interface ITreeCheckout extends AnchorLocator, ViewableTree, WithBreakabl
 	readonly rootEvents: Listenable<AnchorSetRootEvents>;
 
 	/**
-	 * Returns an array of `FieldKey`s where each entry corresponds to removed/detached root listed in the given `rootIds`.
-	 * The order of the returned `FieldKey`s matches the order of the given `rootIds`.
-	 *
-	 * @param rootIds - The IDs of the roots to get the `FieldKey`s for.
-	 */
-	getRemovedRootsFields(rootIds: DetachedRootIds): FieldKey[];
-
-	/**
 	 * Returns a JsonableTree for each tree that was removed from (and not restored to) the document.
 	 * This list is guaranteed to contain all nodes that are recoverable through undo/redo on this checkout.
 	 * The list may also contain additional nodes.
@@ -292,8 +299,8 @@ export function createTreeCheckout(
 	mintRevisionTag: () => RevisionTag,
 	revisionTagCodec: RevisionTagCodec,
 	args?: {
-		branch?: SharedTreeBranch<SharedTreeEditBuilder, SharedTreeChange>;
-		changeFamily?: ChangeFamily<SharedTreeEditBuilder, SharedTreeChange>;
+		branch?: SharedTreeBranch<IdBasedSharedTreeEditBuilder, SharedTreeChange>;
+		changeFamily?: ChangeFamily<IdBasedSharedTreeEditBuilder, SharedTreeChange>;
 		schema?: TreeStoredSchemaRepository;
 		forest?: IEditableForest;
 		fieldBatchCodec?: FieldBatchCodec;
@@ -379,6 +386,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	public disposed = false;
 
 	private readonly editLock: EditLock;
+	private readonly locator: Locator;
 
 	private readonly views = new Set<TreeView<ImplicitFieldSchema>>();
 
@@ -394,7 +402,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	 */
 	private readonly revertibleCommitBranches = new Map<
 		RevisionTag,
-		SharedTreeBranch<SharedTreeEditBuilder, SharedTreeChange>
+		SharedTreeBranch<IdBasedSharedTreeEditBuilder, SharedTreeChange>
 	>();
 
 	/**
@@ -407,10 +415,13 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	public events: Listenable<CheckoutEvents> = this.#events;
 
 	public constructor(
-		branch: SharedTreeBranch<SharedTreeEditBuilder, SharedTreeChange>,
+		branch: SharedTreeBranch<IdBasedSharedTreeEditBuilder, SharedTreeChange>,
 		/** True if and only if this checkout is for a forked branch and not the "main branch" of the tree. */
 		public readonly isBranch: boolean,
-		private readonly changeFamily: ChangeFamily<SharedTreeEditBuilder, SharedTreeChange>,
+		private readonly changeFamily: ChangeFamily<
+			IdBasedSharedTreeEditBuilder,
+			SharedTreeChange
+		>,
 		public readonly storedSchema: TreeStoredSchemaRepository,
 		public readonly forest: IEditableForest,
 		private readonly mintRevisionTag: () => RevisionTag,
@@ -514,6 +525,32 @@ export class TreeCheckout implements ITreeCheckoutFork {
 
 		this.#transaction.activeBranchEvents.on("afterChange", this.onAfterChange);
 		this.#transaction.activeBranchEvents.on("ancestryTrimmed", this.onAncestryTrimmed);
+
+		this.locator = {
+			locationFromId: (id: ChangeAtomId): DetachedRootLocation => {
+				const rootId = this.removedRoots.getEntry(nodeIdFromChangeAtom(id));
+				return this.removedRoots.toFieldKey(rootId);
+			},
+			idFromLocation: (location: DetachedRootLocation): ChangeAtomId => {
+				const nodeId = this.removedRoots.fromFieldKey(location);
+				return changeAtomFromDetachedNodeId(nodeId);
+			},
+			locationsFromIdRanges: (ids: DetachedRootIds): DetachedRootsLocation => {
+				return ids.flatMap((id) => {
+					return makeArray(id.count, (offset) => {
+						const field = this.locator.locationFromId(offsetChangeAtomId(id.first, offset));
+						return { field, count: id.count };
+					});
+				});
+			},
+			idRangesFromLocations: (ids: DetachedRootsLocation): DetachedRootIds => {
+				return ids.map((id) => {
+					assert(id.count === 1, "Expected count of 1");
+					const first = this.locator.idFromLocation(id.field);
+					return { first, count: id.count };
+				});
+			},
+		};
 	}
 
 	public exportVerbose(): VerboseTree | undefined {
@@ -719,9 +756,9 @@ export class TreeCheckout implements ITreeCheckoutFork {
 		return this.forest.anchors.events;
 	}
 
-	public get editor(): ISharedTreeEditor {
+	public get editor(): ILocationBasedSharedTreeEditor {
 		this.checkNotDisposed();
-		return this.editLock.editor;
+		return new LocationBasedSharedTreeEditBuilder(this.editLock.editor, this.locator);
 	}
 
 	public locate(anchor: Anchor): AnchorNode | undefined {
@@ -742,7 +779,10 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	 * To avoid updating observers of the view state with intermediate results during a transaction,
 	 * use {@link ITreeCheckout#branch} and {@link ISharedTreeFork#merge}.
 	 */
-	readonly #transaction: SquashingTransactionStack<SharedTreeEditBuilder, SharedTreeChange>;
+	readonly #transaction: SquashingTransactionStack<
+		IdBasedSharedTreeEditBuilder,
+		SharedTreeChange
+	>;
 
 	public branch(): TreeCheckout {
 		this.checkNotDisposed(
@@ -850,21 +890,6 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			view.dispose();
 		}
 		this.#events.emit("dispose");
-	}
-
-	public getRemovedRootsFields(rootIds: DetachedRootIds): FieldKey[] {
-		this.checkNotDisposed();
-		return rootIds.flatMap((rootIdRange) => {
-			const fieldKeys: FieldKey[] = [];
-			for (let iNode = 0; iNode < rootIdRange.count; iNode++) {
-				const nodeId = offsetChangeAtomId(rootIdRange.first, iNode);
-				const detachedNodeId = nodeIdFromChangeAtom(nodeId);
-				const forestId = this.removedRoots.getEntry(detachedNodeId);
-				const fieldKey = this.removedRoots.toFieldKey(forestId);
-				fieldKeys.push(fieldKey);
-			}
-			return fieldKeys;
-		});
 	}
 
 	public getRemovedRoots(): [string | number | undefined, number, JsonableTree][] {
@@ -1046,14 +1071,14 @@ class EditLock {
 	 * Edits the tree by calling the methods of the editor passed into the {@link EditLock} constructor.
 	 * @remarks Edits will throw an error if the lock is currently locked.
 	 */
-	public editor: ISharedTreeEditor;
+	public editor: IIdBasedSharedTreeEditor;
 	private locked = false;
 
 	/**
 	 * @param editor - an editor which will be used to create a new editor that is monitored to determine if any changes are happening to the tree.
 	 * Use {@link EditLock.editor} in place of the original editor to ensure that changes are monitored.
 	 */
-	public constructor(editor: ISharedTreeEditor) {
+	public constructor(editor: IIdBasedSharedTreeEditor) {
 		const checkLock = (): void => this.checkUnlocked("Editing the tree");
 		this.editor = {
 			get schema() {

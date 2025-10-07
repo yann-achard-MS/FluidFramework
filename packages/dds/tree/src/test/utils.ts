@@ -133,7 +133,7 @@ import {
 	type SharedTreeContentSnapshot,
 	type TreeCheckout,
 	createTreeCheckout,
-	type ISharedTreeEditor,
+	type ILocationBasedSharedTreeEditor,
 	type ITreeCheckoutFork,
 	independentView,
 	SchematizingSimpleTreeView,
@@ -1329,7 +1329,7 @@ export class MockTreeCheckout implements ITreeCheckout {
 		public readonly forest: IForestSubscription,
 		private readonly options?: {
 			schema?: TreeStoredSchemaSubscription;
-			editor?: ISharedTreeEditor;
+			editor?: ILocationBasedSharedTreeEditor;
 		},
 	) {}
 
@@ -1345,7 +1345,7 @@ export class MockTreeCheckout implements ITreeCheckout {
 		}
 		return this.options.schema;
 	}
-	public get editor(): ISharedTreeEditor {
+	public get editor(): ILocationBasedSharedTreeEditor {
 		if (this.options?.editor === undefined) {
 			throw new Error("No editor provided to MockTreeCheckout.");
 		}
@@ -1423,7 +1423,9 @@ function normalizeNewFieldContent(
  * Convenience helper for performing a "move" edit where the source and destination field are the same.
  */
 export function moveWithin(
-	editor: LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>,
+	editor:
+		| ILocationBasedSharedTreeEditor
+		| LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>,
 	field: NormalizedFieldUpPath,
 	sourceIndex: number,
 	count: number,

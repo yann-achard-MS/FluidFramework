@@ -3345,7 +3345,7 @@ describe("Editing", () => {
 			viewA.root.removeAt(0);
 			provider.synchronizeMessages();
 
-			// It is valid to create an unhydrated array with a hydrated detached child,
+			// It is valid to create an unhydrated array with a hydrated detached child
 			const unhydratedArray = new Parent([childOnViewA]);
 
 			viewB.root.insertAtEnd(childOnViewB);
@@ -3368,7 +3368,10 @@ describe("Editing", () => {
 			const childOnViewA = viewA.root.get("c1") ?? fail("Expected child to be present");
 			const childOnViewB = viewB.root.get("c1") ?? fail("Expected child to be present");
 
-			// It is valid to create an unhydrated map with a hydrated detached child,
+			viewA.root.delete("c1");
+			provider.synchronizeMessages();
+
+			// It is valid to create an unhydrated map with a hydrated detached child
 			const unhydratedMap = new Parent([["c1", childOnViewA]]);
 
 			viewB.root.set("c2", childOnViewB);
@@ -3384,7 +3387,7 @@ describe("Editing", () => {
 			class Parent extends sf.object("Parent", {
 				child: sf.optional(Child),
 			}) {}
-			const provider = new TestTreeProviderLite(1);
+			const provider = new TestTreeProviderLite(2);
 			const viewA = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
 			const viewB = provider.trees[1].viewWith(new TreeViewConfiguration({ schema: Parent }));
 			viewA.initialize(new Parent({ child: new Child({}) }));
@@ -3393,7 +3396,10 @@ describe("Editing", () => {
 			const childOnViewA = viewA.root.child ?? fail("Expected child to be present");
 			const childOnViewB = viewB.root.child ?? fail("Expected child to be present");
 
-			// It is valid to create an unhydrated object with a hydrated detached child,
+			viewA.root.child = undefined;
+			provider.synchronizeMessages();
+
+			// It is valid to create an unhydrated object with a hydrated detached child
 			const unhydratedObject = new Parent({ child: childOnViewA });
 
 			viewB.root.child = childOnViewB;

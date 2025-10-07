@@ -38,7 +38,7 @@ import {
 
 import { makeSharedTreeChangeCodecFamily } from "./sharedTreeChangeCodecs.js";
 import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
-import { SharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
+import { IdBasedSharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
 
 /**
  * Implementation of {@link ChangeFamily} that combines edits to fields and schema changes.
@@ -47,7 +47,7 @@ import { SharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
  */
 export class SharedTreeChangeFamily
 	implements
-		ChangeFamily<SharedTreeEditBuilder, SharedTreeChange>,
+		ChangeFamily<IdBasedSharedTreeEditBuilder, SharedTreeChange>,
 		ChangeRebaser<SharedTreeChange>
 {
 	public static readonly emptyChange: SharedTreeChange = {
@@ -81,8 +81,8 @@ export class SharedTreeChangeFamily
 	public buildEditor(
 		mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<SharedTreeChange>) => void,
-	): SharedTreeEditBuilder {
-		return new SharedTreeEditBuilder(
+	): IdBasedSharedTreeEditBuilder {
+		return new IdBasedSharedTreeEditBuilder(
 			this.modularChangeFamily,
 			mintRevisionTag,
 			changeReceiver,

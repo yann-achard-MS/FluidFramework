@@ -16,6 +16,7 @@ import {
 	allowsRepoSuperset,
 	defaultSchemaPolicy,
 	type DetachedRootIds,
+	type ILocationBasedDataEditor,
 	type LowLevelDataEditor,
 	type TreeChunk,
 } from "../feature-libraries/index.js";
@@ -107,7 +108,9 @@ export function initialize<T>(
  */
 export function initializerFromChunk(
 	checkout: Pick<ITreeCheckout, "storedSchema"> & {
-		readonly editor: LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
+		readonly editor:
+			| ILocationBasedDataEditor
+			| LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
 	},
 	contentFactory: () => TreeChunk,
 ): () => void {
@@ -116,7 +119,9 @@ export function initializerFromChunk(
 
 function initializeFromChunk(
 	checkout: Pick<ITreeCheckout, "storedSchema"> & {
-		readonly editor: LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
+		readonly editor:
+			| ILocationBasedDataEditor
+			| LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
 	},
 	contentChunk: TreeChunk,
 ): void {

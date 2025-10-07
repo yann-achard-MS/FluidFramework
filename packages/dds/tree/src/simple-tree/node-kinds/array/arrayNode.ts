@@ -952,20 +952,7 @@ abstract class CustomArrayNodeBase<const T extends ImplicitAllowedTypes>
 		if (!field.context.isHydrated()) {
 			field.editor.insert(index, content);
 		} else {
-			// Workaround for underlying insert copying not attaching: instead use move:
-			for (const [sourceIndex, item] of content.entries()) {
-				const source = item.parentField;
-				assert(source.parent.parent === undefined, "expected detached field");
-				assert(source.index === 0, "expected detached field singleton");
-				// TODO: is using this array move out of a detached root valid?
-				field.context.checkout.editor.move(
-					{ field: source.parent.key, parent: undefined },
-					0,
-					1,
-					field.getFieldPath(),
-					index + sourceIndex,
-				);
-			}
+			field.editor.attach(index, content);
 		}
 	}
 	public insertAtStart(...value: Insertable<T>): void {

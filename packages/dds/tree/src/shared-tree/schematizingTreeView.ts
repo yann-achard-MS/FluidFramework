@@ -192,7 +192,7 @@ export class SchematizingSimpleTreeView<
 					schema.rootFieldSchema,
 				);
 
-				if (preparedContent.rootIds.length === 0) {
+				if (preparedContent.rootsLocations.length === 0) {
 					// If there's no content to attach, no work is needed
 					return undefined;
 				}
@@ -204,11 +204,12 @@ export class SchematizingSimpleTreeView<
 				);
 
 				assert(
-					hasSingle(preparedContent.rootIds),
-					0x7f4 /* optional field content should normalize at most one item */,
+					hasSingle(preparedContent.rootsLocations) &&
+						preparedContent.rootsLocations[0].count === 1,
+					"Expected one root",
 				);
 				const fieldEditor = this.checkout.editor.optionalField(field);
-				fieldEditor.attach(preparedContent.rootIds[0]?.first, true);
+				fieldEditor.attach(preparedContent.rootsLocations[0].field, true);
 
 				return preparedContent;
 			})?.finalize([...this.getFlexTreeContext().root]);
@@ -510,7 +511,7 @@ export function getCheckout(context: TreeBranch): TreeCheckout {
  * Adds constraints to a `checkout`'s pending transaction.
  *
  * @param checkout - The checkout's who's transaction will have the constraints added to it.
- * @param constraintsOnRevert - If true, use {@link ISharedTreeEditor.addNodeExistsConstraintOnRevert}.
+ * @param constraintsOnRevert - If true, use {@link IIdBasedSharedTreeEditor.addNodeExistsConstraintOnRevert}.
  * @param constraints - The constraints to add to the transaction.
  *
  * @see {@link RunTransactionParams.preconditions}.

@@ -28,7 +28,7 @@ import type {
 	ITreeCheckout,
 	ITreeCheckoutFork,
 	CheckoutEvents,
-	ISharedTreeEditor,
+	ILocationBasedSharedTreeEditor,
 } from "../../shared-tree/index.js";
 import {
 	canInitialize,
@@ -179,7 +179,7 @@ describe("schematizeTree", () => {
 			storedSchema,
 			// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 			forest: { isEmpty } as IForestSubscription,
-			editor: undefined as unknown as ISharedTreeEditor,
+			editor: undefined as unknown as ILocationBasedSharedTreeEditor,
 			transaction: undefined as unknown as Transactor,
 			branch(): ITreeCheckoutFork {
 				throw new Error("Function not implemented.");
@@ -196,9 +196,6 @@ describe("schematizeTree", () => {
 			events: undefined as unknown as Listenable<CheckoutEvents>,
 			rootEvents: undefined as unknown as Listenable<AnchorSetRootEvents>,
 			getRemovedRoots(): [string | number | undefined, number, JsonableTree][] {
-				throw new Error("Function not implemented.");
-			},
-			getRemovedRootsFields(rootIds: DetachedRootIds): FieldKey[] {
 				throw new Error("Function not implemented.");
 			},
 			locate(anchor: Anchor): AnchorNode | undefined {
