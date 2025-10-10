@@ -298,7 +298,7 @@ function validateAndPrepare(
 		}
 
 		const rootsLocations = hydratedData.checkout.editor.buildRoots(chunk.chunk);
-		console.log(`built nodes: ${JSON.stringify(rootsLocations)}`);
+		// console.log(`built nodes: ${JSON.stringify(rootsLocations)}`);
 
 		const toAttach =
 			hydratedData.detachedField === undefined
@@ -403,9 +403,11 @@ function chunkFieldForInsertion(
 			const childAttaches: Map<FieldKey, readonly SubFieldAttach[]> = new Map();
 			for (const [key, fieldInner] of child.allFieldsLazy) {
 				fieldInner.fillPendingDefaults(context);
-				const inner = chunkFieldForInsertion(context, fieldInner);
-				fields.set(key, inner.chunk);
-				childAttaches.set(key, inner.attaches);
+				if (fieldInner.length > 0) {
+					const inner = chunkFieldForInsertion(context, fieldInner);
+					fields.set(key, inner.chunk);
+					childAttaches.set(key, inner.attaches);
+				}
 			}
 			// As an optimization, if there are no attach data, skip tracking it.
 			if (childAttaches.size !== 0 || child.treeNode !== undefined) {
