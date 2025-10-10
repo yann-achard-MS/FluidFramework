@@ -18,10 +18,10 @@ import {
 	defaultSchemaPolicy,
 	TreeStatus,
 	Context,
-	FieldKinds,
 	type FlexTreeOptionalField,
-	type FlexTreeRequiredField,
 	type FlexTreeUnknownUnboxed,
+	FieldKinds,
+	type FlexTreeRequiredField,
 } from "../feature-libraries/index.js";
 import {
 	type ImplicitFieldSchema,
@@ -41,6 +41,7 @@ import {
 	type UnsafeUnknownSchema,
 	type TreeBranch,
 	type TreeBranchEvents,
+	getInnerNode,
 	getKernel,
 	type VoidTransactionCallbackStatus,
 	type TransactionCallbackStatus,
@@ -366,14 +367,8 @@ export class SchematizingSimpleTreeView<
 				// TODO: provide a better event: this.view.flexTree.on(????) and/or integrate with with the normal event code paths.
 
 				// Track what the root was before to be able to detect changes.
-				const getRoot = (): FlexTreeUnknownUnboxed | undefined => {
-					const rootField = this.getFlexTreeContext().root as
-						| FlexTreeOptionalField
-						| FlexTreeRequiredField;
-					return rootField.content;
-				};
-
-				let lastRoot: FlexTreeUnknownUnboxed | undefined = getRoot();
+				// This uses the flex tree root to avoid demanding the simple-tree TreeNode when it might not be hydrated yet.
+				let lastRoot: FlexTreeUnknownUnboxed | undefined = this.flexRoot.content;
 
 				this.flexTreeViewUnregisterCallbacks.add(
 					this.checkout.events.on("afterBatch", () => {
@@ -382,9 +377,8 @@ export class SchematizingSimpleTreeView<
 						// - The rootChanged event will already be raised at the end of the current upgrade
 						// - It doesn't matter that `lastRoot` isn't updated in this case, because `update` will be called again before the upgrade
 						//   completes (at which point this callback and the `lastRoot` captured here will be out of scope anyway)
-						const newRoot = getRoot();
-						if (!this.midUpgrade && lastRoot !== newRoot) {
-							lastRoot = newRoot;
+						if (!this.midUpgrade && lastRoot !== this.flexRoot.content) {
+							lastRoot = this.flexRoot.content;
 							this.events.emit("rootChanged");
 						}
 					}),
@@ -450,7 +444,7 @@ export class SchematizingSimpleTreeView<
 		}
 	}
 
-	public get root(): ReadableField<TRootSchema> {
+	private get flexRoot(): FlexTreeOptionalField | FlexTreeRequiredField {
 		this.breaker.use();
 		if (!this.compatibility.canView) {
 			throw new UsageError(
@@ -458,7 +452,17 @@ export class SchematizingSimpleTreeView<
 			);
 		}
 		const view = this.getFlexTreeContext();
-		return tryGetTreeNodeForField(view.root) as ReadableField<TRootSchema>;
+		assert(
+			view.root.is(FieldKinds.optional) ||
+				view.root.is(FieldKinds.required) ||
+				view.root.is(FieldKinds.identifier),
+			"unexpected root field kind",
+		);
+		return view.root;
+	}
+
+	public get root(): ReadableField<TRootSchema> {
+		return tryGetTreeNodeForField(this.flexRoot) as ReadableField<TRootSchema>;
 	}
 
 	public set root(newRoot: InsertableField<TRootSchema>) {
@@ -523,7 +527,7 @@ export function addConstraintsToTransaction(
 	for (const constraint of constraints) {
 		switch (constraint.type) {
 			case "nodeInDocument": {
-				const node = getKernel(constraint.node).getInnerNode();
+				const node = getInnerNode(constraint.node);
 				const nodeStatus = getKernel(constraint.node).getStatus();
 				if (nodeStatus !== TreeStatus.InDocument) {
 					const revertText = constraintsOnRevert ? " on revert" : "";
