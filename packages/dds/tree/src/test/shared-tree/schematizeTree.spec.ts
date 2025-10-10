@@ -13,7 +13,6 @@ import {
 	type TreeStoredSchema,
 	TreeStoredSchemaRepository,
 	type AnchorSetRootEvents,
-	type FieldKey,
 	type TaggedChange,
 } from "../../core/index.js";
 import { fieldJsonCursor } from "../json/index.js";
@@ -21,7 +20,6 @@ import {
 	FieldKinds,
 	allowsRepoSuperset,
 	defaultSchemaPolicy,
-	type DetachedRootIds,
 	type ModularChangeset,
 } from "../../feature-libraries/index.js";
 import type {

@@ -14,11 +14,10 @@ import {
 	independentView,
 	SchemaFactory,
 	TreeViewConfiguration,
-	type ImplicitFieldSchema,
 } from "@fluidframework/tree/alpha";
 
 import { SharedTreeSemanticAgent } from "../agent.js";
-import type { EditFunction, EditResult, SharedTreeChatModel } from "../api.js";
+import type { EditResult, SharedTreeChatModel } from "../api.js";
 
 const sf = new SchemaFactory(undefined);
 const editToolName = "EditTreeTool";
@@ -40,15 +39,12 @@ describe("Semantic Agent", () => {
 	it("can apply an edit from a query", async () => {
 		const view = independentView(new TreeViewConfiguration({ schema: sf.string }), {});
 		view.initialize("Content");
+		const code = `context.root = "Edited";`;
 		const model: SharedTreeChatModel = {
 			editToolName,
 			async query({ edit }) {
-				const result = await edit(
-					toEditTreeCode<typeof sf.string>((params) => {
-						params.root = "Edited";
-					}),
-				);
-				assert(result.type === "success", "Edit was not successful");
+				const result = await edit(code);
+				assert(result.type === "success", result.message);
 				return result.message;
 			},
 		};
@@ -63,23 +59,21 @@ describe("Semantic Agent", () => {
 		const view = independentView(new TreeViewConfiguration({ schema: sf.string }), {});
 		view.initialize("Content");
 		let editCount = 0;
+		const firstEdit = `
+			context.root = "First Edit";
+		`;
+		const secondEdit = `
+			context.root = "Second Edit";
+		`;
 		const model: SharedTreeChatModel = {
 			editToolName,
 			async query({ edit }) {
 				editCount++;
 				if (editCount === 1) {
-					const result1 = await edit(
-						toEditTreeCode<typeof sf.string>((params) => {
-							params.root = "First Edit";
-						}),
-					);
-					assert(result1.type === "success", "First edit was not successful");
-					const result2 = await edit(
-						toEditTreeCode<typeof sf.string>((params) => {
-							params.root = "Second Edit";
-						}),
-					);
-					assert(result2.type === "success", "Second edit was not successful");
+					const result1 = await edit(firstEdit);
+					assert(result1.type === "success", result1.message);
+					const result2 = await edit(secondEdit);
+					assert(result2.type === "success", result2.message);
 					return result2.message;
 				}
 				return "No edits";
@@ -97,11 +91,7 @@ describe("Semantic Agent", () => {
 		view.initialize("Content");
 		const model: SharedTreeChatModel = {
 			async query({ edit }) {
-				const result = await edit(
-					toEditTreeCode<typeof sf.string>((params) => {
-						params.root = "Edited";
-					}),
-				);
+				const result = await edit(`context.root = "Edited";`);
 				assert.equal(result.type, "disabledError", "Expected edit to be disabled");
 				return result.message;
 			},
@@ -121,21 +111,21 @@ describe("Semantic Agent", () => {
 			async query({ edit }) {
 				callCount++;
 				if (callCount === 1) {
-					const validLooking = toEditTreeCode<typeof sf.string>((params) => {
-						params.root = "New";
-					});
+					const validLooking = `context.root = "New";`;
 					const result = await edit(validLooking);
-					assert.equal(result.type, "validationError");
+					assert.equal(result.type, "validationError", result.message);
 					return result.message;
 				}
 				return "Second ok";
 			},
 		};
 		const agent = new SharedTreeSemanticAgent(model, view, {
-			validator: () => false,
+			validateEdit: () => {
+				throw new Error("The code was trying to hack the mainframe!");
+			},
 		});
 		const response = await agent.query("First");
-		assert.ok(response.includes("did not pass validation"));
+		assert.ok(response.includes("mainframe"));
 		// Check that a subsequent query still works.
 		assert.equal(view.root, "Orig", "Tree should not have changed after failed validation");
 		assert.equal(await agent.query("Second"), "Second ok");
@@ -150,27 +140,16 @@ describe("Semantic Agent", () => {
 			async query({ edit }) {
 				callCount++;
 				if (callCount === 1) {
-					// Missing required edit function name.
-					const result1 = await edit("function notEdit(params) { /* noop */ }");
-					assert.equal(result1.type, "compileError");
+					const result1 = await edit("const ; x = 1, for else");
+					assert.equal(result1.type, "executionError", result1.message);
 					return result1.message;
-				}
-				if (callCount === 2) {
-					// Invalid JS syntax (missing closing brace).
-					const result2 = await edit(
-						`function ${SharedTreeSemanticAgent.editFunctionName}(params){ params.root = 'Changed'`,
-					);
-					assert.equal(result2.type, "compileError");
-					return result2.message;
 				}
 				return "Recovered";
 			},
 		};
 		const agent = new SharedTreeSemanticAgent(model, view);
 		const response1 = await agent.query("First");
-		assert.ok(response1.includes(SharedTreeSemanticAgent.editFunctionName));
-		const response2 = await agent.query("Second");
-		assert.ok(response2.includes("not valid"));
+		assert.ok(response1.includes("Unexpected token"));
 		// Check that a subsequent query still works.
 		assert.equal(await agent.query("Second"), "Recovered");
 	});
@@ -184,21 +163,13 @@ describe("Semantic Agent", () => {
 			async query({ edit }) {
 				callCount++;
 				if (callCount === 1) {
-					const result = await edit(
-						toEditTreeCode<typeof sf.string>(() => {
-							throw new Error("boom");
-						}),
-					);
-					assert.equal(result.type, "runtimeError");
+					const result = await edit(`throw new Error("boom");`);
+					assert.equal(result.type, "executionError", result.message);
 					return result.message;
 				}
 				// On second query perform successful edit to prove recovery.
-				const result2 = await edit(
-					toEditTreeCode<typeof sf.string>((params) => {
-						params.root = "Recovered";
-					}),
-				);
-				assert.equal(result2.type, "success");
+				const result2 = await edit(`context.root = "Recovered";`);
+				assert.equal(result2.type, "success", result2.message);
 				return "Recovered";
 			},
 		};
@@ -220,33 +191,17 @@ describe("Semantic Agent", () => {
 			async query({ edit }) {
 				callCount++;
 				if (callCount === 1) {
-					const result1 = await edit(
-						toEditTreeCode<typeof sf.string>((params) => {
-							params.root = "One";
-						}),
-					);
-					assert.equal(result1.type, "success");
-					const result2 = await edit(
-						toEditTreeCode<typeof sf.string>((params) => {
-							params.root = "Two";
-						}),
-					);
-					assert.equal(result2.type, "success");
-					const result3 = await edit(
-						toEditTreeCode<typeof sf.string>((params) => {
-							params.root = "Three";
-						}),
-					);
-					assert.equal(result3.type, "tooManyEditsError");
+					const result1 = await edit(`context.root = "One";`);
+					assert.equal(result1.type, "success", result1.message);
+					const result2 = await edit(`context.root = "Two";`);
+					assert.equal(result2.type, "success", result2.message);
+					const result3 = await edit(`context.root = "Three";`);
+					assert.equal(result3.type, "tooManyEditsError", result3.message);
 					return result3.message;
 				}
 				// On second query should be able to edit again.
-				const result = await edit(
-					toEditTreeCode<typeof sf.string>((params) => {
-						params.root = "Recovered";
-					}),
-				);
-				assert.equal(result.type, "success");
+				const result = await edit(`context.root = "Recovered";`);
+				assert.equal(result.type, "success", result.message);
 				return "Recovered";
 			},
 		};
@@ -276,10 +231,8 @@ describe("Semantic Agent", () => {
 		const response = await agent.query("First");
 		assert.equal(response, "They'll never know!");
 		assert(stolenEditCallback !== undefined, "Expected to have stolen the edit callback");
-		const editResult = await stolenEditCallback(
-			`function ${SharedTreeSemanticAgent.editFunctionName}(params){ params.root = 'Edit too late'; }`,
-		);
-		assert.equal(editResult.type, "expiredError");
+		const editResult = await stolenEditCallback(`context.root = 'Edit too late';`);
+		assert.equal(editResult.type, "expiredError", editResult.message);
 		assert.ok(editResult.message.includes("already completed"));
 	});
 
@@ -290,18 +243,10 @@ describe("Semantic Agent", () => {
 		const model: SharedTreeChatModel = {
 			editToolName,
 			async query({ edit }) {
-				const result1 = await edit(
-					toEditTreeCode<typeof sf.string>((params) => {
-						params.root = "First";
-					}),
-				);
-				assert.equal(result1.type, "success");
-				const result2 = await edit(
-					toEditTreeCode<typeof sf.string>(() => {
-						throw new Error("boom");
-					}),
-				);
-				assert.equal(result2.type, "runtimeError");
+				const result1 = await edit(`context.root = "First";`);
+				assert.equal(result1.type, "success", result1.message);
+				const result2 = await edit(`throw new Error("boom");`);
+				assert.equal(result2.type, "executionError", result2.message);
 				return result2.message;
 			},
 		};
@@ -323,13 +268,8 @@ describe("Semantic Agent", () => {
 		const model: SharedTreeChatModel = {
 			editToolName,
 			async query({ edit }) {
-				const result = await edit(
-					toEditTreeCode<typeof Person>((params) => {
-						// @ts-expect-error dynamic constructor invocation for test stringification
-						params.root = params.create.Person({ name: "Bob" });
-					}),
-				);
-				assert.equal(result.type, "success");
+				const result = await edit(`context.root = context.create.Person({ name: "Bob" });`);
+				assert.equal(result.type, "success", result.message);
 				assert.equal(typeof result.message, "string");
 				assert.ok(result.message.includes("Bob"));
 				return "Done";
@@ -415,11 +355,9 @@ describe("Semantic Agent", () => {
 			async query(message) {
 				assert.equal(message.text, "Query");
 				const result = await message.edit(
-					toEditTreeCode((params) => {
-						params.root = params.create.Child?.({ value: "Changed" });
-					}),
+					`context.root = context.create.Child?.({ value: "Changed" });`,
 				);
-				assert.equal(result.type, "success");
+				assert.equal(result.type, "success", result.message);
 				return "Done";
 			},
 		};
@@ -431,43 +369,3 @@ describe("Semantic Agent", () => {
 		assert.ok(!context.includes("Parent"));
 	});
 });
-
-/**
- * Helper which converts a JS callback into the string form expected by the agent.
- * The provided callback's parameter list and body are preserved (only the function name is rewritten).
- *
- * Notes:
- * - Supports standard function declarations and arrow functions with a block body.
- * - Intentionally malformed code snippets in tests (e.g. wrong name / syntax errors) remain inline raw strings to continue exercising error paths.
- */
-function toEditTreeCode<TSchema extends ImplicitFieldSchema>(
-	cb: EditFunction<TSchema>,
-): string {
-	const source = cb.toString();
-	let params: string | undefined;
-	let body: string | undefined;
-
-	// Match `function (params) { ... }` or `function name(params) { ... }`
-	let match = source.match(/^function\s*[^()]*\(([^)]*)\)\s*{([\S\s]*)}$/);
-	if (match) {
-		params = match[1];
-		body = match[2]; // group excludes final closing brace due to regex
-	} else {
-		// Match arrow function with block body: (params) => { ... } or params => { ... }
-		match = source.match(/^\s*(?:\(([^)]*)\)|([^()=]+))\s*=>\s*{([\S\s]*)}$/);
-		if (match) {
-			params = (match[1] ?? match[2] ?? "").trim();
-			body = match[3];
-		}
-	}
-
-	if (params === undefined || body === undefined) {
-		throw new Error(
-			"Unable to parse callback for toEditTreeCode; use a standard function or arrow with block body.",
-		);
-	}
-
-	// Ensure body does not contain a trailing closing brace (regex should have excluded it, but trim defensively).
-	body = body.replace(/}\s*$/, "").trim();
-	return `function ${SharedTreeSemanticAgent.editFunctionName}(${params}) { ${body} }`;
-}

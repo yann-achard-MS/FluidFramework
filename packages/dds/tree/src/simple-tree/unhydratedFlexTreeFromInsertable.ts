@@ -11,12 +11,8 @@ import { hasSingle } from "../util/index.js";
 
 import type { FlexTreeNode } from "../feature-libraries/index.js";
 
-import {
-	type ImplicitFieldSchema,
-	normalizeFieldSchema,
-	FieldKind,
-	type ImplicitAnnotatedFieldSchema,
-} from "./fieldSchema.js";
+import type { ImplicitFieldSchema } from "./fieldSchema.js";
+import { normalizeFieldSchema, FieldKind } from "./fieldSchema.js";
 import {
 	CompatibilityLevel,
 	getKernel,
@@ -57,7 +53,7 @@ import { getUnhydratedContext } from "./createContext.js";
  */
 export function flexTreeFromInsertable<TIn extends InsertableContent | undefined>(
 	data: TIn,
-	allowedTypes: ImplicitAnnotatedFieldSchema,
+	allowedTypes: ImplicitFieldSchema,
 ): TIn extends undefined ? undefined : FlexTreeNode {
 	const normalizedFieldSchema = normalizeFieldSchema(allowedTypes);
 
@@ -105,7 +101,7 @@ export function flexTreeFromInsertableNode(
 ): FlexTreeNode {
 	if (isTreeNode(data)) {
 		const kernel = getKernel(data);
-		const inner = kernel.getOrCreateInnerNode();
+		const inner = kernel.getInnerNode();
 		if (inner.parentField.parent.parent !== undefined) {
 			throw new UsageError(
 				"A node which already has a parent may not be used as part of a new tree.",

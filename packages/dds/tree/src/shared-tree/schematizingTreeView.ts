@@ -41,7 +41,6 @@ import {
 	type UnsafeUnknownSchema,
 	type TreeBranch,
 	type TreeBranchEvents,
-	getOrCreateInnerNode,
 	getKernel,
 	type VoidTransactionCallbackStatus,
 	type TransactionCallbackStatus,
@@ -353,7 +352,7 @@ export class SchematizingSimpleTreeView<
 				new HydratedContext(
 					this.flexTreeContext,
 					HydratedContext.schemaMapFromRootSchema(
-						this.rootFieldSchema.annotatedAllowedTypesNormalized,
+						this.rootFieldSchema.allowedTypesFull.evaluate(),
 					),
 				),
 			);
@@ -524,7 +523,7 @@ export function addConstraintsToTransaction(
 	for (const constraint of constraints) {
 		switch (constraint.type) {
 			case "nodeInDocument": {
-				const node = getOrCreateInnerNode(constraint.node);
+				const node = getKernel(constraint.node).getInnerNode();
 				const nodeStatus = getKernel(constraint.node).getStatus();
 				if (nodeStatus !== TreeStatus.InDocument) {
 					const revertText = constraintsOnRevert ? " on revert" : "";

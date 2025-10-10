@@ -26,7 +26,7 @@ import {
 	type FlexTreeField,
 	type DetachedRootsLocation,
 } from "../feature-libraries/index.js";
-import { normalizeFieldSchema, type ImplicitAnnotatedFieldSchema } from "./fieldSchema.js";
+import { normalizeFieldSchema, type ImplicitFieldSchema } from "./fieldSchema.js";
 import {
 	type InsertableContent,
 	flexTreeFromInsertable,
@@ -35,7 +35,7 @@ import {
 	createField,
 	getKernel,
 	UnhydratedFlexTreeNode,
-	type ImplicitAnnotatedAllowedTypes,
+	type ImplicitAllowedTypes,
 	type TreeNode,
 	type UnhydratedFlexTreeField,
 } from "./core/index.js";
@@ -65,7 +65,7 @@ const validateSchema = true;
  */
 export function prepareForInsertion<TIn extends InsertableContent | undefined>(
 	data: TIn,
-	schema: ImplicitAnnotatedFieldSchema,
+	schema: ImplicitFieldSchema,
 	destinationContext: FlexTreeContext,
 	destinationSchema: TreeFieldStoredSchema,
 ): TIn extends undefined ? undefined : FlexibleNodeContent {
@@ -102,7 +102,7 @@ export function prepareForInsertion<TIn extends InsertableContent | undefined>(
  */
 export function prepareArrayContentForInsertion(
 	data: readonly InsertableContent[],
-	schema: ImplicitAnnotatedAllowedTypes,
+	schema: ImplicitAllowedTypes,
 	destinationContext: FlexTreeContext,
 	destinationSchema: TreeTypeSet,
 ): FlexibleFieldContent {
@@ -208,7 +208,7 @@ export interface PreparedContentRegular extends PreparedContent {
  */
 export function prepareForInsertionContextless<TIn extends InsertableContent | undefined>(
 	data: TIn,
-	schema: ImplicitAnnotatedFieldSchema,
+	schema: ImplicitFieldSchema,
 	schemaAndPolicy: SchemaAndPolicy,
 	hydratedData: FlexTreeHydratedContextMinimal,
 	destinationSchema: TreeFieldStoredSchema,
@@ -238,7 +238,7 @@ export function prepareForInsertionContextless<TIn extends InsertableContent | u
  */
 function prepareForInsertionContextlessInternal<TIn extends InsertableContent | undefined>(
 	data: TIn,
-	schema: ImplicitAnnotatedFieldSchema,
+	schema: ImplicitFieldSchema,
 	schemaAndPolicy: SchemaAndPolicy,
 	hydratedData: FlexTreeHydratedContextMinimal | undefined,
 	destinationSchema: TreeFieldStoredSchema,

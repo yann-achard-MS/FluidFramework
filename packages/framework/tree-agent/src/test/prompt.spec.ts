@@ -30,6 +30,7 @@ describe("Prompt generation", () => {
 			const view = getView(sf.object("Object", {}), {});
 			const prompt = getPrompt({
 				subtree: new Subtree(view),
+				editToolName: undefined,
 			});
 			assert.ok(!prompt.includes("### Editing"));
 		}
@@ -52,6 +53,7 @@ describe("Prompt generation", () => {
 			const view = getView(sf.object("Object", {}), {});
 			const prompt = getPrompt({
 				subtree: new Subtree(view),
+				editToolName: undefined,
 			});
 			assert.ok(!prompt.includes("Domain-specific information"));
 		}
@@ -61,6 +63,7 @@ describe("Prompt generation", () => {
 			const view = getView(sf.object("Object", {}), {});
 			const prompt = getPrompt({
 				subtree: new Subtree(view),
+				editToolName: undefined,
 				domainHints: "These are some domain-specific hints.",
 			});
 			assert.ok(prompt.includes("These are some domain-specific hints."));
@@ -75,7 +78,7 @@ describe("Prompt generation", () => {
 				subtree: new Subtree(view),
 				editToolName: "EditTreeTool",
 			});
-			assert.ok(!prompt.includes("ALWAYS prefer to use the application helper methods"));
+			assert.ok(!prompt.includes("ALWAYS prefer to use any application helper methods"));
 		}
 
 		// If there are methods, then the prompt should mention them
@@ -99,7 +102,7 @@ describe("Prompt generation", () => {
 				subtree: new Subtree(view),
 				editToolName: "EditTreeTool",
 			});
-			assert.ok(prompt.includes("ALWAYS prefer to use the application helper methods"));
+			assert.ok(prompt.includes("ALWAYS prefer to use any application helper methods"));
 		}
 	});
 
@@ -159,6 +162,11 @@ describe("Prompt generation", () => {
 describe("Prompt snapshot", () => {
 	const updateSnapshots = false;
 
+	it("does not update automatically", () => {
+		// Prevent accidentally checking in `updateSnapshots = true`
+		assert.equal(updateSnapshots, false);
+	});
+
 	it("with all options enabled", () => {
 		class TestMap extends sf.map("TestMap", sf.number) {
 			public static [exposeMethodsSymbol](methods: ExposedMethods): void {
@@ -203,7 +211,6 @@ describe("Prompt snapshot", () => {
 
 		const fullPrompt = getPrompt({
 			subtree: new Subtree(view as TreeView<ImplicitFieldSchema>),
-			editFunctionName: "editTree",
 			editToolName: "EditTreeTool",
 			domainHints: "These are some domain-specific hints.",
 		});
