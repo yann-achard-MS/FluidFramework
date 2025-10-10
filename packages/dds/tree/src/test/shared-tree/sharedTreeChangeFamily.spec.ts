@@ -17,7 +17,7 @@ import {
 // eslint-disable-next-line import/no-internal-modules
 import { forbidden } from "../../feature-libraries/default-schema/defaultFieldKinds.js";
 import {
-	DefaultEditBuilder,
+	DefaultLowLevelDataEditor,
 	ModularChangeFamily,
 	type ModularChangeset,
 	type TreeChunk,
@@ -50,8 +50,10 @@ const fieldBatchCodec = {
 };
 
 const modularFamily = new ModularChangeFamily(fieldKinds, failCodecFamily);
-const defaultEditor = new DefaultEditBuilder(modularFamily, mintRevisionTag, (taggedChange) =>
-	dataChanges.push(taggedChange.change),
+const defaultEditor = new DefaultLowLevelDataEditor(
+	modularFamily,
+	mintRevisionTag,
+	(taggedChange) => dataChanges.push(taggedChange.change),
 );
 
 // Side effects results in `dataChanges` being populated

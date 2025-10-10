@@ -18,15 +18,29 @@ export {
 
 export {
 	type DefaultChangeset,
+	type DetachedRootIds,
+	type DetachedRootIdRange,
 	DefaultChangeFamily,
-	DefaultEditBuilder,
-	type IDefaultEditBuilder,
-	type ValueFieldEditBuilder,
-	type OptionalFieldEditBuilder,
-	type SequenceFieldEditBuilder,
+	DefaultLowLevelDataEditor,
+	type LowLevelDataEditor,
+	type LowLevelSequenceFieldEditor,
+	type LowLevelRequiredFieldEditor,
+	type LowLevelOptionalFieldEditor,
+	type HighLevelDataEditor,
+	type HighLevelRequiredFieldEditor,
+	type HighLevelOptionalFieldEditor,
+	type HighLevelSequenceFieldEditor,
 	intoDelta,
 	relevantRemovedRoots,
 } from "./defaultEditBuilder.js";
+
+export {
+	type DetachedRootLocation,
+	type DetachedRootsLocation,
+	type Locator,
+	LocationBasedDataEditor,
+	type ILocationBasedDataEditor,
+} from "./locationBasedEditBuilder.js";
 
 export {
 	SchemaValidationError,

@@ -32,30 +32,36 @@ import {
 } from "../../simple-tree/fieldSchema.js";
 import {
 	getPossibleTypes,
-	unhydratedFlexTreeFromInsertable,
+	flexTreeFromInsertable,
 	type InsertableContent,
+	flexTreeFromInsertableNode,
 	// eslint-disable-next-line import/no-internal-modules
 } from "../../simple-tree/unhydratedFlexTreeFromInsertable.js";
 import { brand } from "../../util/index.js";
 import {
+	defaultSchemaPolicy,
+	FieldKinds,
 	MockNodeIdentifierManager,
 	type FlexTreeHydratedContextMinimal,
 } from "../../feature-libraries/index.js";
-import { validateUsageError } from "../utils.js";
+import { fieldSchema, validateUsageError } from "../utils.js";
 // eslint-disable-next-line import/no-internal-modules
 import { UnhydratedFlexTreeNode } from "../../simple-tree/core/index.js";
 // eslint-disable-next-line import/no-internal-modules
 import { getUnhydratedContext } from "../../simple-tree/createContext.js";
-// eslint-disable-next-line import/no-internal-modules
-import { prepareContentForHydration } from "../../simple-tree/prepareForInsertion.js";
+
 import { hydrate } from "./utils.js";
+import {
+	prepareForInsertionContextless,
+	// eslint-disable-next-line import/no-internal-modules
+} from "../../simple-tree/prepareForInsertion.js";
 
 describe("unhydratedFlexTreeFromInsertable", () => {
 	it("string", () => {
 		const schemaFactory = new SchemaFactory("test");
 		const tree = "Hello world";
 
-		const actual = unhydratedFlexTreeFromInsertable(tree, [schemaFactory.string]);
+		const actual = flexTreeFromInsertable(tree, [schemaFactory.string]);
 
 		const expected: MapTree = {
 			type: brand(stringSchema.identifier),
@@ -70,7 +76,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 		const schemaFactory = new SchemaFactory("test");
 		const schema = schemaFactory.null;
 
-		const actual = unhydratedFlexTreeFromInsertable(null, [schema]);
+		const actual = flexTreeFromInsertable(null, [schema]);
 
 		const expected: MapTree = {
 			type: brand(nullSchema.identifier),
@@ -87,7 +93,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 
 		const tree = new MockHandle<string>("mock-fluid-handle");
 
-		const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+		const actual = flexTreeFromInsertable(tree, [schema]);
 
 		const expected: MapTree = {
 			type: brand(schemaFactory.handle.identifier),
@@ -109,7 +115,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 		}) {}
 		type _checkBar = ValidateRecursiveSchema<typeof Bar>;
 
-		const actual = unhydratedFlexTreeFromInsertable(
+		const actual = flexTreeFromInsertable(
 			{
 				x: {
 					y: {
@@ -164,7 +170,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 		};
 
 		assert.throws(
-			() => unhydratedFlexTreeFromInsertable(tree, Foo),
+			() => flexTreeFromInsertable(tree, Foo),
 			(error: Error) => validateAssertionError(error, /Encountered an undefined schema/),
 		);
 	});
@@ -173,7 +179,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 		const schemaFactory = new SchemaFactory("test");
 
 		assert.throws(
-			() => unhydratedFlexTreeFromInsertable("Hello world", [schemaFactory.number]),
+			() => flexTreeFromInsertable("Hello world", [schemaFactory.number]),
 			(error: Error) =>
 				validateAssertionError(
 					error,
@@ -189,7 +195,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 
 			const tree: number[] = [];
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.array"),
@@ -209,7 +215,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			const handle = new MockHandle<boolean>(true);
 			const tree = [42, handle, 37];
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.array"),
@@ -255,7 +261,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			const handle = new MockHandle<boolean>(true);
 			const tree = [42, handle, { age: 37, name: "Jack" }];
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.array"),
@@ -315,7 +321,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 
 			const tree = [42, [1, 2], 37];
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.array"),
@@ -365,7 +371,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			const schemaFactory = new SchemaFactory("test");
 			assert.throws(
 				() =>
-					unhydratedFlexTreeFromInsertable(
+					flexTreeFromInsertable(
 						[42, undefined] as number[],
 						schemaFactory.array(schemaFactory.number),
 					),
@@ -378,7 +384,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 
 			assert.throws(
 				() =>
-					unhydratedFlexTreeFromInsertable(
+					flexTreeFromInsertable(
 						["Hello world", true],
 						schemaFactory.array(schemaFactory.string),
 					),
@@ -394,7 +400,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 
 			const tree = new Map<string, number>();
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.map"),
@@ -415,7 +421,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			];
 			const tree = new Map<string, InsertableContent>(entries);
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.map"),
@@ -465,7 +471,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			];
 			const tree = new Map<string, InsertableContent>(entries);
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.map"),
@@ -535,7 +541,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			];
 			const tree = new Map<string, InsertableContent>(entries);
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.map"),
@@ -565,7 +571,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			const tree = new Map<string, InsertableContent>(entries);
 
 			assert.throws(
-				() => unhydratedFlexTreeFromInsertable(tree, schema),
+				() => flexTreeFromInsertable(tree, schema),
 				/The provided data is incompatible with all of the types allowed by the schema/,
 			);
 		});
@@ -583,7 +589,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			const testData = new TestSchema2({ field: "test" });
 
 			assert.throws(
-				() => unhydratedFlexTreeFromInsertable(testData, TestSchema),
+				() => flexTreeFromInsertable(testData, TestSchema),
 				validateUsageError("Invalid schema for this context."),
 			);
 		});
@@ -594,7 +600,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			const schemaFactory = new SchemaFactoryAlpha("test");
 			const schema = schemaFactory.record("record", [schemaFactory.number]);
 
-			const actual = unhydratedFlexTreeFromInsertable({}, [schema]);
+			const actual = flexTreeFromInsertableNode({}, new Set([schema]));
 
 			const expected: MapTree = {
 				type: brand("test.record"),
@@ -611,13 +617,13 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 				schemaFactory.string,
 			]);
 
-			const actual = unhydratedFlexTreeFromInsertable(
+			const actual = flexTreeFromInsertableNode(
 				{
 					a: 42,
 					b: "Hello world",
 					c: 37,
 				},
-				[schema],
+				new Set([schema]),
 			);
 
 			const expected: MapTree = {
@@ -660,14 +666,14 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 				schemaFactory.null,
 			]);
 
-			const actual = unhydratedFlexTreeFromInsertable(
+			const actual = flexTreeFromInsertableNode(
 				{
 					a: 42,
 					b: "Hello world",
 					c: null,
 					d: { age: 37, name: "Jill" },
 				},
-				[schema],
+				new Set([schema]),
 			);
 
 			const expected: MapTree = {
@@ -731,13 +737,13 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			const schemaFactory = new SchemaFactoryAlpha("test");
 			const schema = schemaFactory.record("record", [schemaFactory.number]);
 
-			const actual = unhydratedFlexTreeFromInsertable(
+			const actual = flexTreeFromInsertableNode(
 				{
 					a: 42,
 					b: undefined as unknown as InsertableContent, // Should be skipped in output
 					c: 37,
 				},
-				[schema],
+				new Set([schema]),
 			);
 
 			const expected: MapTree = {
@@ -763,12 +769,12 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 
 			assert.throws(
 				() =>
-					unhydratedFlexTreeFromInsertable(
+					flexTreeFromInsertableNode(
 						{
 							a: "Hello world",
 							b: true, // Boolean input is not allowed by the schema
 						},
-						schema,
+						new Set([schema]),
 					),
 				/The provided data is incompatible with all of the types allowed by the schema/,
 			);
@@ -782,7 +788,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			const testData = new TestSchema2({ field: "test" });
 
 			assert.throws(
-				() => unhydratedFlexTreeFromInsertable(testData, TestSchema),
+				() => flexTreeFromInsertableNode(testData, new Set([TestSchema])),
 				validateUsageError("Invalid schema for this context."),
 			);
 		});
@@ -797,7 +803,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 
 			const tree = {};
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.object"),
@@ -821,7 +827,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 				c: false,
 			};
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.object"),
@@ -869,7 +875,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 				c: [true, false],
 			};
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.object"),
@@ -943,7 +949,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 				c: undefined, // Explicitly set to undefined - Should be skipped in output
 			};
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.object"),
@@ -974,7 +980,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 				d: 37,
 			};
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+			const actual = flexTreeFromInsertable(tree, [schema]);
 
 			const expected: MapTree = {
 				type: brand("test.object"),
@@ -1016,7 +1022,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 
 			const tree = {};
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, schema);
+			const actual = flexTreeFromInsertable(tree, schema);
 			const dummy = hydrate(schema, {});
 			const dummyContext = getKernel(dummy).context.flexContext;
 			assert(dummyContext.isHydrated());
@@ -1025,8 +1031,13 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 				checkout: dummyContext.checkout,
 				nodeKeyManager,
 			};
-
-			prepareContentForHydration([actual], () => {}, context);
+			prepareForInsertionContextless(
+				tree,
+				schema,
+				{ policy: defaultSchemaPolicy, schema: dummyContext.schema },
+				context,
+				fieldSchema(FieldKinds.required, [brand(schema.identifier)]),
+			);
 
 			const expected: MapTree = {
 				type: brand("test.object"),
@@ -1055,7 +1066,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 
 			const tree = {};
 
-			const actual = unhydratedFlexTreeFromInsertable(tree, schema);
+			const actual = flexTreeFromInsertable(tree, schema);
 
 			const expected: MapTree = {
 				type: brand("test.object"),
@@ -1103,7 +1114,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			c,
 		};
 
-		const actual = unhydratedFlexTreeFromInsertable(tree, [schema]);
+		const actual = flexTreeFromInsertable(tree, [schema]);
 
 		const expected: MapTree = {
 			type: brand("test.complex-object"),
@@ -1253,12 +1264,9 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 		const b = schemaFactory.object("b", { x: schemaFactory.string });
 		const allowedTypes = [a, b];
 
+		assert.throws(() => flexTreeFromInsertable({}, allowedTypes), /\["test.a","test.b"]/);
 		assert.throws(
-			() => unhydratedFlexTreeFromInsertable({}, allowedTypes),
-			/\["test.a","test.b"]/,
-		);
-		assert.throws(
-			() => unhydratedFlexTreeFromInsertable({ x: "hello" }, allowedTypes),
+			() => flexTreeFromInsertable({ x: "hello" }, allowedTypes),
 			/\["test.a","test.b"]/,
 		);
 	});
@@ -1270,10 +1278,10 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 		const allowedTypes = [a, b];
 
 		assert.doesNotThrow(() =>
-			unhydratedFlexTreeFromInsertable({ a: "hello", c: "world" }, allowedTypes),
+			flexTreeFromInsertable({ a: "hello", c: "world" }, allowedTypes),
 		);
 		assert.doesNotThrow(() =>
-			unhydratedFlexTreeFromInsertable({ b: "hello", c: "world" }, allowedTypes),
+			flexTreeFromInsertable({ b: "hello", c: "world" }, allowedTypes),
 		);
 	});
 
@@ -1287,7 +1295,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			// This set will need to be expanded if that set changes and we wish to test the associated scenarios.
 			const schema = [schemaFactory.number, schemaFactory.null];
 
-			const result = unhydratedFlexTreeFromInsertable(value, schema);
+			const result = flexTreeFromInsertable(value, schema);
 			assert.equal(result.value, expectedFallbackValue);
 		}
 
@@ -1296,7 +1304,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 
 			// Schema doesn't support null, so numeric values that fall back to null should throw
 			const schema = schemaFactory.number;
-			assert.throws(() => unhydratedFlexTreeFromInsertable(value, [schema]));
+			assert.throws(() => flexTreeFromInsertable(value, [schema]));
 		}
 
 		it("NaN (falls back to null if allowed by the schema)", () => {
@@ -1328,7 +1336,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			const schemaFactory = new SchemaFactory("test");
 			const schema = schemaFactory.number;
 
-			const result = unhydratedFlexTreeFromInsertable(-0, [schema]);
+			const result = flexTreeFromInsertable(-0, [schema]);
 			assert.equal(result.value, +0);
 		});
 
@@ -1338,7 +1346,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 
 			const input: (number | undefined)[] = [42, undefined, 37, undefined];
 
-			const actual = unhydratedFlexTreeFromInsertable(input as InsertableContent, [schema]);
+			const actual = flexTreeFromInsertable(input as InsertableContent, [schema]);
 
 			const expected: MapTree = {
 				type: brand(schema.identifier),
@@ -1378,10 +1386,9 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			const schemaFactory = new SchemaFactory("test");
 			assert.throws(
 				() =>
-					unhydratedFlexTreeFromInsertable(
-						[42, undefined, 37, undefined] as InsertableContent,
-						[schemaFactory.array(schemaFactory.number)],
-					),
+					flexTreeFromInsertable([42, undefined, 37, undefined] as InsertableContent, [
+						schemaFactory.array(schemaFactory.number),
+					]),
 				/Received unsupported array entry value/,
 			);
 		});
@@ -1481,7 +1488,8 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 				}),
 			}) {}
 
-			const node = unhydratedFlexTreeFromInsertable({}, Test);
+			const node = flexTreeFromInsertable({}, Test);
+			assert(node instanceof UnhydratedFlexTreeNode);
 			const field = node.getBoxed("stored");
 			assert(!field.pendingDefault);
 			const read = tryGetTreeNodeForField(field);
@@ -1506,7 +1514,8 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			}) {}
 
 			it("Implicit read with global context", () => {
-				const node = unhydratedFlexTreeFromInsertable({}, Test);
+				const node = flexTreeFromInsertable({}, Test);
+				assert(node instanceof UnhydratedFlexTreeNode);
 				const field = node.getBoxed("stored");
 				assert(field.pendingDefault);
 				const read = tryGetTreeNodeForField(field);
@@ -1515,7 +1524,8 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			});
 
 			it("Explicit populate with valid context", () => {
-				const node = unhydratedFlexTreeFromInsertable({}, Test);
+				const node = flexTreeFromInsertable({}, Test);
+				assert(node instanceof UnhydratedFlexTreeNode);
 				const field = node.getBoxed("stored");
 				assert(field.pendingDefault);
 				const dummy = hydrate(Test, new Test({ api: "dummy" }));
@@ -1531,7 +1541,8 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			// This helps ensure that creation of invalid defaults won't assert (a usage error would be fine).
 			// This test does not run the schema validation, which happens after defaults are populated, so it simply must either usage error or complete.
 			it("Explicit populate with invalid context", () => {
-				const node = unhydratedFlexTreeFromInsertable({}, Test);
+				const node = flexTreeFromInsertable({}, Test);
+				assert(node instanceof UnhydratedFlexTreeNode);
 				const field = node.getBoxed("stored");
 				assert(field.pendingDefault);
 				class Test2 extends f.object("test2", {}) {}

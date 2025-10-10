@@ -9,7 +9,10 @@ import { assert } from "@fluidframework/core-utils/internal";
 
 import { hasSingle } from "../util/index.js";
 
-import { normalizeFieldSchema, FieldKind, type ImplicitFieldSchema } from "./fieldSchema.js";
+import type { FlexTreeNode } from "../feature-libraries/index.js";
+
+import type { ImplicitFieldSchema } from "./fieldSchema.js";
+import { normalizeFieldSchema, FieldKind } from "./fieldSchema.js";
 import {
 	CompatibilityLevel,
 	getKernel,
@@ -23,7 +26,7 @@ import {
 import { getUnhydratedContext } from "./createContext.js";
 
 /**
- * Transforms an input {@link TypedNode} tree to an {@link UnhydratedFlexTreeNode}.
+ * Transforms an input {@link TypedNode} tree to a {@link FlexTreeNode}.
  * @param data - The input tree to be converted.
  * If the data is an unsupported value (e.g. NaN), a fallback value will be used when supported,
  * otherwise an error will be thrown.
@@ -48,10 +51,10 @@ import { getUnhydratedContext } from "./createContext.js";
  * Output should comply with the provided view schema, but this is not explicitly validated:
  * validation against stored schema (to guard against document corruption) is done elsewhere.
  */
-export function unhydratedFlexTreeFromInsertable<TIn extends InsertableContent | undefined>(
+export function flexTreeFromInsertable<TIn extends InsertableContent | undefined>(
 	data: TIn,
 	allowedTypes: ImplicitFieldSchema,
-): TIn extends undefined ? undefined : UnhydratedFlexTreeNode {
+): TIn extends undefined ? undefined : FlexTreeNode {
 	const normalizedFieldSchema = normalizeFieldSchema(allowedTypes);
 
 	if (data === undefined) {
@@ -59,34 +62,59 @@ export function unhydratedFlexTreeFromInsertable<TIn extends InsertableContent |
 		if (normalizedFieldSchema.kind !== FieldKind.Optional) {
 			throw new UsageError("Got undefined for non-optional field.");
 		}
-		return undefined as TIn extends undefined ? undefined : UnhydratedFlexTreeNode;
+		return undefined as TIn extends undefined ? undefined : FlexTreeNode;
 	}
 
-	const flexTree: UnhydratedFlexTreeNode = unhydratedFlexTreeFromInsertableNode(
+	const flexTree: FlexTreeNode = flexTreeFromInsertableNode(
 		data,
 		normalizedFieldSchema.allowedTypeSet,
 	);
 
-	return flexTree as TIn extends undefined ? undefined : UnhydratedFlexTreeNode;
+	return flexTree as TIn extends undefined ? undefined : FlexTreeNode;
 }
 
 /**
- * Copy content from `data` into a UnhydratedFlexTreeNode.
+ * Wrapper around {@link flexTreeFromInsertable} which always returns an unhydrated nodes (or undefined).
+ * @remarks
+ * This does not deeply check content is unhydrated.
+ *
+ * Once hybrid content is better supported, this should likely be removed as a simplification.
  */
-export function unhydratedFlexTreeFromInsertableNode(
+export function unhydratedFlexTreeFromInsertable<TIn extends InsertableContent | undefined>(
+	data: TIn,
+	allowedTypes: ImplicitFieldSchema,
+): TIn extends undefined ? undefined : UnhydratedFlexTreeNode {
+	const result = flexTreeFromInsertable(data, allowedTypes);
+	if (result === undefined) {
+		return undefined as TIn extends undefined ? undefined : UnhydratedFlexTreeNode;
+	}
+	assert(result instanceof UnhydratedFlexTreeNode, "expected unhydrated node");
+	return result as TIn extends undefined ? undefined : UnhydratedFlexTreeNode;
+}
+
+/**
+ * Copy content from `data` into a UnhydratedFlexTreeNode or return an existing node if `data` is a TreeNode.
+ */
+export function flexTreeFromInsertableNode(
 	data: InsertableContent,
 	allowedTypes: ReadonlySet<TreeNodeSchema>,
-): UnhydratedFlexTreeNode {
+): FlexTreeNode {
 	if (isTreeNode(data)) {
 		const kernel = getKernel(data);
-		const inner = kernel.getInnerNodeIfUnhydrated();
-		if (inner === undefined) {
-			// The node is already hydrated, meaning that it already got inserted into the tree previously
-			throw new UsageError("A node may not be inserted into the tree more than once");
+		const inner = kernel.getInnerNode();
+		if (inner.parentField.parent.parent !== undefined) {
+			throw new UsageError(
+				"A node which already has a parent may not be used as part of a new tree.",
+			);
 		} else {
 			if (!allowedTypes.has(kernel.schema)) {
 				throw new UsageError("Invalid schema for this context.");
 			}
+
+			if (inner.isHydrated()) {
+				// TODO: hook up event bubbling from hydrated to unhydrated tree.
+			}
+
 			return inner;
 		}
 	}

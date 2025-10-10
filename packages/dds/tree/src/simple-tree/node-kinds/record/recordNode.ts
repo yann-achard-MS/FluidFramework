@@ -135,7 +135,7 @@ function createRecordNodeProxy(
 				innerSchema.mapFields,
 			);
 
-			field.editor.set(mapTree, field.length === 0);
+			field.editor.attach(mapTree, field.length === 0);
 			return true;
 		},
 		has: (target, key): boolean => {

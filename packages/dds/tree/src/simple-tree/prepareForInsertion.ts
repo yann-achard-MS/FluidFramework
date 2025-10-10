@@ -5,13 +5,11 @@
 
 import type {
 	SchemaAndPolicy,
-	IForestSubscription,
-	UpPath,
 	FieldKey,
-	DetachedField,
 	TreeFieldStoredSchema,
 	TreeTypeSet,
 } from "../core/index.js";
+import { dummyRoot, keyAsDetachedField } from "../core/index.js";
 import {
 	type FlexTreeContext,
 	getSchemaAndPolicy,
@@ -19,27 +17,32 @@ import {
 	FieldKinds,
 	type FlexibleFieldContent,
 	type FlexibleNodeContent,
+	type FlexTreeNode,
+	cursorForMapTreeField,
 	throwOutOfSchema,
-	flexTreeSlot,
-	ContextSlot,
-	getOrCreateHydratedFlexTreeNode,
-	assertFlexTreeEntityNotFreed,
+	type TreeChunk,
+	type HydratedFlexTreeNode,
+	type MinimalMapTreeNodeView,
+	type FlexTreeField,
+	type DetachedRootsLocation,
 } from "../feature-libraries/index.js";
-import type { ImplicitFieldSchema } from "./fieldSchema.js";
+import { normalizeFieldSchema, type ImplicitFieldSchema } from "./fieldSchema.js";
 import {
 	type InsertableContent,
-	unhydratedFlexTreeFromInsertable,
+	flexTreeFromInsertable,
 } from "./unhydratedFlexTreeFromInsertable.js";
-import { UsageError } from "@fluidframework/telemetry-utils/internal";
-import { brand, type Mutable } from "../util/index.js";
 import {
+	createField,
 	getKernel,
+	UnhydratedFlexTreeNode,
 	type ImplicitAllowedTypes,
 	type TreeNode,
-	type UnhydratedFlexTreeNode,
+	type UnhydratedFlexTreeField,
 } from "./core/index.js";
-import { debugAssert, fail, oob } from "@fluidframework/core-utils/internal";
+import { assert, fail } from "@fluidframework/core-utils/internal";
 import { isFieldInSchema } from "../feature-libraries/index.js";
+import { getUnhydratedContext } from "./createContext.js";
+import { convertField, permissiveStoredSchemaGenerationOptions } from "./toStoredSchema.js";
 
 /**
  * For now, schema validation for inserted content is always enabled.
@@ -48,6 +51,9 @@ import { isFieldInSchema } from "../feature-libraries/index.js";
  * this could be changed.
  */
 const validateSchema = true;
+
+// IDEA:
+// Have prepareForInsertion return a TreeChunk, and a function which should be called after its insertion with the path to its location (as Inner node?)
 
 /**
  * Prepare content from a user for insertion into a tree.
@@ -63,13 +69,22 @@ export function prepareForInsertion<TIn extends InsertableContent | undefined>(
 	destinationContext: FlexTreeContext,
 	destinationSchema: TreeFieldStoredSchema,
 ): TIn extends undefined ? undefined : FlexibleNodeContent {
-	return prepareForInsertionContextless(
+	const content = prepareForInsertionContextlessInternal(
 		data,
 		schema,
 		getSchemaAndPolicy(destinationContext),
 		destinationContext.isHydrated() ? destinationContext : undefined,
 		destinationSchema,
 	);
+
+	assert(content.toAttach !== undefined, "Expected toAttach to be defined");
+	assert(content.toAttach.length < 2, "Expected toAttach to be a single element on none");
+
+	// TODO: when supporting back compat to not edit detached fields, caller will have to finalize after attaching to in document location.
+	content.finalize(content.toAttach);
+	return (
+		content.toAttach.length === 0 ? undefined : content.toAttach[0]
+	) as TIn extends undefined ? undefined : FlexibleNodeContent;
 }
 
 /**
@@ -91,11 +106,22 @@ export function prepareArrayContentForInsertion(
 	destinationContext: FlexTreeContext,
 	destinationSchema: TreeTypeSet,
 ): FlexibleFieldContent {
-	const mapTrees: UnhydratedFlexTreeNode[] = data.map((item) =>
-		unhydratedFlexTreeFromInsertable(item, schema),
+	const mapTrees: FlexTreeNode[] = data.map((item) => flexTreeFromInsertable(item, schema));
+
+	const fieldSchema = convertField(
+		normalizeFieldSchema(schema),
+		permissiveStoredSchemaGenerationOptions,
 	);
 
-	validateAndPrepare(
+	const normalizedFieldSchema = normalizeFieldSchema(schema);
+	const field = createField(
+		getUnhydratedContext(normalizedFieldSchema).flexContext,
+		fieldSchema.kind,
+		dummyRoot,
+		mapTrees,
+	);
+
+	const content = validateAndPrepare(
 		getSchemaAndPolicy(destinationContext),
 		destinationContext.isHydrated() ? destinationContext : undefined,
 		{
@@ -103,10 +129,72 @@ export function prepareArrayContentForInsertion(
 			types: destinationSchema,
 			persistedMetadata: undefined,
 		},
-		mapTrees,
+		field,
 	);
 
-	return mapTrees;
+	assert(content.toAttach !== undefined, "Expected toAttach to be defined");
+
+	// TODO: when supporting back compat to not edit detached fields, caller will have to finalize after attaching to in document location.
+	content.finalize(content.toAttach);
+	return content.toAttach;
+}
+
+export interface PreparedContent {
+	/**
+	 * New content which to be attached. Rooted in detached fields.
+	 * @remarks
+	 * When destination is a hydrated context, this will contain hydrated flex tree nodes.
+	 * The corresponding TreeNodes will not yet be hydrated, and some subtrees may be in separate detached fields.
+	 *
+	 * TODO: Eventually, this should be a single detached field, not an array of nodes each in their own detached field.
+	 */
+	readonly toAttach?: readonly FlexTreeNode[];
+
+	/**
+	 * Location of toAttach.
+	 * @remarks
+	 * This is redundant with `toAttach.key` but in a different format/type.
+	 * Only provided for hydrated destinations.
+	 */
+	readonly rootsLocations?: DetachedRootsLocation;
+
+	/**
+	 * Finalizes the prepared content. Moves in missing subtrees from detached fields, and hydrates TreeNodes as needed.
+	 *
+	 * @param attached - The nodes that were attached to the tree.
+	 *
+	 * @remarks
+	 * Call this exactly once, after `toAttach` has been attached to its final location.
+	 * There must be no app facing events between creation of this `PreparedContent` and its finalization since during this time TreeNodes may be in an invalid state (inner node hydrated, but TreeNode not).
+	 *
+	 * The implementation of this must not assume the context provided to `prepareForInsertion*` is still valid.
+	 */
+	readonly finalize: (attached: readonly FlexTreeNode[]) => void;
+}
+
+/**
+ * This exists to handle the required root initialize case where the flex tree nodes get invalidated by a schema change and thus new node instances need to be provided.
+ */
+export interface PreparedContentInitialize extends PreparedContent {
+	/**
+	 * {@inheritDoc PreparedContent.rootIds}
+	 */
+	readonly rootsLocations: DetachedRootsLocation;
+}
+
+/**
+ * This exists to handle the required root initialize case where the flex tree nodes get invalidated by a schema change and thus new node instances need to be provided.
+ */
+export interface PreparedContentRegular extends PreparedContent {
+	/**
+	 * {@inheritDoc PreparedContent.toAttach}
+	 */
+	readonly toAttach: readonly FlexTreeNode[];
+
+	/**
+	 * {@link PreparedContent.finalize} but without `attached` parameter: assumes `toAttach` is the same is still valid and uses that.
+	 */
+	readonly finalize: () => void;
 }
 
 /**
@@ -122,22 +210,56 @@ export function prepareForInsertionContextless<TIn extends InsertableContent | u
 	data: TIn,
 	schema: ImplicitFieldSchema,
 	schemaAndPolicy: SchemaAndPolicy,
-	hydratedData: FlexTreeHydratedContextMinimal | undefined,
+	hydratedData: FlexTreeHydratedContextMinimal,
 	destinationSchema: TreeFieldStoredSchema,
-	scheduleHydrationOverride?: HydrationScheduler,
-): TIn extends undefined ? undefined : FlexibleNodeContent {
-	const mapTree = unhydratedFlexTreeFromInsertable(data, schema);
-
-	const contentArray = mapTree === undefined ? [] : [mapTree];
-	validateAndPrepare(
+): PreparedContentInitialize {
+	const final = prepareForInsertionContextlessInternal(
+		data,
+		schema,
 		schemaAndPolicy,
 		hydratedData,
 		destinationSchema,
-		contentArray,
-		scheduleHydrationOverride,
+	);
+	assert(final.rootsLocations !== undefined, "Expected rootIds to be defined");
+	assert(
+		final.rootsLocations.length <= 1,
+		"Expected at most one node to be returned from prepareForInsertionContextless",
 	);
 
-	return mapTree;
+	// For some reason TypeScript can't figure out that final.rootsLocations is defined unless we handle is separately.
+	return { ...final, rootsLocations: final.rootsLocations };
+}
+
+/**
+ * Split out from {@link prepareForInsertion} as to allow use without a context.
+ *
+ * @param hydratedData - If specified, the `mapTrees` will be prepared for hydration into this context.
+ * `undefined` when `mapTrees` are being inserted into an {@link Unhydrated} tree.
+ */
+function prepareForInsertionContextlessInternal<TIn extends InsertableContent | undefined>(
+	data: TIn,
+	schema: ImplicitFieldSchema,
+	schemaAndPolicy: SchemaAndPolicy,
+	hydratedData: FlexTreeHydratedContextMinimal | undefined,
+	destinationSchema: TreeFieldStoredSchema,
+): PreparedContent {
+	const mapTree = flexTreeFromInsertable(data, schema);
+
+	const contentArray = mapTree === undefined ? [] : [mapTree];
+	const normalizedFieldSchema = normalizeFieldSchema(schema);
+	const fieldSchema = convertField(
+		normalizedFieldSchema,
+		permissiveStoredSchemaGenerationOptions,
+	);
+
+	const field = createField(
+		getUnhydratedContext(normalizedFieldSchema).flexContext,
+		fieldSchema.kind,
+		dummyRoot,
+		contentArray,
+	);
+
+	return validateAndPrepare(schemaAndPolicy, hydratedData, destinationSchema, field);
 }
 
 /**
@@ -145,219 +267,199 @@ export function prepareForInsertionContextless<TIn extends InsertableContent | u
  *
  * @param hydratedData - If specified, the `mapTrees` will be prepared for hydration into this context.
  * `undefined` when `mapTrees` are being inserted into an {@link Unhydrated} tree.
+ *
+ * TODO: return nodes flex tree nodes to insert (might be newly hydrated) or reused unhydrated nodes when hydratedData is undefined.
  */
 function validateAndPrepare(
 	schemaAndPolicy: SchemaAndPolicy,
 	hydratedData: FlexTreeHydratedContextMinimal | undefined,
 	fieldSchema: TreeFieldStoredSchema,
-	mapTrees: readonly UnhydratedFlexTreeNode[],
-	scheduleHydrationOverride?: HydrationScheduler,
-): void {
+	field: UnhydratedFlexTreeField,
+): PreparedContent {
+	const cleanup = (): void => {
+		// Discard the parent dummy field for the nodes before returning so they are unparented and can be inserted.
+		for (const child of field.children) {
+			assert(child instanceof UnhydratedFlexTreeNode, "TODO");
+			child.adoptBy(undefined);
+		}
+	};
+
 	if (hydratedData !== undefined) {
-		// Run `prepareContentForHydration` before walking the tree in `isFieldInSchema`.
+		// Run `chunkForInsertion` before walking the tree in `isFieldInSchema`.
 		// This ensures that when `isFieldInSchema` requests identifiers (or any other contextual defaults),
 		// they were already creating used the more specific context we have access to from `hydratedData`.
-		prepareContentForHydration(
-			mapTrees,
-			scheduleHydrationOverride ??
-				((batch, doHydration) =>
-					scheduleHydration(batch, hydratedData.checkout.forest, doHydration)),
-			hydratedData,
-		);
+		const chunk = chunkForInsertion(hydratedData, field);
 		// TODO: AB#45723
 		// Now that staged schema rely on this validation, its a bit odd we don't do it for insertion into unhydrated contexts.
 		// We can't simply enable it for them however due to contextual default fields which would not have been created yet (see comment above).
 		// Specifically at least clone can result in unhydrated trees which can end up violating their stored schema (but not view schema) just using the type safe APIs.
 		if (validateSchema === true) {
-			isFieldInSchema(mapTrees, fieldSchema, schemaAndPolicy, throwOutOfSchema);
+			isFieldInSchema(field, fieldSchema, schemaAndPolicy, throwOutOfSchema);
 		}
-	}
-}
 
-/**
- * The path from the included node to the root of the content tree it was inserted as part of.
- */
-interface RelativeNodePath {
-	readonly path: UpPath;
-	readonly node: TreeNode;
-}
+		const rootsLocations = hydratedData.checkout.editor.buildRoots(chunk.chunk);
+		console.log(`built nodes: ${JSON.stringify(rootsLocations)}`);
 
-/**
- * {@link RelativeNodePath}s for every {@link TreeNode} in the content tree inserted as an atomic operation.
- */
-interface LocatedNodesBatch {
-	/**
-	 * UpPath shared by all {@link RelativeNodePath}s in this batch corresponding to the root of the inserted content.
-	 */
-	readonly rootPath: Mutable<UpPath>;
-	readonly paths: RelativeNodePath[];
-}
+		const toAttach =
+			hydratedData.detachedField === undefined
+				? undefined
+				: rootsLocations.map((f) => {
+						assert(
+							hydratedData.detachedField !== undefined,
+							"detachedField should not stop being defined",
+						);
+						const rootField = hydratedData.detachedField(
+							keyAsDetachedField(f.field),
+							FieldKinds.optional.identifier,
+						);
+						assert(rootField.length === 1, "Expected single root in detached field");
+						return rootField.boxedAt(0) ?? fail("Expected root to be present");
+					});
 
-/**
- * A dummy key value used in {@link LocatedNodesBatch.rootPath} which will be replaced with the actual detached field once it is known.
- */
-const placeholderKey: DetachedField & FieldKey = brand("placeholder" as const);
-
-/**
- * Records any {@link TreeNode}s in the given `content` tree and does the necessary bookkeeping to ensure they are synchronized with subsequent reads of the tree.
- * Additionally populates any {@link UnhydratedFlexTreeField.pendingDefault}s using the provided `context`.
- *
- * @remarks If the content tree contains has any associated {@link TreeNode}s, this function must be called just prior to inserting the content into the tree.
- * Specifically, no other content may be inserted into the tree between the invocation of this function and the insertion of `content`.
- * The insertion of `content` must occur or else this function will cause memory leaks.
- *
- * Exported for testing purposes: otherwise should not be used outside this module.
- * @param content - the content subsequence to be inserted, of which might deeply contain {@link TreeNode}s which need to be hydrated.
- * @param forest - the forest the content is being inserted into.
- */
-export function prepareContentForHydration(
-	content: readonly UnhydratedFlexTreeNode[],
-	scheduler: HydrationScheduler,
-	context: FlexTreeHydratedContextMinimal,
-): void {
-	const batches: LocatedNodesBatch[] = [];
-	for (const item of content) {
-		const batch: LocatedNodesBatch = {
-			rootPath: {
-				parent: undefined,
-				parentField: placeholderKey,
-				parentIndex: 0,
+		return {
+			toAttach,
+			rootsLocations,
+			finalize: (attached: readonly FlexTreeNode[]) => {
+				// do edits to move existing content into newly built tree and hydrate nodes as needed
+				attachAndHydratedNodes([...attached], chunk.attaches);
+				cleanup();
 			},
-			paths: [],
 		};
-		batches.push(batch);
-		walkMapTree(
-			item,
-			batch.rootPath,
-			(p, node) => {
-				batch.paths.push({ path: p, node });
-			},
-			context,
-		);
-	}
-
-	const doHydration = hydrator(batches, context.checkout.forest);
-	scheduler(batches, doHydration);
-}
-
-function walkMapTree(
-	root: UnhydratedFlexTreeNode,
-	path: UpPath,
-	onVisitTreeNode: (path: UpPath, treeNode: TreeNode) => void,
-	context: FlexTreeHydratedContextMinimal,
-): void {
-	if (root.parentField.parent.parent !== undefined) {
-		throw new UsageError(
-			"Attempted to insert a node which is already under a parent. If this is desired, remove the node from its parent before inserting it elsewhere.",
-		);
-	}
-
-	type Next = [path: UpPath, tree: UnhydratedFlexTreeNode];
-	const nexts: Next[] = [];
-	for (let next: Next | undefined = [path, root]; next !== undefined; next = nexts.pop()) {
-		const [p, node] = next;
-		if (node !== undefined) {
-			const treeNode = node.treeNode;
-			if (treeNode !== undefined) {
-				onVisitTreeNode(p, treeNode);
-			}
-		}
-
-		for (const [key, field] of node.allFieldsLazy) {
-			field.fillPendingDefaults(context);
-			for (const [i, child] of field.children.entries()) {
-				nexts.push([
-					{
-						parent: p,
-						parentField: key,
-						parentIndex: i,
-					},
-					child,
-				]);
-			}
-		}
+	} else {
+		return { toAttach: [...field.children], finalize: cleanup };
 	}
 }
 
 /**
- * A function which can schedule hydration of batches of nodes to occur at a later time (which must be after they have been inserted into the tree).
+ * A field to insert, which can contain some attach operations for already hydrated content.
  */
-type HydrationScheduler = (
-	locatedNodes: readonly LocatedNodesBatch[],
+interface ChunkedInsertion<TChunk = TreeChunk> {
+	readonly chunk: TChunk;
+	readonly attaches: readonly SubFieldAttach[];
+}
+
+type SubFieldAttach = SubFieldAttachHydrated | SubFieldAttachUnhydrated;
+
+/**
+ * A an unhydrated subtree is being attached to a hydrated context and it
+ * contains content which need fixing up after the initial creation in the hydrated context.
+ *
+ */
+interface SubFieldAttachUnhydrated {
+	readonly type: "unhydrated";
+	readonly index: number;
 	/**
-	 * Does the actual hydration. Should be called for each index in `locatedNodes` once the corresponding content has been inserted into the tree.
+	 * If provided a preexisting TreeNode which was unhydrated was attached.
+	 *
+	 * It will require hydration to associate the existing TreeNode with the new hydrated flex-tree node.
 	 */
-	doHydration: Hydrator,
-) => void;
-
-/**
- * Does the actual hydration.
- * The provided `attachPath` is the path the content is currently under (where it was attached in the tree).
- */
-type Hydrator = (batch: LocatedNodesBatch, attachPath: UpPath) => void;
-
-/**
- * Register events which will hydrate batches of nodes when they are inserted.
- * The next edits to forest must be their insertions, in order, or data corruption can occur.
- * @param locatedNodes - the nodes to register with the forest.
- * Each index in this array expects its content to be added and produce its own `afterRootFieldCreated` event.
- * If array subsequence insertion is optimized to produce a single event, this will not work correctly as is, and will need to be modified to take in a single {@link LocatedNodesBatch}.
- */
-function scheduleHydration(
-	locatedNodes: readonly LocatedNodesBatch[],
-	forest: IForestSubscription,
-	doHydration: Hydrator,
-): void {
-	// Only subscribe to the event if there is at least one TreeNode tree to hydrate - this is not the case when inserting an empty array [].
-	if (locatedNodes.length > 0) {
-		// Creating a new array emits one event per element in the array, so listen to the event once for each element
-		let index = 0;
-		const off = forest.events.on("afterRootFieldCreated", (fieldKey) => {
-			// Indexing is safe here because of the length check above. This assumes the array has not been modified which should be the case.
-			const batch = locatedNodes[index] ?? oob();
-			doHydration(batch, { parent: undefined, parentField: fieldKey, parentIndex: 0 });
-			if (++index === locatedNodes.length) {
-				off();
-			}
-		});
-	}
+	readonly toHydrate: TreeNode | undefined;
+	readonly content: Map<FieldKey, readonly SubFieldAttach[]>;
 }
 
 /**
- * Implementation of {@link Hydrator}.
+ * A preexisting TreeNode which was already hydrated was attached.
+ *
+ * It will require an attach to move its existing flex-tree node to the new location.
  */
-function hydrator(
-	locatedNodes: readonly LocatedNodesBatch[],
-	forest: IForestSubscription,
-): (batch: LocatedNodesBatch, attachedPath: UpPath) => void {
-	return (batch: LocatedNodesBatch, attachedPath: UpPath) => {
-		const context = forest.anchors.slots.get(ContextSlot) ?? fail(0xb41 /* missing context */);
+interface SubFieldAttachHydrated {
+	readonly type: "hydrated";
+	readonly index: number;
+	readonly content: HydratedFlexTreeNode;
+}
 
-		// Modify paths in batch to point to correct location:
-		debugAssert(() => batch.rootPath.parentField === placeholderKey);
-		batch.rootPath.parentField = attachedPath.parentField;
-		batch.rootPath.parent = attachedPath.parent;
-		batch.rootPath.parentIndex = attachedPath.parentIndex;
-
-		// To hydrate a TreeNode, it must be associated with a HydratedFlexTreeNode.
-		// Find or create one as necessary.
-		for (const { path, node } of batch.paths) {
-			const anchor = forest.anchors.track(path);
-			const anchorNode = forest.anchors.locate(anchor) ?? fail("missing anchor");
-
-			let flexNode = anchorNode.slots.get(flexTreeSlot);
-			if (flexNode === undefined) {
-				// the flex node must be created
-				const cursor = forest.allocateCursor("getFlexNode");
-				forest.moveCursorToPath(anchorNode, cursor);
-
-				flexNode = getOrCreateHydratedFlexTreeNode(context, cursor);
-				cursor.free();
-				assertFlexTreeEntityNotFreed(flexNode);
-			}
-
-			getKernel(node).hydrate(flexNode);
-			forest.anchors.forget(anchor);
-		}
+function chunkForInsertion(
+	context: FlexTreeHydratedContextMinimal,
+	field: UnhydratedFlexTreeField,
+): ChunkedInsertion {
+	const x = chunkFieldForInsertion(context, field);
+	const chunk = context.checkout.forest.chunkField(cursorForMapTreeField(x.chunk));
+	return {
+		chunk,
+		attaches: x.attaches,
 	};
+}
+
+function chunkFieldForInsertion(
+	context: FlexTreeHydratedContextMinimal,
+	field: UnhydratedFlexTreeField,
+): ChunkedInsertion<readonly MinimalMapTreeNodeView[]> {
+	const chunk: MinimalMapTreeNodeView[] = [];
+	const attaches: SubFieldAttach[] = [];
+	for (const [i, child] of field.children.entries()) {
+		if (child.isHydrated()) {
+			// TODO: error if there is a hydrated parent.
+			attaches.push({
+				index: i,
+				content: child,
+				type: "hydrated",
+			});
+		} else {
+			assert(
+				child instanceof UnhydratedFlexTreeNode,
+				"Expected child to be an UnhydratedFlexTreeNode",
+			);
+			const fields: Map<FieldKey, readonly MinimalMapTreeNodeView[]> = new Map();
+			const childAttaches: Map<FieldKey, readonly SubFieldAttach[]> = new Map();
+			for (const [key, fieldInner] of child.allFieldsLazy) {
+				fieldInner.fillPendingDefaults(context);
+				const inner = chunkFieldForInsertion(context, fieldInner);
+				fields.set(key, inner.chunk);
+				childAttaches.set(key, inner.attaches);
+			}
+			// As an optimization, if there are no attach data, skip tracking it.
+			if (childAttaches.size !== 0 || child.treeNode !== undefined) {
+				attaches.push({
+					index: i,
+					toHydrate: child.treeNode,
+					content: childAttaches,
+					type: "unhydrated",
+				});
+			}
+			chunk.push({ type: child.type, value: child.value, fields });
+		}
+	}
+	return {
+		chunk,
+		attaches,
+	};
+}
+
+function attachAndHydratedNodes(
+	field: FlexTreeField | FlexTreeNode[],
+	attaches: readonly SubFieldAttach[],
+): void {
+	for (const attach of attaches) {
+		if (attach.type === "hydrated") {
+			// TODO: suppress events for these attaches?
+
+			if (Array.isArray(field)) {
+				// Move items after attach over by 1.
+				for (let index = field.length; index > attach.index; index--) {
+					field[index] = field[index - 1] ?? fail("No item at index");
+				}
+				field[attach.index] = attach.content;
+			} else if (field.is(FieldKinds.sequence)) {
+				field.editor.insert(attach.index, [attach.content]);
+			} else if (field.is(FieldKinds.optional)) {
+				assert(field.length === 0, "Expected empty field for hydrated attach");
+				field.editor.set(attach.content, false);
+			} else {
+				// TODO: ensure a good user facing error for this case.
+				fail("Invalid field kind for hydrated attach");
+			}
+		} else {
+			const child =
+				(Array.isArray(field) ? field[attach.index] : field.boxedAt(attach.index)) ??
+				fail("No child at index");
+			if (attach.toHydrate !== undefined) {
+				assert(child.isHydrated(), "Expected child to be hydrated");
+				getKernel(attach.toHydrate).hydrate(child);
+			}
+			for (const [key, children] of attach.content) {
+				const childField = child.getBoxed(key);
+				attachAndHydratedNodes(childField, children);
+			}
+		}
+	}
 }

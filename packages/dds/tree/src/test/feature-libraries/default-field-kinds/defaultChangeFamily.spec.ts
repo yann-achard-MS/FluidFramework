@@ -23,7 +23,7 @@ import {
 import {
 	DefaultChangeFamily,
 	type DefaultChangeset,
-	DefaultEditBuilder,
+	DefaultLowLevelDataEditor,
 	cursorForJsonableTreeField,
 	intoDelta,
 	jsonableTreeFromCursor,
@@ -119,7 +119,7 @@ function assertDeltasEqual(actual: DeltaRoot[], expected: DeltaRoot[]): void {
  */
 function initializeEditableForest(data?: JsonableTree): {
 	forest: IForestSubscription;
-	builder: DefaultEditBuilder;
+	builder: DefaultLowLevelDataEditor;
 	changes: TaggedChange<DefaultChangeset>[];
 	deltas: DeltaRoot[];
 } {
@@ -139,7 +139,7 @@ function initializeEditableForest(data?: JsonableTree): {
 		testRevisionTagCodec,
 		testIdCompressor,
 	);
-	const builder = new DefaultEditBuilder(family, mintRevisionTag, (taggedChange) => {
+	const builder = new DefaultLowLevelDataEditor(family, mintRevisionTag, (taggedChange) => {
 		changes.push(taggedChange);
 		const delta = intoDelta(taggedChange);
 		deltas.push(delta);

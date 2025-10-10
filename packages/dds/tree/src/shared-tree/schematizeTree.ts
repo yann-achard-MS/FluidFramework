@@ -5,12 +5,19 @@
 
 import { assert } from "@fluidframework/core-utils/internal";
 
-import { type TreeStoredSchema, rootFieldKey, schemaDataIsEmpty } from "../core/index.js";
+import {
+	type ChangeAtomId,
+	type TreeStoredSchema,
+	rootFieldKey,
+	schemaDataIsEmpty,
+} from "../core/index.js";
 import {
 	FieldKinds,
 	allowsRepoSuperset,
 	defaultSchemaPolicy,
-	type IDefaultEditBuilder,
+	type DetachedRootIds,
+	type ILocationBasedDataEditor,
+	type LowLevelDataEditor,
 	type TreeChunk,
 } from "../feature-libraries/index.js";
 
@@ -37,11 +44,11 @@ export function canInitialize(checkout: ITreeCheckout): boolean {
  * @privateRemarks
  * This takes in a checkout using a subset of the checkout interface to enable easier unit testing.
  */
-export function initialize(
+export function initialize<T>(
 	checkout: Pick<ITreeCheckout, "storedSchema" | "updateSchema">,
 	newSchema: TreeStoredSchema,
-	setInitialTree: () => void,
-): void {
+	setInitialTree: () => T,
+): T {
 	assert(
 		schemaDataIsEmpty(checkout.storedSchema),
 		0x743 /* cannot initialize after a schema is set */,
@@ -78,13 +85,15 @@ export function initialize(
 	);
 
 	checkout.updateSchema(intermediateSchema);
-	setInitialTree();
+	const result = setInitialTree();
 
 	// If intermediate schema is not final desired schema, update to the final schema:
 	if (intermediateSchema !== newSchema) {
 		// This makes the root more strict, so set allowNonSupersetSchema to true.
 		checkout.updateSchema(newSchema, true);
 	}
+
+	return result;
 }
 
 /**
@@ -99,7 +108,9 @@ export function initialize(
  */
 export function initializerFromChunk(
 	checkout: Pick<ITreeCheckout, "storedSchema"> & {
-		readonly editor: IDefaultEditBuilder;
+		readonly editor:
+			| ILocationBasedDataEditor
+			| LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
 	},
 	contentFactory: () => TreeChunk,
 ): () => void {
@@ -108,7 +119,9 @@ export function initializerFromChunk(
 
 function initializeFromChunk(
 	checkout: Pick<ITreeCheckout, "storedSchema"> & {
-		readonly editor: IDefaultEditBuilder;
+		readonly editor:
+			| ILocationBasedDataEditor
+			| LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
 	},
 	contentChunk: TreeChunk,
 ): void {

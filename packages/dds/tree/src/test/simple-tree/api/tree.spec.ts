@@ -24,7 +24,7 @@ import {
 	// eslint-disable-next-line import/no-internal-modules
 } from "../../../simple-tree/fieldSchema.js";
 // eslint-disable-next-line import/no-internal-modules
-import type { UnhydratedFlexTreeNode } from "../../../simple-tree/core/index.js";
+import { UnhydratedFlexTreeNode } from "../../../simple-tree/core/index.js";
 
 const schema = new SchemaFactory("com.example");
 
@@ -77,11 +77,13 @@ describe("simple-tree tree", () => {
 	describe("invalid default", () => {
 		// Field providers are assumed to validate their content:
 		// These tests use internal APIs to construct an intentionally invalid one to slip out of schema data into the flex tree.
-		const numberProvider: ConstantFieldProvider = (): UnhydratedFlexTreeNode[] => [
+		const numberProvider: ConstantFieldProvider = (): UnhydratedFlexTreeNode[] => {
 			// The schema listed here is intentionally incorrect,
 			// it should be a string given how this field is used below.
-			unhydratedFlexTreeFromInsertable(5, schema.number),
-		];
+			const node = unhydratedFlexTreeFromInsertable(5, schema.number);
+			assert(node instanceof UnhydratedFlexTreeNode);
+			return [node];
+		};
 
 		class InvalidDefault extends schema.object("hasID", {
 			id: createFieldSchema(FieldKind.Identifier, schema.string, {

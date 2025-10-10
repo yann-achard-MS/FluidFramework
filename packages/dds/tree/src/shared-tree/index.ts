@@ -40,9 +40,10 @@ export {
 export { SchematizingSimpleTreeView } from "./schematizingTreeView.js";
 
 export type {
-	ISharedTreeEditor,
+	IIdBasedSharedTreeEditor,
+	ILocationBasedSharedTreeEditor,
 	ISchemaEditor,
-	SharedTreeEditBuilder,
+	IdBasedSharedTreeEditBuilder,
 } from "./sharedTreeEditBuilder.js";
 
 export { Tree } from "./tree.js";

@@ -93,7 +93,11 @@ export {
 	isNeverTree,
 } from "./modular-schema/index.js";
 
-export { mapRootChanges } from "./deltaUtils.js";
+export {
+	mapRootChanges,
+	nodeIdFromChangeAtom,
+	changeAtomFromDetachedNodeId,
+} from "./deltaUtils.js";
 
 export {
 	type TreeChunk,
@@ -134,12 +138,14 @@ export {
 	type Identifier,
 	type Forbidden,
 	type DefaultChangeset,
+	type DetachedRootIds,
 	DefaultChangeFamily,
-	DefaultEditBuilder,
-	type IDefaultEditBuilder,
-	type ValueFieldEditBuilder,
-	type OptionalFieldEditBuilder,
-	type SequenceFieldEditBuilder,
+	DefaultLowLevelDataEditor,
+	type LowLevelDataEditor,
+	type HighLevelDataEditor,
+	type HighLevelRequiredFieldEditor,
+	type HighLevelOptionalFieldEditor,
+	type HighLevelSequenceFieldEditor,
 	defaultSchemaPolicy,
 	fieldKinds,
 	fieldKindConfigurations,
@@ -149,6 +155,12 @@ export {
 	isNodeInSchema,
 	isFieldInSchema,
 	throwOutOfSchema,
+	type DetachedRootLocation,
+	type DetachedRootsLocation,
+	type DetachedRootIdRange,
+	type Locator,
+	LocationBasedDataEditor,
+	type ILocationBasedDataEditor,
 	getCodecTreeForModularChangeFormat,
 	type ModularChangeFormatVersion,
 } from "./default-schema/index.js";

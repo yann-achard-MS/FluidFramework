@@ -8,7 +8,10 @@ import { Lazy } from "@fluidframework/core-utils/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
 import type { FieldKey } from "../core/index.js";
-import type { FlexTreeHydratedContextMinimal } from "../feature-libraries/index.js";
+import type {
+	FlexTreeHydratedContextMinimal,
+	FlexTreeNode,
+} from "../feature-libraries/index.js";
 import {
 	type MakeNominal,
 	brand,
@@ -22,7 +25,6 @@ import {
 import type {
 	TreeNodeSchema,
 	TreeNode,
-	UnhydratedFlexTreeNode,
 	ImplicitAllowedTypes,
 	TreeNodeFromImplicitAllowedTypes,
 	TreeLeafValue,
@@ -186,11 +188,11 @@ export interface FieldPropsAlpha<TCustomMetadata = unknown>
  */
 export type ContextualFieldProvider = (
 	context: FlexTreeHydratedContextMinimal | "UseGlobalContext",
-) => UnhydratedFlexTreeNode[];
+) => FlexTreeNode[];
 /**
  * A {@link FieldProvider} which can produce its content in a vacuum.
  */
-export type ConstantFieldProvider = () => UnhydratedFlexTreeNode[];
+export type ConstantFieldProvider = () => FlexTreeNode[];
 /**
  * A function which produces content for a field every time that it is called.
  */

@@ -81,7 +81,7 @@ import {
 import type { SimpleObjectFieldSchema } from "../../simpleSchema.js";
 import {
 	unhydratedFlexTreeFromInsertable,
-	unhydratedFlexTreeFromInsertableNode,
+	flexTreeFromInsertableNode,
 	type FactoryContent,
 	type FactoryContentObject,
 	type InsertableContent,
@@ -356,12 +356,12 @@ export function setField(
 		case FieldKinds.required.identifier: {
 			assert(mapTree !== undefined, 0xa04 /* Cannot set a required field to undefined */);
 			const typedField = field as FlexTreeRequiredField;
-			typedField.editor.set(mapTree);
+			typedField.editor.attach(mapTree);
 			break;
 		}
 		case FieldKinds.optional.identifier: {
 			const typedField = field as FlexTreeOptionalField;
-			typedField.editor.set(mapTree, typedField.length === 0);
+			typedField.editor.attach(mapTree, typedField.length === 0);
 			break;
 		}
 
@@ -670,7 +670,7 @@ function objectToFlexContent(
 	for (const [key, fieldInfo] of schema.flexKeyMap) {
 		const value = getFieldProperty(data, key);
 
-		let children: UnhydratedFlexTreeNode[] | ContextualFieldProvider;
+		let children: FlexTreeNode[] | ContextualFieldProvider;
 		if (value === undefined) {
 			const defaultProvider =
 				fieldInfo.schema.props?.defaultProvider ??
@@ -678,9 +678,7 @@ function objectToFlexContent(
 			const fieldProvider = extractFieldProvider(defaultProvider);
 			children = isConstant(fieldProvider) ? fieldProvider() : fieldProvider;
 		} else {
-			children = [
-				unhydratedFlexTreeFromInsertableNode(value, fieldInfo.schema.allowedTypeSet),
-			];
+			children = [flexTreeFromInsertableNode(value, fieldInfo.schema.allowedTypeSet)];
 		}
 
 		const kind =

@@ -14,7 +14,7 @@ import { validateAssertionError } from "@fluidframework/test-runtime-utils/inter
 import {
 	DefaultChangeFamily,
 	type DefaultChangeset,
-	type DefaultEditBuilder,
+	type DefaultLowLevelDataEditor,
 } from "../../feature-libraries/index.js";
 import { chunkFromJsonableTrees, failCodecFamily, mintRevisionTag } from "../utils.js";
 import {
@@ -254,7 +254,7 @@ describe("SquashingTransactionStacks", () => {
 		assert.equal(transaction.activeBranch, branch);
 	});
 
-	type DefaultBranch = SharedTreeBranch<DefaultEditBuilder, DefaultChangeset>;
+	type DefaultBranch = SharedTreeBranch<DefaultLowLevelDataEditor, DefaultChangeset>;
 	const defaultChangeFamily = new DefaultChangeFamily(failCodecFamily);
 	const initialRevision = mintRevisionTag();
 
@@ -272,7 +272,7 @@ describe("SquashingTransactionStacks", () => {
 		return branch.getHead().revision;
 	}
 
-	function edit(editor: DefaultEditBuilder, value: string): void {
+	function edit(editor: DefaultLowLevelDataEditor, value: string): void {
 		const content = chunkFromJsonableTrees([{ type: brand("TestValue"), value }]);
 		editor.valueField({ parent: undefined, field: rootFieldKey }).set(content);
 	}

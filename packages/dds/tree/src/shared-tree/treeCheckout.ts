@@ -47,18 +47,26 @@ import {
 	type TreeNodeSchemaIdentifier,
 	type TreeNodeStoredSchema,
 	LeafNodeStoredSchema,
+	type ChangeAtomId,
+	offsetChangeAtomId,
 	diffHistories,
 } from "../core/index.js";
 import {
+	type DetachedRootIds,
+	type DetachedRootLocation,
+	type DetachedRootsLocation,
 	type FieldBatchCodec,
+	type Locator,
 	type TreeCompressionStrategyPrivate,
 	allowsRepoSuperset,
 	buildForest,
+	changeAtomFromDetachedNodeId,
 	createNodeIdentifierManager,
 	defaultSchemaPolicy,
 	intoDelta,
 	jsonableTreeFromCursor,
 	makeFieldBatchCodec,
+	nodeIdFromChangeAtom,
 } from "../feature-libraries/index.js";
 import {
 	SquashingTransactionStack,
@@ -68,11 +76,22 @@ import {
 	type SharedTreeBranchChange,
 	type Transactor,
 } from "../shared-tree-core/index.js";
-import { Breakable, disposeSymbol, getOrCreate, type WithBreakable } from "../util/index.js";
+import {
+	Breakable,
+	disposeSymbol,
+	getOrCreate,
+	makeArray,
+	type WithBreakable,
+} from "../util/index.js";
 
 import { SharedTreeChangeFamily, hasSchemaChange } from "./sharedTreeChangeFamily.js";
 import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
-import type { ISharedTreeEditor, SharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
+import {
+	type IdBasedSharedTreeEditBuilder,
+	type ILocationBasedSharedTreeEditor,
+	type IIdBasedSharedTreeEditor,
+	LocationBasedSharedTreeEditBuilder,
+} from "./sharedTreeEditBuilder.js";
 import type { IDisposable } from "@fluidframework/core-interfaces";
 import {
 	type ImplicitFieldSchema,
@@ -223,7 +242,7 @@ export interface ITreeCheckout extends AnchorLocator, ViewableTree, WithBreakabl
 	 * Used to edit the state of the tree. Edits will be immediately applied locally to the tree.
 	 * If there is no transaction currently ongoing, then the edits will be submitted to Fluid immediately as well.
 	 */
-	readonly editor: ISharedTreeEditor;
+	readonly editor: ILocationBasedSharedTreeEditor;
 
 	/**
 	 * A collection of functions for managing transactions.
@@ -281,8 +300,8 @@ export function createTreeCheckout(
 	mintRevisionTag: () => RevisionTag,
 	revisionTagCodec: RevisionTagCodec,
 	args?: {
-		branch?: SharedTreeBranch<SharedTreeEditBuilder, SharedTreeChange>;
-		changeFamily?: ChangeFamily<SharedTreeEditBuilder, SharedTreeChange>;
+		branch?: SharedTreeBranch<IdBasedSharedTreeEditBuilder, SharedTreeChange>;
+		changeFamily?: ChangeFamily<IdBasedSharedTreeEditBuilder, SharedTreeChange>;
 		schema?: TreeStoredSchemaRepository;
 		forest?: IEditableForest;
 		fieldBatchCodec?: FieldBatchCodec;
@@ -371,6 +390,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	public disposed = false;
 
 	private editLock: EditLock;
+	private readonly locator: Locator;
 
 	private readonly views = new Set<TreeView<ImplicitFieldSchema>>();
 
@@ -386,7 +406,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	 */
 	private readonly revertibleCommitBranches = new Map<
 		RevisionTag,
-		SharedTreeBranch<SharedTreeEditBuilder, SharedTreeChange>
+		SharedTreeBranch<IdBasedSharedTreeEditBuilder, SharedTreeChange>
 	>();
 
 	/**
@@ -399,10 +419,13 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	public events: Listenable<CheckoutEvents> = this.#events;
 
 	public constructor(
-		branch: SharedTreeBranch<SharedTreeEditBuilder, SharedTreeChange>,
+		branch: SharedTreeBranch<IdBasedSharedTreeEditBuilder, SharedTreeChange>,
 		/** True if and only if this checkout is for a branch which is persisted and shared with other clients. */
 		public readonly isSharedBranch: boolean,
-		private readonly changeFamily: ChangeFamily<SharedTreeEditBuilder, SharedTreeChange>,
+		private readonly changeFamily: ChangeFamily<
+			IdBasedSharedTreeEditBuilder,
+			SharedTreeChange
+		>,
 		public readonly storedSchema: TreeStoredSchemaRepository,
 		public readonly forest: IEditableForest,
 		private readonly mintRevisionTag: () => RevisionTag,
@@ -420,6 +443,31 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	) {
 		this.#transaction = this.createTransactionStack(branch);
 		this.editLock = new EditLock(this.#transaction.activeBranchEditor);
+		this.locator = {
+			locationFromId: (id: ChangeAtomId): DetachedRootLocation => {
+				const rootId = this.removedRoots.getEntry(nodeIdFromChangeAtom(id));
+				return this.removedRoots.toFieldKey(rootId);
+			},
+			idFromLocation: (location: DetachedRootLocation): ChangeAtomId => {
+				const nodeId = this.removedRoots.fromFieldKey(location);
+				return changeAtomFromDetachedNodeId(nodeId);
+			},
+			locationsFromIdRanges: (ids: DetachedRootIds): DetachedRootsLocation => {
+				return ids.flatMap((id) => {
+					return makeArray(id.count, (offset) => {
+						const field = this.locator.locationFromId(offsetChangeAtomId(id.first, offset));
+						return { field, count: id.count };
+					});
+				});
+			},
+			idRangesFromLocations: (ids: DetachedRootsLocation): DetachedRootIds => {
+				return ids.map((id) => {
+					assert(id.count === 1, "Expected count of 1");
+					const first = this.locator.idFromLocation(id.field);
+					return { first, count: id.count };
+				});
+			},
+		};
 		this.registerForBranchEvents();
 	}
 
@@ -436,8 +484,8 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	}
 
 	private createTransactionStack(
-		branch: SharedTreeBranch<SharedTreeEditBuilder, SharedTreeChange>,
-	): SquashingTransactionStack<SharedTreeEditBuilder, SharedTreeChange> {
+		branch: SharedTreeBranch<IdBasedSharedTreeEditBuilder, SharedTreeChange>,
+	): SquashingTransactionStack<IdBasedSharedTreeEditBuilder, SharedTreeChange> {
 		return new SquashingTransactionStack(
 			branch,
 			(commits) => {
@@ -733,9 +781,9 @@ export class TreeCheckout implements ITreeCheckoutFork {
 		return this.forest.anchors.events;
 	}
 
-	public get editor(): ISharedTreeEditor {
+	public get editor(): ILocationBasedSharedTreeEditor {
 		this.checkNotDisposed();
-		return this.editLock.editor;
+		return new LocationBasedSharedTreeEditBuilder(this.editLock.editor, this.locator);
 	}
 
 	public locate(anchor: Anchor): AnchorNode | undefined {
@@ -756,7 +804,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	 * To avoid updating observers of the view state with intermediate results during a transaction,
 	 * use {@link ITreeCheckout#branch} and {@link ISharedTreeFork#merge}.
 	 */
-	#transaction: SquashingTransactionStack<SharedTreeEditBuilder, SharedTreeChange>;
+	#transaction: SquashingTransactionStack<IdBasedSharedTreeEditBuilder, SharedTreeChange>;
 
 	public branch(): TreeCheckout {
 		this.checkNotDisposed(
@@ -786,7 +834,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	}
 
 	public switchBranch(
-		branch: SharedTreeBranch<SharedTreeEditBuilder, SharedTreeChange>,
+		branch: SharedTreeBranch<IdBasedSharedTreeEditBuilder, SharedTreeChange>,
 	): void {
 		// TODO: Dispose old branch, if necessary
 		assert(
@@ -1072,18 +1120,22 @@ class EditLock {
 	 * Edits the tree by calling the methods of the editor passed into the {@link EditLock} constructor.
 	 * @remarks Edits will throw an error if the lock is currently locked.
 	 */
-	public readonly editor: ISharedTreeEditor;
+	public readonly editor: IIdBasedSharedTreeEditor;
 	private locked = false;
 
 	/**
 	 * @param editor - an editor which will be used to create a new editor that is monitored to determine if any changes are happening to the tree.
 	 * Use {@link EditLock.editor} in place of the original editor to ensure that changes are monitored.
 	 */
-	public constructor(editor: ISharedTreeEditor) {
+	public constructor(editor: IIdBasedSharedTreeEditor) {
 		const checkLock = (): void => this.checkUnlocked("Editing the tree");
 		this.editor = {
 			get schema() {
 				return editor.schema;
+			},
+			buildRoots(unhydrated) {
+				checkLock();
+				return editor.buildRoots(unhydrated);
 			},
 			valueField(...fieldArgs) {
 				const valueField = editor.valueField(...fieldArgs);
@@ -1091,6 +1143,10 @@ class EditLock {
 					set(...editArgs) {
 						checkLock();
 						valueField.set(...editArgs);
+					},
+					attach(...editArgs) {
+						checkLock();
+						valueField.attach(...editArgs);
 					},
 				};
 			},
@@ -1101,6 +1157,14 @@ class EditLock {
 						checkLock();
 						optionalField.set(...editArgs);
 					},
+					attach(...editArgs) {
+						checkLock();
+						optionalField.attach(...editArgs);
+					},
+					clear(...editArgs) {
+						checkLock();
+						optionalField.clear(...editArgs);
+					},
 				};
 			},
 			sequenceField(...fieldArgs) {
@@ -1109,6 +1173,10 @@ class EditLock {
 					insert(...editArgs) {
 						checkLock();
 						sequenceField.insert(...editArgs);
+					},
+					attach(...editArgs) {
+						checkLock();
+						sequenceField.attach(...editArgs);
 					},
 					remove(...editArgs) {
 						checkLock();

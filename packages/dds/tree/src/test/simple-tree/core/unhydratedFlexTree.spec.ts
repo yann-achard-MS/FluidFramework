@@ -17,6 +17,7 @@ import { brand } from "../../../util/index.js";
 import {
 	UnhydratedFlexTreeNode,
 	type UnhydratedOptionalField,
+	type UnhydratedRequiredField,
 	// eslint-disable-next-line import/no-internal-modules
 } from "../../../simple-tree/core/unhydratedFlexTree.js";
 import { SchemaFactory, stringSchema } from "../../../simple-tree/index.js";
@@ -220,7 +221,7 @@ describe("unhydratedFlexTree", () => {
 				cursorForMapTreeNode(objectMapTree),
 			);
 			// Find a field to edit. In this case the one with the map in it.
-			const field = mutableObject.getBoxed(objectMapKey) as UnhydratedOptionalField;
+			const field = mutableObject.getBoxed(objectMapKey) as UnhydratedRequiredField;
 			const oldMap = field.boxedAt(0);
 			assert(oldMap instanceof UnhydratedFlexTreeNode);
 			assert.equal(oldMap.parentField.parent.parent, mutableObject);
@@ -252,10 +253,13 @@ describe("unhydratedFlexTree", () => {
 			const oldValue = field.boxedAt(0);
 			const newValue = `new ${childValue}`;
 			const newTree: MapTree = { ...mapChildMapTree, value: newValue };
-			field.editor.set(unhydratedFlexTreeFromCursor(context, cursorForMapTreeNode(newTree)));
+			field.editor.set(
+				unhydratedFlexTreeFromCursor(context, cursorForMapTreeNode(newTree)),
+				false,
+			);
 			assert.equal(field.boxedAt(0)?.value, newValue);
 			assert.notEqual(newValue, oldValue);
-			field.editor.set(undefined);
+			field.editor.set(undefined, false);
 			assert.equal(field.boxedAt(0)?.value, undefined);
 		});
 

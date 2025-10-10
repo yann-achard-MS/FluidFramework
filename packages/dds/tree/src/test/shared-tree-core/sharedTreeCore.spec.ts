@@ -37,7 +37,7 @@ import {
 } from "../../core/index.js";
 import type {
 	DefaultChangeset,
-	DefaultEditBuilder,
+	DefaultLowLevelDataEditor,
 	ModularChangeset,
 } from "../../feature-libraries/index.js";
 import { Tree } from "../../shared-tree/index.js";
@@ -653,7 +653,7 @@ describe("SharedTreeCore", () => {
 });
 
 /** Makes an arbitrary change to the given tree */
-function changeTree<TChange, TEditor extends DefaultEditBuilder>(
+function changeTree<TChange, TEditor extends DefaultLowLevelDataEditor>(
 	tree: SharedTreeCore<TEditor, TChange>,
 ): void {
 	const field = tree.getEditor().sequenceField({ parent: undefined, field: rootFieldKey });

@@ -8,11 +8,16 @@ import { strict as assert } from "node:assert";
 import type {
 	DefaultChangeFamily,
 	DefaultChangeset,
-	DefaultEditBuilder,
+	DetachedRootIds,
+	LowLevelDataEditor,
+	TreeChunk,
 } from "../feature-libraries/index.js";
 import { mintRevisionTag } from "./utils.js";
+import type { ChangeAtomId } from "../core/index.js";
 
-export type Editor = (builder: DefaultEditBuilder) => void;
+export type Editor = (
+	builder: LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>,
+) => void;
 
 export function makeEditMinter(
 	family: DefaultChangeFamily,
