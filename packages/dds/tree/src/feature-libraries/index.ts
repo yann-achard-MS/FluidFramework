@@ -9,7 +9,11 @@ export {
 } from "./editableTreeBinder.js";
 export { allowsValue, assertAllowedValue, isTreeValue } from "./valueUtilities.js";
 
-export { ForestSummarizer } from "./forest-summary/index.js";
+export {
+	ForestSummarizer,
+	getCodecTreeForForestFormat,
+	type ForestFormatVersion,
+} from "./forest-summary/index.js";
 export {
 	cursorForMapTreeField,
 	cursorForMapTreeNode,
@@ -28,6 +32,7 @@ export {
 	encodeTreeSchema,
 	makeSchemaCodec,
 	makeSchemaCodecs,
+	getCodecTreeForSchemaFormat,
 } from "./schema-index/index.js";
 export {
 	stackTreeNodeCursor,
@@ -102,6 +107,8 @@ export {
 	defaultChunkPolicy,
 	type FieldBatch,
 	type FieldBatchCodec,
+	type FieldBatchFormatVersion,
+	getCodecTreeForFieldBatchFormat,
 	makeTreeChunker,
 	makeFieldBatchCodec,
 	fluidVersionToFieldBatchCodecWriteVersion,
@@ -151,6 +158,8 @@ export {
 	type Locator,
 	LocationBasedDataEditor,
 	type ILocationBasedDataEditor,
+	getCodecTreeForModularChangeFormat,
+	type ModularChangeFormatVersion,
 } from "./default-schema/index.js";
 
 export {
@@ -183,9 +192,16 @@ export {
 	type FlexTreeHydratedContextMinimal,
 	type HydratedFlexTreeNode,
 	getOrCreateHydratedFlexTreeNode,
+	currentObserver,
+	withObservation,
+	type Observer,
 } from "./flex-tree/index.js";
 
-export { TreeCompressionStrategy } from "./treeCompressionUtils.js";
+export {
+	TreeCompressionStrategy,
+	TreeCompressionStrategyExtended,
+	type TreeCompressionStrategyPrivate,
+} from "./treeCompressionUtils.js";
 
 export { valueSchemaAllows } from "./valueUtilities.js";
 
@@ -195,6 +211,8 @@ export {
 	type SchemaChange,
 	makeSchemaChangeCodecs,
 	EncodedSchemaChange,
+	getCodecTreeForSchemaChangeFormat,
+	type SchemaChangeFormatVersion,
 } from "./schema-edits/index.js";
 
 export { makeMitigatedChangeFamily } from "./mitigatedChangeFamily.js";

@@ -12,8 +12,8 @@ import {
 } from "@fluid-internal/client-utils";
 import {
 	AttachState,
-	IAudience,
-	ICriticalContainerError,
+	type IAudience,
+	type ICriticalContainerError,
 } from "@fluidframework/container-definitions";
 import type {
 	ContainerWarning,
@@ -35,41 +35,41 @@ import type {
 } from "@fluidframework/container-definitions/internal";
 import { isFluidCodeDetails } from "@fluidframework/container-definitions/internal";
 import {
-	FluidObject,
-	IEvent,
-	IRequest,
-	ITelemetryBaseProperties,
+	type FluidObject,
+	type IEvent,
+	type IRequest,
+	type ITelemetryBaseProperties,
 	LogLevel,
 } from "@fluidframework/core-interfaces";
-import { type ISignalEnvelope } from "@fluidframework/core-interfaces/internal";
+import type { ISignalEnvelope } from "@fluidframework/core-interfaces/internal";
 import { assert, isPromiseLike, unreachableCase } from "@fluidframework/core-utils/internal";
 import {
-	IClient,
-	IClientDetails,
-	IQuorumClients,
-	ISequencedClient,
-	ISummaryTree,
+	type IClient,
+	type IClientDetails,
+	type IQuorumClients,
+	type ISequencedClient,
+	type ISummaryTree,
 	SummaryType,
 } from "@fluidframework/driver-definitions";
 import {
-	IDocumentService,
-	IDocumentServiceFactory,
-	IDocumentStorageService,
-	IResolvedUrl,
-	ISnapshot,
-	IThrottlingWarning,
-	IUrlResolver,
-	ICommittedProposal,
-	IDocumentAttributes,
-	IDocumentMessage,
-	IQuorumProposals,
-	ISequencedProposal,
-	ISnapshotTree,
-	ISummaryContent,
-	IVersion,
+	type IDocumentService,
+	type IDocumentServiceFactory,
+	type IDocumentStorageService,
+	type IResolvedUrl,
+	type ISnapshot,
+	type IThrottlingWarning,
+	type IUrlResolver,
+	type ICommittedProposal,
+	type IDocumentAttributes,
+	type IDocumentMessage,
+	type IQuorumProposals,
+	type ISequencedProposal,
+	type ISnapshotTree,
+	type ISummaryContent,
+	type IVersion,
 	MessageType,
-	ISequencedDocumentMessage,
-	ISignalMessage,
+	type ISequencedDocumentMessage,
+	type ISignalMessage,
 	type ConnectionMode,
 } from "@fluidframework/driver-definitions/internal";
 import {
@@ -84,11 +84,11 @@ import {
 } from "@fluidframework/driver-utils/internal";
 import {
 	type TelemetryEventCategory,
-	ITelemetryLoggerExt,
+	type ITelemetryLoggerExt,
 	EventEmitterWithErrorHandling,
 	GenericError,
-	IFluidErrorBase,
-	MonitoringContext,
+	type IFluidErrorBase,
+	type MonitoringContext,
 	PerformanceEvent,
 	UsageError,
 	connectedEventName,
@@ -105,27 +105,27 @@ import structuredClone from "@ungap/structured-clone";
 import { v4 as uuid } from "uuid";
 
 import {
-	AttachProcessProps,
-	AttachmentData,
+	type AttachProcessProps,
+	type AttachmentData,
 	runRetriableAttachProcess,
 } from "./attachment.js";
 import { Audience } from "./audience.js";
 import { ConnectionManager } from "./connectionManager.js";
 import { ConnectionState } from "./connectionState.js";
 import {
-	IConnectionStateHandler,
+	type IConnectionStateHandler,
 	createConnectionStateHandler,
 } from "./connectionStateHandler.js";
 import { ContainerContext } from "./containerContext.js";
 import { ContainerStorageAdapter } from "./containerStorageAdapter.js";
 import {
-	IConnectionDetailsInternal,
-	IConnectionManagerFactoryArgs,
-	IConnectionStateChangeReason,
+	type IConnectionDetailsInternal,
+	type IConnectionManagerFactoryArgs,
+	type IConnectionStateChangeReason,
 	ReconnectMode,
 	getPackageName,
 } from "./contracts.js";
-import { DeltaManager, IConnectionArgs } from "./deltaManager.js";
+import { DeltaManager, type IConnectionArgs } from "./deltaManager.js";
 import { RelativeLoader } from "./loader.js";
 import {
 	validateDriverCompatibility,
@@ -138,11 +138,12 @@ import {
 } from "./memoryBlobStorage.js";
 import { NoopHeuristic } from "./noopHeuristic.js";
 import { pkgVersion } from "./packageVersion.js";
-import { IQuorumSnapshot } from "./protocol/index.js";
+import type { IQuorumSnapshot } from "./protocol/index.js";
 import {
-	IProtocolHandler,
+	type InternalProtocolHandlerBuilder,
 	ProtocolHandler,
-	ProtocolHandlerBuilder,
+	type ProtocolHandlerBuilder,
+	type ProtocolHandlerInternal,
 	protocolHandlerShouldProcessSignal,
 } from "./protocol.js";
 import { initQuorumValuesFromCodeDetails } from "./quorum.js";
@@ -152,7 +153,7 @@ import {
 	SerializedStateManager,
 } from "./serializedStateManager.js";
 import {
-	ISnapshotTreeWithBlobContents,
+	type ISnapshotTreeWithBlobContents,
 	combineAppAndProtocolSummary,
 	combineSnapshotTreeAndSnapshotBlobs,
 	getDetachedContainerStateFromSerializedContainer,
@@ -272,8 +273,7 @@ export interface IContainerCreateProps {
  * but it maybe still behind.
  *
  * @throws an error beginning with `"Container closed"` if the container is closed before it catches up.
- * @legacy
- * @alpha
+ * @legacy @beta
  */
 export async function waitContainerToCatchUp(container: IContainer): Promise<boolean> {
 	// Make sure we stop waiting if container is closed.
@@ -381,7 +381,7 @@ interface IContainerLifecycleEvents extends IEvent {
 
 export class Container
 	extends EventEmitterWithErrorHandling<IContainerEvents>
-	implements IContainer, IContainerExperimental
+	implements IContainer, ContainerAlpha
 {
 	/**
 	 * Load an existing container.
@@ -496,7 +496,7 @@ export class Container
 	private readonly scope: FluidObject;
 	private readonly subLogger: ITelemetryLoggerExt;
 	private readonly detachedBlobStorage: MemoryDetachedBlobStorage | undefined;
-	private readonly protocolHandlerBuilder: ProtocolHandlerBuilder;
+	private readonly protocolHandlerBuilder: InternalProtocolHandlerBuilder;
 	private readonly client: IClient;
 
 	private readonly mc: MonitoringContext;
@@ -598,8 +598,8 @@ export class Container
 		}
 		return this._runtime;
 	}
-	private _protocolHandler: IProtocolHandler | undefined;
-	private get protocolHandler(): IProtocolHandler {
+	private _protocolHandler: ProtocolHandlerInternal | undefined;
+	private get protocolHandler(): ProtocolHandlerInternal {
 		if (this._protocolHandler === undefined) {
 			throw new Error("Attempted to access protocolHandler before it was defined");
 		}
@@ -831,7 +831,7 @@ export class Container
 				attributes: IDocumentAttributes,
 				quorumSnapshot: IQuorumSnapshot,
 				sendProposal: (key: string, value: unknown) => number,
-			): ProtocolHandler =>
+			): ProtocolHandlerInternal =>
 				new ProtocolHandler(
 					attributes,
 					quorumSnapshot,
@@ -1019,9 +1019,10 @@ export class Container
 		);
 
 		const offlineLoadEnabled =
-			(this.isInteractiveClient &&
-				this.mc.config.getBoolean("Fluid.Container.enableOfflineLoad")) ??
-			options.enableOfflineLoad === true;
+			this.isInteractiveClient &&
+			(this.mc.config.getBoolean("Fluid.Container.enableOfflineLoad") ??
+				this.mc.config.getBoolean("Fluid.Container.enableOfflineFull") ??
+				options.enableOfflineLoad === true);
 		this.serializedStateManager = new SerializedStateManager(
 			pendingLocalState,
 			this.subLogger,
@@ -1642,10 +1643,9 @@ export class Container
 		const timings: Record<string, number> = { phase1: performanceNow() };
 		this.service = await this.createDocumentService(resolvedUrl, { mode: "load" });
 
-		// Except in cases where it has stashed ops or requested by feature gate, the container will connect in "read" mode
+		// Except in cases where its requested by feature gate, the container will connect in "read" mode
 		const mode =
-			this.mc.config.getBoolean("Fluid.Container.ForceWriteConnection") === true ||
-			(pendingLocalState?.savedOps.length ?? 0) > 0
+			this.mc.config.getBoolean("Fluid.Container.ForceWriteConnection") === true
 				? "write"
 				: "read";
 		const connectionArgs: IConnectionArgs = {
@@ -1669,14 +1669,10 @@ export class Container
 		timings.phase2 = performanceNow();
 
 		// Fetch specified snapshot.
-		const { baseSnapshot, version } =
+		const { baseSnapshot, version, attributes } =
 			await this.serializedStateManager.fetchSnapshot(specifiedVersion);
 		const baseSnapshotTree: ISnapshotTree | undefined = getSnapshotTree(baseSnapshot);
 		this._loadedFromVersion = version;
-		const attributes: IDocumentAttributes = await getDocumentAttributes(
-			this.storageAdapter,
-			baseSnapshotTree,
-		);
 
 		// If we saved ops, we will replay them and don't need DeltaManager to fetch them
 		const lastProcessedSequenceNumber =
@@ -2559,14 +2555,22 @@ export class Container
 
 /**
  * IContainer interface that includes experimental features still under development.
- * @internal
+ * @alpha @legacy @sealed
  */
-export interface IContainerExperimental extends IContainer {
+export interface ContainerAlpha extends IContainer {
 	/**
 	 * Get pending state from container. WARNING: misuse of this API can result in duplicate op
 	 * submission and potential document corruption. The blob returned MUST be deleted if and when this
 	 * container emits a "connected" event.
 	 * @returns serialized blob that can be passed to Loader.resolve()
 	 */
-	getPendingLocalState?(): Promise<string>;
+	getPendingLocalState(): Promise<string>;
+}
+
+/**
+ * Converts types to their alpha counterparts to expose alpha functionality.
+ * @legacy @alpha
+ */
+export function asLegacyAlpha(base: IContainer): ContainerAlpha {
+	return base as ContainerAlpha;
 }

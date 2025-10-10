@@ -3,15 +3,15 @@
  * Licensed under the MIT License.
  */
 
-import assert from "node:assert";
+import { strict as assert } from "node:assert";
 
 import type { IProvideLayerCompatDetails } from "@fluid-internal/client-utils";
 import { AttachState } from "@fluidframework/container-definitions";
 import { FluidErrorTypes, type ConfigTypes } from "@fluidframework/core-interfaces/internal";
-import {
-	type IDocumentServiceFactory,
-	type IResolvedUrl,
-	type IUrlResolver,
+import type {
+	IDocumentServiceFactory,
+	IResolvedUrl,
+	IUrlResolver,
 } from "@fluidframework/driver-definitions/internal";
 import {
 	isFluidError,
@@ -71,7 +71,7 @@ describe("loader unit test", () => {
 		assert.strictEqual(parsedState.attached, false);
 		assert.strictEqual(parsedState.hasAttachmentBlobs, false);
 		assert.strictEqual(Object.keys(parsedState.snapshotBlobs).length, 4);
-		assert.ok(parsedState.baseSnapshot);
+		assert(parsedState.baseSnapshot !== undefined);
 		await loader.rehydrateDetachedContainerFromSnapshot(detachedContainerState);
 	});
 
@@ -87,7 +87,7 @@ describe("loader unit test", () => {
 		assert.strictEqual(parsedState.attached, false);
 		assert.strictEqual(parsedState.hasAttachmentBlobs, true);
 		assert.strictEqual(Object.keys(parsedState.snapshotBlobs).length, 4);
-		assert.ok(parsedState.baseSnapshot);
+		assert(parsedState.baseSnapshot !== undefined);
 		await loader.rehydrateDetachedContainerFromSnapshot(detachedContainerState);
 	});
 
@@ -116,7 +116,7 @@ describe("loader unit test", () => {
 		assert.strictEqual(parsedState.hasAttachmentBlobs, false);
 		assert.strictEqual(Object.keys(parsedState.snapshotBlobs).length, 4);
 		assert.deepStrictEqual(parsedState.pendingRuntimeState, { pending: [] });
-		assert.ok(parsedState.baseSnapshot);
+		assert(parsedState.baseSnapshot !== undefined);
 		await loader.rehydrateDetachedContainerFromSnapshot(detachedContainerState);
 	});
 
@@ -154,7 +154,7 @@ describe("loader unit test", () => {
 		assert.strictEqual(parsedState.attached, false);
 		assert.strictEqual(parsedState.hasAttachmentBlobs, true);
 		assert.strictEqual(Object.keys(parsedState.snapshotBlobs).length, 4);
-		assert.ok(parsedState.baseSnapshot);
+		assert(parsedState.baseSnapshot !== undefined);
 		await loader.rehydrateDetachedContainerFromSnapshot(detachedContainerState);
 	});
 
