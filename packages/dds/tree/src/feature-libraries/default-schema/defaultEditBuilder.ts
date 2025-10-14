@@ -165,6 +165,12 @@ export type HighLevelDataEditor<TContent, TDetachedRoot, TDetachedRoots> = LowLe
 
 export interface LowLevelDataEditor<TContent, TDetachedRoot, TDetachedRoots>
 	extends DataEditor {
+	/**
+	 * Builds the detached roots for the given content.
+	 * @param content - The content to be built into detached nodes.
+	 *
+	 * Requires SharedTreeFormatVersion.vDetachedRoots or later.
+	 */
 	buildRoots(content: TContent): TDetachedRoots;
 
 	/**
@@ -278,39 +284,59 @@ export class DefaultLowLevelDataEditor
 	public valueField(
 		field: NormalizedFieldUpPath,
 	): LowLevelRequiredFieldEditor<TreeChunk, ChangeAtomId> {
-		const editBuilder = {
+		const makeAttachEditDescription = (
+			fill: ChangeAtomId,
+			revision: RevisionTag,
+		): FieldEditDescription => {
+			const detachLocalId = this.modularBuilder.generateId();
+			const detach = { localId: detachLocalId, revision };
+			const change = valueFieldKind.changeHandler.editor.set({ fill, detach });
+			return {
+				type: "field",
+				field,
+				fieldKind: valueFieldKind.identifier,
+				change: brand(change),
+				revision,
+			};
+		};
+		return {
 			set: (newContent: TreeChunk): void => {
 				assert(newContent.topLevelLength === 1, "Expected exactly one node");
-				const root = this.buildRoots(newContent);
-				assert(hasSingle(root) && root[0].count === 1, "Expected exactly one root");
-				editBuilder.attach(root[0].first);
+				const revision = this.mintRevisionTag();
+				const buildLocalId = this.modularBuilder.generateId();
+				const buildId = { localId: buildLocalId, revision };
+				const build = this.modularBuilder.buildTrees(buildLocalId, newContent, revision);
+				const attach = makeAttachEditDescription(buildId, revision);
+				this.modularBuilder.submitChanges([build, attach], revision);
 			},
+
 			attach: (newContent: ChangeAtomId): void => {
 				const revision = this.mintRevisionTag();
-				const detach: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
-				const fill: ChangeAtomId = newContent;
-				const change: FieldChangeset = brand(
-					valueFieldKind.changeHandler.editor.set({
-						fill,
-						detach,
-					}),
-				);
-				const edit: FieldEditDescription = {
-					type: "field",
-					field,
-					fieldKind: valueFieldKind.identifier,
-					change,
-					revision,
-				};
-				this.modularBuilder.submitChanges([edit], revision);
+				const attach = makeAttachEditDescription(newContent, revision);
+				this.modularBuilder.submitChanges([attach], revision);
 			},
 		};
-		return editBuilder;
 	}
 
 	public optionalField(
 		field: NormalizedFieldUpPath,
 	): LowLevelOptionalFieldEditor<TreeChunk, ChangeAtomId> {
+		const makeAttachEditDescription = (
+			fill: ChangeAtomId,
+			revision: RevisionTag,
+			wasEmpty: boolean,
+		): FieldEditDescription => {
+			const detachLocalId = this.modularBuilder.generateId();
+			const detach = { localId: detachLocalId, revision };
+			const change = optional.changeHandler.editor.set(wasEmpty, { fill, detach });
+			return {
+				type: "field",
+				field,
+				fieldKind: optional.identifier,
+				change: brand(change),
+				revision,
+			};
+		};
 		const editBuilder = {
 			set: (newContent: TreeChunk | undefined, wasEmpty: boolean): void => {
 				if (newContent === undefined) {
@@ -318,9 +344,12 @@ export class DefaultLowLevelDataEditor
 					return;
 				}
 				assert(newContent.topLevelLength === 1, "Expected exactly one node");
-				const roots = this.buildRoots(newContent);
-				assert(hasSingle(roots) && roots[0].count === 1, "Expected exactly one root");
-				editBuilder.attach(roots[0].first, wasEmpty);
+				const revision = this.mintRevisionTag();
+				const buildLocalId = this.modularBuilder.generateId();
+				const buildId = { localId: buildLocalId, revision };
+				const build = this.modularBuilder.buildTrees(buildLocalId, newContent, revision);
+				const attach = makeAttachEditDescription(buildId, revision, wasEmpty);
+				this.modularBuilder.submitChanges([build, attach], revision);
 			},
 			attach: (newContent: ChangeAtomId | undefined, wasEmpty: boolean): void => {
 				if (newContent === undefined) {
@@ -328,22 +357,8 @@ export class DefaultLowLevelDataEditor
 					return;
 				}
 				const revision = this.mintRevisionTag();
-				const detach: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
-				const fill: ChangeAtomId = newContent;
-				const optionalChange = optional.changeHandler.editor.set(wasEmpty, {
-					fill,
-					detach,
-				});
-
-				const change: FieldChangeset = brand(optionalChange);
-				const edit: FieldEditDescription = {
-					type: "field",
-					field,
-					fieldKind: optional.identifier,
-					change,
-					revision,
-				};
-				this.modularBuilder.submitChanges([edit], revision);
+				const attach = makeAttachEditDescription(newContent, revision, wasEmpty);
+				this.modularBuilder.submitChanges([attach], revision);
 			},
 			clear: (wasEmpty: boolean): void => {
 				const revision = this.mintRevisionTag();
@@ -478,47 +493,58 @@ export class DefaultLowLevelDataEditor
 	public sequenceField(
 		field: NormalizedFieldUpPath,
 	): LowLevelSequenceFieldEditor<TreeChunk, DetachedRootIds> {
+		const makeAttachEditDescription = (
+			index: number,
+			newContent: DetachedRootIds,
+			revision: RevisionTag,
+		): EditDescription[] => {
+			const edits: EditDescription[] = [];
+			let insertOffset = 0;
+			for (const { first, count } of newContent) {
+				if (count === 0) {
+					continue;
+				}
+				const localAttachId = this.modularBuilder.generateId(count);
+				const cellId = { localId: localAttachId, revision };
+				assert(first.revision !== undefined, "Detached nodes ID must have a revision");
+				const change = sequence.changeHandler.editor.insert(
+					index + insertOffset,
+					count,
+					cellId,
+					first.revision,
+					first.localId,
+				);
+				const attach: FieldEditDescription = {
+					type: "field",
+					field,
+					fieldKind: sequence.identifier,
+					change: brand(change),
+					revision,
+				};
+				edits.push(attach);
+				insertOffset += count;
+			}
+			return edits;
+		};
 		const editBuilder = {
 			insert: (index: number, content: TreeChunk): void => {
 				const count = content.topLevelLength;
 				if (count === 0) {
 					return;
 				}
-				const roots = this.buildRoots(content);
-				editBuilder.attach(index, roots);
+				const revision = this.mintRevisionTag();
+				const buildLocalId = this.modularBuilder.generateId();
+				const build = this.modularBuilder.buildTrees(buildLocalId, content, revision);
+				const roots: DetachedRootIdRange = {
+					first: { localId: buildLocalId, revision },
+					count,
+				};
+				const edits = makeAttachEditDescription(index, [roots], revision);
+				this.modularBuilder.submitChanges([build, ...edits], revision);
 			},
 			attach: (index: number, newContent: DetachedRootIds): void => {
 				const attachRevision = this.mintRevisionTag();
-				const edits: EditDescription[] = [];
-				let insertOffset = 0;
-				for (const { first, count } of newContent) {
-					if (count === 0) {
-						continue;
-					}
-					const cellId = {
-						localId: this.modularBuilder.generateId(count),
-						revision: attachRevision,
-					};
-					assert(first.revision !== undefined, "Detached nodes ID must have a revision");
-					const change: FieldChangeset = brand(
-						sequence.changeHandler.editor.insert(
-							index + insertOffset,
-							count,
-							cellId,
-							first.revision,
-							first.localId,
-						),
-					);
-					const attach: FieldEditDescription = {
-						type: "field",
-						field,
-						fieldKind: sequence.identifier,
-						change,
-						revision: attachRevision,
-					};
-					edits.push(attach);
-					insertOffset += count;
-				}
+				const edits = makeAttachEditDescription(index, newContent, attachRevision);
 				if (edits.length > 0) {
 					this.modularBuilder.submitChanges(edits, attachRevision);
 				}
@@ -555,14 +581,14 @@ export interface LowLevelRequiredFieldEditor<TContent, TDetachedRoot> {
 	 * @param content - The content to be attached in the field in the given order.
 	 * Must represent a single detached node.
 	 * Must have been created in the same JS turn.
+	 *
+	 * Requires SharedTreeFormatVersion.vDetachedRoots or later.
 	 */
 	attach(content: TDetachedRoot): void;
 
 	/**
 	 * Issues a change which replaces the content of the field with `newContent`.
 	 * @param newContent - the new content for the field.
-	 *
-	 * @deprecated Use {@link attach} instead.
 	 */
 	set(newContent: TContent): void;
 }
@@ -599,6 +625,8 @@ export interface LowLevelOptionalFieldEditor<TContent, TDetachedRoots> {
 	 * Issues a change which replaces the content of the field with the given detached node.
 	 * @param content - The content to be attached in the field in the given order.
 	 * Must represent a single detached node.
+	 *
+	 * Requires SharedTreeFormatVersion.vDetachedRoots or later.
 	 */
 	attach(content: TDetachedRoots | undefined, wasEmpty: boolean): void;
 
@@ -612,8 +640,6 @@ export interface LowLevelOptionalFieldEditor<TContent, TDetachedRoots> {
 	 * Issues a change which replaces the content of the field with `newContent`
 	 * @param newContent - the new content for the field.
 	 * @param wasEmpty - whether the field is empty when creating this change
-	 *
-	 * @deprecated Use {@link attach} or {@link clear} instead.
 	 */
 	set(newContent: TContent | undefined, wasEmpty: boolean): void;
 }
@@ -651,6 +677,8 @@ export interface LowLevelSequenceFieldEditor<TContent, TDetachedRoots, TRemoved 
 	 * Issues a change which attaches a sequence of detached nodes at the given `index`.
 	 * @param index - The index at which to attach the detached nodes.
 	 * @param detachedContent - The content to be attached in the field in the given order. Each node must be detached.
+	 *
+	 * Requires SharedTreeFormatVersion.vDetachedRoots or later.
 	 */
 	attach(index: number, detachedContent: TDetachedRoots): void;
 
@@ -658,8 +686,6 @@ export interface LowLevelSequenceFieldEditor<TContent, TDetachedRoots, TRemoved 
 	 * Issues a change which inserts the `newContent` at the given `index`.
 	 * @param index - the index at which to insert the `newContent`.
 	 * @param newContent - the new content to be inserted in the field.
-	 *
-	 * @deprecated Use {@link attach} instead.
 	 */
 	insert(index: number, newContent: TContent): void;
 
