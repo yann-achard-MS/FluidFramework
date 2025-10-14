@@ -67,13 +67,6 @@ export interface ChangeAtomId {
 	readonly localId: ChangesetLocalId;
 }
 
-export interface ChangeAtomIdWithRevision extends ChangeAtomId {
-	/**
-	 * Uniquely identifies the changeset within which the change was made.
-	 */
-	readonly revision: RevisionTag;
-}
-
 export type EncodedChangeAtomId = [ChangesetLocalId, EncodedRevisionTag] | ChangesetLocalId;
 
 export type ChangeAtomIdMap<T> = NestedMap<RevisionTag | undefined, ChangesetLocalId, T>;

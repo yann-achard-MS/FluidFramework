@@ -19,7 +19,6 @@ export {
 	type EncodedStableId,
 	type ChangesetLocalId,
 	type ChangeAtomId,
-	type ChangeAtomIdWithRevision,
 	type ChangeAtomIdMap,
 	SessionIdSchema,
 	taggedAtomId,
