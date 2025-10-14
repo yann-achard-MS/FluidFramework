@@ -6,20 +6,20 @@
 import type { NormalizedFieldUpPath, NormalizedUpPath } from "../../core/index.js";
 
 import type {
-	LowLevelDataEditor,
-	LowLevelOptionalFieldEditor,
-	LowLevelSequenceFieldEditor,
-	LowLevelRequiredFieldEditor,
+	DataEditor,
+	OptionalFieldEditor,
+	SequenceFieldEditor,
+	RequiredFieldEditor,
 } from "./defaultEditBuilder.js";
 
 /**
  * An IDefaultEditBuilder implementation based on another IDefaultEditBuilder that uses a different content type for insertions.
  */
 export class MappedEditBuilder<TBase, TAdapted, TDetachedRoot, TDetachedRoots>
-	implements LowLevelDataEditor<TAdapted, TDetachedRoot, TDetachedRoots>
+	implements DataEditor<TAdapted, TDetachedRoot, TDetachedRoots>
 {
 	public constructor(
-		private readonly baseBuilder: LowLevelDataEditor<TBase, TDetachedRoot, TDetachedRoots>,
+		private readonly baseBuilder: DataEditor<TBase, TDetachedRoot, TDetachedRoots>,
 		private readonly mapDelegate: (input: TAdapted) => TBase,
 	) {}
 
@@ -29,7 +29,7 @@ export class MappedEditBuilder<TBase, TAdapted, TDetachedRoot, TDetachedRoots>
 
 	public valueField(
 		field: NormalizedFieldUpPath,
-	): LowLevelRequiredFieldEditor<TAdapted, TDetachedRoot> {
+	): RequiredFieldEditor<TAdapted, TDetachedRoot> {
 		const baseField = this.baseBuilder.valueField(field);
 		return {
 			set: (newContent: TAdapted): void => {
@@ -44,7 +44,7 @@ export class MappedEditBuilder<TBase, TAdapted, TDetachedRoot, TDetachedRoots>
 
 	public optionalField(
 		field: NormalizedFieldUpPath,
-	): LowLevelOptionalFieldEditor<TAdapted, TDetachedRoot> {
+	): OptionalFieldEditor<TAdapted, TDetachedRoot> {
 		const baseField = this.baseBuilder.optionalField(field);
 		return {
 			set: (newContent: TAdapted | undefined, wasEmpty: boolean): void => {
@@ -62,7 +62,7 @@ export class MappedEditBuilder<TBase, TAdapted, TDetachedRoot, TDetachedRoots>
 	}
 	public sequenceField(
 		field: NormalizedFieldUpPath,
-	): LowLevelSequenceFieldEditor<TAdapted, TDetachedRoots> {
+	): SequenceFieldEditor<TAdapted, TDetachedRoots> {
 		const baseField = this.baseBuilder.sequenceField(field);
 		return {
 			insert: (index: number, content: TAdapted): void => {

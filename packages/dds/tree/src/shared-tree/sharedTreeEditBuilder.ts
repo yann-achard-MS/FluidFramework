@@ -12,13 +12,13 @@ import type {
 	TreeStoredSchema,
 } from "../core/index.js";
 import {
-	DefaultLowLevelDataEditor,
+	DefaultIdBasedDataEditor,
 	LocationBasedDataEditor,
 	type DetachedRootIds,
 	type DetachedRootLocation,
 	type DetachedRootsLocation,
 	type Locator,
-	type LowLevelDataEditor,
+	type DataEditor,
 	type ModularChangeFamily,
 } from "../feature-libraries/index.js";
 
@@ -41,7 +41,7 @@ export interface ISchemaEditor {
  * SharedTree editor for transactional tree data and schema changes.
  */
 export interface IIdBasedSharedTreeEditor
-	extends LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds> {
+	extends DataEditor<TreeChunk, ChangeAtomId, DetachedRootIds> {
 	/**
 	 * Editor for schema changes.
 	 */
@@ -49,7 +49,7 @@ export interface IIdBasedSharedTreeEditor
 }
 
 export interface ILocationBasedSharedTreeEditor
-	extends LowLevelDataEditor<TreeChunk, DetachedRootLocation, DetachedRootsLocation> {
+	extends DataEditor<TreeChunk, DetachedRootLocation, DetachedRootsLocation> {
 	/**
 	 * Editor for schema changes.
 	 */
@@ -57,11 +57,11 @@ export interface ILocationBasedSharedTreeEditor
 }
 
 /**
- * Implementation of {@link HighLevelDataEditor} based on the default set of supported field kinds.
+ * Implementation of {@link DataEditor} based on the default set of supported field kinds.
  * @sealed
  */
 export class IdBasedSharedTreeEditBuilder
-	extends DefaultLowLevelDataEditor
+	extends DefaultIdBasedDataEditor
 	implements ChangeFamilyEditor, IIdBasedSharedTreeEditor
 {
 	public readonly schema: ISchemaEditor;

@@ -39,15 +39,15 @@ import {
 	type FlexFieldKind,
 	FieldKinds,
 	cursorForMapTreeNode,
-	type HighLevelSequenceFieldEditor,
-	type HighLevelRequiredFieldEditor,
+	type SequenceFieldEditor,
+	type RequiredFieldEditor,
 	type FlexTreeHydratedContextMinimal,
 	type FlexibleFieldContent,
 	type MapTreeFieldViewGeneric,
 	type MapTreeNodeViewGeneric,
 	type HydratedFlexTreeNode,
 	type FlexibleNodeContent,
-	type HighLevelOptionalFieldEditor,
+	type OptionalFieldEditor,
 	cursorForMapTreeField,
 	type MinimalFieldMap,
 	currentObserver,
@@ -59,7 +59,7 @@ import type { ContextualFieldProvider } from "../fieldSchema.js";
 import type { TreeNode } from "./treeNode.js";
 
 interface UnhydratedTreeSequenceFieldEditBuilder
-	extends HighLevelSequenceFieldEditor<FlexibleFieldContent, readonly FlexTreeNode[]> {}
+	extends SequenceFieldEditor<FlexibleFieldContent, readonly FlexTreeNode[]> {}
 
 type UnhydratedFlexTreeNodeEvents = Pick<
 	AnchorEvents,
@@ -480,7 +480,7 @@ export class UnhydratedOptionalField
 	extends UnhydratedFlexTreeField
 	implements FlexTreeOptionalField
 {
-	public readonly editor: HighLevelOptionalFieldEditor<FlexibleNodeContent, FlexTreeNode> = {
+	public readonly editor: OptionalFieldEditor<FlexibleNodeContent, FlexTreeNode> = {
 		set: (newContent: FlexibleNodeContent | undefined): void => {
 			// If the new content is a UnhydratedFlexTreeNode, it needs to have its parent pointer updated
 			if (newContent !== undefined) {
@@ -520,7 +520,7 @@ export class UnhydratedRequiredField
 	extends UnhydratedFlexTreeField
 	implements FlexTreeRequiredField
 {
-	public readonly editor: HighLevelRequiredFieldEditor<FlexibleNodeContent, FlexTreeNode> = {
+	public readonly editor: RequiredFieldEditor<FlexibleNodeContent, FlexTreeNode> = {
 		set: (newContent: FlexibleNodeContent): void => {
 			assert(
 				newContent instanceof UnhydratedFlexTreeNode,
@@ -554,7 +554,7 @@ export class UnhydratedSequenceField
 	extends UnhydratedFlexTreeField
 	implements FlexTreeSequenceField
 {
-	public readonly editor: HighLevelSequenceFieldEditor<
+	public readonly editor: SequenceFieldEditor<
 		readonly FlexibleNodeContent[],
 		readonly FlexTreeNode[],
 		FlexTreeNode[]

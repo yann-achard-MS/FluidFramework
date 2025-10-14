@@ -25,13 +25,10 @@ import { disposeSymbol, getOrCreate } from "../../util/index.js";
 import {
 	FieldKinds,
 	MappedEditBuilder,
-	type LowLevelSequenceFieldEditor,
-	type HighLevelOptionalFieldEditor,
-	type HighLevelSequenceFieldEditor,
-	type HighLevelRequiredFieldEditor,
-	type LowLevelDataEditor,
-	type LowLevelRequiredFieldEditor,
-	type LowLevelOptionalFieldEditor,
+	type SequenceFieldEditor,
+	type RequiredFieldEditor,
+	type DataEditor,
+	type OptionalFieldEditor,
 	type DetachedRootLocation,
 	type DetachedRootsLocation,
 } from "../default-schema/index.js";
@@ -252,7 +249,7 @@ export abstract class LazyField extends LazyEntity<FieldAnchor> implements FlexT
 		);
 	}
 
-	protected getEditor(): LowLevelDataEditor<
+	protected getEditor(): DataEditor<
 		ITreeCursorSynchronous,
 		DetachedRootLocation,
 		DetachedRootsLocation
@@ -283,24 +280,23 @@ export class LazySequence extends LazyField implements FlexTreeSequenceField {
 		return this.map((x) => x);
 	}
 
-	public editor: HighLevelSequenceFieldEditor<FlexibleFieldContent, readonly FlexTreeNode[]> =
-		{
-			insert: (index, newContent) => {
-				this.sequenceEditor().insert(index, cursorForMapTreeField(newContent));
-			},
-			remove: (index, count) => {
-				this.sequenceEditor().remove(index, count);
-			},
-			attach: (index, content) => {
-				const contentLocations: DetachedRootsLocation = content.map((node) => ({
-					field: fieldFromNode(node),
-					count: 1,
-				}));
-				this.sequenceEditor().attach(index, contentLocations);
-			},
-		};
+	public editor: SequenceFieldEditor<FlexibleFieldContent, readonly FlexTreeNode[]> = {
+		insert: (index, newContent) => {
+			this.sequenceEditor().insert(index, cursorForMapTreeField(newContent));
+		},
+		remove: (index, count) => {
+			this.sequenceEditor().remove(index, count);
+		},
+		attach: (index, content) => {
+			const contentLocations: DetachedRootsLocation = content.map((node) => ({
+				field: fieldFromNode(node),
+				count: 1,
+			}));
+			this.sequenceEditor().attach(index, contentLocations);
+		},
+	};
 
-	private sequenceEditor(): LowLevelSequenceFieldEditor<
+	private sequenceEditor(): SequenceFieldEditor<
 		ITreeCursorSynchronous,
 		DetachedRootsLocation
 	> {
@@ -310,7 +306,7 @@ export class LazySequence extends LazyField implements FlexTreeSequenceField {
 }
 
 export class LazyValueField extends LazyField implements FlexTreeRequiredField {
-	public editor: HighLevelRequiredFieldEditor<FlexibleNodeContent, FlexTreeNode> = {
+	public editor: RequiredFieldEditor<FlexibleNodeContent, FlexTreeNode> = {
 		set: (newContent) => {
 			this.valueFieldEditor().set(cursorForMapTreeField([newContent]));
 		},
@@ -320,7 +316,7 @@ export class LazyValueField extends LazyField implements FlexTreeRequiredField {
 		},
 	};
 
-	private valueFieldEditor(): LowLevelRequiredFieldEditor<
+	private valueFieldEditor(): RequiredFieldEditor<
 		ITreeCursorSynchronous,
 		DetachedRootLocation
 	> {
@@ -334,7 +330,7 @@ export class LazyValueField extends LazyField implements FlexTreeRequiredField {
 }
 
 export class LazyOptionalField extends LazyField implements FlexTreeOptionalField {
-	public editor: HighLevelOptionalFieldEditor<MinimalMapTreeNodeView, FlexTreeNode> = {
+	public editor: OptionalFieldEditor<MinimalMapTreeNodeView, FlexTreeNode> = {
 		set: (newContent, wasEmpty) => {
 			this.optionalEditor().set(
 				newContent !== undefined ? cursorForMapTreeField([newContent]) : newContent,
@@ -354,10 +350,7 @@ export class LazyOptionalField extends LazyField implements FlexTreeOptionalFiel
 		},
 	};
 
-	private optionalEditor(): LowLevelOptionalFieldEditor<
-		ITreeCursorSynchronous,
-		DetachedRootLocation
-	> {
+	private optionalEditor(): OptionalFieldEditor<ITreeCursorSynchronous, DetachedRootLocation> {
 		const fieldPath = this.getFieldPathForEditing();
 		const fieldEditor = this.getEditor().optionalField(fieldPath);
 		return fieldEditor;

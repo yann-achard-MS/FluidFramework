@@ -117,7 +117,7 @@ import {
 	mapTreeFromCursor,
 	MockNodeIdentifierManager,
 	cursorForMapTreeField,
-	type LowLevelDataEditor,
+	type DataEditor,
 	type TreeChunk,
 	mapTreeFieldFromCursor,
 	defaultChunkPolicy,
@@ -1451,7 +1451,7 @@ function normalizeNewFieldContent(
 export function moveWithin(
 	editor:
 		| ILocationBasedSharedTreeEditor
-		| LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>,
+		| DataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>,
 	field: NormalizedFieldUpPath,
 	sourceIndex: number,
 	count: number,

@@ -12,7 +12,7 @@ import {
 	type FlexibleNodeContent,
 	type FlexTreeNode,
 	type FlexTreeOptionalField,
-	type HighLevelOptionalFieldEditor,
+	type OptionalFieldEditor,
 } from "../../../feature-libraries/index.js";
 import { tryGetTreeNodeForField } from "../../getTreeNodeForField.js";
 import { createFieldSchema, FieldKind } from "../../fieldSchema.js";
@@ -176,9 +176,7 @@ abstract class CustomMapNodeBase<const T extends ImplicitAllowedTypes> extends T
 		return getInnerNode(this);
 	}
 
-	private editor(
-		key: string,
-	): HighLevelOptionalFieldEditor<FlexibleNodeContent, FlexTreeNode> {
+	private editor(key: string): OptionalFieldEditor<FlexibleNodeContent, FlexTreeNode> {
 		const field = this.innerNode.getBoxed(brand(key)) as FlexTreeOptionalField;
 		return field.editor;
 	}

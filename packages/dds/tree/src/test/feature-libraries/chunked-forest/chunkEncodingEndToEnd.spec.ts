@@ -48,8 +48,8 @@ import {
 	MockNodeIdentifierManager,
 	jsonableTreeFromCursor,
 	cursorForJsonableTreeNode,
-	DefaultLowLevelDataEditor,
 	defaultIncrementalEncodingPolicy,
+	DefaultIdBasedDataEditor,
 } from "../../../feature-libraries/index.js";
 import {
 	Tree,
@@ -165,7 +165,7 @@ describe("End to end chunked encoding", () => {
 			fieldBatchCodec,
 			{ jsonValidator: FormatValidatorBasic },
 		);
-		const dummyEditor = new DefaultLowLevelDataEditor(
+		const dummyEditor = new DefaultIdBasedDataEditor(
 			new DefaultChangeFamily(codec),
 			mintRevisionTag,
 			changeReceiver,

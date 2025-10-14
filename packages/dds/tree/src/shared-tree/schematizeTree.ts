@@ -17,7 +17,7 @@ import {
 	defaultSchemaPolicy,
 	type DetachedRootIds,
 	type ILocationBasedDataEditor,
-	type LowLevelDataEditor,
+	type DataEditor,
 	type TreeChunk,
 } from "../feature-libraries/index.js";
 
@@ -110,7 +110,7 @@ export function initializerFromChunk(
 	checkout: Pick<ITreeCheckout, "storedSchema"> & {
 		readonly editor:
 			| ILocationBasedDataEditor
-			| LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
+			| DataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
 	},
 	contentFactory: () => TreeChunk,
 ): () => void {
@@ -121,7 +121,7 @@ function initializeFromChunk(
 	checkout: Pick<ITreeCheckout, "storedSchema"> & {
 		readonly editor:
 			| ILocationBasedDataEditor
-			| LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
+			| DataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
 	},
 	contentChunk: TreeChunk,
 ): void {

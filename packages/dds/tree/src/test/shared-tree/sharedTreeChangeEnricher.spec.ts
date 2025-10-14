@@ -22,7 +22,7 @@
 // // eslint-disable-next-line import/no-internal-modules
 // import { optional } from "../../feature-libraries/default-schema/defaultFieldKinds.js";
 // import {
-// 	DefaultLowLevelDataEditor,
+// 	IdBasedDataEditor,
 // 	ModularChangeFamily,
 // 	type ModularChangeset,
 // 	ModularEditBuilder,
@@ -62,7 +62,7 @@
 // const modularFamily = new ModularChangeFamily(fieldKinds, failCodecFamily);
 
 // const dataChanges: ModularChangeset[] = [];
-// const defaultEditor = new DefaultLowLevelDataEditor(
+// const defaultEditor = new DefaultIdBasedDataEditor(
 // 	modularFamily,
 // 	mintRevisionTag,
 // 	(taggedChange) => dataChanges.push(taggedChange.change),

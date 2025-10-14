@@ -13,10 +13,10 @@ import type {
 
 import type {
 	DetachedRootIds,
-	LowLevelDataEditor,
-	LowLevelOptionalFieldEditor,
-	LowLevelRequiredFieldEditor,
-	LowLevelSequenceFieldEditor,
+	DataEditor,
+	OptionalFieldEditor,
+	RequiredFieldEditor,
+	SequenceFieldEditor,
 } from "./defaultEditBuilder.js";
 
 export type DetachedRootLocation = FieldKey;
@@ -33,46 +33,42 @@ export interface Locator {
 	idRangesFromLocations(id: DetachedRootsLocation): DetachedRootIds;
 }
 
-export type ILocationBasedDataEditor = LowLevelDataEditor<
+export type ILocationBasedDataEditor = DataEditor<
 	TreeChunk,
 	DetachedRootLocation,
 	DetachedRootsLocation
 >;
 
 /**
- * Implementation of {@link LowLevelDataEditor} based on the default set of supported field kinds.
+ * Implementation of {@link DataEditor} based on the default set of supported field kinds.
  * @sealed
  */
 export class LocationBasedDataEditor
-	implements LowLevelDataEditor<TreeChunk, DetachedRootLocation, DetachedRootsLocation>
+	implements DataEditor<TreeChunk, DetachedRootLocation, DetachedRootsLocation>
 {
 	public constructor(
-		private readonly lowLevelEditor: LowLevelDataEditor<
-			TreeChunk,
-			ChangeAtomId,
-			DetachedRootIds
-		>,
+		private readonly idBasedEditor: DataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>,
 		private readonly locator: Locator,
 	) {}
 
 	public addNodeExistsConstraint(path: NormalizedUpPath): void {
-		this.lowLevelEditor.addNodeExistsConstraint(path);
+		this.idBasedEditor.addNodeExistsConstraint(path);
 	}
 
 	public addNodeExistsConstraintOnRevert(path: NormalizedUpPath): void {
-		this.lowLevelEditor.addNodeExistsConstraintOnRevert(path);
+		this.idBasedEditor.addNodeExistsConstraintOnRevert(path);
 	}
 
 	public buildRoots(content: TreeChunk): DetachedRootsLocation {
-		const roots = this.lowLevelEditor.buildRoots(content);
+		const roots = this.idBasedEditor.buildRoots(content);
 		const locations = this.locator.locationsFromIdRanges(roots);
 		return locations;
 	}
 
 	public valueField(
 		field: NormalizedFieldUpPath,
-	): LowLevelRequiredFieldEditor<TreeChunk, DetachedRootLocation> {
-		const lowLevelEditor = this.lowLevelEditor.valueField(field);
+	): RequiredFieldEditor<TreeChunk, DetachedRootLocation> {
+		const lowLevelEditor = this.idBasedEditor.valueField(field);
 		const locator = this.locator;
 		const editBuilder = {
 			set: (newContent: TreeChunk): void => {
@@ -88,8 +84,8 @@ export class LocationBasedDataEditor
 
 	public optionalField(
 		field: NormalizedFieldUpPath,
-	): LowLevelOptionalFieldEditor<TreeChunk, DetachedRootLocation> {
-		const lowLevelEditor = this.lowLevelEditor.optionalField(field);
+	): OptionalFieldEditor<TreeChunk, DetachedRootLocation> {
+		const lowLevelEditor = this.idBasedEditor.optionalField(field);
 		const locator = this.locator;
 		const editBuilder = {
 			set: (newContent: TreeChunk | undefined, wasEmpty: boolean): void => {
@@ -117,13 +113,13 @@ export class LocationBasedDataEditor
 		destinationField: NormalizedFieldUpPath,
 		destIndex: number,
 	): void {
-		this.lowLevelEditor.move(sourceField, sourceIndex, count, destinationField, destIndex);
+		this.idBasedEditor.move(sourceField, sourceIndex, count, destinationField, destIndex);
 	}
 
 	public sequenceField(
 		field: NormalizedFieldUpPath,
-	): LowLevelSequenceFieldEditor<TreeChunk, DetachedRootsLocation> {
-		const lowLevelEditor = this.lowLevelEditor.sequenceField(field);
+	): SequenceFieldEditor<TreeChunk, DetachedRootsLocation> {
+		const lowLevelEditor = this.idBasedEditor.sequenceField(field);
 		const locator = this.locator;
 		const editBuilder = {
 			insert: (index: number, content: TreeChunk): void => {

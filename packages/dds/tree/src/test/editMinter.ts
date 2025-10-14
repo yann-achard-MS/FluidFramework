@@ -9,15 +9,13 @@ import type {
 	DefaultChangeFamily,
 	DefaultChangeset,
 	DetachedRootIds,
-	LowLevelDataEditor,
+	DataEditor,
 	TreeChunk,
 } from "../feature-libraries/index.js";
 import { mintRevisionTag } from "./utils.js";
 import type { ChangeAtomId } from "../core/index.js";
 
-export type Editor = (
-	builder: LowLevelDataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>,
-) => void;
+export type Editor = (builder: DataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>) => void;
 
 export function makeEditMinter(
 	family: DefaultChangeFamily,
