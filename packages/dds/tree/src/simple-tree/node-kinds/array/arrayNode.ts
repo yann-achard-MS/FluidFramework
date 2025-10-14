@@ -951,13 +951,7 @@ abstract class CustomArrayNodeBase<const T extends ImplicitAllowedTypes>
 		const field = getSequenceField(this);
 		validateIndex(index, field, "insertAt", true);
 		const content = this.#mapTreesFromFieldData(value);
-
-		// TODO: handling these two cases differently should not be necessary.
-		if (!field.context.isHydrated()) {
-			field.editor.insert(index, content);
-		} else {
-			field.editor.attach(index, content);
-		}
+		field.editor.attach(index, content);
 	}
 	public insertAtStart(...value: Insertable<T>): void {
 		this.insertAt(0, ...value);
