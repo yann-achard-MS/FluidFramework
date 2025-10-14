@@ -456,7 +456,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 				return ids.flatMap((id) => {
 					return makeArray(id.count, (offset) => {
 						const field = this.locator.locationFromId(offsetChangeAtomId(id.first, offset));
-						return { field, count: id.count };
+						return { field, count: 1 };
 					});
 				});
 			},
