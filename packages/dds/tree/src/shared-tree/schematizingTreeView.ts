@@ -178,7 +178,6 @@ export class SchematizingSimpleTreeView<
 
 		this.runSchemaEdit(() => {
 			const schema = toInitialSchema(this.config.schema);
-
 			this.checkout.transaction.start();
 			initialize(this.checkout, schema, () => {
 				const preparedContent = prepareForInsertionContextless(
@@ -456,7 +455,7 @@ export class SchematizingSimpleTreeView<
 			view.root.is(FieldKinds.optional) ||
 				view.root.is(FieldKinds.required) ||
 				view.root.is(FieldKinds.identifier),
-			"unexpected root field kind",
+			0xc77 /* unexpected root field kind */,
 		);
 		return view.root;
 	}

@@ -1002,6 +1002,11 @@ describe("ArrayNode", () => {
 			assert.equal(JSON.stringify(fromIterable), json);
 		});
 	});
+
+		describe("edits", () => {
+		it("Insert and move array nodes in transaction", () => {
+	});
+
 });
 
 // Workaround to avoid
