@@ -3151,6 +3151,9 @@ describe("Editing", () => {
 		});
 
 		describe("cannot be reattached into an object's required field", () => {
+			const attachIntoRequiredFieldError = validateUsageError(
+				/A hydrated node cannot be attached into an object's required field. Assign new content to the field instead./,
+			);
 			const sf = new SchemaFactory(undefined);
 			class Child extends sf.object("Child", {}) {}
 			class ArrayParent extends sf.array("Array", Child) {}
@@ -3205,13 +3208,19 @@ describe("Editing", () => {
 								fail(`Unexpected source container: ${src}`);
 						}
 						assert.equal(Tree.status(hydratedChild), TreeStatus.Removed);
-						assert.throws(() => (view.root.object.reqChild = hydratedChild));
+						assert.throws(
+							() => (view.root.object.reqChild = hydratedChild),
+							attachIntoRequiredFieldError,
+						);
 					},
 				);
 			}
 		});
 
 		describe("cannot be reattached anywhere after being detached from an object's required field", () => {
+			const attachFromRequiredFieldError = validateUsageError(
+				/Once associated with a required field, a node cannot be re-attached into any field. Use revert to return the node to its original field if desired./,
+			);
 			const sf = new SchemaFactory(undefined);
 			class Child extends sf.object("Child", {}) {}
 			class ArrayParent extends sf.array("Array", Child) {}
@@ -3259,19 +3268,31 @@ describe("Editing", () => {
 
 						switch (dst) {
 							case "an array": {
-								assert.throws(() => view.root.array.insertAtEnd(hydratedChild));
+								assert.throws(
+									() => view.root.array.insertAtEnd(hydratedChild),
+									attachFromRequiredFieldError,
+								);
 								break;
 							}
 							case "a map": {
-								assert.throws(() => view.root.map.set("dst", hydratedChild));
+								assert.throws(
+									() => view.root.map.set("dst", hydratedChild),
+									attachFromRequiredFieldError,
+								);
 								break;
 							}
 							case "an object's optional field": {
-								assert.throws(() => (view.root.object.optChild = hydratedChild));
+								assert.throws(
+									() => (view.root.object.optChild = hydratedChild),
+									attachFromRequiredFieldError,
+								);
 								break;
 							}
 							case "an object's required field": {
-								assert.throws(() => (view.root.object.reqChild = hydratedChild));
+								assert.throws(
+									() => (view.root.object.reqChild = hydratedChild),
+									attachFromRequiredFieldError,
+								);
 								break;
 							}
 							default:
