@@ -5,6 +5,7 @@
 
 import { assert, fail } from "@fluidframework/core-utils/internal";
 import type { IIdCompressor } from "@fluidframework/id-compressor";
+import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 
 import type { CodecWriteOptions, ICodecFamily } from "../codec/index.js";
 import {
@@ -81,11 +82,13 @@ export class SharedTreeChangeFamily
 	public buildEditor(
 		mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<SharedTreeChange>) => void,
+		minVersionForCollab?: MinimumVersionForCollab,
 	): IdBasedSharedTreeEditBuilder {
 		return new IdBasedSharedTreeEditBuilder(
 			this.modularChangeFamily,
 			mintRevisionTag,
 			changeReceiver,
+			minVersionForCollab,
 		);
 	}
 

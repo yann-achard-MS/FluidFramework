@@ -40,7 +40,7 @@ import {
 	type UnhydratedFlexTreeField,
 } from "./core/index.js";
 import { assert, fail } from "@fluidframework/core-utils/internal";
-import { isFieldInSchema } from "../feature-libraries/index.js";
+import { combineChunks, isFieldInSchema } from "../feature-libraries/index.js";
 import { getUnhydratedContext } from "./createContext.js";
 import { convertField, permissiveStoredSchemaGenerationOptions } from "./toStoredSchema.js";
 
@@ -373,7 +373,8 @@ function chunkForInsertion(
 	field: UnhydratedFlexTreeField,
 ): ChunkedInsertion {
 	const x = chunkFieldForInsertion(context, field);
-	const chunk = context.checkout.forest.chunkField(cursorForMapTreeField(x.chunk));
+	const chunks = context.checkout.forest.chunkField(cursorForMapTreeField(x.chunk));
+	const chunk = combineChunks(chunks);
 	return {
 		chunk,
 		attaches: x.attaches,

@@ -3,10 +3,13 @@
  * Licensed under the MIT License.
  */
 
+import { lt as semverLessThan } from "semver-ts";
+
 import { assert, oob } from "@fluidframework/core-utils/internal";
+import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
-import type { ICodecFamily } from "../../codec/index.js";
+import { FluidClientVersion, type ICodecFamily } from "../../codec/index.js";
 import {
 	type ChangeAtomId,
 	type ChangeEncodingContext,
@@ -71,8 +74,14 @@ export class DefaultChangeFamily
 	public buildEditor(
 		mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<DefaultChangeset>) => void,
+		minVersionForCollab?: MinimumVersionForCollab,
 	): IdBasedChangeFamilyDataEditor {
-		return new DefaultIdBasedDataEditor(this, mintRevisionTag, changeReceiver);
+		return new DefaultIdBasedDataEditor(
+			this,
+			mintRevisionTag,
+			changeReceiver,
+			minVersionForCollab,
+		);
 	}
 }
 
@@ -199,6 +208,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 		family: ChangeFamily<ChangeFamilyEditor, DefaultChangeset>,
 		private readonly mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<DefaultChangeset>) => void,
+		private readonly minVersionForCollab: MinimumVersionForCollab = FluidClientVersion.v2_0,
 	) {
 		this.modularBuilder = new ModularEditBuilder(family, fieldKinds, changeReceiver);
 	}
@@ -264,6 +274,11 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 			},
 
 			attach: (newContent: ChangeAtomId): void => {
+				if (semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)) {
+					throw new UsageError(
+						`Attach edits require a minimum version for collaboration greater or equal to ${FluidClientVersion.vDetachedRoots}.`,
+					);
+				}
 				const revision = this.mintRevisionTag();
 				const attach = makeAttachEditDescription(newContent, revision);
 				this.modularBuilder.submitChanges([attach], revision);
@@ -308,6 +323,11 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 				if (newContent === undefined) {
 					editBuilder.clear(wasEmpty);
 					return;
+				}
+				if (semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)) {
+					throw new UsageError(
+						`Attach edits require a minimum version for collaboration greater or equal to ${FluidClientVersion.vDetachedRoots}.`,
+					);
 				}
 				const revision = this.mintRevisionTag();
 				const attach = makeAttachEditDescription(newContent, revision, wasEmpty);
@@ -496,6 +516,11 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 				this.modularBuilder.submitChanges([build, ...edits], revision);
 			},
 			attach: (index: number, newContent: DetachedRootIds): void => {
+				if (semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)) {
+					throw new UsageError(
+						`Attach edits require a minimum version for collaboration greater or equal to ${FluidClientVersion.vDetachedRoots}.`,
+					);
+				}
 				const attachRevision = this.mintRevisionTag();
 				const edits = makeAttachEditDescription(index, newContent, attachRevision);
 				if (edits.length > 0) {

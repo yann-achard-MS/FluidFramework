@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import type {
 	ChangeAtomId,
 	ChangeFamilyEditor,
@@ -70,12 +71,17 @@ export class IdBasedSharedTreeEditBuilder
 		modularChangeFamily: ModularChangeFamily,
 		mintRevisionTag: () => RevisionTag,
 		private readonly changeReceiver: (change: TaggedChange<SharedTreeChange>) => void,
+		minVersionForCollab?: MinimumVersionForCollab,
 	) {
-		super(modularChangeFamily, mintRevisionTag, (taggedChange) =>
-			changeReceiver({
-				...taggedChange,
-				change: { changes: [{ type: "data", innerChange: taggedChange.change }] },
-			}),
+		super(
+			modularChangeFamily,
+			mintRevisionTag,
+			(taggedChange) =>
+				changeReceiver({
+					...taggedChange,
+					change: { changes: [{ type: "data", innerChange: taggedChange.change }] },
+				}),
+			minVersionForCollab,
 		);
 
 		this.schema = {

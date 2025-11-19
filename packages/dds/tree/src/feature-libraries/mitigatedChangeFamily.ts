@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import type {
 	ChangeFamily,
 	ChangeFamilyEditor,
@@ -35,8 +36,13 @@ export function makeMitigatedChangeFamily<TEditor extends ChangeFamilyEditor, TC
 		buildEditor: (
 			mintRevisionTag: () => RevisionTag,
 			changeReceiver: (change: TaggedChange<TChange>) => void,
+			minVersionForCollab?: MinimumVersionForCollab,
 		): TEditor => {
-			return unmitigatedChangeFamily.buildEditor(mintRevisionTag, changeReceiver);
+			return unmitigatedChangeFamily.buildEditor(
+				mintRevisionTag,
+				changeReceiver,
+				minVersionForCollab,
+			);
 		},
 		rebaser: makeMitigatedRebaser(unmitigatedChangeFamily.rebaser, fallbackChange, onError),
 		codecs: unmitigatedChangeFamily.codecs,

@@ -161,6 +161,7 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange>
 			localSessionId,
 			this.mintRevisionTag,
 			(branchId) => this.registerSharedBranch(branchId),
+			options.minVersionForCollab,
 			rebaseLogger,
 		);
 

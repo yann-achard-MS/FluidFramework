@@ -62,6 +62,7 @@ import {
 	prepareForInsertionContextless,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../simple-tree/prepareForInsertion.js";
+import { fieldSchema } from "../utils.js";
 
 describe("unhydratedFlexTreeFromInsertable", () => {
 	it("string", () => {

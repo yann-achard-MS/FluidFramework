@@ -1620,7 +1620,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("detach and (move and remove)", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultEditBuilder(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.sequenceField(fieldAPath).remove(0, 1);
@@ -1793,8 +1793,8 @@ describe("ModularChangeFamily integration", () => {
 	describe("invert", () => {
 		it("Cross-field move of edited node", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
 
+			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
 			editor.enterTransaction();
 
 			// Remove a node
