@@ -26,12 +26,12 @@ import {
 	type NodeId,
 	type RebaseRevisionMetadata,
 	genericChangeHandler,
-	// eslint-disable-next-line import/no-internal-modules
+	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../../feature-libraries/modular-schema/index.js";
 import { TestNodeId } from "../../testNodeId.js";
 import { TestChange } from "../../testChange.js";
 import { testSnapshots } from "./genericFieldSnapshots.test.js";
-// eslint-disable-next-line import/no-internal-modules
+// eslint-disable-next-line import-x/no-internal-modules
 import { newGenericChangeset } from "../../../feature-libraries/modular-schema/genericFieldKindTypes.js";
 import { failComposeManager, failInvertManager, failRebaseManager } from "./nodeQueryUtils.js";
 import { newChangeAtomIdTransform, type DeltaFieldChanges } from "../../../core/index.js";
@@ -125,6 +125,7 @@ describe("GenericField", () => {
 				fakeIdAllocator,
 				failRebaseManager,
 				revisionMetadata,
+				1,
 			);
 			assert.deepEqual(actual, expected);
 		});
@@ -149,6 +150,7 @@ describe("GenericField", () => {
 				fakeIdAllocator,
 				failRebaseManager,
 				revisionMetadata,
+				1,
 			);
 			assert.deepEqual(actual, expected);
 		});
@@ -213,7 +215,7 @@ describe("GenericField", () => {
 					]),
 					{
 						baseContext,
-						getInputDetachId: (id, count) => ({ start: id, value: id, length: count }),
+						getInputRootId: (id, count) => ({ start: id, value: id, length: count }),
 						isAttachId: (id, count) => ({
 							start: id,
 							value: false,
@@ -230,6 +232,7 @@ describe("GenericField", () => {
 						rootRenames: newChangeAtomIdTransform(),
 						decodeRootNodeChange: () => {},
 						decodeRootRename: () => {},
+						decodeMoveAndDetach: () => {},
 						generateId: () => ({
 							localId: brand(0),
 						}),

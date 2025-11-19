@@ -55,6 +55,7 @@ import {
 import { LazyEntity } from "./lazyEntity.js";
 import { LazyTreeNode, getOrCreateHydratedFlexTreeNode } from "./lazyNode.js";
 import { indexForAt, treeStatusFromAnchorCache } from "./utilities.js";
+import { combineChunks } from "../chunked-forest/index.js";
 
 /**
  * Reuse fields.
@@ -236,16 +237,17 @@ export abstract class LazyField extends LazyEntity<FieldAnchor> implements FlexT
 			if (this.parent === undefined && this.anchor.fieldKey === rootFieldKey) {
 				return this.getFieldPath();
 			}
-			assert(this.parent !== undefined, "Unexpected edit to non-root detached field");
-			const status = treeStatusFromAnchorCache(this.parent.anchorNode);
-			// ...or are under a node that is hydrated and not deleted
-			if (status === TreeStatus.InDocument || status === TreeStatus.Removed) {
-				return this.getFieldPath();
+			if (this.parent !== undefined) {
+				const status = treeStatusFromAnchorCache(this.parent.anchorNode);
+				// ...or are under a node that is hydrated and not deleted
+				if (status === TreeStatus.InDocument || status === TreeStatus.Removed) {
+					return this.getFieldPath();
+				}
 			}
 		}
 
 		throw new UsageError(
-			"Editing only allowed on fields with TreeStatus.InDocument or TreeStatus.Removed status",
+			"Editing only allowed on the root field or on fields under nodes with TreeStatus.InDocument or TreeStatus.Removed status",
 		);
 	}
 
@@ -256,7 +258,8 @@ export abstract class LazyField extends LazyEntity<FieldAnchor> implements FlexT
 	> {
 		return new MappedEditBuilder(
 			this.context.checkout.editor,
-			(cursor: ITreeCursorSynchronous) => this.context.checkout.forest.chunkField(cursor),
+			(cursor: ITreeCursorSynchronous) =>
+				combineChunks(this.context.checkout.forest.chunkField(cursor)),
 		);
 	}
 }

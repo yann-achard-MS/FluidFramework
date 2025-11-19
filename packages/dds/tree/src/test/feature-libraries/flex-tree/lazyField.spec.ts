@@ -3,11 +3,11 @@
  * Licensed under the MIT License.
  */
 
-/* eslint-disable import/no-internal-modules */
+/* eslint-disable import-x/no-internal-modules */
 
 import { strict as assert } from "node:assert";
 
-import { validateAssertionError } from "@fluidframework/test-runtime-utils/internal";
+import { validateAssertionError2 as validateAssertionError } from "@fluidframework/test-runtime-utils/internal";
 
 import {
 	type FieldAnchor,
@@ -70,7 +70,7 @@ const detachedFieldAnchor: FieldAnchor = { parent: undefined, fieldKey: detached
 class TestLazyField extends LazyField {}
 
 describe("LazyField", () => {
-	it("LazyField implementations do not allow edits to detached trees", () => {
+	it("LazyField implementations do not allow edits to detached fields", () => {
 		const schema = toInitialSchema(JsonAsTree.JsonObject);
 		const forest = forestWithContent({
 			schema,
@@ -92,11 +92,18 @@ describe("LazyField", () => {
 			detachedFieldAnchor,
 		);
 		cursor.free();
+		const expectedError = validateAssertionError(
+			/Editing only allowed on the root field or on fields under nodes with TreeStatus.InDocument or TreeStatus.Removed status/,
+		);
 		assert.throws(
 			() => optionalField.editor.set(undefined, optionalField.length === undefined),
-			(e: Error) =>
-				validateAssertionError(e, /only allowed on fields with TreeStatus.InDocument status/),
+			expectedError,
 		);
+		// TODO:CM
+		// assert.throws(
+		// 	() => valueField.editor.set(mapTreeFromCursor(singleJsonCursor({}))),
+		// 	expectedError,
+		// );
 	});
 
 	it("is", () => {

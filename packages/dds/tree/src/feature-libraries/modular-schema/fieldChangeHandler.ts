@@ -22,7 +22,12 @@ import type {
 } from "./crossFieldQueries.js";
 
 import type { EncodedNodeChangeset } from "./modularChangeFormatV1.js";
-import type { ChangeAtomIdBTree, CrossFieldKeyRange, NodeId } from "./modularChangeTypes.js";
+import type {
+	ChangeAtomIdBTree,
+	CrossFieldKeyRange,
+	NodeId,
+	RebaseVersion,
+} from "./modularChangeTypes.js";
 
 export type NestedChangesIndices = [NodeId, number /* inputIndex */][];
 
@@ -119,6 +124,7 @@ export interface FieldChangeRebaser<TChangeset> {
 		genId: IdAllocator,
 		nodeManager: RebaseNodeManager,
 		revisionMetadata: RebaseRevisionMetadata,
+		rebaseVersion: RebaseVersion,
 	): TChangeset;
 
 	/**
@@ -223,17 +229,17 @@ export interface FieldChangeEncodingContext {
 	readonly rootNodeChanges: ChangeAtomIdBTree<NodeId>;
 	readonly rootRenames: ChangeAtomIdRangeMap<ChangeAtomId>;
 	encodeNode(nodeId: NodeId): EncodedNodeChangeset;
-	getInputDetachId(
-		id: ChangeAtomId,
+	getInputRootId(
+		outputRootId: ChangeAtomId,
 		count: number,
 	): RangeQueryResult<ChangeAtomId | undefined>;
+
 	isAttachId(id: ChangeAtomId, count: number): RangeQueryResult<boolean>;
 	isDetachId(id: ChangeAtomId, count: number): RangeQueryResult<boolean>;
 
 	decodeNode(encodedNode: EncodedNodeChangeset): NodeId;
 	decodeRootNodeChange(detachId: ChangeAtomId, encodedNode: EncodedNodeChangeset): void;
 	decodeRootRename(oldId: ChangeAtomId, newId: ChangeAtomId, count: number): void;
+	decodeMoveAndDetach(detachId: ChangeAtomId, count: number): void;
 	generateId(): ChangeAtomId;
 }
-
-export const supportChangeHandlingBackCompat = true;

@@ -40,7 +40,7 @@ export function testSnapshots() {
 							decodeNode: (node) => TestNodeId.decode(node, baseContext),
 							rootNodeChanges: newTupleBTree(),
 							rootRenames: newChangeAtomIdTransform(),
-							getInputDetachId: (id, count) => ({ start: id, value: id, length: count }),
+							getInputRootId: (id, count) => ({ start: id, value: id, length: count }),
 							isAttachId: (id, count) => ({
 								start: id,
 								value: false,
@@ -53,6 +53,7 @@ export function testSnapshots() {
 							}),
 							decodeRootNodeChange: () => {},
 							decodeRootRename: () => {},
+							decodeMoveAndDetach: () => {},
 							generateId: () => ({ localId: brand(0) }),
 						});
 						takeJsonSnapshot(encoded);

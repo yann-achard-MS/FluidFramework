@@ -28,7 +28,6 @@ export {
 	EncodedNodeChangeset,
 } from "./modularChangeFormatV1.js";
 export { FlexFieldKind, type FullSchemaPolicy } from "./fieldKind.js";
-export { FieldKindWithEditor } from "./fieldKindWithEditor.js";
 export {
 	type FieldChangeHandler,
 	type FieldChangeRebaser,
@@ -43,7 +42,6 @@ export {
 	NodeAttachState,
 	type FieldChangeEncodingContext,
 	type NestedChangesIndices,
-	supportChangeHandlingBackCompat,
 } from "./fieldChangeHandler.js";
 export {
 	type CrossFieldKey,
@@ -56,6 +54,7 @@ export {
 	type NodeExistsConstraint,
 	type NodeId,
 	type ChangeAtomIdBTree,
+	type RebaseVersion,
 	getFromChangeAtomIdMap,
 	setInChangeAtomIdMap,
 	rangeQueryChangeAtomIdMap,

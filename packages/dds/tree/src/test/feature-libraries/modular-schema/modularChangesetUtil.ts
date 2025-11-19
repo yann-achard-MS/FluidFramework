@@ -22,11 +22,12 @@ import {
 	chunkFieldSingle,
 	cursorForJsonableTreeField,
 	defaultChunkPolicy,
-	fieldKinds,
+	fieldKinds as defaultFieldKinds,
 	jsonableTreeFromFieldCursor,
 	type ComposeNodeManager,
 	type FieldChangeHandler,
 	type FieldChangeMap,
+	type FlexFieldKind,
 	type ModularChangeFamily,
 	type ModularChangeset,
 	type NodeId,
@@ -41,6 +42,7 @@ import {
 	type FieldId,
 	type NodeChangeset,
 	type NodeLocation,
+	type RebaseVersion,
 	type RootNodeTable,
 	// eslint-disable-next-line import/no-internal-modules
 } from "../../../feature-libraries/modular-schema/modularChangeTypes.js";
@@ -65,6 +67,7 @@ import {
 	getNodeParent,
 	newRootTable,
 	normalizeFieldId,
+	normalizeNodeId,
 	type RenameDescription,
 	// eslint-disable-next-line import/no-internal-modules
 } from "../../../feature-libraries/modular-schema/modularChangeFamily.js";
@@ -120,11 +123,27 @@ export function assertModularChangesetsEqual(a: ModularChangeset, b: ModularChan
 	assertEqual(aNormalized, bNormalized);
 }
 
-export function normalizeChangeset(change: ModularChangeset): ModularChangeset {
-	return normalizeRangeMaps(normalizeNodeIds(removeAliases(change)));
+export function assertModularChangesetsEqualIgnoreRebaseVersion(
+	actual: ModularChangeset,
+	expected: ModularChangeset,
+): void {
+	assertModularChangesetsEqual(
+		upgradeToRebaseVersionV2(actual),
+		upgradeToRebaseVersionV2(expected),
+	);
 }
 
-function normalizeNodeIds(change: ModularChangeset): ModularChangeset {
+export function normalizeChangeset(
+	change: ModularChangeset,
+	fieldKinds?: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
+): ModularChangeset {
+	return normalizeRangeMaps(normalizeNodeIds(removeAliases(change), fieldKinds));
+}
+
+function normalizeNodeIds(
+	change: ModularChangeset,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind> = defaultFieldKinds,
+): ModularChangeset {
 	const idAllocator = idAllocatorFromMaxId();
 
 	const idRemappings: ChangeAtomIdMap<NodeId> = new Map();
@@ -204,6 +223,23 @@ function normalizeNodeIds(change: ModularChangeset): ModularChangeset {
 		for (const [detachId, nodeId] of roots.nodeChanges.entries()) {
 			normalizedRoots.nodeChanges.set(detachId, normalizeNodeChanges(nodeId));
 		}
+
+		for (const entry of roots.detachLocations.entries()) {
+			normalizedRoots.detachLocations.set(
+				entry.start,
+				entry.length,
+				remapFieldId(entry.value),
+			);
+		}
+
+		for (const entry of roots.outputDetachLocations.entries()) {
+			normalizedRoots.outputDetachLocations.set(
+				entry.start,
+				entry.length,
+				remapFieldId(entry.value),
+			);
+		}
+
 		return normalizedRoots;
 	}
 
@@ -260,6 +296,18 @@ function normalizeRangeMaps(change: ModularChangeset): ModularChangeset {
 		areEqualChangeAtomIds,
 	);
 
+	normalized.rootNodes.detachLocations = normalizeRangeMap(
+		change.rootNodes.detachLocations,
+		areEqualChangeAtomIds,
+		areEqualFieldIds,
+	);
+
+	normalized.rootNodes.outputDetachLocations = normalizeRangeMap(
+		change.rootNodes.outputDetachLocations,
+		areEqualChangeAtomIds,
+		areEqualFieldIds,
+	);
+
 	return normalized;
 }
 
@@ -308,6 +356,7 @@ function areEqualFieldIds(a: FieldId, b: FieldId): boolean {
 
 export function empty(): ModularChangeset {
 	return {
+		rebaseVersion: 1,
 		fieldChanges: new Map(),
 		nodeChanges: newTupleBTree(),
 		rootNodes: newRootTable(),
@@ -489,6 +538,7 @@ function newField(
 }
 
 interface BuildArgs {
+	rebaseVersion?: RebaseVersion;
 	family: ModularChangeFamily;
 	maxId?: number;
 	revisions?: RevisionInfo[];
@@ -546,6 +596,7 @@ function build(args: BuildArgs, ...fields: FieldChangesetDescription[]): Modular
 
 	assert(args.maxId === undefined || args.maxId >= idAllocator.getMaxId());
 	const result: Mutable<ModularChangeset> = {
+		rebaseVersion: args.rebaseVersion ?? 1,
 		nodeChanges,
 		fieldChanges,
 		rootNodes,
@@ -730,10 +781,39 @@ export function removeAliases(changeset: ModularChangeset): ModularChangeset {
 		);
 	}
 
+	const updatedRootTable = cloneRootTable(changeset.rootNodes);
+	for (const [rootId, nodeId] of changeset.rootNodes.nodeChanges.entries()) {
+		updatedRootTable.nodeChanges.set(rootId, normalizeNodeId(nodeId, changeset.nodeAliases));
+	}
+
+	for (const entry of changeset.rootNodes.detachLocations.entries()) {
+		updatedRootTable.detachLocations.set(
+			entry.start,
+			entry.length,
+			normalizeFieldId(entry.value, changeset.nodeAliases),
+		);
+	}
+
+	for (const entry of changeset.rootNodes.outputDetachLocations.entries()) {
+		updatedRootTable.outputDetachLocations.set(
+			entry.start,
+			entry.length,
+			normalizeFieldId(entry.value, changeset.nodeAliases),
+		);
+	}
+
 	return {
 		...changeset,
 		nodeToParent: brand(updatedNodeToParent),
 		crossFieldKeys: updatedCrossFieldKeys,
 		nodeAliases: newTupleBTree(),
+		rootNodes: updatedRootTable,
 	};
+}
+
+function upgradeToRebaseVersionV2(change: ModularChangeset): ModularChangeset {
+	const updatedRootTable = cloneRootTable(change.rootNodes);
+	updatedRootTable.detachLocations.clear();
+	updatedRootTable.outputDetachLocations.clear();
+	return { ...change, rebaseVersion: 2, rootNodes: updatedRootTable };
 }

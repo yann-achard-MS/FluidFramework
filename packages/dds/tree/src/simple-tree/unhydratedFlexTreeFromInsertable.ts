@@ -5,9 +5,9 @@
 
 import type { IFluidHandle } from "@fluidframework/core-interfaces";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
-import { assert } from "@fluidframework/core-utils/internal";
+import { assert, fail } from "@fluidframework/core-utils/internal";
 
-import { hasSingle } from "../util/index.js";
+import { filterIterable, hasSingle, oneFromIterable } from "../util/index.js";
 
 import type { FlexTreeNode } from "../feature-libraries/index.js";
 
@@ -20,6 +20,7 @@ import {
 	isTreeNode,
 	type TreeNode,
 	type TreeNodeSchema,
+	contentSchemaSymbol,
 	type Unhydrated,
 	UnhydratedFlexTreeNode,
 } from "./core/index.js";
@@ -123,7 +124,13 @@ export function flexTreeFromInsertableNode(
 	const handler = getTreeNodeSchemaPrivateData(schema).idempotentInitialize();
 	const result = handler.toFlexContent(data, allowedTypes);
 
-	return new UnhydratedFlexTreeNode(...result, getUnhydratedContext(schema));
+	// Might not match schema due to fallbacks, see TODO on toFlexContent
+	// TODO: fix TODO in `toFlexContent`, and remove this.
+	const finalSchema =
+		oneFromIterable(filterIterable(allowedTypes, (s) => s.identifier === result[0].type)) ??
+		fail("missing schema");
+
+	return new UnhydratedFlexTreeNode(...result, getUnhydratedContext(finalSchema));
 }
 
 function getType(
@@ -153,6 +160,7 @@ For class-based schema, this can be done by replacing an expression like "{foo: 
 
 /**
  * Returns all types for which the data is schema-compatible.
+ * @remarks This will respect the {@link contentSchemaSymbol} property on data to disambiguate types - if present, only that type will be returned.
  */
 export function getPossibleTypes(
 	allowedTypes: ReadonlySet<TreeNodeSchema>,
@@ -160,9 +168,19 @@ export function getPossibleTypes(
 ): TreeNodeSchema[] {
 	assert(data !== undefined, 0x889 /* undefined cannot be used as FactoryContent. */);
 
-	let best = CompatibilityLevel.None;
+	let toCheck: Iterable<TreeNodeSchema>;
+	if (typeof data === "object" && data !== null && contentSchemaSymbol in data) {
+		// If the data has an explicit brand via contentSchemaSymbol, only check that type.
+		const type = data[contentSchemaSymbol];
+		toCheck = filterIterable(allowedTypes, (schema) => schema.identifier === type);
+	} else {
+		toCheck = allowedTypes;
+	}
+
+	// Start at the lowest level of compat we would ever accept: this discards types which are less compatible.
+	let best = CompatibilityLevel.Low;
 	const possibleTypes: TreeNodeSchema[] = [];
-	for (const schema of allowedTypes) {
+	for (const schema of toCheck) {
 		const handler = getTreeNodeSchemaPrivateData(schema).idempotentInitialize();
 		const level = handler.shallowCompatibilityTest(data);
 		if (level > best) {
@@ -173,7 +191,7 @@ export function getPossibleTypes(
 			possibleTypes.push(schema);
 		}
 	}
-	return best === CompatibilityLevel.None ? [] : possibleTypes;
+	return possibleTypes;
 }
 
 /**

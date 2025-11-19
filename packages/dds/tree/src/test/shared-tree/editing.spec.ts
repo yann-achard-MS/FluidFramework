@@ -4,6 +4,8 @@
  */
 
 import { strict as assert, fail } from "node:assert";
+import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
+import { validateUsageError } from "@fluidframework/test-runtime-utils/internal";
 
 import { unreachableCase } from "@fluidframework/core-utils/internal";
 
@@ -16,7 +18,7 @@ import {
 	type NormalizedUpPath,
 	type TreeNodeSchemaIdentifier,
 } from "../../core/index.js";
-import { SharedTreeFormatVersion, Tree, type ITreeCheckout } from "../../shared-tree/index.js";
+import { Tree, type ITreeCheckout } from "../../shared-tree/index.js";
 import { type JsonCompatible, brand, makeArray } from "../../util/index.js";
 import {
 	checkoutWithContent,
@@ -28,7 +30,6 @@ import {
 	makeTreeFromJson,
 	moveWithin,
 	TestTreeProviderLite,
-	validateUsageError,
 	type TreeStoredContentStrict,
 } from "../utils.js";
 import { insert, makeTreeFromJsonSequence, remove } from "../sequenceRootUtils.js";
@@ -43,6 +44,7 @@ import { JsonAsTree } from "../../jsonDomainSchema.js";
 import { fieldJsonCursor } from "../json/index.js";
 import { TreeStatus } from "../../feature-libraries/index.js";
 import { configuredSharedTree } from "../../treeFactory.js";
+import { FluidClientVersion } from "../../codec/index.js";
 
 const rootField: NormalizedFieldUpPath = {
 	parent: undefined,
@@ -167,11 +169,11 @@ describe("Editing", () => {
 			expectJsonTree(tree1, ["a"]);
 		});
 
-		describeForAllFormats("can insert and move in a transaction", (formatVersion) => {
+		describeForAllFormats("can insert and move in a transaction", (minVersionForCollab) => {
 			const sf = new SchemaFactory(undefined);
 			const provider = new TestTreeProviderLite(
 				2,
-				configuredSharedTree({ formatVersion }).getFactory(),
+				configuredSharedTree({ minVersionForCollab }).getFactory(),
 			);
 			const config = new TreeViewConfiguration({ schema: sf.array("Array", sf.number) });
 			const viewA = provider.trees[0].viewWith(config);
@@ -2679,27 +2681,30 @@ describe("Editing", () => {
 		const multiparentError = validateUsageError(
 			/A node which already has a parent may not be used as part of a new tree./,
 		);
-		describeForAllFormats("cannot be attached into a hydrated array", (formatVersion) => {
-			const sf = new SchemaFactory(undefined);
-			class Child extends sf.object("Child", {}) {}
-			class Parent extends sf.array("Parent", Child) {}
-			const provider = new TestTreeProviderLite(
-				1,
-				configuredSharedTree({ formatVersion }).getFactory(),
-			);
-			const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
-			view.initialize(new Parent([new Child({})]));
-			const hydratedChild = view.root[0];
-			assert.throws(() => view.root.insertAtEnd(hydratedChild), multiparentError);
-		});
+		describeForAllFormats(
+			"cannot be attached into a hydrated array",
+			(minVersionForCollab) => {
+				const sf = new SchemaFactory(undefined);
+				class Child extends sf.object("Child", {}) {}
+				class Parent extends sf.array("Parent", Child) {}
+				const provider = new TestTreeProviderLite(
+					1,
+					configuredSharedTree({ minVersionForCollab }).getFactory(),
+				);
+				const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
+				view.initialize(new Parent([new Child({})]));
+				const hydratedChild = view.root[0];
+				assert.throws(() => view.root.insertAtEnd(hydratedChild), multiparentError);
+			},
+		);
 
-		describeForAllFormats("cannot be attached into a hydrated map", (formatVersion) => {
+		describeForAllFormats("cannot be attached into a hydrated map", (minVersionForCollab) => {
 			const sf = new SchemaFactory(undefined);
 			class Child extends sf.object("Child", {}) {}
 			class Parent extends sf.map("Parent", Child) {}
 			const provider = new TestTreeProviderLite(
 				1,
-				configuredSharedTree({ formatVersion }).getFactory(),
+				configuredSharedTree({ minVersionForCollab }).getFactory(),
 			);
 			const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
 			view.initialize(new Parent([["c1", new Child({})]]));
@@ -2707,80 +2712,92 @@ describe("Editing", () => {
 			assert.throws(() => view.root.set("c2", hydratedChild), multiparentError);
 		});
 
-		describeForAllFormats("cannot be attached into a hydrated object", (formatVersion) => {
-			const sf = new SchemaFactory(undefined);
-			class Child extends sf.object("Child", {}) {}
-			class Parent extends sf.object("Parent", {
-				child1: sf.optional(Child),
-				child2: sf.optional(Child),
-			}) {}
-			const provider = new TestTreeProviderLite(
-				1,
-				configuredSharedTree({ formatVersion }).getFactory(),
-			);
-			const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
-			view.initialize(new Parent({ child1: new Child({}) }));
-			const hydratedChild = view.root.child1 ?? fail("Expected child to be present");
-			assert.throws(() => (view.root.child2 = hydratedChild), multiparentError);
-		});
-
-		describeForAllFormats("cannot be attached into an unhydrated array", (formatVersion) => {
-			const sf = new SchemaFactory(undefined);
-			class Child extends sf.object("Child", {}) {}
-			class Parent extends sf.array("Parent", Child) {}
-			const provider = new TestTreeProviderLite(
-				1,
-				configuredSharedTree({ formatVersion }).getFactory(),
-			);
-			const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
-			view.initialize(new Parent([new Child({})]));
-			const hydratedAttachedChild = view.root[0];
-			const unhydrated = new Parent();
-			assert.throws(() => unhydrated.insertAtEnd(hydratedAttachedChild), multiparentError);
-		});
-
-		describeForAllFormats("cannot be attached into an unhydrated map", (formatVersion) => {
-			const sf = new SchemaFactory(undefined);
-			class Child extends sf.object("Child", {}) {}
-			class Parent extends sf.map("Parent", Child) {}
-			const provider = new TestTreeProviderLite(
-				1,
-				configuredSharedTree({ formatVersion }).getFactory(),
-			);
-			const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
-			view.initialize(new Parent([["c1", new Child({})]]));
-			const hydratedChild = view.root.get("c1") ?? fail("Expected child to be present");
-			const unhydrated = new Parent();
-			assert.throws(() => unhydrated.set("c2", hydratedChild), multiparentError);
-		});
-
-		describeForAllFormats("cannot be attached into an unhydrated object", (formatVersion) => {
-			const sf = new SchemaFactory(undefined);
-			class Child extends sf.object("Child", {}) {}
-			class Parent extends sf.object("Parent", {
-				child1: sf.optional(Child),
-				child2: sf.optional(Child),
-			}) {}
-			const provider = new TestTreeProviderLite(
-				1,
-				configuredSharedTree({ formatVersion }).getFactory(),
-			);
-			const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
-			view.initialize(new Parent({ child1: new Child({}) }));
-			const hydratedChild = view.root.child1 ?? fail("Expected child to be present");
-			const unhydrated = new Parent({});
-			assert.throws(() => (unhydrated.child2 = hydratedChild), multiparentError);
-		});
+		describeForAllFormats(
+			"cannot be attached into a hydrated object",
+			(minVersionForCollab) => {
+				const sf = new SchemaFactory(undefined);
+				class Child extends sf.object("Child", {}) {}
+				class Parent extends sf.object("Parent", {
+					child1: sf.optional(Child),
+					child2: sf.optional(Child),
+				}) {}
+				const provider = new TestTreeProviderLite(
+					1,
+					configuredSharedTree({ minVersionForCollab }).getFactory(),
+				);
+				const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
+				view.initialize(new Parent({ child1: new Child({}) }));
+				const hydratedChild = view.root.child1 ?? fail("Expected child to be present");
+				assert.throws(() => (view.root.child2 = hydratedChild), multiparentError);
+			},
+		);
 
 		describeForAllFormats(
-			"cannot be used in the construction of an unhydrated array",
-			(formatVersion) => {
+			"cannot be attached into an unhydrated array",
+			(minVersionForCollab) => {
 				const sf = new SchemaFactory(undefined);
 				class Child extends sf.object("Child", {}) {}
 				class Parent extends sf.array("Parent", Child) {}
 				const provider = new TestTreeProviderLite(
 					1,
-					configuredSharedTree({ formatVersion }).getFactory(),
+					configuredSharedTree({ minVersionForCollab }).getFactory(),
+				);
+				const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
+				view.initialize(new Parent([new Child({})]));
+				const hydratedAttachedChild = view.root[0];
+				const unhydrated = new Parent();
+				assert.throws(() => unhydrated.insertAtEnd(hydratedAttachedChild), multiparentError);
+			},
+		);
+
+		describeForAllFormats(
+			"cannot be attached into an unhydrated map",
+			(minVersionForCollab) => {
+				const sf = new SchemaFactory(undefined);
+				class Child extends sf.object("Child", {}) {}
+				class Parent extends sf.map("Parent", Child) {}
+				const provider = new TestTreeProviderLite(
+					1,
+					configuredSharedTree({ minVersionForCollab }).getFactory(),
+				);
+				const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
+				view.initialize(new Parent([["c1", new Child({})]]));
+				const hydratedChild = view.root.get("c1") ?? fail("Expected child to be present");
+				const unhydrated = new Parent();
+				assert.throws(() => unhydrated.set("c2", hydratedChild), multiparentError);
+			},
+		);
+
+		describeForAllFormats(
+			"cannot be attached into an unhydrated object",
+			(minVersionForCollab) => {
+				const sf = new SchemaFactory(undefined);
+				class Child extends sf.object("Child", {}) {}
+				class Parent extends sf.object("Parent", {
+					child1: sf.optional(Child),
+					child2: sf.optional(Child),
+				}) {}
+				const provider = new TestTreeProviderLite(
+					1,
+					configuredSharedTree({ minVersionForCollab }).getFactory(),
+				);
+				const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
+				view.initialize(new Parent({ child1: new Child({}) }));
+				const hydratedChild = view.root.child1 ?? fail("Expected child to be present");
+				const unhydrated = new Parent({});
+				assert.throws(() => (unhydrated.child2 = hydratedChild), multiparentError);
+			},
+		);
+
+		describeForAllFormats(
+			"cannot be used in the construction of an unhydrated array",
+			(minVersionForCollab) => {
+				const sf = new SchemaFactory(undefined);
+				class Child extends sf.object("Child", {}) {}
+				class Parent extends sf.array("Parent", Child) {}
+				const provider = new TestTreeProviderLite(
+					1,
+					configuredSharedTree({ minVersionForCollab }).getFactory(),
 				);
 				const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
 				view.initialize(new Parent([new Child({})]));
@@ -2791,13 +2808,13 @@ describe("Editing", () => {
 
 		describeForAllFormats(
 			"cannot be used in the construction of an unhydrated map",
-			(formatVersion) => {
+			(minVersionForCollab) => {
 				const sf = new SchemaFactory(undefined);
 				class Child extends sf.object("Child", {}) {}
 				class Parent extends sf.map("Parent", Child) {}
 				const provider = new TestTreeProviderLite(
 					1,
-					configuredSharedTree({ formatVersion }).getFactory(),
+					configuredSharedTree({ minVersionForCollab }).getFactory(),
 				);
 				const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
 				view.initialize(new Parent([["c1", new Child({})]]));
@@ -2808,7 +2825,7 @@ describe("Editing", () => {
 
 		describeForAllFormats(
 			"cannot be used in the construction of an unhydrated object",
-			(formatVersion) => {
+			(minVersionForCollab) => {
 				const sf = new SchemaFactory(undefined);
 				class Child extends sf.object("Child", {}) {}
 				class Parent extends sf.object("Parent", {
@@ -2816,7 +2833,7 @@ describe("Editing", () => {
 				}) {}
 				const provider = new TestTreeProviderLite(
 					1,
-					configuredSharedTree({ formatVersion }).getFactory(),
+					configuredSharedTree({ minVersionForCollab }).getFactory(),
 				);
 				const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
 				view.initialize(new Parent({ child: new Child({}) }));
@@ -2825,105 +2842,126 @@ describe("Editing", () => {
 			},
 		);
 
-		describeForAllFormats("cannot be used in the hydration of an array", (formatVersion) => {
-			const sf = new SchemaFactory(undefined);
-			class Child extends sf.object("Child", {}) {}
-			class Parent extends sf.array("Parent", Child) {}
-			const provider = new TestTreeProviderLite(
-				2,
-				configuredSharedTree({ formatVersion }).getFactory(),
-			);
-			const viewA = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
-			const viewB = provider.trees[1].viewWith(new TreeViewConfiguration({ schema: Parent }));
-			viewA.initialize(new Parent([new Child({})]));
-			provider.synchronizeMessages();
-			const childOnViewA = viewA.root[0];
-			const childOnViewB = viewB.root[0];
+		describeForAllFormats(
+			"cannot be used in the hydration of an array",
+			(minVersionForCollab) => {
+				const sf = new SchemaFactory(undefined);
+				class Child extends sf.object("Child", {}) {}
+				class Parent extends sf.array("Parent", Child) {}
+				const provider = new TestTreeProviderLite(
+					2,
+					configuredSharedTree({ minVersionForCollab }).getFactory(),
+				);
+				const viewA = provider.trees[0].viewWith(
+					new TreeViewConfiguration({ schema: Parent }),
+				);
+				const viewB = provider.trees[1].viewWith(
+					new TreeViewConfiguration({ schema: Parent }),
+				);
+				viewA.initialize(new Parent([new Child({})]));
+				provider.synchronizeMessages();
+				const childOnViewA = viewA.root[0];
+				const childOnViewB = viewB.root[0];
 
-			viewA.root.removeAt(0);
-			provider.synchronizeMessages();
+				viewA.root.removeAt(0);
+				provider.synchronizeMessages();
 
-			// It is valid to create an unhydrated array with a hydrated detached child
-			const unhydratedArray = new Parent([childOnViewA]);
+				// It is valid to create an unhydrated array with a hydrated detached child
+				const unhydratedArray = new Parent([childOnViewA]);
 
-			if (formatVersion < SharedTreeFormatVersion.vDetachedRoots) {
-				assert.throws(() => viewB.root.insertAtEnd(childOnViewB), multiparentError);
-				return;
-			}
-			viewB.root.insertAtEnd(childOnViewB);
-			provider.synchronizeMessages();
+				if (minVersionForCollab < FluidClientVersion.vDetachedRoots) {
+					assert.throws(() => viewB.root.insertAtEnd(childOnViewB), multiparentError);
+					return;
+				}
+				viewB.root.insertAtEnd(childOnViewB);
+				provider.synchronizeMessages();
 
-			// This should throw because the hydrated child is now attached.
-			assert.throws(() => (viewA.root = unhydratedArray), multiparentError);
-		});
+				// This should throw because the hydrated child is now attached.
+				assert.throws(() => (viewA.root = unhydratedArray), multiparentError);
+			},
+		);
 
-		describeForAllFormats("cannot be used in the hydration of a map", (formatVersion) => {
-			const sf = new SchemaFactory(undefined);
-			class Child extends sf.object("Child", {}) {}
-			class Parent extends sf.map("Parent", Child) {}
-			const provider = new TestTreeProviderLite(
-				2,
-				configuredSharedTree({ formatVersion }).getFactory(),
-			);
-			const viewA = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
-			const viewB = provider.trees[1].viewWith(new TreeViewConfiguration({ schema: Parent }));
-			viewA.initialize(new Parent([["c1", new Child({})]]));
-			provider.synchronizeMessages();
+		describeForAllFormats(
+			"cannot be used in the hydration of a map",
+			(minVersionForCollab) => {
+				const sf = new SchemaFactory(undefined);
+				class Child extends sf.object("Child", {}) {}
+				class Parent extends sf.map("Parent", Child) {}
+				const provider = new TestTreeProviderLite(
+					2,
+					configuredSharedTree({ minVersionForCollab }).getFactory(),
+				);
+				const viewA = provider.trees[0].viewWith(
+					new TreeViewConfiguration({ schema: Parent }),
+				);
+				const viewB = provider.trees[1].viewWith(
+					new TreeViewConfiguration({ schema: Parent }),
+				);
+				viewA.initialize(new Parent([["c1", new Child({})]]));
+				provider.synchronizeMessages();
 
-			const childOnViewA = viewA.root.get("c1") ?? fail("Expected child to be present");
-			const childOnViewB = viewB.root.get("c1") ?? fail("Expected child to be present");
+				const childOnViewA = viewA.root.get("c1") ?? fail("Expected child to be present");
+				const childOnViewB = viewB.root.get("c1") ?? fail("Expected child to be present");
 
-			viewA.root.delete("c1");
-			provider.synchronizeMessages();
+				viewA.root.delete("c1");
+				provider.synchronizeMessages();
 
-			// It is valid to create an unhydrated map with a hydrated detached child
-			const unhydratedMap = new Parent([["c1", childOnViewA]]);
+				// It is valid to create an unhydrated map with a hydrated detached child
+				const unhydratedMap = new Parent([["c1", childOnViewA]]);
 
-			if (formatVersion < SharedTreeFormatVersion.vDetachedRoots) {
-				assert.throws(() => viewB.root.set("c2", childOnViewB), multiparentError);
-				return;
-			}
-			viewB.root.set("c2", childOnViewB);
-			provider.synchronizeMessages();
+				if (minVersionForCollab < FluidClientVersion.vDetachedRoots) {
+					assert.throws(() => viewB.root.set("c2", childOnViewB), multiparentError);
+					return;
+				}
+				viewB.root.set("c2", childOnViewB);
+				provider.synchronizeMessages();
 
-			// This should throw because the hydrated child is now attached.
-			assert.throws(() => (viewA.root = unhydratedMap), multiparentError);
-		});
+				// This should throw because the hydrated child is now attached.
+				assert.throws(() => (viewA.root = unhydratedMap), multiparentError);
+			},
+		);
 
-		describeForAllFormats("cannot be used in the hydration of an object", (formatVersion) => {
-			const sf = new SchemaFactory(undefined);
-			class Child extends sf.object("Child", {}) {}
-			class Parent extends sf.object("Parent", {
-				child: sf.optional(Child),
-			}) {}
-			const provider = new TestTreeProviderLite(
-				2,
-				configuredSharedTree({ formatVersion }).getFactory(),
-			);
-			const viewA = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
-			const viewB = provider.trees[1].viewWith(new TreeViewConfiguration({ schema: Parent }));
-			viewA.initialize(new Parent({ child: new Child({}) }));
-			provider.synchronizeMessages();
+		describeForAllFormats(
+			"cannot be used in the hydration of an object",
+			(minVersionForCollab) => {
+				const sf = new SchemaFactory(undefined);
+				class Child extends sf.object("Child", {}) {}
+				class Parent extends sf.object("Parent", {
+					child: sf.optional(Child),
+				}) {}
+				const provider = new TestTreeProviderLite(
+					2,
+					configuredSharedTree({ minVersionForCollab }).getFactory(),
+				);
+				const viewA = provider.trees[0].viewWith(
+					new TreeViewConfiguration({ schema: Parent }),
+				);
+				const viewB = provider.trees[1].viewWith(
+					new TreeViewConfiguration({ schema: Parent }),
+				);
+				viewA.initialize(new Parent({ child: new Child({}) }));
+				provider.synchronizeMessages();
 
-			const childOnViewA = viewA.root.child ?? fail("Expected child to be present");
-			const childOnViewB = viewB.root.child ?? fail("Expected child to be present");
+				const childOnViewA = viewA.root.child ?? fail("Expected child to be present");
+				const childOnViewB = viewB.root.child ?? fail("Expected child to be present");
 
-			viewA.root.child = undefined;
-			provider.synchronizeMessages();
+				viewA.root.child = undefined;
+				provider.synchronizeMessages();
 
-			// It is valid to create an unhydrated object with a hydrated detached child
-			const unhydratedObject = new Parent({ child: childOnViewA });
+				// It is valid to create an unhydrated object with a hydrated detached child
+				const unhydratedObject = new Parent({ child: childOnViewA });
 
-			if (formatVersion < SharedTreeFormatVersion.vDetachedRoots) {
-				assert.throws(() => (viewB.root.child = childOnViewB), multiparentError);
-				return;
-			}
-			viewB.root.child = childOnViewB;
-			provider.synchronizeMessages();
+				if (minVersionForCollab < FluidClientVersion.vDetachedRoots) {
+					assert.throws(() => (viewB.root.child = childOnViewB), multiparentError);
+					return;
+				}
+				viewB.root.child = childOnViewB;
+				provider.synchronizeMessages();
 
-			// This should throw because the hydrated child is now attached.
-			assert.throws(() => (viewA.root = unhydratedObject), multiparentError);
-		});
+				// This should throw because the hydrated child is now attached.
+				assert.throws(() => (viewA.root = unhydratedObject), multiparentError);
+			},
+		);
 	});
 
 	describe("Detached nodes - with format < vDetachedRoots", () => {
@@ -2954,12 +2992,12 @@ describe("Editing", () => {
 			for (const src of containers) {
 				for (const dst of containers) {
 					describeForFormatsLessThan(
-						SharedTreeFormatVersion.vDetachedRoots,
+						FluidClientVersion.vDetachedRoots,
 						`detach from ${src} and attach to ${dst}`,
-						(formatVersion) => {
+						(minVersionForCollab) => {
 							const provider = new TestTreeProviderLite(
 								2,
-								configuredSharedTree({ formatVersion }).getFactory(),
+								configuredSharedTree({ minVersionForCollab }).getFactory(),
 							);
 							const config = new TreeViewConfiguration({ schema: Root });
 							const viewA = provider.trees[0].viewWith(config);
@@ -3073,12 +3111,12 @@ describe("Editing", () => {
 			for (const src of validSrcContainers) {
 				for (const dst of validDstContainers) {
 					describeForFormatsEqOrGreaterThan(
-						SharedTreeFormatVersion.vDetachedRoots,
+						FluidClientVersion.vDetachedRoots,
 						`detach from ${src} and attach to ${dst}`,
-						(formatVersion) => {
+						(minVersionForCollab) => {
 							const provider = new TestTreeProviderLite(
 								2,
-								configuredSharedTree({ formatVersion }).getFactory(),
+								configuredSharedTree({ minVersionForCollab }).getFactory(),
 							);
 							const config = new TreeViewConfiguration({ schema: Root });
 							const viewA = provider.trees[0].viewWith(config);
@@ -3169,12 +3207,12 @@ describe("Editing", () => {
 			}) {}
 			for (const src of validSrcContainers) {
 				describeForFormatsEqOrGreaterThan(
-					SharedTreeFormatVersion.vDetachedRoots,
+					FluidClientVersion.vDetachedRoots,
 					`detach from ${src} and attach to an object's required field throws`,
-					(formatVersion) => {
+					(minVersionForCollab) => {
 						const provider = new TestTreeProviderLite(
 							2,
-							configuredSharedTree({ formatVersion }).getFactory(),
+							configuredSharedTree({ minVersionForCollab }).getFactory(),
 						);
 						const view = provider.trees[0].viewWith(
 							new TreeViewConfiguration({ schema: Root }),
@@ -3243,12 +3281,12 @@ describe("Editing", () => {
 				"an object's required field",
 			] as const) {
 				describeForFormatsEqOrGreaterThan(
-					SharedTreeFormatVersion.vDetachedRoots,
+					FluidClientVersion.vDetachedRoots,
 					`detach from an object's required field and attach to ${dst}`,
-					(formatVersion) => {
+					(minVersionForCollab) => {
 						const provider = new TestTreeProviderLite(
 							2,
-							configuredSharedTree({ formatVersion }).getFactory(),
+							configuredSharedTree({ minVersionForCollab }).getFactory(),
 						);
 						const view = provider.trees[0].viewWith(config);
 						view.initialize(
@@ -3304,9 +3342,9 @@ describe("Editing", () => {
 		});
 
 		describeForFormatsEqOrGreaterThan(
-			SharedTreeFormatVersion.vDetachedRoots,
+			FluidClientVersion.vDetachedRoots,
 			"can be concurrently reattached in different locations",
-			(formatVersion) => {
+			(minVersionForCollab) => {
 				const sf = new SchemaFactory(undefined);
 				class Child extends sf.object("Child", {}) {}
 				class ArrayParent extends sf.array("Array", Child) {}
@@ -3319,7 +3357,7 @@ describe("Editing", () => {
 
 				const provider = new TestTreeProviderLite(
 					2,
-					configuredSharedTree({ formatVersion }).getFactory(),
+					configuredSharedTree({ minVersionForCollab }).getFactory(),
 				);
 				const config = new TreeViewConfiguration({ schema: Root });
 				const viewA = provider.trees[0].viewWith(config);
@@ -3370,9 +3408,9 @@ describe("Editing", () => {
 
 		describe("can be edited while detached", () => {
 			describeForFormatsEqOrGreaterThan(
-				SharedTreeFormatVersion.vDetachedRoots,
+				FluidClientVersion.vDetachedRoots,
 				"Edit removed array node",
-				(formatVersion) => {
+				(minVersionForCollab) => {
 					const sf = new SchemaFactory(undefined);
 					class Child extends sf.object("Child", {}) {}
 					class Parent extends sf.object("Parent", {
@@ -3381,7 +3419,7 @@ describe("Editing", () => {
 
 					const provider = new TestTreeProviderLite(
 						2,
-						configuredSharedTree({ formatVersion }).getFactory(),
+						configuredSharedTree({ minVersionForCollab }).getFactory(),
 					);
 					const config = new TreeViewConfiguration({
 						schema: Parent,
@@ -3422,9 +3460,9 @@ describe("Editing", () => {
 			);
 
 			describeForFormatsEqOrGreaterThan(
-				SharedTreeFormatVersion.vDetachedRoots,
+				FluidClientVersion.vDetachedRoots,
 				"Edit removed map node",
-				(formatVersion) => {
+				(minVersionForCollab) => {
 					const sf = new SchemaFactory(undefined);
 					class Child extends sf.object("Child", {}) {}
 					class Parent extends sf.object("Parent", {
@@ -3433,7 +3471,7 @@ describe("Editing", () => {
 
 					const provider = new TestTreeProviderLite(
 						2,
-						configuredSharedTree({ formatVersion }).getFactory(),
+						configuredSharedTree({ minVersionForCollab }).getFactory(),
 					);
 					const config = new TreeViewConfiguration({
 						schema: Parent,
@@ -3475,9 +3513,9 @@ describe("Editing", () => {
 			);
 
 			describeForFormatsEqOrGreaterThan(
-				SharedTreeFormatVersion.vDetachedRoots,
+				FluidClientVersion.vDetachedRoots,
 				"Edit removed object node",
-				(formatVersion) => {
+				(minVersionForCollab) => {
 					const sf = new SchemaFactory(undefined);
 					class Child extends sf.object("Child", {}) {}
 					class Parent extends sf.object("Parent", {
@@ -3486,7 +3524,7 @@ describe("Editing", () => {
 
 					const provider = new TestTreeProviderLite(
 						2,
-						configuredSharedTree({ formatVersion }).getFactory(),
+						configuredSharedTree({ minVersionForCollab }).getFactory(),
 					);
 					const config = new TreeViewConfiguration({
 						schema: sf.optional(Parent),
@@ -4261,40 +4299,34 @@ describe("Editing", () => {
 });
 
 function describeForFormatsLessThan(
-	excludedVersion: SharedTreeFormatVersion[keyof SharedTreeFormatVersion],
+	excludedVersion: MinimumVersionForCollab,
 	title: string,
-	testFn: (
-		this: Mocha.Context,
-		formatVersion: SharedTreeFormatVersion[keyof SharedTreeFormatVersion],
-	) => void,
+	testFn: (this: Mocha.Context, minVersionForCollab: MinimumVersionForCollab) => void,
 ) {
 	describe(title, () => {
-		for (const formatVersion of Object.values(SharedTreeFormatVersion)) {
-			if (formatVersion >= excludedVersion) {
+		for (const minVersionForCollab of Object.values(FluidClientVersion)) {
+			if (minVersionForCollab >= excludedVersion) {
 				continue;
 			}
-			it(`format - ${formatVersion}`, function () {
-				testFn.call(this, formatVersion);
+			it(`format - ${minVersionForCollab}`, function () {
+				testFn.call(this, minVersionForCollab);
 			});
 		}
 	});
 }
 
 function describeForFormatsEqOrGreaterThan(
-	includedVersion: SharedTreeFormatVersion[keyof SharedTreeFormatVersion],
+	includedVersion: MinimumVersionForCollab,
 	title: string,
-	testFn: (
-		this: Mocha.Context,
-		formatVersion: SharedTreeFormatVersion[keyof SharedTreeFormatVersion],
-	) => void,
+	testFn: (this: Mocha.Context, minVersionForCollab: MinimumVersionForCollab) => void,
 ) {
 	describe(title, () => {
-		for (const formatVersion of Object.values(SharedTreeFormatVersion)) {
-			if (formatVersion < includedVersion) {
+		for (const minVersionForCollab of Object.values(FluidClientVersion)) {
+			if (minVersionForCollab < includedVersion) {
 				continue;
 			}
-			it(`format - ${formatVersion}`, function () {
-				testFn.call(this, formatVersion);
+			it(`format - ${minVersionForCollab}`, function () {
+				testFn.call(this, minVersionForCollab);
 			});
 		}
 	});
@@ -4302,15 +4334,12 @@ function describeForFormatsEqOrGreaterThan(
 
 function describeForAllFormats(
 	title: string,
-	testFn: (
-		this: Mocha.Context,
-		formatVersion: SharedTreeFormatVersion[keyof SharedTreeFormatVersion],
-	) => void,
+	testFn: (this: Mocha.Context, minVersionForCollab: MinimumVersionForCollab) => void,
 ) {
 	describe(title, () => {
-		for (const formatVersion of Object.values(SharedTreeFormatVersion)) {
-			it(`format - ${formatVersion}`, function () {
-				testFn.call(this, formatVersion);
+		for (const minVersionForCollab of Object.values(FluidClientVersion)) {
+			it(`format - ${minVersionForCollab}`, function () {
+				testFn.call(this, minVersionForCollab);
 			});
 		}
 	});

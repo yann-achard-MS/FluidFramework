@@ -80,7 +80,6 @@ import type {
 	EncodedRevisionInfo,
 } from "./modularChangeFormatV1.js";
 import {
-	supportChangeHandlingBackCompat,
 	type FieldChangeEncodingContext,
 	type FieldChangeHandler,
 } from "./fieldChangeHandler.js";
@@ -186,12 +185,13 @@ export function makeModularChangeCodecV2(
 				rootRenames: rootChanges?.renames ?? newChangeAtomIdTransform(),
 
 				encodeNode,
-				getInputDetachId,
+				getInputRootId: getInputDetachId,
 				isAttachId,
 				isDetachId,
 				decodeNode: () => fail(0xb1e /* Should not decode nodes during field encoding */),
 				decodeRootNodeChange: () => fail("Should not be called during encoding"),
 				decodeRootRename: () => fail("Should not be called during encoding"),
+				decodeMoveAndDetach: () => fail("Should not be called during encoding"),
 				generateId: () => fail("Should not be called during encoding"),
 			};
 
@@ -305,7 +305,7 @@ export function makeModularChangeCodecV2(
 				rootRenames: newChangeAtomIdTransform(),
 
 				encodeNode: () => fail(0xb21 /* Should not encode nodes during field decoding */),
-				getInputDetachId: () => fail("Should not query during decoding"),
+				getInputRootId: () => fail("Should not query during decoding"),
 				isAttachId: () => fail("Should not query during decoding"),
 				isDetachId: () => fail("Should not query during decoding"),
 
@@ -314,6 +314,7 @@ export function makeModularChangeCodecV2(
 
 				decodeRootNodeChange: (detachId, encodedNode): void => {},
 				decodeRootRename: (oldId, newId, count): void => {},
+				decodeMoveAndDetach: (detachId, count): void => {},
 
 				generateId: (): ChangeAtomId => ({
 					revision: context.revision,
@@ -664,6 +665,7 @@ export function makeModularChangeCodecV2(
 			};
 
 			const decoded: Mutable<ModularChangeset> = {
+				rebaseVersion: 2,
 				fieldChanges: decodeFieldChangesFromJson(
 					encodedChange.fieldChanges,
 					undefined,

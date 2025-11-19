@@ -4,14 +4,14 @@
  */
 
 import type { GenericChangeset } from "../../../feature-libraries/index.js";
-// eslint-disable-next-line import/no-internal-modules
+// eslint-disable-next-line import-x/no-internal-modules
 import { makeGenericChangeCodec } from "../../../feature-libraries/modular-schema/genericFieldKindCodecs.js";
 import { takeJsonSnapshot, useSnapshotDirectory } from "../../snapshots/index.js";
 import { brand, newTupleBTree } from "../../../util/index.js";
 import { TestNodeId } from "../../testNodeId.js";
 import { TestChange } from "../../testChange.js";
 import { snapshotSessionId, testIdCompressor } from "../../utils.js";
-// eslint-disable-next-line import/no-internal-modules
+// eslint-disable-next-line import-x/no-internal-modules
 import { newGenericChangeset } from "../../../feature-libraries/modular-schema/genericFieldKindTypes.js";
 import { newChangeAtomIdTransform } from "../../../core/index.js";
 
@@ -46,7 +46,7 @@ export function testSnapshots() {
 					it(name, () => {
 						const encoded = codec.json.encode(change, {
 							baseContext,
-							getInputDetachId: (id, count) => ({ start: id, value: id, length: count }),
+							getInputRootId: (id, count) => ({ start: id, value: id, length: count }),
 							isAttachId: (id, count) => ({
 								start: id,
 								value: false,
@@ -63,6 +63,7 @@ export function testSnapshots() {
 							rootRenames: newChangeAtomIdTransform(),
 							decodeRootNodeChange: () => {},
 							decodeRootRename: () => {},
+							decodeMoveAndDetach: () => {},
 							generateId: () => ({
 								localId: brand(0),
 							}),

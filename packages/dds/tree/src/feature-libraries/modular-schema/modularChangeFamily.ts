@@ -80,13 +80,12 @@ import {
 	type FieldChangeHandler,
 	NodeAttachState,
 	type RebaseRevisionMetadata,
-	supportChangeHandlingBackCompat,
 } from "./fieldChangeHandler.js";
-import { type FieldKindWithEditor, withEditor } from "./fieldKindWithEditor.js";
 import { convertGenericChange, genericFieldKind } from "./genericFieldKind.js";
 import type { GenericChangeset } from "./genericFieldKindTypes.js";
 import {
 	type ChangeAtomIdBTree,
+	type ChangeAtomIdKey,
 	type CrossFieldKey,
 	type CrossFieldKeyRange,
 	type CrossFieldKeyTable,
@@ -102,9 +101,11 @@ import {
 	type NodeId,
 	type NodeLocation,
 	rangeQueryChangeAtomIdMap,
+	type RebaseVersion,
 	type RootNodeTable,
 	setInChangeAtomIdMap,
 } from "./modularChangeTypes.js";
+import type { FlexFieldKind } from "./fieldKind.js";
 
 /**
  * Implementation of ChangeFamily which delegates work in a given field to the appropriate FieldKind
@@ -117,10 +118,10 @@ export class ModularChangeFamily
 {
 	public static readonly emptyChange: ModularChangeset = makeModularChangeset();
 
-	public readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>;
+	public readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>;
 
 	public constructor(
-		fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>,
+		fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 		public readonly codecs: ICodecFamily<ModularChangeset, ChangeEncodingContext>,
 	) {
 		this.fieldKinds = fieldKinds;
@@ -966,14 +967,22 @@ export class ModularChangeFamily
 		const rebasedNodeToParent: ChangeAtomIdBTree<NodeLocation> = brand(
 			change.nodeToParent.clone(),
 		);
+
+		const rebaseVersion = Math.max(
+			change.rebaseVersion,
+			over.change.rebaseVersion,
+		) as RebaseVersion;
+
 		const rebasedRootNodes = rebaseRoots(
 			change,
 			over.change,
 			affectedBaseFields,
 			nodesToRebase,
 			rebasedNodeToParent,
+			rebaseVersion,
 		);
 		const crossFieldTable: RebaseTable = {
+			rebaseVersion,
 			entries: newDetachedEntryMap(),
 			newChange: change,
 			baseChange: over.change,
@@ -1030,7 +1039,12 @@ export class ModularChangeFamily
 			revertConstraintState,
 		);
 
-		const fieldsWithRootChanges = getFieldsWithRootChanges(
+		const fieldsWithRootMoves = getFieldsWithRootMoves(
+			crossFieldTable.rebasedRootNodes,
+			change.nodeAliases,
+		);
+
+		const fieldToRootChanges = getFieldToRootChanges(
 			crossFieldTable.rebasedRootNodes,
 			change.nodeAliases,
 		);
@@ -1042,7 +1056,9 @@ export class ModularChangeFamily
 				rebasedNodes,
 				crossFieldTable.rebasedNodeToParent,
 				change.nodeAliases,
-				fieldsWithRootChanges,
+				crossFieldTable.rebasedRootNodes,
+				fieldsWithRootMoves,
+				fieldToRootChanges,
 			),
 			nodeChanges: rebasedNodes,
 			nodeToParent: crossFieldTable.rebasedNodeToParent,
@@ -1051,7 +1067,8 @@ export class ModularChangeFamily
 				rebasedNodes,
 				crossFieldTable.rebasedNodeToParent,
 				change.nodeAliases,
-				fieldsWithRootChanges,
+				fieldsWithRootMoves,
+				fieldToRootChanges,
 			),
 			// TODO: Do we need to include aliases for node changesets added during rebasing?
 			nodeAliases: change.nodeAliases,
@@ -1067,6 +1084,7 @@ export class ModularChangeFamily
 			builds: change.builds,
 			destroys: change.destroys,
 			refreshers: change.refreshers,
+			rebaseVersion,
 		});
 
 		// XXX: This is an expensive assert which should be disabled before merging.
@@ -1177,6 +1195,7 @@ export class ModularChangeFamily
 			genId,
 			new RebaseNodeManagerI(crossFieldTable, fieldId),
 			metadata,
+			crossFieldTable.rebaseVersion,
 		);
 
 		const rebasedFieldChange: FieldChange = {
@@ -1301,6 +1320,7 @@ export class ModularChangeFamily
 				genId,
 				new RebaseNodeManagerI(crossFieldTable, context.fieldId, allowInval),
 				rebaseMetadata,
+				crossFieldTable.rebaseVersion,
 			),
 		);
 	}
@@ -1391,13 +1411,30 @@ export class ModularChangeFamily
 					metadata,
 				);
 			} else {
+				const baseDetachLocation = table.baseChange.rootNodes.detachLocations.getFirst(
+					parentBase.root,
+					1,
+				).value;
+
 				assignRootChange(
 					table.rebasedRootNodes,
 					table.rebasedNodeToParent,
 					renamedRoot,
 					baseNodeId,
-					table.baseChange.rootNodes.detachLocations.getFirst(parentBase.root, 1).value,
+					baseDetachLocation,
+					table.rebaseVersion,
 				);
+
+				// We need to make sure the rebased changeset includes the detach location,
+				// so we add that field to `affectedBaseFields` unless it's already been processed.
+				if (
+					baseDetachLocation !== undefined &&
+					!table.baseFieldToContext.has(
+						fieldChangeFromId(table.baseChange, baseDetachLocation),
+					)
+				) {
+					table.affectedBaseFields.set(fieldIdKeyFromFieldId(baseDetachLocation), true);
+				}
 			}
 
 			return;
@@ -1479,6 +1516,7 @@ export class ModularChangeFamily
 				genId,
 				manager,
 				revisionMetadata,
+				crossFieldTable.rebaseVersion,
 			);
 
 			const rebasedFieldChange: FieldChange = {
@@ -1664,7 +1702,9 @@ export class ModularChangeFamily
 		nodeMap: ChangeAtomIdBTree<NodeChangeset>,
 		nodeToParent: ChangeAtomIdBTree<NodeLocation>,
 		aliases: ChangeAtomIdBTree<NodeId>,
-		fieldsWithRootChanges: TupleBTree<FieldIdKey, boolean>,
+		roots: RootNodeTable,
+		fieldsWithRootMoves: TupleBTree<FieldIdKey, boolean>,
+		fieldsToRootChanges: TupleBTree<FieldIdKey, ChangeAtomId[]>,
 	): FieldChangeMap | undefined {
 		if (changeset === undefined) {
 			return undefined;
@@ -1675,12 +1715,46 @@ export class ModularChangeFamily
 			const handler = getChangeHandler(this.fieldKinds, fieldChange.fieldKind);
 
 			const prunedFieldChangeset = handler.rebaser.prune(fieldChange.change, (nodeId) =>
-				this.pruneNodeChange(nodeId, nodeMap, nodeToParent, aliases, fieldsWithRootChanges),
+				this.pruneNodeChange(
+					nodeId,
+					nodeMap,
+					nodeToParent,
+					aliases,
+					roots,
+					fieldsWithRootMoves,
+					fieldsToRootChanges,
+				),
 			);
 
 			const fieldId: FieldId = { nodeId: parentId, field };
+			const fieldIdKey = fieldIdKeyFromFieldId(fieldId);
+			const rootsWithChanges = fieldsToRootChanges.get(fieldIdKey) ?? [];
+			let hasRootWithNodeChange = false;
+			for (const rootId of rootsWithChanges) {
+				const nodeId =
+					getFromChangeAtomIdMap(roots.nodeChanges, rootId) ?? fail("No root change found");
+
+				const isRootChangeEmpty =
+					this.pruneNodeChange(
+						nodeId,
+						nodeMap,
+						nodeToParent,
+						aliases,
+						roots,
+						fieldsWithRootMoves,
+						fieldsToRootChanges,
+					) === undefined;
+
+				if (isRootChangeEmpty) {
+					roots.nodeChanges.delete([rootId.revision, rootId.localId]);
+					tryRemoveDetachLocation(roots, rootId, 1);
+				} else {
+					hasRootWithNodeChange = true;
+				}
+			}
+
 			const hasRootChanges =
-				fieldsWithRootChanges.get(fieldIdKeyFromFieldId(fieldId)) === true;
+				hasRootWithNodeChange || fieldsWithRootMoves.get(fieldIdKey) === true;
 
 			if (!handler.isEmpty(prunedFieldChangeset) || hasRootChanges) {
 				prunedChangeset.set(field, { ...fieldChange, change: brand(prunedFieldChangeset) });
@@ -1695,20 +1769,32 @@ export class ModularChangeFamily
 		nodeMap: ChangeAtomIdBTree<NodeChangeset>,
 		nodeToParent: ChangeAtomIdBTree<NodeLocation>,
 		aliases: ChangeAtomIdBTree<NodeId>,
-		fieldsWithRootChanges: TupleBTree<FieldIdKey, boolean>,
+		fieldsWithRootMoves: TupleBTree<FieldIdKey, boolean>,
+		fieldsToRootChanges: TupleBTree<FieldIdKey, ChangeAtomId[]>,
 	): RootNodeTable {
 		const pruned: RootNodeTable = { ...roots, nodeChanges: newTupleBTree() };
-		for (const [rootId, nodeId] of roots.nodeChanges.entries()) {
-			const prunedId = this.pruneNodeChange(
-				nodeId,
-				nodeMap,
-				nodeToParent,
-				aliases,
-				fieldsWithRootChanges,
-			);
+		for (const [rootIdKey, nodeId] of roots.nodeChanges.entries()) {
+			const rootId: ChangeAtomId = { revision: rootIdKey[0], localId: rootIdKey[1] };
+			const hasDetachLocation = roots.detachLocations.getFirst(rootId, 1).value !== undefined;
+
+			// If the root has a detach location it should be pruned by recursion when pruning the field it was detached from.
+			const prunedId = hasDetachLocation
+				? nodeId
+				: this.pruneNodeChange(
+						nodeId,
+						nodeMap,
+						nodeToParent,
+						aliases,
+						roots,
+						fieldsWithRootMoves,
+						fieldsToRootChanges,
+					);
+
 			if (prunedId !== undefined) {
-				pruned.nodeChanges.set(rootId, prunedId);
+				pruned.nodeChanges.set(rootIdKey, prunedId);
 			}
+
+			tryRemoveDetachLocation(pruned, rootId, 1);
 		}
 
 		return pruned;
@@ -1719,7 +1805,9 @@ export class ModularChangeFamily
 		nodes: ChangeAtomIdBTree<NodeChangeset>,
 		nodeToParent: ChangeAtomIdBTree<NodeLocation>,
 		aliases: ChangeAtomIdBTree<NodeId>,
-		fieldsWithRootChanges: TupleBTree<FieldIdKey, boolean>,
+		roots: RootNodeTable,
+		fieldsWithRootMoves: TupleBTree<FieldIdKey, boolean>,
+		fieldsToRootChanges: TupleBTree<FieldIdKey, ChangeAtomId[]>,
 	): NodeId | undefined {
 		const changeset = nodeChangeFromId(nodes, aliases, nodeId);
 		const prunedFields =
@@ -1730,7 +1818,9 @@ export class ModularChangeFamily
 						nodes,
 						nodeToParent,
 						aliases,
-						fieldsWithRootChanges,
+						roots,
+						fieldsWithRootMoves,
+						fieldsToRootChanges,
 					)
 				: undefined;
 
@@ -1740,10 +1830,7 @@ export class ModularChangeFamily
 		}
 
 		if (isEmptyNodeChangeset(prunedChange)) {
-			const nodeIdKey: [RevisionTag | undefined, ChangesetLocalId] = [
-				nodeId.revision,
-				nodeId.localId,
-			];
+			const nodeIdKey: ChangeAtomIdKey = [nodeId.revision, nodeId.localId];
 
 			// TODO: Shouldn't we also delete all aliases associated with this node?
 			nodes.delete(nodeIdKey);
@@ -1796,7 +1883,12 @@ export class ModularChangeFamily
 			fieldChanges: updatedFields,
 			nodeChanges: updatedNodes,
 			nodeToParent: updatedNodeToParent,
-			rootNodes: replaceRootTableRevision(change.rootNodes, oldRevisions, newRevision),
+			rootNodes: replaceRootTableRevision(
+				change.rootNodes,
+				oldRevisions,
+				newRevision,
+				change.nodeAliases,
+			),
 
 			// We've updated all references to old node IDs, so we no longer need an alias table.
 			nodeAliases: newTupleBTree(),
@@ -2193,7 +2285,7 @@ function invertBuilds(
  */
 export function* relevantRemovedRoots(
 	change: ModularChangeset,
-	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): Iterable<DeltaDetachedNodeId> {
 	const rootIds: ChangeAtomIdRangeMap<boolean> = newChangeAtomIdRangeMap();
 	addAttachesToSet(change, rootIds);
@@ -2350,7 +2442,7 @@ export function updateRefreshers(
  */
 export function intoDelta(
 	taggedChange: TaggedChange<ModularChangeset>,
-	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): DeltaRoot {
 	const change = taggedChange.change;
 	const rootDelta: Mutable<DeltaRoot> = {};
@@ -2445,7 +2537,7 @@ function intoDeltaImpl(
 	change: FieldChangeMap,
 	nodeChanges: ChangeAtomIdBTree<NodeChangeset>,
 	nodeAliases: ChangeAtomIdBTree<NodeId>,
-	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): Map<FieldKey, DeltaFieldChanges> {
 	const delta: Map<FieldKey, DeltaFieldChanges> = new Map();
 
@@ -2468,7 +2560,7 @@ function deltaFromNodeChange(
 	change: NodeChangeset,
 	nodeChanges: ChangeAtomIdBTree<NodeChangeset>,
 	nodeAliases: ChangeAtomIdBTree<NodeId>,
-	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): DeltaFieldMap {
 	if (change.fieldChanges !== undefined) {
 		return intoDeltaImpl(change.fieldChanges, nodeChanges, nodeAliases, fieldKinds);
@@ -2487,7 +2579,7 @@ function deltaFromNodeChange(
  * For example, when rebasing change B from a local branch [A, B, C] over a branch [X, Y], the `baseRevisions` must include
  * revisions [A⁻¹ X, Y, A] if rebasing over the composition of all those changes, or
  * revision [A⁻¹] for the first rebase, then [X], etc. if rebasing over edits individually.
- * @returns - RebaseRevisionMetadata to be passed to `FieldChangeRebaser.rebase`*
+ * @returns RebaseRevisionMetadata to be passed to `FieldChangeRebaser.rebase`*
  */
 export function rebaseRevisionMetadataFromInfo(
 	revInfos: readonly RevisionInfo[],
@@ -2518,19 +2610,19 @@ function isEmptyNodeChangeset(change: NodeChangeset): boolean {
 }
 
 export function getFieldKind(
-	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 	kind: FieldKindIdentifier,
-): FieldKindWithEditor {
+): FlexFieldKind {
 	if (kind === genericFieldKind.identifier) {
 		return genericFieldKind;
 	}
 	const fieldKind = fieldKinds.get(kind);
 	assert(fieldKind !== undefined, 0x3ad /* Unknown field kind */);
-	return withEditor(fieldKind);
+	return fieldKind;
 }
 
 export function getChangeHandler(
-	fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 	kind: FieldKindIdentifier,
 ): FieldChangeHandler<unknown> {
 	return getFieldKind(fieldKinds, kind).changeHandler;
@@ -2559,6 +2651,8 @@ interface InvertContext {
 }
 
 interface RebaseTable {
+	readonly rebaseVersion: RebaseVersion;
+
 	// Entries are keyed on attach ID
 	readonly entries: CrossFieldMap<RebaseDetachedNodeEntry>;
 	readonly baseChange: ModularChangeset;
@@ -2613,6 +2707,10 @@ function newComposeTable(
 	pendingCompositions: PendingCompositions,
 ): ComposeTable {
 	return {
+		rebaseVersion: Math.max(
+			baseChange.rebaseVersion,
+			newChange.rebaseVersion,
+		) as RebaseVersion,
 		entries: newDetachedEntryMap(),
 		baseChange,
 		newChange,
@@ -2630,6 +2728,8 @@ function newComposeTable(
 }
 
 interface ComposeTable {
+	readonly rebaseVersion: RebaseVersion;
+
 	// Entries are keyed on detach ID
 	readonly entries: ChangeAtomIdRangeMap<DetachedNodeEntry>;
 	readonly baseChange: ModularChangeset;
@@ -2721,6 +2821,7 @@ class InvertNodeManagerI implements InvertNodeManager {
 					attachEntry.value,
 					nodeChange,
 					this.fieldId,
+					this.table.change.rebaseVersion,
 				);
 			}
 		}
@@ -2913,6 +3014,7 @@ class RebaseNodeManagerI implements RebaseNodeManager {
 					baseAttachId,
 					nodeChange,
 					this.fieldId,
+					this.table.rebaseVersion,
 				);
 			}
 
@@ -2971,6 +3073,13 @@ class RebaseNodeManagerI implements RebaseNodeManager {
 		return { start: id, value: attachEntry.value !== undefined, length: countToProcess };
 	}
 
+	public getBaseRename(
+		id: ChangeAtomId,
+		count: number,
+	): RangeQueryResult<ChangeAtomId | undefined> {
+		return this.table.baseChange.rootNodes.oldToNewId.getFirst(id, count);
+	}
+
 	public getNewRenameForBaseRename(
 		baseRenameTo: ChangeAtomId,
 		count: number,
@@ -2982,14 +3091,27 @@ class RebaseNodeManagerI implements RebaseNodeManager {
 			countToProcess,
 		);
 
+		const attachEntry = getFirstAttachField(
+			this.table.baseChange.crossFieldKeys,
+			baseRenameTo,
+			countToProcess,
+		);
+
+		countToProcess = attachEntry.length;
+		if (attachEntry.value !== undefined) {
+			// These nodes are attached in the output context of the base changeset.
+			return { value: undefined, length: countToProcess };
+		}
+
 		countToProcess = inputEntry.length;
 		const inputId = inputEntry.value;
 
 		const moveEntry = this.table.entries.getFirst(inputId, countToProcess);
 
 		countToProcess = moveEntry.length;
-		if (moveEntry.value?.detachId !== undefined) {
-			return { ...moveEntry, value: moveEntry.value.detachId };
+		if (moveEntry.value !== undefined) {
+			// XXX
+			return { ...moveEntry, value: moveEntry.value.bonusId ?? moveEntry.value.detachId };
 		}
 
 		return this.table.newChange.rootNodes.oldToNewId.getFirst(inputId, countToProcess);
@@ -3010,9 +3132,10 @@ function assignRootChange(
 	detachId: ChangeAtomId,
 	nodeId: NodeId,
 	detachLocation: FieldId | undefined,
+	rebaseVersion: RebaseVersion,
 ): void {
 	assert(
-		!supportChangeHandlingBackCompat || detachLocation !== undefined,
+		rebaseVersion >= 2 || detachLocation !== undefined,
 		"All root changes need a detach location to support compatibility with older client versions",
 	);
 
@@ -3022,6 +3145,7 @@ function assignRootChange(
 		setInChangeAtomIdMap(nodeToParent, nodeId, { root: detachId });
 	}
 
+	// XXX: Invalidate field?
 	table.detachLocations.set(detachId, 1, detachLocation);
 }
 
@@ -3083,6 +3207,7 @@ class ComposeNodeManagerI implements ComposeNodeManager {
 			);
 
 			countToProcess = newRenameEntry.length;
+
 			result = {
 				value: { nodeChange: rootEntry.value, detachId: newRenameEntry.value },
 				length: countToProcess,
@@ -3131,13 +3256,13 @@ class ComposeNodeManagerI implements ComposeNodeManager {
 			);
 		}
 
-		const detachEntry = getFirstDetachField(
+		const baseDetachEntry = getFirstDetachField(
 			this.table.baseChange.crossFieldKeys,
 			baseAttachId,
 			countToProcess,
 		);
 
-		countToProcess = detachEntry.length;
+		countToProcess = baseDetachEntry.length;
 
 		const baseRootIdEntry = firstDetachIdFromAttachId(
 			this.table.baseChange.rootNodes,
@@ -3148,35 +3273,12 @@ class ComposeNodeManagerI implements ComposeNodeManager {
 
 		const baseDetachId = baseRootIdEntry.value;
 
-		const baseDetachLocationEntry = this.table.baseChange.rootNodes.detachLocations.getFirst(
-			baseDetachId,
-			countToProcess,
-		);
-		countToProcess = baseDetachLocationEntry.length;
-
-		if (newAttachEntry.value === undefined) {
-			const newOutputDetachLocationEntry =
-				this.table.newChange.rootNodes.outputDetachLocations.getFirst(
-					newDetachId,
-					countToProcess,
-				);
-
-			countToProcess = newOutputDetachLocationEntry.length;
-
-			this.table.composedRootNodes.outputDetachLocations.delete(newDetachId, countToProcess);
-			this.table.composedRootNodes.outputDetachLocations.set(
-				baseDetachId,
-				countToProcess,
-				newOutputDetachLocationEntry.value ?? this.fieldId,
-			);
-		}
-
-		if (detachEntry.value !== undefined) {
+		if (baseDetachEntry.value !== undefined) {
 			// The base change moves these nodes.
 			const prevEntry =
-				this.table.entries.getFirst(baseAttachId, detachEntry.length).value ?? {};
+				this.table.entries.getFirst(baseAttachId, baseDetachEntry.length).value ?? {};
 
-			this.table.entries.set(baseAttachId, detachEntry.length, {
+			this.table.entries.set(baseAttachId, baseDetachEntry.length, {
 				...prevEntry,
 				detachId: newDetachId,
 			});
@@ -3193,18 +3295,24 @@ class ComposeNodeManagerI implements ComposeNodeManager {
 			this.table.movedCrossFieldKeys.set(
 				{ ...newDetachId, target: CrossFieldTarget.Source },
 				countToProcess,
-				detachEntry.value,
+				baseDetachEntry.value,
 			);
 
-			this.invalidateBaseFields([detachEntry.value]);
+			this.invalidateBaseFields([baseDetachEntry.value]);
 		} else {
+			const baseDetachLocationEntry = this.table.baseChange.rootNodes.detachLocations.getFirst(
+				baseDetachId,
+				countToProcess,
+			);
+			countToProcess = baseDetachLocationEntry.length;
+
 			// These nodes were detached in the base change's input context,
 			// so the net effect of the two changes is a rename.
 			appendNodeRename(
 				this.table.composedRootNodes,
 				baseAttachId,
 				newDetachId,
-				detachEntry.length,
+				baseDetachEntry.length,
 				this.table.baseChange.rootNodes,
 				baseDetachLocationEntry.value ?? this.fieldId,
 			);
@@ -3213,6 +3321,22 @@ class ComposeNodeManagerI implements ComposeNodeManager {
 				{ ...newDetachId, target: CrossFieldTarget.Source },
 				countToProcess,
 				true,
+			);
+		}
+
+		if (newAttachEntry.value === undefined) {
+			const newOutputDetachLocationEntry =
+				this.table.newChange.rootNodes.outputDetachLocations.getFirst(
+					newDetachId,
+					countToProcess,
+				);
+
+			countToProcess = newOutputDetachLocationEntry.length;
+
+			this.table.composedRootNodes.outputDetachLocations.set(
+				newDetachId,
+				countToProcess,
+				newOutputDetachLocationEntry.value ?? this.fieldId,
 			);
 		}
 
@@ -3264,6 +3388,7 @@ class ComposeNodeManagerI implements ComposeNodeManager {
 					baseDetachId,
 					newChanges,
 					this.fieldId,
+					this.table.rebaseVersion,
 				);
 			}
 		}
@@ -3322,8 +3447,8 @@ class ComposeNodeManagerI implements ComposeNodeManager {
 				);
 			}
 
-			// Note that while change2 should already have this key, if change1 may have a rollback for the same ID in a different location.
-			// In that case change1's attach should be canceled out by a detach from change2.
+			// Note that while change2 should already have this key, change1 may have a rollback for the same ID in a different location.
+			// In that case, change1's attach should be canceled out by a detach from change2.
 			// Here we make sure that the composed change has the correct location (this field) for the attach ID.
 			this.table.movedCrossFieldKeys.set(
 				{ target: CrossFieldTarget.Destination, ...newAttachId },
@@ -3367,6 +3492,7 @@ class ComposeNodeManagerI implements ComposeNodeManager {
 
 function makeModularChangeset(
 	props: {
+		rebaseVersion?: RebaseVersion;
 		fieldChanges?: FieldChangeMap;
 		nodeChanges?: ChangeAtomIdBTree<NodeChangeset>;
 		rootNodes?: RootNodeTable;
@@ -3385,6 +3511,7 @@ function makeModularChangeset(
 	},
 ): ModularChangeset {
 	const changeset: Mutable<ModularChangeset> = {
+		rebaseVersion: props.rebaseVersion ?? 1,
 		fieldChanges: props.fieldChanges ?? new Map(),
 		nodeChanges: props.nodeChanges ?? newTupleBTree(),
 		rootNodes: props.rootNodes ?? newRootTable(),
@@ -3427,7 +3554,7 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 
 	public constructor(
 		family: ChangeFamily<ChangeFamilyEditor, ModularChangeset>,
-		private readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FieldKindWithEditor>,
+		private readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 		changeReceiver: (change: TaggedChange<ModularChangeset>) => void,
 	) {
 		super(family, changeReceiver);
@@ -3955,7 +4082,10 @@ export function normalizeFieldId(
 /**
  * @returns The canonical form of nodeId, according to nodeAliases
  */
-function normalizeNodeId(nodeId: NodeId, nodeAliases: ChangeAtomIdBTree<NodeId>): NodeId {
+export function normalizeNodeId(
+	nodeId: NodeId,
+	nodeAliases: ChangeAtomIdBTree<NodeId>,
+): NodeId {
 	let currentId = nodeId;
 	let cycleProbeId: NodeId | undefined = nodeId;
 
@@ -4052,6 +4182,7 @@ function rebaseRoots(
 	affectedBaseFields: TupleBTree<FieldIdKey, boolean>,
 	nodesToRebase: [newChangeset: NodeId, baseChangeset: NodeId][],
 	rebasedNodeToParent: ChangeAtomIdBTree<NodeLocation>,
+	rebaseVersion: RebaseVersion,
 ): RootNodeTable {
 	const rebasedRoots = newRootTable();
 	for (const renameEntry of change.rootNodes.oldToNewId.entries()) {
@@ -4082,61 +4213,16 @@ function rebaseRoots(
 				renamedDetachId,
 				nodeId,
 				change.rootNodes.detachLocations.getFirst(detachId, 1).value,
+				rebaseVersion,
 			);
 		}
 	}
 
 	for (const entry of change.rootNodes.outputDetachLocations.entries()) {
-		rebaseOutputDetachLocation(
-			entry.start,
-			entry.length,
-			entry.value,
-			rebasedRoots,
-			change,
-			base,
-		);
+		rebasedRoots.outputDetachLocations.set(entry.start, entry.length, entry.value);
 	}
 
 	return rebasedRoots;
-}
-
-function rebaseOutputDetachLocation(
-	rootId: ChangeAtomId,
-	count: number,
-	fieldId: FieldId,
-	rebasedRoots: RootNodeTable,
-	newChange: ModularChangeset,
-	baseChange: ModularChangeset,
-): void {
-	let countToProcess = count;
-	const baseRenameEntry = firstAttachIdFromDetachId(
-		baseChange.rootNodes,
-		rootId,
-		countToProcess,
-	);
-	countToProcess = baseRenameEntry.length;
-	const rebasedRootId = baseRenameEntry.value;
-
-	// const baseAttachEntry = getFirstAttachField(
-	// 	baseChange.crossFieldKeys,
-	// 	rebasedRootId,
-	// 	countToProcess,
-	// );
-	// countToProcess = baseAttachEntry.length;
-
-	rebasedRoots.outputDetachLocations.set(rebasedRootId, count, fieldId);
-
-	const countRemaining = count - countToProcess;
-	if (countRemaining > 0) {
-		rebaseOutputDetachLocation(
-			offsetChangeAtomId(rootId, countToProcess),
-			countRemaining,
-			fieldId,
-			rebasedRoots,
-			newChange,
-			baseChange,
-		);
-	}
 }
 
 function rebaseRename(
@@ -4236,13 +4322,13 @@ function composeRootTables(
 	removedCrossFieldKeys: CrossFieldRangeTable<boolean>,
 	pendingCompositions: PendingCompositions,
 ): RootNodeTable {
-	const mergedTable = cloneRootTable(change1.rootNodes);
+	const composedTable = cloneRootTable(change1.rootNodes);
 
 	for (const renameEntry of change2.rootNodes.oldToNewId.entries()) {
 		composeRename(
 			change1,
 			change2,
-			mergedTable,
+			composedTable,
 			renameEntry.start,
 			renameEntry.value,
 			renameEntry.length,
@@ -4275,18 +4361,77 @@ function composeRootTables(
 				);
 			} else {
 				assignRootChange(
-					mergedTable,
+					composedTable,
 					composedNodeToParent,
 					detachId1,
 					nodeId2,
 					change1.rootNodes.detachLocations.getFirst(detachId1, 1).value ??
 						change2.rootNodes.detachLocations.getFirst(detachId2, 1).value,
+					Math.max(change1.rebaseVersion, change2.rebaseVersion) as RebaseVersion,
 				);
 			}
 		}
 	}
 
-	return mergedTable;
+	for (const outputDetachEntry of change1.rootNodes.outputDetachLocations.entries()) {
+		composeOutputDetachLocation(
+			outputDetachEntry.start,
+			outputDetachEntry.length,
+			outputDetachEntry.value,
+			change2,
+			composedTable,
+		);
+	}
+
+	for (const entry of change2.rootNodes.outputDetachLocations.entries()) {
+		composedTable.outputDetachLocations.set(entry.start, entry.length, entry.value);
+	}
+
+	return composedTable;
+}
+
+function composeOutputDetachLocation(
+	outputDetachId1: ChangeAtomId,
+	count: number,
+	detachLocation: FieldId,
+	change2: ModularChangeset,
+	composedTable: RootNodeTable,
+): void {
+	let countToProcess = count;
+	const renameEntry = firstAttachIdFromDetachId(
+		change2.rootNodes,
+		outputDetachId1,
+		countToProcess,
+	);
+	countToProcess = renameEntry.length;
+
+	const attachEntry = getFirstAttachField(
+		change2.crossFieldKeys,
+		renameEntry.value,
+		countToProcess,
+	);
+	countToProcess = attachEntry.length;
+
+	composedTable.outputDetachLocations.delete(outputDetachId1, countToProcess);
+
+	if (attachEntry.value === undefined) {
+		// We update the key for the detach location to the renamed ID of the root in the composed output context.
+		composedTable.outputDetachLocations.set(renameEntry.value, countToProcess, detachLocation);
+	} else {
+		// These nodes are attached by `change2` and thus attached in the composed output context,
+		// so there should be no output detach location.
+	}
+
+	const countRemaining = count - countToProcess;
+	if (countRemaining > 0) {
+		composeOutputDetachLocation(
+			offsetChangeAtomId(outputDetachId1, countToProcess),
+			countRemaining,
+			detachLocation,
+			change2,
+			composedTable,
+		);
+	}
 }
 
 function composeRename(
@@ -4384,6 +4529,7 @@ function invertRootTable(change: ModularChangeset, isRollback: boolean): RootNod
 				renamedId,
 				nodeId,
 				change.rootNodes.detachLocations.getFirst(detachId, 1).value,
+				change.rebaseVersion,
 			);
 		}
 	}
@@ -4475,6 +4621,10 @@ export function addNodeRename(
 	count: number,
 	detachLocation: FieldId | undefined,
 ): void {
+	if (areEqualChangeAtomIds(oldId, newId)) {
+		return;
+	}
+
 	for (const entry of table.oldToNewId.getAll2(oldId, count)) {
 		assert(
 			entry.value === undefined ||
@@ -4541,6 +4691,8 @@ function appendNodeRename(
 		detachLocation,
 	);
 
+	tryRemoveDetachLocation(composedTable, newId, countToProcess);
+
 	if (countToProcess < count) {
 		const countRemaining = count - countToProcess;
 		appendNodeRename(
@@ -4551,6 +4703,35 @@ function appendNodeRename(
 			change1Table,
 			detachLocation,
 		);
+	}
+}
+
+function tryRemoveDetachLocation(
+	roots: RootNodeTable,
+	rootId: ChangeAtomId,
+	count: number,
+): void {
+	let countProcessed = count;
+	const renameEntry = roots.oldToNewId.getFirst(rootId, countProcessed);
+	countProcessed = renameEntry.length;
+
+	const outputDetachEntry = roots.outputDetachLocations.getFirst(rootId, countProcessed);
+	countProcessed = outputDetachEntry.length;
+
+	const nodeChangeEntry = rangeQueryChangeAtomIdMap(roots.nodeChanges, rootId, countProcessed);
+	countProcessed = nodeChangeEntry.length;
+
+	if (
+		nodeChangeEntry.value === undefined &&
+		renameEntry.value === undefined &&
+		outputDetachEntry.value === undefined
+	) {
+		roots.detachLocations.delete(rootId, countProcessed);
+	}
+
+	const countRemaining = count - countProcessed;
+	if (countRemaining > 0) {
+		tryRemoveDetachLocation(roots, offsetChangeAtomId(rootId, countProcessed), countRemaining);
 	}
 }
 
@@ -4572,6 +4753,7 @@ function replaceRootTableRevision(
 	table: RootNodeTable,
 	oldRevisions: Set<RevisionTag | undefined>,
 	newRevision: RevisionTag | undefined,
+	nodeAliases: ChangeAtomIdBTree<NodeId>,
 ): RootNodeTable {
 	const oldToNewId = table.oldToNewId.mapEntries(
 		(id) => replaceAtomRevisions(id, oldRevisions, newRevision),
@@ -4586,18 +4768,28 @@ function replaceRootTableRevision(
 	const nodeChanges: ChangeAtomIdBTree<NodeId> = newTupleBTree(
 		[...table.nodeChanges.entries()].map(([[revision, id], nodeId]) => [
 			[oldRevisions.has(revision) ? newRevision : revision, id],
-			replaceAtomRevisions(nodeId, oldRevisions, newRevision),
+			replaceAtomRevisions(normalizeNodeId(nodeId, nodeAliases), oldRevisions, newRevision),
 		]),
 	);
 
 	const detachLocations = table.detachLocations.mapEntries(
 		(id) => replaceAtomRevisions(id, oldRevisions, newRevision),
-		(fieldId) => replaceFieldIdRevision(fieldId, oldRevisions, newRevision),
+		(fieldId) =>
+			replaceFieldIdRevision(
+				normalizeFieldId(fieldId, nodeAliases),
+				oldRevisions,
+				newRevision,
+			),
 	);
 
 	const outputDetachLocations = table.outputDetachLocations.mapEntries(
 		(id) => replaceAtomRevisions(id, oldRevisions, newRevision),
-		(fieldId) => replaceFieldIdRevision(fieldId, oldRevisions, newRevision),
+		(fieldId) =>
+			replaceFieldIdRevision(
+				normalizeFieldId(fieldId, nodeAliases),
+				oldRevisions,
+				newRevision,
+			),
 	);
 
 	return { oldToNewId, newToOldId, nodeChanges, detachLocations, outputDetachLocations };
@@ -4618,13 +4810,51 @@ function offsetDetachedNodeEntry(entry: DetachedNodeEntry, count: number): Detac
 		: entry;
 }
 
-function getFieldsWithRootChanges(
+function getFieldsWithRootMoves(
 	roots: RootNodeTable,
 	nodeAliases: ChangeAtomIdBTree<NodeId>,
 ): TupleBTree<FieldIdKey, boolean> {
 	const fields: TupleBTree<FieldIdKey, boolean> = newTupleBTree();
-	for (const { value: fieldId } of roots.detachLocations.entries()) {
-		fields.set(fieldIdKeyFromFieldId(normalizeFieldId(fieldId, nodeAliases)), true);
+	for (const { start: rootId, value: fieldId, length } of roots.detachLocations.entries()) {
+		let isRootMoved = false;
+		for (const renameEntry of roots.oldToNewId.getAll2(rootId, length)) {
+			if (renameEntry.value !== undefined) {
+				isRootMoved = true;
+			}
+		}
+
+		for (const outputDetachEntry of roots.outputDetachLocations.getAll2(rootId, length)) {
+			if (outputDetachEntry.value !== undefined) {
+				isRootMoved = true;
+			}
+		}
+
+		if (isRootMoved) {
+			fields.set(fieldIdKeyFromFieldId(normalizeFieldId(fieldId, nodeAliases)), true);
+		}
+	}
+
+	return fields;
+}
+
+function getFieldToRootChanges(
+	roots: RootNodeTable,
+	nodeAliases: ChangeAtomIdBTree<NodeId>,
+): TupleBTree<FieldIdKey, ChangeAtomId[]> {
+	const fields: TupleBTree<FieldIdKey, ChangeAtomId[]> = newTupleBTree();
+	for (const rootIdKey of roots.nodeChanges.keys()) {
+		const rootId: ChangeAtomId = { revision: rootIdKey[0], localId: rootIdKey[1] };
+		const detachLocation = roots.detachLocations.getFirst(rootId, 1).value;
+		if (detachLocation !== undefined) {
+			const fieldIdKey = fieldIdKeyFromFieldId(normalizeFieldId(detachLocation, nodeAliases));
+			let rootsInField = fields.get(fieldIdKey);
+			if (rootsInField === undefined) {
+				rootsInField = [];
+				fields.set(fieldIdKey, rootsInField);
+			}
+
+			rootsInField.push(rootId);
+		}
 	}
 
 	return fields;
