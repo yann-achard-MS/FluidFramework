@@ -3,12 +3,17 @@
  * Licensed under the MIT License.
  */
 
-import type {
-	ChangeAtomId,
-	FieldKey,
-	NormalizedFieldUpPath,
-	NormalizedUpPath,
-	TreeChunk,
+import { UsageError } from "@fluidframework/telemetry-utils/internal";
+import {
+	type ChangeAtomId,
+	type FieldKey,
+	type FieldUpPath,
+	type UpPath,
+	type TreeChunk,
+	type NormalizedUpPath,
+	type NormalizedFieldUpPath,
+	rootFieldKey,
+	makeDetachedNodeId,
 } from "../../core/index.js";
 
 import type {
@@ -51,12 +56,14 @@ export class LocationBasedDataEditor
 		private readonly locator: Locator,
 	) {}
 
-	public addNodeExistsConstraint(path: NormalizedUpPath): void {
-		this.idBasedEditor.addNodeExistsConstraint(path);
+	public addNodeExistsConstraint(path: UpPath): void {
+		const normal = normalizeUpPath(path, this.locator);
+		this.idBasedEditor.addNodeExistsConstraint(normal);
 	}
 
-	public addNodeExistsConstraintOnRevert(path: NormalizedUpPath): void {
-		this.idBasedEditor.addNodeExistsConstraintOnRevert(path);
+	public addNodeExistsConstraintOnRevert(path: UpPath): void {
+		const normal = normalizeUpPath(path, this.locator);
+		this.idBasedEditor.addNodeExistsConstraintOnRevert(normal);
 	}
 
 	public buildRoots(content: TreeChunk): DetachedRootsLocation {
@@ -65,10 +72,9 @@ export class LocationBasedDataEditor
 		return locations;
 	}
 
-	public valueField(
-		field: NormalizedFieldUpPath,
-	): RequiredFieldEditor<TreeChunk, DetachedRootLocation> {
-		const lowLevelEditor = this.idBasedEditor.valueField(field);
+	public valueField(field: FieldUpPath): RequiredFieldEditor<TreeChunk, DetachedRootLocation> {
+		const normal = normalizeFieldUpPath(field, this.locator);
+		const lowLevelEditor = this.idBasedEditor.valueField(normal);
 		const locator = this.locator;
 		const editBuilder = {
 			set: (newContent: TreeChunk): void => {
@@ -83,9 +89,10 @@ export class LocationBasedDataEditor
 	}
 
 	public optionalField(
-		field: NormalizedFieldUpPath,
+		field: FieldUpPath,
 	): OptionalFieldEditor<TreeChunk, DetachedRootLocation> {
-		const lowLevelEditor = this.idBasedEditor.optionalField(field);
+		const normal = normalizeFieldUpPath(field, this.locator);
+		const lowLevelEditor = this.idBasedEditor.optionalField(normal);
 		const locator = this.locator;
 		const editBuilder = {
 			set: (newContent: TreeChunk | undefined, wasEmpty: boolean): void => {
@@ -107,19 +114,22 @@ export class LocationBasedDataEditor
 	}
 
 	public move(
-		sourceField: NormalizedFieldUpPath,
+		sourceField: FieldUpPath,
 		sourceIndex: number,
 		count: number,
-		destinationField: NormalizedFieldUpPath,
+		destinationField: FieldUpPath,
 		destIndex: number,
 	): void {
-		this.idBasedEditor.move(sourceField, sourceIndex, count, destinationField, destIndex);
+		const normalSource = normalizeFieldUpPath(sourceField, this.locator);
+		const normalDestination = normalizeFieldUpPath(destinationField, this.locator);
+		this.idBasedEditor.move(normalSource, sourceIndex, count, normalDestination, destIndex);
 	}
 
 	public sequenceField(
-		field: NormalizedFieldUpPath,
+		field: FieldUpPath,
 	): SequenceFieldEditor<TreeChunk, DetachedRootsLocation> {
-		const lowLevelEditor = this.idBasedEditor.sequenceField(field);
+		const normal = normalizeFieldUpPath(field, this.locator);
+		const lowLevelEditor = this.idBasedEditor.sequenceField(normal);
 		const locator = this.locator;
 		const editBuilder = {
 			insert: (index: number, content: TreeChunk): void => {
@@ -134,5 +144,37 @@ export class LocationBasedDataEditor
 			},
 		};
 		return editBuilder;
+	}
+}
+
+function normalizeUpPath(path: UpPath, locator: Locator): NormalizedUpPath {
+	if (path.parent === undefined) {
+		if (path.parentField === rootFieldKey) {
+			return { ...path, parent: undefined, detachedNodeId: undefined };
+		} else {
+			const nodeId = locator.idFromLocation(path.parentField);
+			const detachedNodeId = makeDetachedNodeId(nodeId.revision, nodeId.localId);
+			return { ...path, parent: undefined, detachedNodeId };
+		}
+	} else {
+		return {
+			parent: normalizeUpPath(path.parent, locator),
+			parentField: path.parentField,
+			parentIndex: path.parentIndex,
+		};
+	}
+}
+
+function normalizeFieldUpPath(path: FieldUpPath, locator: Locator): NormalizedFieldUpPath {
+	if (path.parent === undefined) {
+		if (path.field === rootFieldKey) {
+			return { parent: undefined, field: rootFieldKey };
+		} else {
+			throw new UsageError(
+				"Editing only allowed on the root field or on fields under nodes with TreeStatus.InDocument or TreeStatus.Removed status",
+			);
+		}
+	} else {
+		return { parent: normalizeUpPath(path.parent, locator), field: path.field };
 	}
 }
