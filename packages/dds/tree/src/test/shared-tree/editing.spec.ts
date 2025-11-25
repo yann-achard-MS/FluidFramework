@@ -18,7 +18,7 @@ import {
 	type NormalizedUpPath,
 	type TreeNodeSchemaIdentifier,
 } from "../../core/index.js";
-import { Tree, type ITreeCheckout } from "../../shared-tree/index.js";
+import { Tree, TreeAlpha, type ITreeCheckout } from "../../shared-tree/index.js";
 import { type JsonCompatible, brand, makeArray } from "../../util/index.js";
 import {
 	checkoutWithContent,
@@ -45,6 +45,7 @@ import { fieldJsonCursor } from "../json/index.js";
 import { TreeStatus } from "../../feature-libraries/index.js";
 import { configuredSharedTree } from "../../treeFactory.js";
 import { FluidClientVersion } from "../../codec/index.js";
+import { asAlpha } from "../../api.js";
 
 const rootField: NormalizedFieldUpPath = {
 	parent: undefined,
@@ -3089,6 +3090,164 @@ describe("Editing", () => {
 					);
 				}
 			}
+		});
+
+		describe("cannot be edited while detached", () => {
+			const editError = validateUsageError(
+				`Edits and constraints on detached trees require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
+			);
+			describeForFormatsLessThan(
+				FluidClientVersion.vDetachedRoots,
+				"Edit removed array node",
+				(minVersionForCollab) => {
+					const sf = new SchemaFactory(undefined);
+					class Child extends sf.object("Child", {}) {}
+					class Parent extends sf.object("Parent", {
+						children: sf.optional(sf.array(Child)),
+					}) {}
+
+					const provider = new TestTreeProviderLite(
+						1,
+						configuredSharedTree({ minVersionForCollab }).getFactory(),
+					);
+					const config = new TreeViewConfiguration({
+						schema: Parent,
+					});
+					const viewA = provider.trees[0].viewWith(config);
+					viewA.initialize(new Parent({ children: [new Child({})] }));
+					provider.synchronizeMessages();
+
+					const hydratedArrayOnA = viewA.root.children ?? fail("Expected array to be present");
+					assert.equal(Tree.status(hydratedArrayOnA), TreeStatus.InDocument);
+					assert.equal(hydratedArrayOnA.length, 1);
+
+					viewA.root.children = undefined;
+
+					assert.equal(Tree.status(hydratedArrayOnA), TreeStatus.Removed);
+
+					assert.throws(() => hydratedArrayOnA.removeAt(0), editError);
+				},
+			);
+
+			describeForFormatsLessThan(
+				FluidClientVersion.vDetachedRoots,
+				"Edit removed map node",
+				(minVersionForCollab) => {
+					const sf = new SchemaFactory(undefined);
+					class Child extends sf.object("Child", {}) {}
+					class Parent extends sf.object("Parent", {
+						children: sf.optional(sf.map(Child)),
+					}) {}
+
+					const provider = new TestTreeProviderLite(
+						1,
+						configuredSharedTree({ minVersionForCollab }).getFactory(),
+					);
+					const config = new TreeViewConfiguration({
+						schema: Parent,
+					});
+					const viewA = provider.trees[0].viewWith(config);
+					viewA.initialize(new Parent({ children: [["c1", new Child({})]] }));
+					provider.synchronizeMessages();
+
+					const hydratedMapOnA = viewA.root.children ?? fail("Expected map to be present");
+					assert.equal(Tree.status(hydratedMapOnA), TreeStatus.InDocument);
+					assert.equal(hydratedMapOnA.size, 1);
+
+					viewA.root.children = undefined;
+
+					provider.synchronizeMessages();
+
+					assert.equal(Tree.status(hydratedMapOnA), TreeStatus.Removed);
+
+					assert.throws(() => hydratedMapOnA.set("c1", new Child({})), editError);
+				},
+			);
+
+			describeForFormatsLessThan(
+				FluidClientVersion.vDetachedRoots,
+				"Edit removed object node",
+				(minVersionForCollab) => {
+					const sf = new SchemaFactory(undefined);
+					class Child extends sf.object("Child", {}) {}
+					class Parent extends sf.object("Parent", {
+						child: sf.optional(Child),
+					}) {}
+
+					const provider = new TestTreeProviderLite(
+						1,
+						configuredSharedTree({ minVersionForCollab }).getFactory(),
+					);
+					const config = new TreeViewConfiguration({
+						schema: sf.optional(Parent),
+					});
+					const viewA = provider.trees[0].viewWith(config);
+					viewA.initialize(new Parent({ child: new Child({}) }));
+					provider.synchronizeMessages();
+
+					const hydratedObjectOnA = viewA.root ?? fail("Expected parent to be present");
+					assert.equal(Tree.status(hydratedObjectOnA), TreeStatus.InDocument);
+					assert.notEqual(hydratedObjectOnA.child, undefined);
+
+					viewA.root = undefined;
+
+					provider.synchronizeMessages();
+
+					assert.equal(Tree.status(hydratedObjectOnA), TreeStatus.Removed);
+
+					assert.throws(() => (hydratedObjectOnA.child = undefined), editError);
+				},
+			);
+
+			describeForFormatsLessThan(
+				FluidClientVersion.vDetachedRoots,
+				"Add constraints on node",
+				(minVersionForCollab) => {
+					const sf = new SchemaFactory(undefined);
+					class Child extends sf.object("Child", {}) {}
+					class Parent extends sf.object("Parent", {
+						child: sf.optional(Child),
+					}) {}
+
+					const provider = new TestTreeProviderLite(
+						1,
+						configuredSharedTree({ minVersionForCollab }).getFactory(),
+					);
+					const config = new TreeViewConfiguration({
+						schema: sf.optional(Parent),
+					});
+					const viewA = asAlpha(provider.trees[0].viewWith(config));
+					viewA.initialize(new Parent({ child: new Child({}) }));
+					provider.synchronizeMessages();
+
+					const hydratedObjectOnA = viewA.root ?? fail("Expected parent to be present");
+					assert.equal(Tree.status(hydratedObjectOnA), TreeStatus.InDocument);
+					assert.notEqual(hydratedObjectOnA.child, undefined);
+
+					viewA.root = undefined;
+
+					provider.synchronizeMessages();
+
+					assert.equal(Tree.status(hydratedObjectOnA), TreeStatus.Removed);
+
+					assert.throws(
+						() =>
+							viewA.runTransaction(() => {}, {
+								preconditions: [{ type: "nodeInDocument", node: hydratedObjectOnA }],
+							}),
+						editError,
+					);
+					assert.throws(
+						() =>
+							viewA.runTransaction(() => {
+								return {
+									preconditionsOnRevert: [{ type: "nodeInDocument", node: hydratedObjectOnA }],
+								};
+							}),
+						editError,
+					);
+				},
+			);
 		});
 	});
 

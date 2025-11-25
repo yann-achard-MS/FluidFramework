@@ -85,6 +85,7 @@ export {
 	DetachedFieldIndex,
 	type ForestRootId,
 	getDetachedFieldContainingPath,
+	getDetachedFieldContainingFieldPath,
 	aboveRootPlaceholder,
 	type DeltaRoot,
 	type DeltaMark,

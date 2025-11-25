@@ -85,12 +85,6 @@ describe("LazyField", () => {
 			cursor,
 			detachedFieldAnchor,
 		);
-		const valueField = new LazyValueField(
-			context,
-			FieldKinds.required.identifier,
-			cursor,
-			detachedFieldAnchor,
-		);
 		cursor.free();
 		const expectedError = validateAssertionError(
 			/Editing only allowed on the root field or on fields under nodes with TreeStatus.InDocument or TreeStatus.Removed status/,
@@ -99,11 +93,6 @@ describe("LazyField", () => {
 			() => optionalField.editor.set(undefined, optionalField.length === undefined),
 			expectedError,
 		);
-		// TODO:CM
-		// assert.throws(
-		// 	() => valueField.editor.set(mapTreeFromCursor(singleJsonCursor({}))),
-		// 	expectedError,
-		// );
 	});
 
 	it("is", () => {

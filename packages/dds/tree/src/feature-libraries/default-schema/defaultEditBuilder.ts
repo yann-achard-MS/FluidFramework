@@ -18,6 +18,7 @@ import {
 	type ChangeRebaser,
 	type DeltaDetachedNodeId,
 	type DeltaRoot,
+	type FieldUpPath,
 	type NormalizedFieldUpPath,
 	type NormalizedUpPath,
 	type RevisionTag,
@@ -25,6 +26,8 @@ import {
 	type TreeChunk,
 	type UpPath,
 	compareFieldUpPaths,
+	getDetachedFieldContainingFieldPath,
+	rootField,
 	topDownPath,
 } from "../../core/index.js";
 import { brand } from "../../util/index.js";
@@ -221,10 +224,18 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	}
 
 	public addNodeExistsConstraint(path: NormalizedUpPath): void {
+		enforceMinVersionForCollabOnEditsToDetachedTrees(
+			{ parent: path.parent, field: path.parentField },
+			this.minVersionForCollab,
+		);
 		this.modularBuilder.addNodeExistsConstraint(path, this.mintRevisionTag());
 	}
 
 	public addNodeExistsConstraintOnRevert(path: NormalizedUpPath): void {
+		enforceMinVersionForCollabOnEditsToDetachedTrees(
+			{ parent: path.parent, field: path.parentField },
+			this.minVersionForCollab,
+		);
 		this.modularBuilder.addNodeExistsConstraintOnRevert(path, this.mintRevisionTag());
 	}
 
@@ -247,6 +258,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	public valueField(
 		field: NormalizedFieldUpPath,
 	): RequiredFieldEditor<TreeChunk, ChangeAtomId> {
+		enforceMinVersionForCollabOnEditsToDetachedTrees(field, this.minVersionForCollab);
 		const makeAttachEditDescription = (
 			fill: ChangeAtomId,
 			revision: RevisionTag,
@@ -276,7 +288,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 			attach: (newContent: ChangeAtomId): void => {
 				if (semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)) {
 					throw new UsageError(
-						`Attach edits require a minimum version for collaboration greater or equal to ${FluidClientVersion.vDetachedRoots}.`,
+						`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
 					);
 				}
 				const revision = this.mintRevisionTag();
@@ -289,6 +301,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	public optionalField(
 		field: NormalizedFieldUpPath,
 	): OptionalFieldEditor<TreeChunk, ChangeAtomId> {
+		enforceMinVersionForCollabOnEditsToDetachedTrees(field, this.minVersionForCollab);
 		const makeAttachEditDescription = (
 			fill: ChangeAtomId,
 			revision: RevisionTag,
@@ -326,7 +339,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 				}
 				if (semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)) {
 					throw new UsageError(
-						`Attach edits require a minimum version for collaboration greater or equal to ${FluidClientVersion.vDetachedRoots}.`,
+						`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
 					);
 				}
 				const revision = this.mintRevisionTag();
@@ -363,6 +376,11 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 		} else if (count < 0 || !Number.isSafeInteger(count)) {
 			throw new UsageError(`Expected non-negative integer count, got ${count}.`);
 		}
+		enforceMinVersionForCollabOnEditsToDetachedTrees(sourceField, this.minVersionForCollab);
+		enforceMinVersionForCollabOnEditsToDetachedTrees(
+			destinationField,
+			this.minVersionForCollab,
+		);
 		const revision = this.mintRevisionTag();
 		const detachCellId = this.modularBuilder.generateId(count);
 		const attachCellId: CellId = { localId: this.modularBuilder.generateId(count), revision };
@@ -466,6 +484,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	public sequenceField(
 		field: NormalizedFieldUpPath,
 	): SequenceFieldEditor<TreeChunk, DetachedRootIds> {
+		enforceMinVersionForCollabOnEditsToDetachedTrees(field, this.minVersionForCollab);
 		const makeAttachEditDescription = (
 			index: number,
 			newContent: DetachedRootIds,
@@ -518,7 +537,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 			attach: (index: number, newContent: DetachedRootIds): void => {
 				if (semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)) {
 					throw new UsageError(
-						`Attach edits require a minimum version for collaboration greater or equal to ${FluidClientVersion.vDetachedRoots}.`,
+						`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
 					);
 				}
 				const attachRevision = this.mintRevisionTag();
@@ -540,6 +559,20 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 			},
 		};
 		return editBuilder;
+	}
+}
+
+function enforceMinVersionForCollabOnEditsToDetachedTrees(
+	field: FieldUpPath,
+	minVersionForCollab: MinimumVersionForCollab,
+): void {
+	if (semverLessThan(minVersionForCollab, FluidClientVersion.vDetachedRoots)) {
+		const topField = getDetachedFieldContainingFieldPath(field);
+		if (topField !== rootField) {
+			throw new UsageError(
+				`Edits and constraints on detached trees require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
+			);
+		}
 	}
 }
 

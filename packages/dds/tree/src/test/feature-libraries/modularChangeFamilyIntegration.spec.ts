@@ -3,6 +3,8 @@
  * Licensed under the MIT License.
  */
 
+import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
+
 import {
 	type ChangeAtomId,
 	type ChangeEncodingContext,
@@ -75,7 +77,11 @@ import {
 // eslint-disable-next-line import-x/no-internal-modules
 import { newGenericChangeset } from "../../feature-libraries/modular-schema/genericFieldKindTypes.js";
 import type { SessionId } from "@fluidframework/id-compressor";
-import { currentVersion, type CodecWriteOptions } from "../../codec/index.js";
+import {
+	currentVersion,
+	FluidClientVersion,
+	type CodecWriteOptions,
+} from "../../codec/index.js";
 import { ajvValidator } from "../codec/index.js";
 
 const fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind> = new Map<
@@ -2361,9 +2367,15 @@ describe("ModularChangeFamily integration", () => {
 function buildTransaction(
 	delegate: (editor: IdBasedChangeFamilyDataEditor) => void,
 	revision?: RevisionTag,
+	minVersionForCollab: MinimumVersionForCollab = FluidClientVersion.vDetachedRoots,
 ): TaggedChange<ModularChangeset> {
 	const [changeReceiver, getChanges] = testChangeReceiver(family);
-	const transaction = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+	const transaction = new DefaultIdBasedDataEditor(
+		family,
+		mintRevisionTag,
+		changeReceiver,
+		minVersionForCollab,
+	);
 	delegate(transaction);
 	const changes = getChanges();
 	const tag = revision ?? mintRevisionTag();
