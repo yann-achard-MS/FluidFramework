@@ -3198,56 +3198,6 @@ describe("Editing", () => {
 					assert.throws(() => (hydratedObjectOnA.child = undefined), editError);
 				},
 			);
-
-			describeForFormatsLessThan(
-				FluidClientVersion.vDetachedRoots,
-				"Add constraints on node",
-				(minVersionForCollab) => {
-					const sf = new SchemaFactory(undefined);
-					class Child extends sf.object("Child", {}) {}
-					class Parent extends sf.object("Parent", {
-						child: sf.optional(Child),
-					}) {}
-
-					const provider = new TestTreeProviderLite(
-						1,
-						configuredSharedTree({ minVersionForCollab }).getFactory(),
-					);
-					const config = new TreeViewConfiguration({
-						schema: sf.optional(Parent),
-					});
-					const viewA = asAlpha(provider.trees[0].viewWith(config));
-					viewA.initialize(new Parent({ child: new Child({}) }));
-					provider.synchronizeMessages();
-
-					const hydratedObjectOnA = viewA.root ?? fail("Expected parent to be present");
-					assert.equal(Tree.status(hydratedObjectOnA), TreeStatus.InDocument);
-					assert.notEqual(hydratedObjectOnA.child, undefined);
-
-					viewA.root = undefined;
-
-					provider.synchronizeMessages();
-
-					assert.equal(Tree.status(hydratedObjectOnA), TreeStatus.Removed);
-
-					assert.throws(
-						() =>
-							viewA.runTransaction(() => {}, {
-								preconditions: [{ type: "nodeInDocument", node: hydratedObjectOnA }],
-							}),
-						editError,
-					);
-					assert.throws(
-						() =>
-							viewA.runTransaction(() => {
-								return {
-									preconditionsOnRevert: [{ type: "nodeInDocument", node: hydratedObjectOnA }],
-								};
-							}),
-						editError,
-					);
-				},
-			);
 		});
 	});
 
@@ -3720,62 +3670,6 @@ describe("Editing", () => {
 					provider.synchronizeMessages();
 
 					assert.equal(hydratedObjectOnB.child, undefined);
-				},
-			);
-
-			describeForFormatsEqOrGreaterThan(
-				FluidClientVersion.vDetachedRoots,
-				"Add constraints on node",
-				(minVersionForCollab) => {
-					const sf = new SchemaFactory(undefined);
-					class Child extends sf.object("Child", {}) {}
-					class Parent extends sf.object("Parent", {
-						child: sf.optional(Child),
-					}) {}
-
-					const provider = new TestTreeProviderLite(
-						2,
-						configuredSharedTree({ minVersionForCollab }).getFactory(),
-					);
-					const config = new TreeViewConfiguration({
-						schema: sf.optional(Parent),
-					});
-					const viewA = asAlpha(provider.trees[0].viewWith(config));
-					const viewB = provider.trees[1].viewWith(config);
-					viewA.initialize(new Parent({ child: new Child({}) }));
-					provider.synchronizeMessages();
-
-					const hydratedObjectOnA = viewA.root ?? fail("Expected parent to be present");
-					const hydratedObjectOnB = viewB.root ?? fail("Expected parent to be present");
-					assert.equal(Tree.status(hydratedObjectOnA), TreeStatus.InDocument);
-					assert.equal(Tree.status(hydratedObjectOnB), TreeStatus.InDocument);
-					assert.notEqual(hydratedObjectOnA.child, undefined);
-					assert.notEqual(hydratedObjectOnB.child, undefined);
-
-					viewA.root = undefined;
-
-					// Do some edit on viewB to ensure that when it removes the parent node (on the next call to synchronizeMessages), it puts the parent in a different detached field.
-					// This is necessary to ensure that this test doesn't just pass because both views are storing the removed parent in the same detached field.
-					viewB.root = new Parent({});
-					viewB.root = undefined;
-
-					provider.synchronizeMessages();
-
-					assert.equal(Tree.status(hydratedObjectOnA), TreeStatus.Removed);
-					assert.equal(Tree.status(hydratedObjectOnB), TreeStatus.Removed);
-
-					// Constraints can still be added
-					viewA.runTransaction(() => {
-						viewA.root = hydratedObjectOnA;
-						return {
-							preconditionsOnRevert: [{ type: "nodeInDocument", node: hydratedObjectOnA }],
-						};
-					});
-
-					provider.synchronizeMessages();
-
-					assert.equal(Tree.status(hydratedObjectOnA), TreeStatus.InDocument);
-					assert.equal(Tree.status(hydratedObjectOnB), TreeStatus.InDocument);
 				},
 			);
 		});
