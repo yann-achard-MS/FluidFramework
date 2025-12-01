@@ -146,28 +146,34 @@ describe("Editing", () => {
 		});
 
 		it("can apply a composition of [move + undo]", () => {
-			const tree1 = makeTreeFromJsonSequence(["a"]);
+			const tree1 = makeTreeFromJsonSequence([{ src: ["a"], dst: [] }]);
 			const tree2 = tree1.branch();
 
 			const { undoStack } = createTestUndoRedoStacks(tree2.events);
 
 			tree2.editor.move(
-				rootField,
+				{
+					parent: { parent: rootNode, parentField: brand("src"), parentIndex: 0 },
+					field: EmptyKey,
+				},
 				0,
 				1,
 				{
-					parent: undefined,
-					field: brand("foo"),
+					parent: { parent: rootNode, parentField: brand("dst"), parentIndex: 0 },
+					field: EmptyKey,
 				},
 				0,
 			);
+
+			expectJsonTree(tree2, [{ src: [], dst: ["a"] }]);
+
 			undoStack.pop()?.revert();
 
-			expectJsonTree(tree2, ["a"]);
+			expectJsonTree(tree2, [{ src: ["a"], dst: [] }]);
 
 			tree1.merge(tree2);
 
-			expectJsonTree(tree1, ["a"]);
+			expectJsonTree(tree1, [{ src: ["a"], dst: [] }]);
 		});
 
 		describeForAllFormats("can insert and move in a transaction", (minVersionForCollab) => {
@@ -2094,12 +2100,16 @@ describe("Editing", () => {
 				return buildScenariosWithPrefix();
 			}
 
-			const delAction = (peer: ITreeCheckout, idx: number) => remove(peer, idx, 1);
-			const srcField: NormalizedFieldUpPath = rootField;
-			const dstField: NormalizedFieldUpPath = {
-				parent: undefined,
-				field: brand("dst"),
+			const srcField: NormalizedFieldUpPath = {
+				parent: { parent: rootNode, parentField: brand("src"), parentIndex: 0 },
+				field: EmptyKey,
 			};
+			const dstField: NormalizedFieldUpPath = {
+				parent: { parent: rootNode, parentField: brand("dst"), parentIndex: 0 },
+				field: EmptyKey,
+			};
+			const delAction = (peer: ITreeCheckout, idx: number) =>
+				peer.editor.sequenceField(srcField).remove(idx, 1);
 			const moveAction = (peer: ITreeCheckout, idx: number) =>
 				peer.editor.move(srcField, idx, 1, dstField, 0);
 
@@ -2185,7 +2195,7 @@ describe("Editing", () => {
 				});
 			}
 
-			const startState = makeArray(nbNodes, (n) => `N${n}`);
+			const startState = [{ src: makeArray(nbNodes, (n) => `N${n}`), dst: [] }];
 			const scenarios = buildScenarios();
 
 			// Increased timeout because the default in CI is 2s but this test fixture naturally takes longer and was
