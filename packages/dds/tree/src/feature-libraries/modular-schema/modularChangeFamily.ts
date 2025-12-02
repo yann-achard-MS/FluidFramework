@@ -2256,6 +2256,20 @@ function composeBuildsDestroysAndRefreshers(
 		}
 	}
 
+	// It's possible to have a build and a refresher for the same root because an attach operation need not be performed in the same changeset as the corresponding build.
+	if (change1.builds !== undefined && change2.refreshers !== undefined) {
+		for (const [key, chunk] of change2.refreshers.entries()) {
+			assert(chunk.topLevelLength === 1, "Expected refresher chunk to have length 1");
+			const match = change1.builds.getPairOrNextLower(key);
+			if (match !== undefined) {
+				const [buildKey, buildChunk] = match;
+				if (buildKey[0] === key[0] && buildKey[1] + buildChunk.topLevelLength > key[1]) {
+					allRefreshers.delete(key);
+				}
+			}
+		}
+	}
+
 	return { allBuilds, allDestroys, allRefreshers };
 }
 
@@ -3559,6 +3573,10 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 	) {
 		super(family, changeReceiver);
 		this.idAllocator = idAllocatorFromMaxId();
+	}
+
+	public isInTransaction(): boolean {
+		return this.transactionDepth > 0;
 	}
 
 	public override enterTransaction(): void {

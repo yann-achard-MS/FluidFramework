@@ -144,7 +144,12 @@ describe("ModularChangeFamily integration", () => {
 	describe("rebase", () => {
 		it("remove over cross-field move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 
 			editor.move(
 				{ parent: rootPath, field: fieldA },
@@ -267,7 +272,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("remove over cross-field move to edited field", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 
 			editor.move(
 				{
@@ -322,7 +332,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("nested change over cross-field move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 
 			editor.move(
 				{ parent: undefined, field: fieldA },
@@ -361,7 +376,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("cross-field move over remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 			editor.sequenceField({ parent: undefined, field: fieldA }).remove(1, 1);
 			editor.move(
 				{ parent: undefined, field: fieldA },
@@ -394,7 +414,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("move over cross-field move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -427,7 +452,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("Nested moves both requiring a second pass", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 
@@ -522,7 +552,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("over change which moves node upward", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 			const nodeAPath = fieldARootPath;
 			const nodeBPath: NormalizedUpPath = {
 				parent: nodeAPath,
@@ -569,7 +604,12 @@ describe("ModularChangeFamily integration", () => {
 		// Note that this only happens once in this test, but could happen an arbitrary number of times.
 		it("over change which moves into moved subtree", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 			const nodePath1: NormalizedUpPath = {
 				detachedNodeId: undefined,
 				parent: undefined,
@@ -829,7 +869,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("node change over remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 			editor.sequenceField({ parent: undefined, field: fieldA }).remove(0, 1);
 			editor.sequenceField({ parent: fieldARootPath, field: fieldB }).remove(0, 1);
 
@@ -868,7 +913,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("remove over move to detached tree", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 
 			// Remove node0 from fieldA
 			editor.sequenceField({ parent: undefined, field: fieldA }).remove(0, 1);
@@ -1079,7 +1129,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("composite move over move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.move(fieldAPath, 0, 1, fieldAPath, 3);
@@ -1125,7 +1180,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("composite move over remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.sequenceField(fieldAPath).remove(0, 1);
@@ -1238,7 +1298,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("prunes its output", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 			const nodeAPath = fieldARootPath;
 			const nodeBPath = fieldBRootPath;
 
@@ -1270,7 +1335,12 @@ describe("ModularChangeFamily integration", () => {
 			 */
 
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 			const nodeAPath = fieldARootPath;
 
 			// Moves A to an adjacent cell to its right
@@ -1341,7 +1411,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("cross-field move and nested changes", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -1383,7 +1458,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("cross-field move and inverse with nested changes", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -1434,7 +1514,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("two cross-field moves of same node", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -1485,7 +1570,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("move and modify with modify", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -1529,7 +1619,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("move and remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.move(fieldAPath, 0, 1, fieldAPath, 2);
@@ -1576,7 +1671,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("move root and remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.sequenceField(fieldAPath).remove(0, 1);
@@ -1626,7 +1726,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("detach and (move and remove)", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.sequenceField(fieldAPath).remove(0, 1);
@@ -1800,7 +1905,12 @@ describe("ModularChangeFamily integration", () => {
 		it("Cross-field move of edited node", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
 
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 			editor.enterTransaction();
 
 			// Remove a node
@@ -1866,7 +1976,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("Nested moves both requiring a second pass", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.enterTransaction();
@@ -1979,7 +2094,12 @@ describe("ModularChangeFamily integration", () => {
 
 		it("Undo move with rename", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(family, mintRevisionTag, changeReceiver);
+			const editor = new DefaultIdBasedDataEditor(
+				family,
+				mintRevisionTag,
+				changeReceiver,
+				FluidClientVersion.vDetachedRoots,
+			);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 

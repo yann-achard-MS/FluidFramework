@@ -55,7 +55,6 @@ import {
 import {
 	brand,
 	brandConst,
-	idAllocatorFromMaxId,
 	nestedMapFromFlatList,
 	newTupleBTree,
 	tryGetFromNestedMap,
@@ -75,14 +74,14 @@ import {
 import { type ValueChangeset, valueField } from "./basicRebasers.js";
 import { ajvValidator } from "../../codec/index.js";
 import { fieldJsonCursor } from "../../json/index.js";
-import {
-	type NodeChangeset,
+import type {
+	ChangeAtomIdKey,
+	NodeChangeset,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../../feature-libraries/modular-schema/modularChangeTypes.js";
 import {
 	intoDelta,
 	updateRefreshers,
-	relevantRemovedRoots as relevantDetachedTreesImplementation,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../../feature-libraries/modular-schema/modularChangeFamily.js";
 import type {
@@ -677,6 +676,60 @@ describe("ModularChangeFamily", () => {
 					),
 				),
 			);
+
+			assertEqual(composed, expected);
+		});
+
+		it("build ○ matching refresher = build only", () => {
+			const length1Chunk = chunkFromJsonTrees([{}]);
+			const length3Chunk = chunkFromJsonTrees([{}, {}, {}]);
+
+			const change1: TaggedChange<ModularChangeset> = tagChange(
+				{
+					...Change.empty(),
+					revisions: [{ revision: tag1 }],
+					builds: newTupleBTree<ChangeAtomIdKey, TreeChunk>([
+						[[tag1, brand(0)], length1Chunk],
+						[[tag1, brand(10)], length3Chunk],
+					]),
+				},
+				tag1,
+			);
+
+			const change2: TaggedChange<ModularChangeset> = tagChange(
+				{
+					...Change.empty(),
+					revisions: [{ revision: tag2 }],
+					refreshers: newTupleBTree<ChangeAtomIdKey, TreeChunk>([
+						[[tag1, brand(0)], length1Chunk],
+						[[tag1, brand(1)], length1Chunk],
+						[[tag1, brand(9)], length1Chunk],
+						[[tag1, brand(10)], length1Chunk],
+						[[tag1, brand(11)], length1Chunk],
+						[[tag1, brand(12)], length1Chunk],
+						[[tag1, brand(13)], length1Chunk],
+					]),
+				},
+				tag2,
+			);
+
+			deepFreeze(change1);
+			deepFreeze(change2);
+			const composed = family.compose([change1, change2]);
+
+			const expected: ModularChangeset = {
+				...Change.empty(),
+				revisions: [{ revision: tag1 }, { revision: tag2 }],
+				builds: newTupleBTree<ChangeAtomIdKey, TreeChunk>([
+					[[tag1, brand(0)], length1Chunk],
+					[[tag1, brand(10)], length3Chunk],
+				]),
+				refreshers: newTupleBTree<ChangeAtomIdKey, TreeChunk>([
+					[[tag1, brand(1)], length1Chunk],
+					[[tag1, brand(9)], length1Chunk],
+					[[tag1, brand(13)], length1Chunk],
+				]),
+			};
 
 			assertEqual(composed, expected);
 		});

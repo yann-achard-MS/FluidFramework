@@ -471,7 +471,9 @@ function encodeRename(
 	const isMoveInAndDetach =
 		(context.isDetachId(mark.idOverride, mark.count).value &&
 			!context.isAttachId(mark.idOverride, mark.count).value) ||
-		(inputDetachId !== undefined && !areEqualChangeAtomIds(inputDetachId, mark.cellId));
+		(inputDetachId !== undefined &&
+			!areEqualChangeAtomIds(inputDetachId, mark.cellId) &&
+			!context.isAttachId(mark.idOverride, mark.count).value);
 
 	if (isMoveInAndDetach) {
 		// These cells are the final detach location of moved nodes.

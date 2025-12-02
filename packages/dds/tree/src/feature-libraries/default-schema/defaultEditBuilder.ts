@@ -16,6 +16,7 @@ import {
 	type ChangeFamily,
 	type ChangeFamilyEditor,
 	type ChangeRebaser,
+	type ChangesetLocalId,
 	type DeltaDetachedNodeId,
 	type DeltaRoot,
 	type FieldUpPath,
@@ -30,7 +31,7 @@ import {
 	rootField,
 	topDownPath,
 } from "../../core/index.js";
-import { brand } from "../../util/index.js";
+import { brand, RangeMap } from "../../util/index.js";
 import {
 	type EditDescription,
 	type FieldChangeset,
@@ -200,12 +201,27 @@ export interface DataEditor<TContent, TDetachedRoot, TDetachedRoots> {
 export type IdBasedChangeFamilyDataEditor = ChangeFamilyEditor &
 	DataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
 
+export function offsetChangesetLocalId(
+	id: ChangesetLocalId,
+	offset: number,
+): ChangesetLocalId {
+	return brand(id + offset);
+}
+
+export function subtractChangesetLocalId(a: ChangesetLocalId, b: ChangesetLocalId): number {
+	return a - b;
+}
+
 /**
  * Implementation of {@link IdBasedChangeFamilyDataEditor} based on the default set of supported field kinds.
  * @sealed
  */
 export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	private readonly modularBuilder: ModularEditBuilder;
+	private readonly nodesWithoutCells: RangeMap<ChangesetLocalId, true> = new RangeMap(
+		offsetChangesetLocalId,
+		subtractChangesetLocalId,
+	);
 
 	public constructor(
 		family: ChangeFamily<ChangeFamilyEditor, DefaultChangeset>,
@@ -217,10 +233,16 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	}
 
 	public enterTransaction(): void {
+		if (this.modularBuilder.isInTransaction() === false) {
+			this.nodesWithoutCells.clear();
+		}
 		this.modularBuilder.enterTransaction();
 	}
 	public exitTransaction(): void {
 		this.modularBuilder.exitTransaction();
+		if (this.modularBuilder.isInTransaction() === false) {
+			this.nodesWithoutCells.clear();
+		}
 	}
 
 	public addNodeExistsConstraint(path: NormalizedUpPath): void {
@@ -251,6 +273,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 			const build = this.modularBuilder.buildTrees(buildId.localId, content, buildRevision);
 			this.modularBuilder.submitChanges([build], buildRevision);
 			detachedRoots.push({ first: buildId, count });
+			this.nodesWithoutCells.set(buildId.localId, count, true);
 		}
 		return detachedRoots;
 	}
@@ -286,7 +309,11 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 			},
 
 			attach: (newContent: ChangeAtomId): void => {
-				if (semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)) {
+				const isWithoutCell = this.nodesWithoutCells.delete(newContent.localId, 1) === 1;
+				if (
+					!isWithoutCell &&
+					semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)
+				) {
 					throw new UsageError(
 						`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
 					);
@@ -337,7 +364,11 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 					editBuilder.clear(wasEmpty);
 					return;
 				}
-				if (semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)) {
+				const isWithoutCell = this.nodesWithoutCells.delete(newContent.localId, 1) === 1;
+				if (
+					!isWithoutCell &&
+					semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)
+				) {
 					throw new UsageError(
 						`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
 					);
@@ -489,6 +520,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 			index: number,
 			newContent: DetachedRootIds,
 			revision: RevisionTag,
+			areWithoutCells: boolean,
 		): EditDescription[] => {
 			const edits: EditDescription[] = [];
 			let insertOffset = 0;
@@ -496,8 +528,12 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 				if (count === 0) {
 					continue;
 				}
-				const localAttachId = this.modularBuilder.generateId(count);
-				const cellId = { localId: localAttachId, revision };
+				// If the nodes have never been attached in cell, then we must use a cell ID that matches the build ID.
+				// This ensures back-compatibility with the v1 ModularChangeFamily model which requires that every node be associated with cell
+				// by generating an insert whose destination cell is the cell associated with the build ID.
+				const cellId = areWithoutCells
+					? first
+					: { localId: this.modularBuilder.generateId(count), revision };
 				assert(first.revision !== undefined, "Detached nodes ID must have a revision");
 				const change = sequence.changeHandler.editor.insert(
 					index + insertOffset,
@@ -531,17 +567,30 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 					first: { localId: buildLocalId, revision },
 					count,
 				};
-				const edits = makeAttachEditDescription(index, [roots], revision);
+				const edits = makeAttachEditDescription(index, [roots], revision, true);
 				this.modularBuilder.submitChanges([build, ...edits], revision);
 			},
 			attach: (index: number, newContent: DetachedRootIds): void => {
-				if (semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)) {
-					throw new UsageError(
-						`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
-					);
+				let areAllWithoutCells = true;
+				for (const range of newContent) {
+					const areWithoutCells =
+						this.nodesWithoutCells.delete(range.first.localId, range.count) === range.count;
+					if (!areWithoutCells) {
+						if (semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)) {
+							throw new UsageError(
+								`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
+							);
+						}
+						areAllWithoutCells = false;
+					}
 				}
 				const attachRevision = this.mintRevisionTag();
-				const edits = makeAttachEditDescription(index, newContent, attachRevision);
+				const edits = makeAttachEditDescription(
+					index,
+					newContent,
+					attachRevision,
+					areAllWithoutCells,
+				);
 				if (edits.length > 0) {
 					this.modularBuilder.submitChanges(edits, attachRevision);
 				}
