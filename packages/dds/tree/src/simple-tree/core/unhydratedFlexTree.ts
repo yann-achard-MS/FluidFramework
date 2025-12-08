@@ -5,7 +5,7 @@
 
 import { createEmitter } from "@fluid-internal/client-utils";
 import type { HasListeners, Listenable } from "@fluidframework/core-interfaces/internal";
-import { assert, oob, fail } from "@fluidframework/core-utils/internal";
+import { assert, oob, fail, debugAssert } from "@fluidframework/core-utils/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
 import {
@@ -299,6 +299,11 @@ export class UnhydratedContext implements FlexTreeContext {
 
 	public isHydrated(): this is FlexTreeHydratedContext {
 		return false;
+	}
+
+	public runInTransaction(fn: () => void): void {
+		debugAssert(() => !this.isDisposed() || "Disposed");
+		fn();
 	}
 }
 

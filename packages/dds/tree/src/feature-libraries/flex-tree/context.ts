@@ -51,6 +51,8 @@ export interface FlexTreeContext {
 	 * If true, none of the nodes in this context can be used.
 	 */
 	isDisposed(): boolean;
+
+	runInTransaction(fn: () => void): void;
 }
 
 /**
@@ -158,6 +160,13 @@ export class Context implements FlexTreeHydratedContext, IDisposable {
 
 	public get schema(): TreeStoredSchema {
 		return this.checkout.storedSchema;
+	}
+
+	public runInTransaction(fn: () => void): void {
+		debugAssert(() => !this.disposed || "Disposed");
+		this.checkout.transaction.start();
+		fn();
+		this.checkout.transaction.commit();
 	}
 
 	/**

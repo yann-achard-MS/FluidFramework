@@ -952,8 +952,10 @@ abstract class CustomArrayNodeBase<const T extends ImplicitAllowedTypes>
 	public insertAt(index: number, ...value: Insertable<T>): void {
 		const field = getSequenceField(this);
 		validateIndex(index, field, "insertAt", true);
-		const content = this.#mapTreesFromFieldData(value);
-		field.editor.attach(index, content);
+		field.context.runInTransaction(() => {
+			const content = this.#mapTreesFromFieldData(value);
+			field.editor.attach(index, content);
+		});
 	}
 	public insertAtStart(...value: Insertable<T>): void {
 		this.insertAt(0, ...value);

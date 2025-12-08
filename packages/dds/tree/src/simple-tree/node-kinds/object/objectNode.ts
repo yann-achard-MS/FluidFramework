@@ -353,29 +353,31 @@ export function setField(
 	value: InsertableContent | undefined,
 	destinationSchema: TreeFieldStoredSchema,
 ): void {
-	const mapTree = prepareForInsertion(
-		value,
-		simpleFieldSchema,
-		field.context,
-		destinationSchema,
-	);
+	field.context.runInTransaction(() => {
+		const mapTree = prepareForInsertion(
+			value,
+			simpleFieldSchema,
+			field.context,
+			destinationSchema,
+		);
 
-	switch (field.schema) {
-		case FieldKinds.required.identifier: {
-			assert(mapTree !== undefined, 0xa04 /* Cannot set a required field to undefined */);
-			const typedField = field as FlexTreeRequiredField;
-			typedField.editor.attach(mapTree);
-			break;
-		}
-		case FieldKinds.optional.identifier: {
-			const typedField = field as FlexTreeOptionalField;
-			typedField.editor.attach(mapTree, typedField.length === 0);
-			break;
-		}
+		switch (field.schema) {
+			case FieldKinds.required.identifier: {
+				assert(mapTree !== undefined, 0xa04 /* Cannot set a required field to undefined */);
+				const typedField = field as FlexTreeRequiredField;
+				typedField.editor.attach(mapTree);
+				break;
+			}
+			case FieldKinds.optional.identifier: {
+				const typedField = field as FlexTreeOptionalField;
+				typedField.editor.attach(mapTree, typedField.length === 0);
+				break;
+			}
 
-		default:
-			fail(0xade /* invalid FieldKind */);
-	}
+			default:
+				fail(0xade /* invalid FieldKind */);
+		}
+	});
 }
 
 /**
