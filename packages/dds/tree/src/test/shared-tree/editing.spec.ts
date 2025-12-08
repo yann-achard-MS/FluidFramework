@@ -2974,18 +2974,169 @@ describe("Editing", () => {
 		);
 	});
 
-	describe("Detached nodes - with format < vDetachedRoots", () => {
-		const containers = [
+	describe("Detached nodes - with any format", () => {
+		const allContainers = [
 			"an array",
 			"a map",
 			"an object's optional field",
 			"an object's required field",
 		] as const;
+		describe("cannot be reattached into an object's required field after being detached from anywhere", () => {
+			const reattachInRequiredFieldError = validateUsageError(
+				"A hydrated node that has been attached before cannot be attached into an object's required field. Assign new content to the field instead.",
+			);
+			const sf = new SchemaFactory(undefined);
+			class Child extends sf.object("Child", {}) {}
+			class ArrayParent extends sf.array("Array", Child) {}
+			class MapParent extends sf.map("MapParent", Child) {}
+			class ObjParent extends sf.object("ObjParent", {
+				optChild: sf.optional(Child),
+				reqChild: sf.required(Child),
+			}) {}
+			class Root extends sf.object("Root", {
+				array: ArrayParent,
+				map: MapParent,
+				object: ObjParent,
+			}) {}
+			for (const src of allContainers) {
+				describeForAllFormats(
+					`detach from ${src} and attach to an object's required field throws`,
+					(minVersionForCollab) => {
+						const provider = new TestTreeProviderLite(
+							2,
+							configuredSharedTree({ minVersionForCollab }).getFactory(),
+						);
+						const view = provider.trees[0].viewWith(
+							new TreeViewConfiguration({ schema: Root }),
+						);
+						view.initialize(
+							new Root({
+								array: new ArrayParent([new Child({})]),
+								map: new MapParent([["src", new Child({})]]),
+								object: new ObjParent({ optChild: new Child({}), reqChild: new Child({}) }),
+							}),
+						);
+
+						let hydratedChild: Child;
+						switch (src) {
+							case "an array": {
+								hydratedChild = view.root.array[0];
+								view.root.array.removeAt(0);
+								break;
+							}
+							case "a map": {
+								hydratedChild = view.root.map.get("src") ?? fail("Missing child");
+								view.root.map.delete("src");
+								break;
+							}
+							case "an object's optional field": {
+								hydratedChild = view.root.object.optChild ?? fail("Missing child");
+								view.root.object.optChild = undefined;
+								break;
+							}
+							case "an object's required field": {
+								hydratedChild = view.root.object.reqChild ?? fail("Missing child");
+								view.root.object.reqChild = new Child({});
+								break;
+							}
+							default:
+								fail(`Unexpected source container: ${src}`);
+						}
+						assert.equal(Tree.status(hydratedChild), TreeStatus.Removed);
+						assert.throws(
+							() => (view.root.object.reqChild = hydratedChild),
+							reattachInRequiredFieldError,
+						);
+					},
+				);
+			}
+		});
+
+		describe("cannot be reattached anywhere after being detached from an object's required field", () => {
+			const attachFromRequiredFieldError = validateUsageError(
+				/Once associated with a required field, a node cannot be re-attached into any field. Use revert to return the node to its original field if desired./,
+			);
+			const sf = new SchemaFactory(undefined);
+			class Child extends sf.object("Child", {}) {}
+			class ArrayParent extends sf.array("Array", Child) {}
+			class MapParent extends sf.map("MapParent", Child) {}
+			class ObjParent extends sf.object("ObjParent", {
+				reqChild: Child,
+				optChild: sf.optional(Child),
+			}) {}
+			class Root extends sf.object("Root", {
+				array: ArrayParent,
+				map: MapParent,
+				object: ObjParent,
+			}) {}
+			const config = new TreeViewConfiguration({ schema: Root });
+
+			for (const dst of allContainers) {
+				describeForAllFormats(
+					`detach from an object's required field and attach to ${dst}`,
+					(minVersionForCollab) => {
+						const provider = new TestTreeProviderLite(
+							2,
+							configuredSharedTree({ minVersionForCollab }).getFactory(),
+						);
+						const view = provider.trees[0].viewWith(config);
+						view.initialize(
+							new Root({
+								array: new ArrayParent([]),
+								map: new MapParent([]),
+								object: new ObjParent({ reqChild: new Child({}) }),
+							}),
+						);
+						provider.synchronizeMessages();
+
+						const hydratedChild = view.root.object.reqChild ?? fail("Missing child");
+
+						// Detach the child
+						view.root.object.reqChild = new Child({});
+						assert.equal(Tree.status(hydratedChild), TreeStatus.Removed);
+
+						switch (dst) {
+							case "an array": {
+								assert.throws(
+									() => view.root.array.insertAtEnd(hydratedChild),
+									attachFromRequiredFieldError,
+								);
+								break;
+							}
+							case "a map": {
+								assert.throws(
+									() => view.root.map.set("dst", hydratedChild),
+									attachFromRequiredFieldError,
+								);
+								break;
+							}
+							case "an object's optional field": {
+								assert.throws(
+									() => (view.root.object.optChild = hydratedChild),
+									attachFromRequiredFieldError,
+								);
+								break;
+							}
+							case "an object's required field": {
+								assert.throws(
+									() => (view.root.object.reqChild = hydratedChild),
+									attachFromRequiredFieldError,
+								);
+								break;
+							}
+							default:
+								fail(`Unexpected destination container: ${dst}`);
+						}
+					},
+				);
+			}
+		});
+	});
+
+	describe("Detached nodes - with format < vDetachedRoots", () => {
+		const containers = ["an array", "a map", "an object's optional field"] as const;
 		const reinsertError = validateUsageError(
 			`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
-		);
-		const reattachInRequiredFieldError = validateUsageError(
-			"A node that was once in the tree cannot be re-attached to a required field",
 		);
 		describe("cannot be detached and reattached", () => {
 			const sf = new SchemaFactory(undefined);
@@ -2994,7 +3145,6 @@ describe("Editing", () => {
 			class MapParent extends sf.map("MapParent", Child) {}
 			class ObjParent extends sf.object("ObjParent", {
 				optChild: sf.optional(Child),
-				reqChild: Child,
 			}) {}
 			class Root extends sf.object("Root", {
 				array: ArrayParent,
@@ -3019,7 +3169,7 @@ describe("Editing", () => {
 								new Root({
 									array: new ArrayParent([new Child({})]),
 									map: new MapParent([["src", new Child({})]]),
-									object: new ObjParent({ optChild: new Child({}), reqChild: new Child({}) }),
+									object: new ObjParent({ optChild: new Child({}) }),
 								}),
 							);
 							provider.synchronizeMessages();
@@ -3044,12 +3194,6 @@ describe("Editing", () => {
 									hydratedChildOnA = viewA.root.object.optChild ?? fail("Missing child");
 									hydratedChildOnB = viewB.root.object.optChild ?? fail("Missing child");
 									viewA.root.object.optChild = undefined;
-									break;
-								}
-								case "an object's required field": {
-									hydratedChildOnA = viewA.root.object.reqChild ?? fail("Missing child");
-									hydratedChildOnB = viewB.root.object.reqChild ?? fail("Missing child");
-									viewA.root.object.reqChild = new Child({});
 									break;
 								}
 								default:
@@ -3080,13 +3224,6 @@ describe("Editing", () => {
 									assert.throws(
 										() => (viewA.root.object.optChild = hydratedChildOnA),
 										reinsertError,
-									);
-									break;
-								}
-								case "an object's required field": {
-									assert.throws(
-										() => (viewA.root.object.reqChild = hydratedChildOnA),
-										reattachInRequiredFieldError,
 									);
 									break;
 								}
@@ -3214,10 +3351,7 @@ describe("Editing", () => {
 	});
 
 	describe("Detached nodes - with format >= vDetachedRoots", () => {
-		const validSrcContainers = ["an array", "a map", "an object's optional field"] as const;
-		const validDstContainers = validSrcContainers;
-		const allContainers = [...validSrcContainers, "an object's required field"] as const;
-
+		const containers = ["an array", "a map", "an object's optional field"] as const;
 		describe("can be detached and reattached so long as neither the source nor the destination is an object's required field", () => {
 			const sf = new SchemaFactory(undefined);
 			class Child extends sf.object("Child", {}) {}
@@ -3230,8 +3364,8 @@ describe("Editing", () => {
 				object: ObjParent,
 			}) {}
 
-			for (const src of validSrcContainers) {
-				for (const dst of validDstContainers) {
+			for (const src of containers) {
+				for (const dst of containers) {
 					describeForFormatsEqOrGreaterThan(
 						FluidClientVersion.vDetachedRoots,
 						`detach from ${src} and attach to ${dst}`,
@@ -3307,164 +3441,6 @@ describe("Editing", () => {
 						},
 					);
 				}
-			}
-		});
-
-		describe("cannot be reattached into an object's required field", () => {
-			const reattachInRequiredFieldError = validateUsageError(
-				"A hydrated node that has been attached before cannot be attached into an object's required field. Assign new content to the field instead.",
-			);
-			const sf = new SchemaFactory(undefined);
-			class Child extends sf.object("Child", {}) {}
-			class ArrayParent extends sf.array("Array", Child) {}
-			class MapParent extends sf.map("MapParent", Child) {}
-			class ObjParent extends sf.object("ObjParent", {
-				optChild: sf.optional(Child),
-				reqChild: sf.required(Child),
-			}) {}
-			class Root extends sf.object("Root", {
-				array: ArrayParent,
-				map: MapParent,
-				object: ObjParent,
-			}) {}
-			for (const src of allContainers) {
-				describeForFormatsEqOrGreaterThan(
-					FluidClientVersion.vDetachedRoots,
-					`detach from ${src} and attach to an object's required field throws`,
-					(minVersionForCollab) => {
-						const provider = new TestTreeProviderLite(
-							2,
-							configuredSharedTree({ minVersionForCollab }).getFactory(),
-						);
-						const view = provider.trees[0].viewWith(
-							new TreeViewConfiguration({ schema: Root }),
-						);
-						view.initialize(
-							new Root({
-								array: new ArrayParent([new Child({})]),
-								map: new MapParent([["src", new Child({})]]),
-								object: new ObjParent({ optChild: new Child({}), reqChild: new Child({}) }),
-							}),
-						);
-
-						let hydratedChild: Child;
-						switch (src) {
-							case "an array": {
-								hydratedChild = view.root.array[0];
-								view.root.array.removeAt(0);
-								break;
-							}
-							case "a map": {
-								hydratedChild = view.root.map.get("src") ?? fail("Missing child");
-								view.root.map.delete("src");
-								break;
-							}
-							case "an object's optional field": {
-								hydratedChild = view.root.object.optChild ?? fail("Missing child");
-								view.root.object.optChild = undefined;
-								break;
-							}
-							case "an object's required field": {
-								hydratedChild = view.root.object.reqChild ?? fail("Missing child");
-								view.root.object.reqChild = new Child({});
-								break;
-							}
-							default:
-								fail(`Unexpected source container: ${src}`);
-						}
-						assert.equal(Tree.status(hydratedChild), TreeStatus.Removed);
-						assert.throws(
-							() => (view.root.object.reqChild = hydratedChild),
-							reattachInRequiredFieldError,
-						);
-					},
-				);
-			}
-		});
-
-		describe("cannot be reattached anywhere after being detached from an object's required field", () => {
-			const attachFromRequiredFieldError = validateUsageError(
-				/Once associated with a required field, a node cannot be re-attached into any field. Use revert to return the node to its original field if desired./,
-			);
-			const sf = new SchemaFactory(undefined);
-			class Child extends sf.object("Child", {}) {}
-			class ArrayParent extends sf.array("Array", Child) {}
-			class MapParent extends sf.map("MapParent", Child) {}
-			class ObjParent extends sf.object("ObjParent", {
-				reqChild: Child,
-				optChild: sf.optional(Child),
-			}) {}
-			class Root extends sf.object("Root", {
-				array: ArrayParent,
-				map: MapParent,
-				object: ObjParent,
-			}) {}
-			const config = new TreeViewConfiguration({ schema: Root });
-
-			for (const dst of [
-				"an array",
-				"a map",
-				"an object's optional field",
-				"an object's required field",
-			] as const) {
-				describeForFormatsEqOrGreaterThan(
-					FluidClientVersion.vDetachedRoots,
-					`detach from an object's required field and attach to ${dst}`,
-					(minVersionForCollab) => {
-						const provider = new TestTreeProviderLite(
-							2,
-							configuredSharedTree({ minVersionForCollab }).getFactory(),
-						);
-						const view = provider.trees[0].viewWith(config);
-						view.initialize(
-							new Root({
-								array: new ArrayParent([]),
-								map: new MapParent([]),
-								object: new ObjParent({ reqChild: new Child({}) }),
-							}),
-						);
-						provider.synchronizeMessages();
-
-						const hydratedChild = view.root.object.reqChild ?? fail("Missing child");
-
-						// Detach the child
-						view.root.object.reqChild = new Child({});
-						assert.equal(Tree.status(hydratedChild), TreeStatus.Removed);
-
-						switch (dst) {
-							case "an array": {
-								assert.throws(
-									() => view.root.array.insertAtEnd(hydratedChild),
-									attachFromRequiredFieldError,
-								);
-								break;
-							}
-							case "a map": {
-								assert.throws(
-									() => view.root.map.set("dst", hydratedChild),
-									attachFromRequiredFieldError,
-								);
-								break;
-							}
-							case "an object's optional field": {
-								assert.throws(
-									() => (view.root.object.optChild = hydratedChild),
-									attachFromRequiredFieldError,
-								);
-								break;
-							}
-							case "an object's required field": {
-								assert.throws(
-									() => (view.root.object.reqChild = hydratedChild),
-									attachFromRequiredFieldError,
-								);
-								break;
-							}
-							default:
-								fail(`Unexpected destination container: ${dst}`);
-						}
-					},
-				);
 			}
 		});
 
