@@ -18,7 +18,7 @@ import {
 	type NormalizedUpPath,
 	type TreeNodeSchemaIdentifier,
 } from "../../core/index.js";
-import { Tree, TreeAlpha, type ITreeCheckout } from "../../shared-tree/index.js";
+import { Tree, type ITreeCheckout } from "../../shared-tree/index.js";
 import { type JsonCompatible, brand, makeArray } from "../../util/index.js";
 import {
 	checkoutWithContent,
@@ -45,7 +45,6 @@ import { fieldJsonCursor } from "../json/index.js";
 import { TreeStatus } from "../../feature-libraries/index.js";
 import { configuredSharedTree } from "../../treeFactory.js";
 import { FluidClientVersion } from "../../codec/index.js";
-import { asAlpha } from "../../api.js";
 
 const rootField: NormalizedFieldUpPath = {
 	parent: undefined,
@@ -2983,7 +2982,10 @@ describe("Editing", () => {
 			"an object's required field",
 		] as const;
 		const reinsertError = validateUsageError(
-			/A node which already has a parent may not be used as part of a new tree./,
+			`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
+		);
+		const reattachInRequiredFieldError = validateUsageError(
+			"A node that was once in the tree cannot be re-attached to a required field",
 		);
 		describe("cannot be detached and reattached", () => {
 			const sf = new SchemaFactory(undefined);
@@ -3084,7 +3086,7 @@ describe("Editing", () => {
 								case "an object's required field": {
 									assert.throws(
 										() => (viewA.root.object.reqChild = hydratedChildOnA),
-										reinsertError,
+										reattachInRequiredFieldError,
 									);
 									break;
 								}
@@ -3214,6 +3216,7 @@ describe("Editing", () => {
 	describe("Detached nodes - with format >= vDetachedRoots", () => {
 		const validSrcContainers = ["an array", "a map", "an object's optional field"] as const;
 		const validDstContainers = validSrcContainers;
+		const allContainers = [...validSrcContainers, "an object's required field"] as const;
 
 		describe("can be detached and reattached so long as neither the source nor the destination is an object's required field", () => {
 			const sf = new SchemaFactory(undefined);
@@ -3308,8 +3311,8 @@ describe("Editing", () => {
 		});
 
 		describe("cannot be reattached into an object's required field", () => {
-			const attachIntoRequiredFieldError = validateUsageError(
-				/A hydrated node cannot be attached into an object's required field. Assign new content to the field instead./,
+			const reattachInRequiredFieldError = validateUsageError(
+				"A hydrated node that has been attached before cannot be attached into an object's required field. Assign new content to the field instead.",
 			);
 			const sf = new SchemaFactory(undefined);
 			class Child extends sf.object("Child", {}) {}
@@ -3324,7 +3327,7 @@ describe("Editing", () => {
 				map: MapParent,
 				object: ObjParent,
 			}) {}
-			for (const src of validSrcContainers) {
+			for (const src of allContainers) {
 				describeForFormatsEqOrGreaterThan(
 					FluidClientVersion.vDetachedRoots,
 					`detach from ${src} and attach to an object's required field throws`,
@@ -3361,13 +3364,18 @@ describe("Editing", () => {
 								view.root.object.optChild = undefined;
 								break;
 							}
+							case "an object's required field": {
+								hydratedChild = view.root.object.reqChild ?? fail("Missing child");
+								view.root.object.reqChild = new Child({});
+								break;
+							}
 							default:
 								fail(`Unexpected source container: ${src}`);
 						}
 						assert.equal(Tree.status(hydratedChild), TreeStatus.Removed);
 						assert.throws(
 							() => (view.root.object.reqChild = hydratedChild),
-							attachIntoRequiredFieldError,
+							reattachInRequiredFieldError,
 						);
 					},
 				);

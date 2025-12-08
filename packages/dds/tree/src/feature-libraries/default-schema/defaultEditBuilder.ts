@@ -310,12 +310,9 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 
 			attach: (newContent: ChangeAtomId): void => {
 				const isWithoutCell = this.nodesWithoutCells.delete(newContent.localId, 1) === 1;
-				if (
-					!isWithoutCell &&
-					semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)
-				) {
+				if (!isWithoutCell) {
 					throw new UsageError(
-						`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
+						"A hydrated node that has been attached before cannot be attached into an object's required field. Assign new content to the field instead.",
 					);
 				}
 				const revision = this.mintRevisionTag();
