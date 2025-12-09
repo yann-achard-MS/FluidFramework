@@ -534,40 +534,51 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 		enforceMinVersionForCollabOnEditsToDetachedTrees(field, this.minVersionForCollab);
 		const makeAttachEditDescription = (
 			index: number,
-			newContent: DetachedRootIds,
+			{ first, count }: DetachedRootIdRange,
 			revision: RevisionTag,
 			areWithoutCells: boolean,
 		): EditDescription[] => {
 			const edits: EditDescription[] = [];
-			let insertOffset = 0;
-			for (const { first, count } of newContent) {
-				if (count === 0) {
-					continue;
-				}
-				// If the nodes have never been attached in cell, then we must use a cell ID that matches the build ID.
-				// This ensures back-compatibility with the v1 ModularChangeFamily model which requires that every node be associated with cell
-				// by generating an insert whose destination cell is the cell associated with the build ID.
-				const cellId = areWithoutCells
-					? first
-					: { localId: this.modularBuilder.generateId(count), revision };
-				assert(first.revision !== undefined, "Detached nodes ID must have a revision");
-				const change = sequence.changeHandler.editor.insert(
-					index + insertOffset,
-					count,
-					cellId,
-					first.revision,
-					first.localId,
-				);
-				const attach: FieldEditDescription = {
-					type: "field",
-					field,
-					fieldKind: sequence.identifier,
-					change: brand(change),
+			// If the nodes have never been attached in cell, then we must use a cell ID that matches the build ID.
+			// This ensures back-compatibility with the v1 ModularChangeFamily model which requires that every node be associated with cell
+			// by generating an insert whose destination cell is the cell associated with the build ID.
+			let stableSrcId: ChangeAtomId;
+			if (areWithoutCells) {
+				stableSrcId = first;
+			} else {
+				// If the node has an associated cell, then it may be concurrently moved to another location.
+				// We use a rename to ensure that the node will be moved to a specific grave before the attach.
+				stableSrcId = { localId: this.modularBuilder.generateId(count), revision };
+				const rename: GlobalEditDescription = {
+					type: "global",
 					revision,
+					renames: [
+						{
+							count,
+							oldId: first,
+							newId: stableSrcId,
+							detachLocation: undefined,
+						},
+					],
 				};
-				edits.push(attach);
-				insertOffset += count;
+				edits.push(rename);
 			}
+			assert(stableSrcId.revision !== undefined, "Detached nodes ID must have a revision");
+			const change = sequence.changeHandler.editor.insert(
+				index,
+				count,
+				stableSrcId,
+				stableSrcId.revision,
+				stableSrcId.localId,
+			);
+			const attach: FieldEditDescription = {
+				type: "field",
+				field,
+				fieldKind: sequence.identifier,
+				change: brand(change),
+				revision,
+			};
+			edits.push(attach);
 			return edits;
 		};
 		const editBuilder = {
@@ -583,30 +594,48 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 					first: { localId: buildLocalId, revision },
 					count,
 				};
-				const edits = makeAttachEditDescription(index, [roots], revision, true);
-				this.modularBuilder.submitChanges([build, ...edits], revision);
+
+				const attach = makeAttachEditDescription(index, roots, revision, true);
+				this.modularBuilder.submitChanges([build, ...attach], revision);
 			},
 			attach: (index: number, newContent: DetachedRootIds): void => {
+				const attachRevision = this.mintRevisionTag();
 				let areAllWithoutCells = true;
+				let insertOffset = 0;
+				const edits: EditDescription[] = [];
 				for (const range of newContent) {
-					const areWithoutCells =
-						this.nodesWithoutCells.delete(range.first.localId, range.count) === range.count;
+					if (range.count === 0) {
+						continue;
+					}
+					const countWithoutCells = this.nodesWithoutCells.delete(
+						range.first.localId,
+						range.count,
+					);
+					assert(
+						countWithoutCells === 0 || countWithoutCells === range.count,
+						"All detached roots within the same ID range must either all have or all not have a cell",
+					);
+					const areWithoutCells = countWithoutCells === range.count;
 					if (!areWithoutCells) {
-						if (semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)) {
-							throw new UsageError(
-								`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
-							);
-						}
 						areAllWithoutCells = false;
 					}
+					const renameAndAttach = makeAttachEditDescription(
+						index + insertOffset,
+						range,
+						attachRevision,
+						areWithoutCells,
+					);
+					edits.push(...renameAndAttach);
+					insertOffset += range.count;
 				}
-				const attachRevision = this.mintRevisionTag();
-				const edits = makeAttachEditDescription(
-					index,
-					newContent,
-					attachRevision,
-					areAllWithoutCells,
-				);
+				if (
+					!areAllWithoutCells &&
+					semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)
+				) {
+					throw new UsageError(
+						`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
+					);
+				}
 				if (edits.length > 0) {
 					this.modularBuilder.submitChanges(edits, attachRevision);
 				}

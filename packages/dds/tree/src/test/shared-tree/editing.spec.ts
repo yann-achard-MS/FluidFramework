@@ -3440,59 +3440,73 @@ describe("Editing", () => {
 			}
 		});
 
-		describeForFormatsEqOrGreaterThan({
-			minVersion: FluidClientVersion.vDetachedRoots,
-			title: "can be concurrently reattached in different locations",
-			testFn: (minVersionForCollab) => {
-				const sf = new SchemaFactory(undefined);
-				class Child extends sf.object("Child", {}) {}
-				class ArrayParent extends sf.array("Array", Child) {}
-				class MapParent extends sf.map("MapParent", Child) {}
-				class Root extends sf.object("Root", {
-					array: ArrayParent,
-					map: MapParent,
-					optChild: sf.optional(Child),
-				}) {}
+		for (const firstMover of ["viewA", "viewB"] as const) {
+			describeForFormatsEqOrGreaterThan({
+				minVersion: FluidClientVersion.vDetachedRoots,
+				title: `can be concurrently reattached in different locations (first mover: ${firstMover})`,
+				testFn: (minVersionForCollab) => {
+					const sf = new SchemaFactory(undefined);
+					class Child extends sf.object("Child", {}) {}
+					class ArrayParent extends sf.array("Array", Child) {}
+					class MapParent extends sf.map("MapParent", Child) {}
+					class Root extends sf.object("Root", {
+						array: ArrayParent,
+						map: MapParent,
+						optChild: sf.optional(Child),
+					}) {}
 
-				const provider = new TestTreeProviderLite(
-					2,
-					configuredSharedTree({ minVersionForCollab }).getFactory(),
-				);
-				const config = new TreeViewConfiguration({ schema: Root });
-				const viewA = provider.trees[0].viewWith(config);
-				const viewB = provider.trees[1].viewWith(config);
-				viewA.initialize(
-					new Root({
-						array: new ArrayParent([]),
-						map: new MapParent([]),
-						optChild: new Child({}),
-					}),
-				);
-				provider.synchronizeMessages();
+					const provider = new TestTreeProviderLite(
+						2,
+						configuredSharedTree({ minVersionForCollab }).getFactory(),
+					);
+					const config = new TreeViewConfiguration({ schema: Root });
+					const viewA = provider.trees[0].viewWith(config);
+					const viewB = provider.trees[1].viewWith(config);
+					viewA.initialize(
+						new Root({
+							array: new ArrayParent([]),
+							map: new MapParent([]),
+							optChild: new Child({}),
+						}),
+					);
+					provider.synchronizeMessages();
 
-				const hydratedChildOnA = viewA.root.optChild ?? fail("Missing child");
-				const hydratedChildOnB = viewB.root.optChild ?? fail("Missing child");
+					const hydratedChildOnA = viewA.root.optChild ?? fail("Missing child");
+					const hydratedChildOnB = viewB.root.optChild ?? fail("Missing child");
 
-				// Detach the child from both views
-				viewA.root.optChild = undefined;
-				viewB.root.optChild = undefined;
+					// Detach the child from both views
+					viewA.root.optChild = undefined;
+					viewB.root.optChild = undefined;
 
-				assert.equal(Tree.status(hydratedChildOnA), TreeStatus.Removed);
-				assert.equal(Tree.status(hydratedChildOnB), TreeStatus.Removed);
+					assert.equal(Tree.status(hydratedChildOnA), TreeStatus.Removed);
+					assert.equal(Tree.status(hydratedChildOnB), TreeStatus.Removed);
 
-				// Concurrent re-insertion into different locations
-				// Leads to a LWW resolution
-				viewA.root.array.insertAtEnd(hydratedChildOnA);
-				provider.trees[0].containerRuntime.flush();
-				viewB.root.map.set("dst", hydratedChildOnB);
-				provider.synchronizeMessages();
-
-				assert.equal(Tree.status(hydratedChildOnA), TreeStatus.InDocument);
-				assert.equal(Tree.status(hydratedChildOnB), TreeStatus.InDocument);
-				assert.equal(viewA.root.map.get("dst"), hydratedChildOnA);
-				assert.equal(viewA.root.array.length, 0);
-			},
-		});
+					if (firstMover === "viewA") {
+						viewA.root.array.insertAtEnd(hydratedChildOnA);
+						provider.trees[0].containerRuntime.flush();
+						viewB.root.map.set("dst", hydratedChildOnB);
+						provider.synchronizeMessages();
+						assert.equal(viewA.root.map.size, 1);
+						assert.equal(viewB.root.map.size, 1);
+						assert.equal(viewA.root.map.get("dst"), hydratedChildOnA);
+						assert.equal(viewB.root.map.get("dst"), hydratedChildOnB);
+						assert.equal(viewA.root.array.length, 0);
+						assert.equal(viewB.root.array.length, 0);
+					} else {
+						viewB.root.map.set("dst", hydratedChildOnB);
+						provider.trees[1].containerRuntime.flush();
+						viewA.root.array.insertAtEnd(hydratedChildOnA);
+						provider.synchronizeMessages();
+						assert.equal(viewA.root.array.length, 1);
+						assert.equal(viewA.root.array[0], hydratedChildOnA);
+						assert.equal(viewB.root.array.length, 1);
+						assert.equal(viewB.root.array[0], hydratedChildOnB);
+						assert.equal(viewA.root.map.size, 0);
+						assert.equal(viewB.root.map.size, 0);
+					}
+				},
+			});
+		}
 
 		describe("can be edited while detached", () => {
 			describeForFormatsEqOrGreaterThan({
