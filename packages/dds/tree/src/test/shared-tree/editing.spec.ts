@@ -2689,7 +2689,10 @@ describe("Editing", () => {
 
 	describe("Attached nodes", () => {
 		const multiparentError = validateUsageError(
-			/A node which already has a parent may not be used as part of a new tree./,
+			"Can only attach a detached node (i.e., a root with TreeStatus.Removed status)",
+		);
+		const hybridTreeError = validateUsageError(
+			"A node which already has a parent may not be used as part of a new tree.",
 		);
 		describeForAllFormats(
 			"cannot be attached into a hydrated array",
@@ -2812,7 +2815,7 @@ describe("Editing", () => {
 				const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
 				view.initialize(new Parent([new Child({})]));
 				const hydratedAttachedChild = view.root[0];
-				assert.throws(() => new Parent([hydratedAttachedChild]), multiparentError);
+				assert.throws(() => new Parent([hydratedAttachedChild]), hybridTreeError);
 			},
 		);
 
@@ -2829,7 +2832,7 @@ describe("Editing", () => {
 				const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
 				view.initialize(new Parent([["c1", new Child({})]]));
 				const hydratedChild = view.root.get("c1") ?? fail("Expected child to be present");
-				assert.throws(() => new Parent([["c1", hydratedChild]]), multiparentError);
+				assert.throws(() => new Parent([["c1", hydratedChild]]), hybridTreeError);
 			},
 		);
 
@@ -2848,13 +2851,15 @@ describe("Editing", () => {
 				const view = provider.trees[0].viewWith(new TreeViewConfiguration({ schema: Parent }));
 				view.initialize(new Parent({ child: new Child({}) }));
 				const hydratedChild = view.root.child ?? fail("Expected child to be present");
-				assert.throws(() => new Parent({ child: hydratedChild }), multiparentError);
+				assert.throws(() => new Parent({ child: hydratedChild }), hybridTreeError);
 			},
 		);
 
-		describeForAllFormats(
-			"cannot be used in the hydration of an array",
-			(minVersionForCollab) => {
+		describeForFormatsEqOrGreaterThan({
+			skip: true,
+			minVersion: FluidClientVersion.vDetachedRoots,
+			title: "cannot be used in the hydration of an array",
+			testFn: (minVersionForCollab) => {
 				const sf = new SchemaFactory(undefined);
 				class Child extends sf.object("Child", {}) {}
 				class Parent extends sf.array("Parent", Child) {}
@@ -2878,22 +2883,19 @@ describe("Editing", () => {
 
 				// It is valid to create an unhydrated array with a hydrated detached child
 				const unhydratedArray = new Parent([childOnViewA]);
-
-				if (minVersionForCollab < FluidClientVersion.vDetachedRoots) {
-					assert.throws(() => viewB.root.insertAtEnd(childOnViewB), multiparentError);
-					return;
-				}
 				viewB.root.insertAtEnd(childOnViewB);
 				provider.synchronizeMessages();
 
 				// This should throw because the hydrated child is now attached.
 				assert.throws(() => (viewA.root = unhydratedArray), multiparentError);
 			},
-		);
+		});
 
-		describeForAllFormats(
-			"cannot be used in the hydration of a map",
-			(minVersionForCollab) => {
+		describeForFormatsEqOrGreaterThan({
+			skip: true,
+			minVersion: FluidClientVersion.vDetachedRoots,
+			title: "cannot be used in the hydration of a map",
+			testFn: (minVersionForCollab) => {
 				const sf = new SchemaFactory(undefined);
 				class Child extends sf.object("Child", {}) {}
 				class Parent extends sf.map("Parent", Child) {}
@@ -2918,22 +2920,19 @@ describe("Editing", () => {
 
 				// It is valid to create an unhydrated map with a hydrated detached child
 				const unhydratedMap = new Parent([["c1", childOnViewA]]);
-
-				if (minVersionForCollab < FluidClientVersion.vDetachedRoots) {
-					assert.throws(() => viewB.root.set("c2", childOnViewB), multiparentError);
-					return;
-				}
 				viewB.root.set("c2", childOnViewB);
 				provider.synchronizeMessages();
 
 				// This should throw because the hydrated child is now attached.
 				assert.throws(() => (viewA.root = unhydratedMap), multiparentError);
 			},
-		);
+		});
 
-		describeForAllFormats(
-			"cannot be used in the hydration of an object",
-			(minVersionForCollab) => {
+		describeForFormatsEqOrGreaterThan({
+			skip: true,
+			minVersion: FluidClientVersion.vDetachedRoots,
+			title: "cannot be used in the hydration of an object",
+			testFn: (minVersionForCollab) => {
 				const sf = new SchemaFactory(undefined);
 				class Child extends sf.object("Child", {}) {}
 				class Parent extends sf.object("Parent", {
@@ -2961,17 +2960,13 @@ describe("Editing", () => {
 				// It is valid to create an unhydrated object with a hydrated detached child
 				const unhydratedObject = new Parent({ child: childOnViewA });
 
-				if (minVersionForCollab < FluidClientVersion.vDetachedRoots) {
-					assert.throws(() => (viewB.root.child = childOnViewB), multiparentError);
-					return;
-				}
 				viewB.root.child = childOnViewB;
 				provider.synchronizeMessages();
 
 				// This should throw because the hydrated child is now attached.
 				assert.throws(() => (viewA.root = unhydratedObject), multiparentError);
 			},
-		);
+		});
 	});
 
 	describe("Detached nodes - with any format", () => {
@@ -3366,10 +3361,10 @@ describe("Editing", () => {
 
 			for (const src of containers) {
 				for (const dst of containers) {
-					describeForFormatsEqOrGreaterThan(
-						FluidClientVersion.vDetachedRoots,
-						`detach from ${src} and attach to ${dst}`,
-						(minVersionForCollab) => {
+					describeForFormatsEqOrGreaterThan({
+						minVersion: FluidClientVersion.vDetachedRoots,
+						title: `detach from ${src} and attach to ${dst}`,
+						testFn: (minVersionForCollab) => {
 							const provider = new TestTreeProviderLite(
 								2,
 								configuredSharedTree({ minVersionForCollab }).getFactory(),
@@ -3439,15 +3434,15 @@ describe("Editing", () => {
 							assert.equal(Tree.status(hydratedChildOnA), TreeStatus.InDocument);
 							assert.equal(Tree.status(hydratedChildOnB), TreeStatus.InDocument);
 						},
-					);
+					});
 				}
 			}
 		});
 
-		describeForFormatsEqOrGreaterThan(
-			FluidClientVersion.vDetachedRoots,
-			"can be concurrently reattached in different locations",
-			(minVersionForCollab) => {
+		describeForFormatsEqOrGreaterThan({
+			minVersion: FluidClientVersion.vDetachedRoots,
+			title: "can be concurrently reattached in different locations",
+			testFn: (minVersionForCollab) => {
 				const sf = new SchemaFactory(undefined);
 				class Child extends sf.object("Child", {}) {}
 				class ArrayParent extends sf.array("Array", Child) {}
@@ -3507,13 +3502,13 @@ describe("Editing", () => {
 					expected,
 				);
 			},
-		);
+		});
 
 		describe("can be edited while detached", () => {
-			describeForFormatsEqOrGreaterThan(
-				FluidClientVersion.vDetachedRoots,
-				"Edit removed array node",
-				(minVersionForCollab) => {
+			describeForFormatsEqOrGreaterThan({
+				minVersion: FluidClientVersion.vDetachedRoots,
+				title: "Edit removed array node",
+				testFn: (minVersionForCollab) => {
 					const sf = new SchemaFactory(undefined);
 					class Child extends sf.object("Child", {}) {}
 					class Parent extends sf.object("Parent", {
@@ -3560,12 +3555,12 @@ describe("Editing", () => {
 
 					assert.equal(hydratedArrayOnB.length, 0);
 				},
-			);
+			});
 
-			describeForFormatsEqOrGreaterThan(
-				FluidClientVersion.vDetachedRoots,
-				"Edit removed map node",
-				(minVersionForCollab) => {
+			describeForFormatsEqOrGreaterThan({
+				minVersion: FluidClientVersion.vDetachedRoots,
+				title: "Edit removed map node",
+				testFn: (minVersionForCollab) => {
 					const sf = new SchemaFactory(undefined);
 					class Child extends sf.object("Child", {}) {}
 					class Parent extends sf.object("Parent", {
@@ -3613,12 +3608,12 @@ describe("Editing", () => {
 
 					assert.equal(hydratedMapOnB.size, 0);
 				},
-			);
+			});
 
-			describeForFormatsEqOrGreaterThan(
-				FluidClientVersion.vDetachedRoots,
-				"Edit removed object node",
-				(minVersionForCollab) => {
+			describeForFormatsEqOrGreaterThan({
+				minVersion: FluidClientVersion.vDetachedRoots,
+				title: "Edit removed object node",
+				testFn: (minVersionForCollab) => {
 					const sf = new SchemaFactory(undefined);
 					class Child extends sf.object("Child", {}) {}
 					class Parent extends sf.object("Parent", {
@@ -3665,7 +3660,7 @@ describe("Editing", () => {
 
 					assert.equal(hydratedObjectOnB.child, undefined);
 				},
-			);
+			});
 		});
 	});
 
@@ -4405,8 +4400,8 @@ function describeForFormatsLessThan(
 	excludedVersion: MinimumVersionForCollab,
 	title: string,
 	testFn: (this: Mocha.Context, minVersionForCollab: MinimumVersionForCollab) => void,
-) {
-	describe(title, () => {
+): Mocha.Suite {
+	return describe(title, () => {
 		for (const minVersionForCollab of Object.values(FluidClientVersion)) {
 			if (minVersionForCollab >= excludedVersion) {
 				continue;
@@ -4418,18 +4413,20 @@ function describeForFormatsLessThan(
 	});
 }
 
-function describeForFormatsEqOrGreaterThan(
-	includedVersion: MinimumVersionForCollab,
-	title: string,
-	testFn: (this: Mocha.Context, minVersionForCollab: MinimumVersionForCollab) => void,
-) {
-	describe(title, () => {
+function describeForFormatsEqOrGreaterThan(options: {
+	minVersion: MinimumVersionForCollab;
+	title: string;
+	skip?: true;
+	testFn: (this: Mocha.Context, minVersionForCollab: MinimumVersionForCollab) => void;
+}): Mocha.Suite {
+	return describe(options.title, () => {
 		for (const minVersionForCollab of Object.values(FluidClientVersion)) {
-			if (minVersionForCollab < includedVersion) {
+			if (minVersionForCollab < options.minVersion) {
 				continue;
 			}
-			it(`format - ${minVersionForCollab}`, function () {
-				testFn.call(this, minVersionForCollab);
+			const runner = options.skip ? it.skip : it;
+			runner(`format - ${minVersionForCollab}`, function () {
+				options.testFn.call(this, minVersionForCollab);
 			});
 		}
 	});
@@ -4438,8 +4435,8 @@ function describeForFormatsEqOrGreaterThan(
 function describeForAllFormats(
 	title: string,
 	testFn: (this: Mocha.Context, minVersionForCollab: MinimumVersionForCollab) => void,
-) {
-	describe(title, () => {
+): Mocha.Suite {
+	return describe(title, () => {
 		for (const minVersionForCollab of Object.values(FluidClientVersion)) {
 			it(`format - ${minVersionForCollab}`, function () {
 				testFn.call(this, minVersionForCollab);
