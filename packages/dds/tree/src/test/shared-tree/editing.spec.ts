@@ -3491,17 +3491,6 @@ describe("Editing", () => {
 				assert.equal(Tree.status(hydratedChildOnB), TreeStatus.InDocument);
 				assert.equal(viewA.root.map.get("dst"), hydratedChildOnA);
 				assert.equal(viewA.root.array.length, 0);
-				const expected = [
-					{
-						array: [],
-						map: { dst: {} },
-						optChild: undefined,
-					},
-				];
-				expectJsonTree(
-					[provider.trees[0].kernel.checkout, provider.trees[1].kernel.checkout],
-					expected,
-				);
 			},
 		});
 

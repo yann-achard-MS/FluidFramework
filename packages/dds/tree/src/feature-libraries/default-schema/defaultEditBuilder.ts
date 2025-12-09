@@ -36,6 +36,7 @@ import {
 	type EditDescription,
 	type FieldChangeset,
 	type FieldEditDescription,
+	type GlobalEditDescription,
 	ModularChangeFamily,
 	type ModularChangeset,
 	ModularEditBuilder,
@@ -356,12 +357,12 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 				const attach = makeAttachEditDescription(buildId, revision, wasEmpty);
 				this.modularBuilder.submitChanges([build, attach], revision);
 			},
-			attach: (newContent: ChangeAtomId | undefined, wasEmpty: boolean): void => {
-				if (newContent === undefined) {
+			attach: (content: ChangeAtomId | undefined, wasEmpty: boolean): void => {
+				if (content === undefined) {
 					editBuilder.clear(wasEmpty);
 					return;
 				}
-				const isWithoutCell = this.nodesWithoutCells.delete(newContent.localId, 1) === 1;
+				const isWithoutCell = this.nodesWithoutCells.delete(content.localId, 1) === 1;
 				if (
 					!isWithoutCell &&
 					semverLessThan(this.minVersionForCollab, FluidClientVersion.vDetachedRoots)
@@ -371,8 +372,26 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 					);
 				}
 				const revision = this.mintRevisionTag();
-				const attach = makeAttachEditDescription(newContent, revision, wasEmpty);
-				this.modularBuilder.submitChanges([attach], revision);
+				const edits: EditDescription[] = [];
+				let stableSrcId: ChangeAtomId;
+				if (isWithoutCell) {
+					stableSrcId = content;
+				} else {
+					// If the node has an associated cell, then it may be concurrently moved to another location.
+					// We use a rename to ensure that the node will be moved to a specific grave before the attach.
+					stableSrcId = { localId: this.modularBuilder.generateId(), revision };
+					const rename: GlobalEditDescription = {
+						type: "global",
+						revision,
+						renames: [
+							{ count: 1, oldId: content, newId: stableSrcId, detachLocation: undefined },
+						],
+					};
+					edits.push(rename);
+				}
+				const attach = makeAttachEditDescription(stableSrcId, revision, wasEmpty);
+				edits.push(attach);
+				this.modularBuilder.submitChanges(edits, revision);
 			},
 			clear: (wasEmpty: boolean): void => {
 				const revision = this.mintRevisionTag();
