@@ -3,13 +3,14 @@
  * Licensed under the MIT License.
  */
 
+import { UsageError } from "@fluidframework/telemetry-utils/internal";
 import type {
 	SchemaAndPolicy,
 	FieldKey,
 	TreeFieldStoredSchema,
 	TreeTypeSet,
 } from "../core/index.js";
-import { dummyRoot, keyAsDetachedField } from "../core/index.js";
+import { dummyRoot, keyAsDetachedField, rootFieldKey } from "../core/index.js";
 import {
 	type FlexTreeContext,
 	getSchemaAndPolicy,
@@ -33,7 +34,9 @@ import {
 } from "./unhydratedFlexTreeFromInsertable.js";
 import {
 	createField,
+	getInnerNode,
 	getKernel,
+	isTreeNode,
 	UnhydratedFlexTreeNode,
 	type ImplicitAllowedTypes,
 	type TreeNode,
@@ -55,6 +58,21 @@ const validateSchema = true;
 // IDEA:
 // Have prepareForInsertion return a TreeChunk, and a function which should be called after its insertion with the path to its location (as Inner node?)
 
+function isHydrated(node: InsertableContent): boolean {
+	return isTreeNode(node) && getKernel(node).isHydrated();
+}
+
+function assertIsDetachedFlexTreeNode(node: FlexTreeNode): void {
+	if (
+		node.parentField.parent.parent !== undefined ||
+		node.parentField.parent.key === rootFieldKey
+	) {
+		throw new UsageError(
+			"Can only attach a detached node (i.e., a root with TreeStatus.Removed status)",
+		);
+	}
+}
+
 /**
  * Prepare content from a user for insertion into a tree.
  * @remarks
@@ -69,6 +87,12 @@ export function prepareForInsertion<TIn extends InsertableContent | undefined>(
 	destinationContext: FlexTreeContext,
 	destinationSchema: TreeFieldStoredSchema,
 ): TIn extends undefined ? undefined : FlexibleNodeContent {
+	if (data !== undefined && isHydrated(data)) {
+		const treeNode = getInnerNode(data as TreeNode);
+		assertIsDetachedFlexTreeNode(treeNode);
+		return treeNode as TIn extends undefined ? undefined : FlexibleNodeContent;
+	}
+
 	const content = prepareForInsertionContextlessInternal(
 		data,
 		schema,
@@ -106,6 +130,19 @@ export function prepareArrayContentForInsertion(
 	destinationContext: FlexTreeContext,
 	destinationSchema: TreeTypeSet,
 ): FlexibleFieldContent {
+	const hasHydratedData = data.find(isHydrated) !== undefined;
+	if (hasHydratedData) {
+		const hasUnhydratedData = data.find((item) => !isHydrated(item)) !== undefined;
+		if (hasUnhydratedData) {
+			throw new UsageError("Mixed hydrated and unhydrated data not supported");
+		}
+		const treeNodes = data.map((item) => getInnerNode(item as TreeNode));
+		for (const node of treeNodes) {
+			assertIsDetachedFlexTreeNode(node);
+		}
+		return treeNodes;
+	}
+
 	const mapTrees: FlexTreeNode[] = data.map((item) => flexTreeFromInsertable(item, schema));
 
 	const fieldSchema = convertField(
