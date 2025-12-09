@@ -2976,10 +2976,10 @@ describe("Editing", () => {
 			"an object's optional field",
 			"an object's required field",
 		] as const;
+		const reattachInRequiredFieldError = validateUsageError(
+			"A hydrated node that has been attached before cannot be attached into an object's required field. Assign new content to the field instead.",
+		);
 		describe("cannot be reattached into an object's required field after being detached from anywhere", () => {
-			const reattachInRequiredFieldError = validateUsageError(
-				"A hydrated node that has been attached before cannot be attached into an object's required field. Assign new content to the field instead.",
-			);
 			const sf = new SchemaFactory(undefined);
 			class Child extends sf.object("Child", {}) {}
 			class ArrayParent extends sf.array("Array", Child) {}
@@ -3048,6 +3048,9 @@ describe("Editing", () => {
 		});
 
 		describe("cannot be reattached anywhere after being detached from an object's required field", () => {
+			const minVersionForCollabError = validateUsageError(
+				`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
+			);
 			const attachFromRequiredFieldError = validateUsageError(
 				/Once associated with a required field, a node cannot be re-attached into any field. Use revert to return the node to its original field if desired./,
 			);
@@ -3070,6 +3073,10 @@ describe("Editing", () => {
 				describeForAllFormats(
 					`detach from an object's required field and attach to ${dst}`,
 					(minVersionForCollab) => {
+						const expectedError =
+							minVersionForCollab < FluidClientVersion.vDetachedRoots
+								? minVersionForCollabError
+								: attachFromRequiredFieldError;
 						const provider = new TestTreeProviderLite(
 							2,
 							configuredSharedTree({ minVersionForCollab }).getFactory(),
@@ -3092,30 +3099,24 @@ describe("Editing", () => {
 
 						switch (dst) {
 							case "an array": {
-								assert.throws(
-									() => view.root.array.insertAtEnd(hydratedChild),
-									attachFromRequiredFieldError,
-								);
+								assert.throws(() => view.root.array.insertAtEnd(hydratedChild), expectedError);
 								break;
 							}
 							case "a map": {
-								assert.throws(
-									() => view.root.map.set("dst", hydratedChild),
-									attachFromRequiredFieldError,
-								);
+								assert.throws(() => view.root.map.set("dst", hydratedChild), expectedError);
 								break;
 							}
 							case "an object's optional field": {
 								assert.throws(
 									() => (view.root.object.optChild = hydratedChild),
-									attachFromRequiredFieldError,
+									expectedError,
 								);
 								break;
 							}
 							case "an object's required field": {
 								assert.throws(
 									() => (view.root.object.reqChild = hydratedChild),
-									attachFromRequiredFieldError,
+									reattachInRequiredFieldError,
 								);
 								break;
 							}
@@ -3130,7 +3131,7 @@ describe("Editing", () => {
 
 	describe("Detached nodes - with format < vDetachedRoots", () => {
 		const containers = ["an array", "a map", "an object's optional field"] as const;
-		const reinsertError = validateUsageError(
+		const minVersionForCollabError = validateUsageError(
 			`Attach edits require a minimum version for collaboration >= ${FluidClientVersion.vDetachedRoots}.`,
 		);
 		describe("cannot be detached and reattached", () => {
@@ -3204,21 +3205,21 @@ describe("Editing", () => {
 								case "an array": {
 									assert.throws(
 										() => viewA.root.array.insertAtEnd(hydratedChildOnA),
-										reinsertError,
+										minVersionForCollabError,
 									);
 									break;
 								}
 								case "a map": {
 									assert.throws(
 										() => viewA.root.map.set("dst", hydratedChildOnA),
-										reinsertError,
+										minVersionForCollabError,
 									);
 									break;
 								}
 								case "an object's optional field": {
 									assert.throws(
 										() => (viewA.root.object.optChild = hydratedChildOnA),
-										reinsertError,
+										minVersionForCollabError,
 									);
 									break;
 								}
@@ -3228,8 +3229,8 @@ describe("Editing", () => {
 
 							provider.synchronizeMessages();
 
-							assert.equal(Tree.status(hydratedChildOnA), TreeStatus.InDocument);
-							assert.equal(Tree.status(hydratedChildOnB), TreeStatus.InDocument);
+							assert.equal(Tree.status(hydratedChildOnA), TreeStatus.Removed);
+							assert.equal(Tree.status(hydratedChildOnB), TreeStatus.Removed);
 						},
 					);
 				}
