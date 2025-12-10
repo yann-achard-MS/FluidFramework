@@ -1,9 +1,9 @@
-// XXX
-// /*!
-//  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
-//  * Licensed under the MIT License.
-//  */
+/*!
+ * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
+ * Licensed under the MIT License.
+ */
 
+// XXX
 describe.skip("dummy content 02", () => {});
 
 // import { strict as assert, fail } from "node:assert";
