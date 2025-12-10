@@ -4,6 +4,8 @@
 //  * Licensed under the MIT License.
 //  */
 
+describe.skip("dummy content 04", () => {});
+
 // import type { SessionId } from "@fluidframework/id-compressor";
 
 // import { brand } from "../../../util/index.js";

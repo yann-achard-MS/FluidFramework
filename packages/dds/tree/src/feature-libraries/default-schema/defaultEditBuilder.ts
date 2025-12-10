@@ -3,13 +3,10 @@
  * Licensed under the MIT License.
  */
 
-import { lt as semverLessThan } from "semver-ts";
-
 import { assert, oob } from "@fluidframework/core-utils/internal";
-import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
-import { FluidClientVersion, type ICodecFamily } from "../../codec/index.js";
+import type { ICodecFamily } from "../../codec/index.js";
 import {
 	type ChangeAtomId,
 	type ChangeEncodingContext,

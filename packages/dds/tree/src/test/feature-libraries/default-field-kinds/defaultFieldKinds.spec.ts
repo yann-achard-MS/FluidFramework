@@ -4,6 +4,8 @@
 //  * Licensed under the MIT License.
 //  */
 
+describe.skip("dummy content 02", () => {});
+
 // import { strict as assert, fail } from "node:assert";
 
 // import { makeAnonChange } from "../../../core/index.js";

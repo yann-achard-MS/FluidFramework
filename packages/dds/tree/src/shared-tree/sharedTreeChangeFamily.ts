@@ -5,7 +5,6 @@
 
 import { assert, fail } from "@fluidframework/core-utils/internal";
 import type { IIdCompressor } from "@fluidframework/id-compressor";
-import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 
 import type { CodecWriteOptions, ICodecFamily } from "../codec/index.js";
 import {

@@ -4,6 +4,8 @@
 //  * Licensed under the MIT License.
 //  */
 
+describe.skip("dummy content 05", () => {});
+
 // import path from "node:path";
 
 // import type { IIdCompressor } from "@fluidframework/id-compressor";

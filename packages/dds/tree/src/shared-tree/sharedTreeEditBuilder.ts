@@ -3,7 +3,6 @@
  * Licensed under the MIT License.
  */
 
-import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import type {
 	ChangeAtomId,
 	ChangeFamilyEditor,

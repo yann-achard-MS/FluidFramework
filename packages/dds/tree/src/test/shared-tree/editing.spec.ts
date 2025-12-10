@@ -4,7 +4,6 @@
  */
 
 import { strict as assert, fail } from "node:assert";
-import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import { validateUsageError } from "@fluidframework/test-runtime-utils/internal";
 
 import { unreachableCase } from "@fluidframework/core-utils/internal";
@@ -4395,12 +4394,14 @@ function describeForAllFormats(
 				testFn.call(this, options);
 			});
 		}
-		const options: SharedTreeOptions = {
-			minVersionForCollab: FluidClientVersion.v2_74,
-			enableDetachedRootEditing: true,
-		};
-		it(`format - ${JSON.stringify(options)}`, function () {
-			testFn.call(this, options);
-		});
+		{
+			const options: SharedTreeOptions = {
+				minVersionForCollab: FluidClientVersion.v2_74,
+				enableDetachedRootEditing: true,
+			};
+			it(`format - ${JSON.stringify(options)}`, function () {
+				testFn.call(this, options);
+			});
+		}
 	});
 }
