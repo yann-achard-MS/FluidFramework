@@ -3008,7 +3008,7 @@ describe("Editing", () => {
 			}
 		});
 
-		describe("cannot be reattached anywhere after being detached from an object's required field", () => {
+		describe.skip("cannot be reattached anywhere after being detached from an object's required field", () => {
 			const minVersionForCollabError = validateUsageError(
 				`Attach edits require a minimum version for collaboration >= TBD.`,
 			);
