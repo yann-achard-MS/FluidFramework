@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import { strict as assert } from "node:assert";
 import { describeStress, StressMode } from "@fluid-private/stochastic-test-utils";
 import {
 	type ChangeAtomId,
@@ -183,7 +184,12 @@ const OptionalChange = {
 // 	);
 // }
 
-type OptionalFieldTestState = FieldStateTree<string | undefined, DefaultChangeset>;
+type OptionalFieldTestState = FieldStateTree<OptionalFieldTestContent, DefaultChangeset>;
+
+interface OptionalFieldTestContent {
+	attached: string | undefined;
+	detached: { id: ChangeAtomId; value: string }[];
+}
 
 // function computeChildChangeInputContext(inputState: OptionalFieldTestState): number[] {
 // 	// This is effectively a filter of the intentions from all edits such that it only includes
@@ -221,7 +227,7 @@ const editor = defaultFamily.buildEditor(() => undefined);
 /**
  * See {@link ChildStateGenerator}
  */
-const generateChildStates: ChildStateGenerator<string | undefined, DefaultChangeset> =
+const generateChildStates: ChildStateGenerator<OptionalFieldTestContent, DefaultChangeset> =
 	function* (
 		state: OptionalFieldTestState,
 		tagFromIntention: (intention: number) => RevisionTag,
@@ -234,7 +240,7 @@ const generateChildStates: ChildStateGenerator<string | undefined, DefaultChange
 			};
 		};
 		const edits = getSequentialEdits(state);
-		if (state.content !== undefined) {
+		if (state.content.attached !== undefined) {
 			// Nested Change
 			{
 				const intention = mintIntention();
@@ -289,7 +295,13 @@ const generateChildStates: ChildStateGenerator<string | undefined, DefaultChange
 				};
 				const modularEdit = editor.buildChanges([fieldEdit]);
 				yield {
-					content: undefined,
+					content: {
+						attached: undefined,
+						detached: [
+							...state.content.detached,
+							{ id: detach, value: state.content.attached },
+						],
+					},
 					mostRecentEdit: {
 						changeset: tagChange(modularEdit, revision),
 						intention,
@@ -341,7 +353,7 @@ const generateChildStates: ChildStateGenerator<string | undefined, DefaultChange
 			};
 			const modularEdit = editor.buildChanges([fieldEdit]);
 			yield {
-				content: undefined,
+				content: state.content,
 				mostRecentEdit: {
 					changeset: tagChange(modularEdit, revision),
 					intention,
@@ -369,16 +381,20 @@ const generateChildStates: ChildStateGenerator<string | undefined, DefaultChange
 				field: { parent: undefined, field: rootFieldKey },
 				fieldKind: optional.identifier,
 				change: brand(
-					OptionalChange.set(state.content === undefined, {
+					OptionalChange.set(state.content.attached === undefined, {
 						fill,
 						detach,
 					}),
 				),
 				revision: setRevision,
 			};
+			const detached =
+				state.content.attached === undefined
+					? state.content.detached
+					: [...state.content.detached, { id: detach, value: state.content.attached }];
 			const modularEdit = editor.buildChanges([build, fieldEdit]);
 			yield {
-				content: newContents,
+				content: { attached: newContents, detached },
 				mostRecentEdit: {
 					changeset: tagChange(modularEdit, setRevision),
 					intention: setIntention,
@@ -398,7 +414,7 @@ const generateChildStates: ChildStateGenerator<string | undefined, DefaultChange
 			);
 
 			yield {
-				content: state.parent?.content,
+				content: (state.parent ?? assert.fail()).content,
 				mostRecentEdit: {
 					changeset: tagChange(modularEdit, undoRevision),
 					intention: undoIntention,
@@ -523,7 +539,10 @@ export function testRebaserAxioms() {
 
 		describeStress("Exhaustive", ({ stressMode }) => {
 			runExhaustiveComposeRebaseSuite(
-				[{ content: undefined }, { content: "A" }],
+				[
+					{ content: { attached: undefined, detached: [] } },
+					{ content: { attached: "A", detached: [] } },
+				],
 				generateChildStates,
 				defaultFieldRebaser,
 				{
