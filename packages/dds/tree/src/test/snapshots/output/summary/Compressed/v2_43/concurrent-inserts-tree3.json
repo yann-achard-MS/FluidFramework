@@ -41,7 +41,7 @@
                           "change": [
                             {
                               "data": {
-                                "maxId": 4,
+                                "maxId": 3,
                                 "changes": [
                                   {
                                     "fieldKey": "rootFieldKey",
@@ -62,10 +62,10 @@
                                                   "count": 1,
                                                   "effect": {
                                                     "insert": {
-                                                      "id": 3
+                                                      "id": 0
                                                     }
                                                   },
-                                                  "cellId": 3
+                                                  "cellId": 0
                                                 }
                                               ]
                                             }
@@ -80,7 +80,7 @@
                                     [
                                       [
                                         [
-                                          3,
+                                          0,
                                           0
                                         ]
                                       ]
@@ -108,7 +108,7 @@
                               }
                             }
                           ],
-                          "revision": 7,
+                          "revision": 16,
                           "sequenceNumber": 9,
                           "sessionId": "8f95be09-8376-4ff7-8755-ccd7e8124b06"
                         },
@@ -116,7 +116,7 @@
                           "change": [
                             {
                               "data": {
-                                "maxId": 5,
+                                "maxId": 1,
                                 "changes": [
                                   {
                                     "fieldKey": "rootFieldKey",
@@ -134,10 +134,10 @@
                                                   "count": 1,
                                                   "effect": {
                                                     "insert": {
-                                                      "id": 4
+                                                      "id": 0
                                                     }
                                                   },
-                                                  "cellId": 4
+                                                  "cellId": 0
                                                 }
                                               ]
                                             }
@@ -152,7 +152,7 @@
                                     [
                                       [
                                         [
-                                          4,
+                                          0,
                                           0
                                         ]
                                       ]
@@ -180,7 +180,7 @@
                               }
                             }
                           ],
-                          "revision": 10,
+                          "revision": 21,
                           "sequenceNumber": 11,
                           "sessionId": "8f95be09-8376-4ff7-8755-ccd7e8124b06"
                         },
@@ -188,7 +188,7 @@
                           "change": [
                             {
                               "data": {
-                                "maxId": 5,
+                                "maxId": 3,
                                 "changes": [
                                   {
                                     "fieldKey": "rootFieldKey",
@@ -266,7 +266,7 @@
                               }
                             }
                           ],
-                          "revision": 11,
+                          "revision": 24,
                           "sequenceNumber": 13,
                           "sessionId": "8f95be09-8376-4ff7-8755-ccd7e8124b06"
                         },
@@ -274,7 +274,7 @@
                           "change": [
                             {
                               "data": {
-                                "maxId": 5,
+                                "maxId": 3,
                                 "changes": [
                                   {
                                     "fieldKey": "rootFieldKey",
@@ -295,10 +295,10 @@
                                                   "count": 1,
                                                   "effect": {
                                                     "insert": {
-                                                      "id": 3
+                                                      "id": 0
                                                     }
                                                   },
-                                                  "cellId": 3
+                                                  "cellId": 0
                                                 }
                                               ]
                                             }
@@ -313,7 +313,7 @@
                                     [
                                       [
                                         [
-                                          3,
+                                          0,
                                           0
                                         ]
                                       ]
@@ -341,7 +341,7 @@
                               }
                             }
                           ],
-                          "revision": 12,
+                          "revision": 27,
                           "sequenceNumber": 14,
                           "sessionId": "8f95be09-8376-4ff7-8755-ccd7e8124b06"
                         }

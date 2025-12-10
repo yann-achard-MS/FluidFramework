@@ -41,39 +41,14 @@
                           "change": [
                             {
                               "data": {
-                                "maxId": 2,
-                                "changes": [
-                                  {
-                                    "fieldKey": "rootFieldKey",
-                                    "fieldKind": "ModularEditBuilder.Generic",
-                                    "change": [
-                                      [
-                                        0,
-                                        {
-                                          "fieldChanges": [
-                                            {
-                                              "fieldKey": "root 1 child",
-                                              "fieldKind": "Optional",
-                                              "change": {
-                                                "r": {
-                                                  "e": true,
-                                                  "d": 0,
-                                                  "s": 1
-                                                }
-                                              }
-                                            }
-                                          ]
-                                        }
-                                      ]
-                                    ]
-                                  }
-                                ],
+                                "maxId": 0,
+                                "changes": [],
                                 "builds": {
                                   "builds": [
                                     [
                                       [
                                         [
-                                          1,
+                                          0,
                                           0
                                         ]
                                       ]
@@ -108,7 +83,7 @@
                               }
                             }
                           ],
-                          "revision": 515,
+                          "revision": 514,
                           "sequenceNumber": 6,
                           "sessionId": "a0693eac-892a-4396-86f7-ad20dc1cade2"
                         },
@@ -116,7 +91,86 @@
                           "change": [
                             {
                               "data": {
-                                "maxId": 4,
+                                "maxId": 2,
+                                "changes": [
+                                  {
+                                    "fieldKey": "rootFieldKey",
+                                    "fieldKind": "ModularEditBuilder.Generic",
+                                    "change": [
+                                      [
+                                        0,
+                                        {
+                                          "fieldChanges": [
+                                            {
+                                              "fieldKey": "root 1 child",
+                                              "fieldKind": "Optional",
+                                              "change": {
+                                                "r": {
+                                                  "e": true,
+                                                  "d": 1,
+                                                  "s": [
+                                                    0,
+                                                    514
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    ]
+                                  }
+                                ],
+                                "refreshers": {
+                                  "builds": [
+                                    [
+                                      [
+                                        [
+                                          0,
+                                          0
+                                        ]
+                                      ],
+                                      514
+                                    ]
+                                  ],
+                                  "trees": {
+                                    "version": 2,
+                                    "identifiers": [],
+                                    "shapes": [
+                                      {
+                                        "c": {
+                                          "extraFields": 1
+                                        }
+                                      },
+                                      {
+                                        "a": 0
+                                      }
+                                    ],
+                                    "data": [
+                                      [
+                                        1,
+                                        [
+                                          "com.fluidframework.leaf.number",
+                                          true,
+                                          40,
+                                          []
+                                        ]
+                                      ]
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          ],
+                          "revision": 515,
+                          "sequenceNumber": 8,
+                          "sessionId": "a0693eac-892a-4396-86f7-ad20dc1cade2"
+                        },
+                        {
+                          "change": [
+                            {
+                              "data": {
+                                "maxId": 1,
                                 "changes": [
                                   {
                                     "fieldKey": "rootFieldKey",
@@ -124,8 +178,8 @@
                                     "change": {
                                       "r": {
                                         "e": false,
-                                        "d": 3,
-                                        "s": 4
+                                        "d": 1,
+                                        "s": 0
                                       }
                                     }
                                   }
@@ -135,7 +189,7 @@
                                     [
                                       [
                                         [
-                                          4,
+                                          0,
                                           0
                                         ]
                                       ]
@@ -177,8 +231,8 @@
                               }
                             }
                           ],
-                          "revision": 516,
-                          "sequenceNumber": 8,
+                          "revision": 518,
+                          "sequenceNumber": 10,
                           "sessionId": "a0693eac-892a-4396-86f7-ad20dc1cade2"
                         },
                         {
@@ -193,12 +247,12 @@
                                     "change": {
                                       "r": {
                                         "e": false,
-                                        "d": 3,
-                                        "s": 4
+                                        "d": 4,
+                                        "s": 3
                                       },
                                       "c": [
                                         [
-                                          4,
+                                          3,
                                           {
                                             "fieldChanges": [
                                               {
@@ -207,8 +261,8 @@
                                                 "change": {
                                                   "r": {
                                                     "e": true,
-                                                    "d": 5,
-                                                    "s": 6
+                                                    "d": 6,
+                                                    "s": 5
                                                   }
                                                 }
                                               }
@@ -217,8 +271,8 @@
                                         ],
                                         [
                                           [
-                                            3,
-                                            516
+                                            1,
+                                            518
                                           ],
                                           {
                                             "fieldChanges": [
@@ -228,8 +282,8 @@
                                                 "change": {
                                                   "r": {
                                                     "e": false,
-                                                    "d": 0,
-                                                    "s": 1
+                                                    "d": 1,
+                                                    "s": 0
                                                   }
                                                 }
                                               }
@@ -245,15 +299,15 @@
                                     [
                                       [
                                         [
-                                          1,
+                                          0,
                                           0
                                         ],
                                         [
-                                          4,
+                                          3,
                                           1
                                         ],
                                         [
-                                          6,
+                                          5,
                                           2
                                         ]
                                       ]
@@ -305,8 +359,8 @@
                               }
                             }
                           ],
-                          "revision": 7,
-                          "sequenceNumber": 10,
+                          "revision": 11,
+                          "sequenceNumber": 12,
                           "sessionId": "8f95be09-8376-4ff7-8755-ccd7e8124b06"
                         },
                         {
@@ -314,40 +368,13 @@
                             {
                               "data": {
                                 "maxId": 9,
-                                "changes": [
-                                  {
-                                    "fieldKey": "rootFieldKey",
-                                    "fieldKind": "Optional",
-                                    "change": {
-                                      "c": [
-                                        [
-                                          null,
-                                          {
-                                            "fieldChanges": [
-                                              {
-                                                "fieldKey": "root 3 child",
-                                                "fieldKind": "Optional",
-                                                "change": {
-                                                  "r": {
-                                                    "e": false,
-                                                    "d": 2,
-                                                    "s": 3
-                                                  }
-                                                }
-                                              }
-                                            ]
-                                          }
-                                        ]
-                                      ]
-                                    }
-                                  }
-                                ],
+                                "changes": [],
                                 "builds": {
                                   "builds": [
                                     [
                                       [
                                         [
-                                          3,
+                                          0,
                                           0
                                         ]
                                       ]
@@ -382,8 +409,51 @@
                               }
                             }
                           ],
-                          "revision": 8,
-                          "sequenceNumber": 12,
+                          "revision": 12,
+                          "sequenceNumber": 14,
+                          "sessionId": "8f95be09-8376-4ff7-8755-ccd7e8124b06"
+                        },
+                        {
+                          "change": [
+                            {
+                              "data": {
+                                "maxId": 9,
+                                "changes": [
+                                  {
+                                    "fieldKey": "rootFieldKey",
+                                    "fieldKind": "Optional",
+                                    "change": {
+                                      "c": [
+                                        [
+                                          null,
+                                          {
+                                            "fieldChanges": [
+                                              {
+                                                "fieldKey": "root 3 child",
+                                                "fieldKind": "Optional",
+                                                "change": {
+                                                  "r": {
+                                                    "e": false,
+                                                    "d": 1,
+                                                    "s": [
+                                                      0,
+                                                      12
+                                                    ]
+                                                  }
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ],
+                          "revision": 13,
+                          "sequenceNumber": 16,
                           "sessionId": "8f95be09-8376-4ff7-8755-ccd7e8124b06"
                         }
                       ],
@@ -391,7 +461,7 @@
                         [
                           "a0693eac-892a-4396-86f7-ad20dc1cade2",
                           {
-                            "base": 516,
+                            "base": 518,
                             "commits": []
                           }
                         ]
@@ -601,26 +671,26 @@
                       "version": 2,
                       "data": [
                         [
-                          7,
+                          11,
                           [
                             [
-                              0,
+                              1,
                               8
                             ],
                             [
-                              3,
+                              4,
                               11
                             ]
                           ]
                         ],
                         [
-                          8,
-                          2,
+                          13,
+                          1,
                           6
                         ],
                         [
-                          516,
-                          3,
+                          518,
+                          1,
                           10
                         ]
                       ],
