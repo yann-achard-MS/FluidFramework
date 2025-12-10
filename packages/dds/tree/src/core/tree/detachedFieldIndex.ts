@@ -53,6 +53,12 @@ export interface ReadOnlyDetachedFieldIndex {
 	toFieldKey(id: ForestRootId): FieldKey;
 
 	/**
+	 * Returns a node ID for the node in the given field.
+	 * @param field - The field key where the detached node resides.
+	 */
+	fromFieldKey(field: FieldKey): Delta.DetachedNodeId;
+
+	/**
 	 * Returns the `ForestRootId` associated with the given id.
 	 * Returns undefined if no such id is known to the index.
 	 */

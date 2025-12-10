@@ -13,6 +13,7 @@ import {
 	type ChangeFamily,
 	type ChangeRebaser,
 	type DeltaDetachedNodeId,
+	type EditorOptions,
 	type RevisionMetadataSource,
 	type RevisionTag,
 	type RevisionTagCodec,
@@ -82,13 +83,13 @@ export class SharedTreeChangeFamily
 	public buildEditor(
 		mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<SharedTreeChange>) => void,
-		minVersionForCollab?: MinimumVersionForCollab,
+		options?: EditorOptions,
 	): IdBasedSharedTreeEditBuilder {
 		return new IdBasedSharedTreeEditBuilder(
 			this.modularChangeFamily,
 			mintRevisionTag,
 			changeReceiver,
-			minVersionForCollab,
+			options,
 		);
 	}
 

@@ -15,11 +15,15 @@ export interface ChangeFamily<TEditor extends ChangeFamilyEditor, TChange> {
 	buildEditor(
 		mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<TChange>) => void,
-		minVersionForCollab?: MinimumVersionForCollab,
+		options?: EditorOptions,
 	): TEditor;
 
 	readonly rebaser: ChangeRebaser<TChange>;
 	readonly codecs: ICodecFamily<TChange, ChangeEncodingContext>;
+}
+
+export interface EditorOptions {
+	readonly canMakeDetachedRootEdits: boolean; // default is false,
 }
 
 export interface ChangeEncodingContext {

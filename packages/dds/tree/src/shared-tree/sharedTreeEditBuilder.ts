@@ -7,6 +7,7 @@ import type { MinimumVersionForCollab } from "@fluidframework/runtime-definition
 import type {
 	ChangeAtomId,
 	ChangeFamilyEditor,
+	EditorOptions,
 	RevisionTag,
 	TaggedChange,
 	TreeChunk,
@@ -71,7 +72,7 @@ export class IdBasedSharedTreeEditBuilder
 		modularChangeFamily: ModularChangeFamily,
 		mintRevisionTag: () => RevisionTag,
 		private readonly changeReceiver: (change: TaggedChange<SharedTreeChange>) => void,
-		minVersionForCollab?: MinimumVersionForCollab,
+		options?: EditorOptions,
 	) {
 		super(
 			modularChangeFamily,
@@ -81,7 +82,7 @@ export class IdBasedSharedTreeEditBuilder
 					...taggedChange,
 					change: { changes: [{ type: "data", innerChange: taggedChange.change }] },
 				}),
-			minVersionForCollab,
+			options,
 		);
 
 		this.schema = {

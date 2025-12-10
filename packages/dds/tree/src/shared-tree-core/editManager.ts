@@ -19,6 +19,7 @@ import {
 	mintCommit,
 	type RebaseStatsWithDuration,
 	tagChange,
+	type EditorOptions,
 } from "../core/index.js";
 import { type Mutable, brand, getOrCreate, mapIterable } from "../util/index.js";
 
@@ -124,7 +125,7 @@ export class EditManager<
 		public readonly localSessionId: SessionId,
 		private readonly mintRevisionTag: () => RevisionTag,
 		private readonly onSharedBranchCreated?: (branchId: BranchId) => void,
-		minVersionForCollab?: MinimumVersionForCollab,
+		editorOptions?: EditorOptions,
 		logger?: ITelemetryLoggerExt,
 	) {
 		this.trunkBase = {
@@ -149,16 +150,10 @@ export class EditManager<
 			mintRevisionTag,
 			this._events,
 			this.telemetryEventBatcher,
-			minVersionForCollab,
+			editorOptions,
 		);
 
-		this.createAndAddSharedBranch(
-			"main",
-			undefined,
-			undefined,
-			mainTrunk,
-			minVersionForCollab,
-		);
+		this.createAndAddSharedBranch("main", undefined, undefined, mainTrunk, editorOptions);
 	}
 
 	public getLocalBranch(branchId: BranchId): SharedTreeBranch<TEditor, TChangeset> {
@@ -489,14 +484,14 @@ export class EditManager<
 		sessionId: SessionId | undefined,
 		parent: SharedBranch<TEditor, TChangeset> | undefined,
 		branch: SharedTreeBranch<TEditor, TChangeset>,
-		minVersionForCollab?: MinimumVersionForCollab,
+		editorOptions?: EditorOptions,
 	): SharedBranch<TEditor, TChangeset> {
 		const sharedBranch = this.createSharedBranch(
 			branchId,
 			sessionId,
 			parent,
 			branch,
-			minVersionForCollab,
+			editorOptions,
 		);
 		this.addSharedBranch(branchId, sharedBranch);
 		return sharedBranch;
@@ -528,7 +523,7 @@ export class EditManager<
 		sessionId: SessionId | undefined,
 		parent: SharedBranch<TEditor, TChangeset> | undefined,
 		branch: SharedTreeBranch<TEditor, TChangeset>,
-		minVersionForCollab?: MinimumVersionForCollab,
+		editorOptions?: EditorOptions,
 	): SharedBranch<TEditor, TChangeset> {
 		const sharedBranch = new SharedBranch(
 			parent,
@@ -540,7 +535,7 @@ export class EditManager<
 			this.mintRevisionTag,
 			this._events,
 			this.telemetryEventBatcher,
-			minVersionForCollab,
+			editorOptions,
 		);
 
 		return sharedBranch;
@@ -713,7 +708,7 @@ class SharedBranch<TEditor extends ChangeFamilyEditor, TChangeset> {
 		private readonly mintRevisionTag: () => RevisionTag,
 		branchTrimmer: Listenable<BranchTrimmingEvents>,
 		telemetryEventBatcher: TelemetryEventBatcher<keyof RebaseStatsWithDuration> | undefined,
-		minVersionForCollab?: MinimumVersionForCollab,
+		editorOptions?: EditorOptions,
 	) {
 		this.localBranch = new SharedTreeBranch(
 			this.trunk.getHead(),
@@ -721,7 +716,7 @@ class SharedBranch<TEditor extends ChangeFamilyEditor, TChangeset> {
 			mintRevisionTag,
 			branchTrimmer,
 			telemetryEventBatcher,
-			minVersionForCollab,
+			editorOptions,
 		);
 
 		this.sequenceIdToCommit.set(baseCommitSequenceId, this.trunk.getHead());

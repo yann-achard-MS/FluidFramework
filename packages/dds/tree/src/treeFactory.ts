@@ -232,4 +232,5 @@ const sharedBranchesOptions: SharedTreeOptionsInternal = {
 const detachRootEditingOptions: SharedTreeOptionsInternal = {
 	messageFormatSelector: messageFormatVersionSelectorForDetachedRootEditing,
 	editManagerFormatSelector: editManagerFormatVersionSelectorForDetachedRootEditing,
+	canMakeDetachedRootEdits: true,
 };

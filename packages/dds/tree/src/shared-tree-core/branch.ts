@@ -23,6 +23,7 @@ import {
 	rebaseBranch,
 	tagRollbackInverse,
 	type RebaseStatsWithDuration,
+	type EditorOptions,
 } from "../core/index.js";
 import { hasSome, defineLazyCachedProperty } from "../util/index.js";
 import type {
@@ -129,12 +130,12 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> {
 		private readonly telemetryEventBatcher?: TelemetryEventBatcher<
 			keyof RebaseStatsWithDuration
 		>,
-		private readonly minVersionForCollab?: MinimumVersionForCollab,
+		private readonly editorOptions?: EditorOptions,
 	) {
 		this.editor = this.changeFamily.buildEditor(
 			mintRevisionTag,
 			(change) => this.apply(change),
-			minVersionForCollab,
+			this.editorOptions,
 		);
 		this.unsubscribeBranchTrimmer = branchTrimmer?.on("ancestryTrimmed", (commit) => {
 			this.#events.emit("ancestryTrimmed", commit);
@@ -201,7 +202,7 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> {
 			this.mintRevisionTag,
 			this.branchTrimmer,
 			undefined,
-			this.minVersionForCollab,
+			this.editorOptions,
 		);
 		this.#events.emit("fork", fork);
 		return fork;

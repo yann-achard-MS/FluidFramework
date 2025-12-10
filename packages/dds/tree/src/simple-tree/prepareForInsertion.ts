@@ -46,6 +46,7 @@ import { assert, fail } from "@fluidframework/core-utils/internal";
 import { combineChunks, isFieldInSchema } from "../feature-libraries/index.js";
 import { getUnhydratedContext } from "./createContext.js";
 import { convertField, permissiveStoredSchemaGenerationOptions } from "./toStoredSchema.js";
+import type { SchemaType, SimpleFieldSchema } from "./simpleSchema.js";
 
 /**
  * For now, schema validation for inserted content is always enabled.
@@ -146,8 +147,8 @@ export function prepareArrayContentForInsertion(
 	const mapTrees: FlexTreeNode[] = data.map((item) => flexTreeFromInsertable(item, schema));
 
 	const fieldSchema = convertField(
-		normalizeFieldSchema(schema),
-		permissiveStoredSchemaGenerationOptions,
+		normalizeFieldSchema(schema) as unknown as SimpleFieldSchema<SchemaType.Stored>,
+		// permissiveStoredSchemaGenerationOptions,
 	);
 
 	const normalizedFieldSchema = normalizeFieldSchema(schema);
@@ -285,8 +286,8 @@ function prepareForInsertionContextlessInternal<TIn extends InsertableContent | 
 	const contentArray = mapTree === undefined ? [] : [mapTree];
 	const normalizedFieldSchema = normalizeFieldSchema(schema);
 	const fieldSchema = convertField(
-		normalizedFieldSchema,
-		permissiveStoredSchemaGenerationOptions,
+		normalizedFieldSchema as unknown as SimpleFieldSchema<SchemaType.Stored>,
+		//permissiveStoredSchemaGenerationOptions,
 	);
 
 	const field = createField(

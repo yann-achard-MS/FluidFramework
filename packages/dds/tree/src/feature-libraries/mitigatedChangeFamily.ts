@@ -8,6 +8,7 @@ import type {
 	ChangeFamily,
 	ChangeFamilyEditor,
 	ChangeRebaser,
+	EditorOptions,
 	RevisionMetadataSource,
 	RevisionTag,
 	TaggedChange,
@@ -36,13 +37,9 @@ export function makeMitigatedChangeFamily<TEditor extends ChangeFamilyEditor, TC
 		buildEditor: (
 			mintRevisionTag: () => RevisionTag,
 			changeReceiver: (change: TaggedChange<TChange>) => void,
-			minVersionForCollab?: MinimumVersionForCollab,
+			options?: EditorOptions,
 		): TEditor => {
-			return unmitigatedChangeFamily.buildEditor(
-				mintRevisionTag,
-				changeReceiver,
-				minVersionForCollab,
-			);
+			return unmitigatedChangeFamily.buildEditor(mintRevisionTag, changeReceiver, options);
 		},
 		rebaser: makeMitigatedRebaser(unmitigatedChangeFamily.rebaser, fallbackChange, onError),
 		codecs: unmitigatedChangeFamily.codecs,

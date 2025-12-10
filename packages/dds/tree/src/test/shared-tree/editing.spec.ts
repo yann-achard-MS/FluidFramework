@@ -4372,7 +4372,7 @@ function describeForFormatsWithDetachedRoots({
 	return describe(title, () => {
 		const options: SharedTreeOptions = {
 			minVersionForCollab: FluidClientVersion.v2_74,
-			enableDetachedRootEditing: false,
+			enableDetachedRootEditing: true,
 		};
 		const runner = skip ? it.skip : it;
 		runner(`format - ${JSON.stringify(options)}`, function () {
@@ -4397,7 +4397,7 @@ function describeForAllFormats(
 		}
 		const options: SharedTreeOptions = {
 			minVersionForCollab: FluidClientVersion.v2_74,
-			enableDetachedRootEditing: false,
+			enableDetachedRootEditing: true,
 		};
 		it(`format - ${JSON.stringify(options)}`, function () {
 			testFn.call(this, options);

@@ -830,6 +830,7 @@ export const defaultSharedTreeOptions: Required<SharedTreeOptionsInternal> = {
 	messageFormatSelector: clientVersionToMessageFormatVersion,
 	enableSharedBranches: false,
 	enableDetachedRootEditing: false,
+	canMakeDetachedRootEdits: false,
 };
 
 /**
