@@ -50,6 +50,7 @@ import {
 	type ChangeAtomId,
 	offsetChangeAtomId,
 	diffHistories,
+	type ReadOnlyDetachedFieldIndex,
 } from "../core/index.js";
 import {
 	type DetachedRootIds,
@@ -57,7 +58,7 @@ import {
 	type DetachedRootsLocation,
 	type FieldBatchCodec,
 	type Locator,
-	type TreeCompressionStrategyPrivate,
+	type TreeCompressionStrategy,
 	allowsRepoSuperset,
 	buildForest,
 	changeAtomFromDetachedNodeId,
@@ -306,7 +307,7 @@ export function createTreeCheckout(
 		forest?: IEditableForest;
 		fieldBatchCodec?: FieldBatchCodec;
 		removedRoots?: DetachedFieldIndex;
-		chunkCompressionStrategy?: TreeCompressionStrategyPrivate;
+		chunkCompressionStrategy?: TreeCompressionStrategy;
 		logger?: ITelemetryLoggerExt;
 		breaker?: Breakable;
 		disposeForksAfterTransaction?: boolean;
@@ -429,7 +430,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 		private readonly mintRevisionTag: () => RevisionTag,
 		private readonly revisionTagCodec: RevisionTagCodec,
 		private readonly idCompressor: IIdCompressor,
-		public removedRoots: DetachedFieldIndex = makeDetachedFieldIndex(
+		private readonly _removedRoots: DetachedFieldIndex = makeDetachedFieldIndex(
 			"repair",
 			revisionTagCodec,
 			idCompressor,
@@ -469,6 +470,10 @@ export class TreeCheckout implements ITreeCheckoutFork {
 		this.registerForBranchEvents();
 	}
 
+	public get removedRoots(): ReadOnlyDetachedFieldIndex {
+		return this._removedRoots;
+	}
+
 	private registerForBranchEvents(): void {
 		this.#transaction.branch.events.on("afterChange", this.onAfterBranchChange);
 		this.#transaction.activeBranchEvents.on("afterChange", this.onAfterChange);
@@ -489,7 +494,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			(commits) => {
 				const revision = this.mintRevisionTag();
 				for (const transactionStep of commits) {
-					this.removedRoots.updateMajor(transactionStep.revision, revision);
+					this._removedRoots.updateMajor(transactionStep.revision, revision);
 				}
 
 				const squashedChange = this.changeFamily.rebaser.compose(commits);
@@ -500,12 +505,12 @@ export class TreeCheckout implements ITreeCheckoutFork {
 				const disposeForks = this.disposeForksAfterTransaction
 					? trackForksForDisposal(this)
 					: undefined;
-				// When each transaction is started, take a snapshot of the current state of removed roots
-				const removedRootsSnapshot = this.removedRoots.clone();
+				// When each transaction is started, make a restorable checkpoint of the current state of removed roots
+				const restoreRemovedRoots = this._removedRoots.createCheckpoint();
 				return (result) => {
 					switch (result) {
 						case TransactionResult.Abort:
-							this.removedRoots = removedRootsSnapshot;
+							restoreRemovedRoots();
 							break;
 						case TransactionResult.Commit:
 							if (!this.transaction.isInProgress()) {
@@ -614,7 +619,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			if (innerChange.type === "data") {
 				const delta = intoDelta(tagChange(innerChange.innerChange, revision));
 				this.withCombinedVisitor((visitor) => {
-					visitDelta(delta, visitor, this.removedRoots, revision);
+					visitDelta(delta, visitor, this._removedRoots, revision);
 				});
 			} else if (innerChange.type === "schema") {
 				// Schema changes from a current to a new schema are expected to be backwards compatible.
@@ -645,14 +650,14 @@ export class TreeCheckout implements ITreeCheckoutFork {
 		this.withCombinedVisitor((visitor) => {
 			revisions.forEach((revision) => {
 				// get all the roots last created or used by the revision
-				const roots = this.removedRoots.getRootsLastTouchedByRevision(revision);
+				const roots = this._removedRoots.getRootsLastTouchedByRevision(revision);
 
 				// get the detached field for the root and delete it from the removed roots
 				for (const root of roots) {
-					visitor.destroy(this.removedRoots.toFieldKey(root), 1);
+					visitor.destroy(this._removedRoots.toFieldKey(root), 1);
 				}
 
-				this.removedRoots.deleteRootsLastTouchedByRevision(revision);
+				this._removedRoots.deleteRootsLastTouchedByRevision(revision);
 			});
 		});
 	};
@@ -822,7 +827,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			this.mintRevisionTag,
 			this.revisionTagCodec,
 			this.idCompressor,
-			this.removedRoots.clone(),
+			this._removedRoots.clone(),
 			this.logger,
 			this.breaker,
 			this.disposeForksAfterTransaction,
@@ -942,8 +947,8 @@ export class TreeCheckout implements ITreeCheckoutFork {
 		this.assertNoUntrackedRoots();
 		const trees: [string | number | undefined, number, JsonableTree][] = [];
 		const cursor = this.forest.allocateCursor("getRemovedRoots");
-		for (const { id, root } of this.removedRoots.entries()) {
-			const parentField = this.removedRoots.toFieldKey(root);
+		for (const { id, root } of this._removedRoots.entries()) {
+			const parentField = this._removedRoots.toFieldKey(root);
 			this.forest.moveCursorToPath({ parent: undefined, parentField, parentIndex: 0 }, cursor);
 			const tree = jsonableTreeFromCursor(cursor);
 			// This method is used for tree consistency comparison.
@@ -963,7 +968,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	public load(): void {
 		// Set the tip revision as the latest relevant revision for any removed roots that are loaded from a summary - this allows them to be garbage collected later.
 		// When a load happens, the head of the trunk and the head of the local/main branch must be the same (this is enforced by SharedTree).
-		this.removedRoots.setRevisionsForLoadedData(this.#transaction.branch.getHead().revision);
+		this._removedRoots.setRevisionsForLoadedData(this.#transaction.branch.getHead().revision);
 		// The content of the checkout (e.g. the forest) has (maybe) changed, so fire an afterBatch event.
 		this.#events.emit("afterBatch");
 	}
@@ -1035,8 +1040,8 @@ export class TreeCheckout implements ITreeCheckoutFork {
 	private assertNoUntrackedRoots(): void {
 		const cursor = this.forest.getCursorAboveDetachedFields();
 		const rootFields = new Set([rootFieldKey]);
-		for (const { root } of this.removedRoots.entries()) {
-			rootFields.add(this.removedRoots.toFieldKey(root));
+		for (const { root } of this._removedRoots.entries()) {
+			rootFields.add(this._removedRoots.toFieldKey(root));
 		}
 
 		if (!cursor.firstField()) {

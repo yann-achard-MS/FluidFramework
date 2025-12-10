@@ -128,7 +128,7 @@ export function flexTreeFromInsertableNode(
 	// TODO: fix TODO in `toFlexContent`, and remove this.
 	const finalSchema =
 		oneFromIterable(filterIterable(allowedTypes, (s) => s.identifier === result[0].type)) ??
-		fail("missing schema");
+		fail(0xc9d /* missing schema */);
 
 	return new UnhydratedFlexTreeNode(...result, getUnhydratedContext(finalSchema));
 }

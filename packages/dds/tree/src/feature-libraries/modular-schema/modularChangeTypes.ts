@@ -46,8 +46,6 @@ export interface ModularChangeset extends HasFieldChanges {
 	 * Maps from this changeset's canonical ID for a node (see comment on node aliases) to the changes for that node.
 	 */
 	readonly nodeChanges: ChangeAtomIdBTree<NodeChangeset>;
-
-	// XXX: Could this be merged with nodeAliases?
 	readonly rootNodes: RootNodeTable;
 
 	/**
@@ -206,15 +204,16 @@ export interface NodeExistsConstraint {
  */
 export interface NodeChangeset extends HasFieldChanges {
 	/** Keeps track of whether node exists constraint has been violated by this change */
-	nodeExistsConstraint?: NodeExistsConstraint;
+	readonly nodeExistsConstraint?: NodeExistsConstraint;
+
 	/** Keeps track of whether node exists constraint will be violated when this change is reverted */
-	nodeExistsConstraintOnRevert?: NodeExistsConstraint;
+	readonly nodeExistsConstraintOnRevert?: NodeExistsConstraint;
 }
 
 export type NodeId = ChangeAtomId;
 
 export interface HasFieldChanges {
-	fieldChanges?: FieldChangeMap;
+	readonly fieldChanges?: FieldChangeMap;
 }
 
 export type FieldChangeMap = Map<FieldKey, FieldChange>;

@@ -83,6 +83,8 @@ export {
 	CursorMarker,
 	isCursor,
 	DetachedFieldIndex,
+	type ReadOnlyDetachedFieldIndex,
+	type DetachedFieldIndexCheckpoint,
 	type ForestRootId,
 	getDetachedFieldContainingPath,
 	getDetachedFieldContainingFieldPath,
@@ -103,7 +105,7 @@ export {
 	cursorChunk,
 	tryGetChunk,
 	type ChunkedCursor,
-	type DetachedFieldIndexFormatVersion,
+	DetachedFieldIndexFormatVersion,
 	getCodecTreeForDetachedFieldIndexFormat,
 } from "./tree/index.js";
 

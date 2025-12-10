@@ -162,9 +162,9 @@ import {
 	unhydratedFlexTreeFromInsertable,
 	type SimpleNodeSchema,
 	type TreeNodeSchema,
-	getStoredSchema,
 	restrictiveStoredSchemaGenerationOptions,
 	toInitialSchema,
+	toStoredSchema,
 } from "../simple-tree/index.js";
 import {
 	Breakable,
@@ -182,7 +182,6 @@ import { cursorToJsonObject, fieldJsonCursor, singleJsonCursor } from "./json/in
 // eslint-disable-next-line import-x/no-internal-modules
 import type { TreeSimpleContent } from "./feature-libraries/flex-tree/utils.js";
 import type { Transactor } from "../shared-tree-core/index.js";
-// eslint-disable-next-line import-x/no-internal-modules
 import {
 	configuredSharedTree,
 	configuredSharedTreeInternal,
@@ -534,7 +533,7 @@ export class TestTreeProviderLite {
  * after the spy is no longer needed.
  */
 export function spyOnMethod(
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type, @typescript-eslint/ban-types
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 	methodClass: Function,
 	methodName: string,
 	spy: () => void,
@@ -1561,8 +1560,10 @@ export class TestSchemaRepository extends TreeStoredSchemaRepository {
 	 * @returns true iff update was performed.
 	 */
 	public tryUpdateTreeSchema(schema: SimpleNodeSchema & TreeNodeSchema): boolean {
-		const storedSchema = getStoredSchema(schema, restrictiveStoredSchemaGenerationOptions);
 		const name: TreeNodeSchemaIdentifier = brand(schema.identifier);
+		const storedSchema =
+			toStoredSchema(schema, restrictiveStoredSchemaGenerationOptions).nodeSchema.get(name) ??
+			assert.fail();
 		const original = this.nodeSchema.get(name);
 		if (allowsTreeSuperset(this.policy, this, original, storedSchema)) {
 			this.nodeSchemaData.set(name, storedSchema);

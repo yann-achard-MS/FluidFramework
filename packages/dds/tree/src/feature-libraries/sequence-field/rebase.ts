@@ -52,7 +52,6 @@ import {
 	isAttach,
 	isDetach,
 	isNewAttach,
-	isNoopMark,
 	isRename,
 	isTombstone,
 	markEmptiesCells,
@@ -250,7 +249,6 @@ function addMovedMarkEffect(mark: Mark, effect: Detach): Mark {
 	if (isAttach(mark) && isDetach(effect)) {
 		return { ...mark, type: "Insert" };
 	} else if (isRename(mark) && isDetach(effect)) {
-		// XXX: Should this ever be cellRename instead?
 		const result = { ...effect, count: mark.count };
 		if (!areEqualChangeAtomIds(mark.idOverride, getDetachedRootId(effect))) {
 			result.detachCellId = mark.idOverride;
@@ -318,26 +316,8 @@ function rebaseMarkIgnoreChild(
 		rebasedMark = { ...(remains ?? {}), count: baseMark.count };
 		return makeDetachedMark(rebasedMark, cloneCellId(baseCellId));
 	} else if (markFillsCells(baseMark)) {
-		assert(currMark.type !== "Rename", "XXX");
 		return withCellId(currMark, undefined);
 	} else if (isRename(baseMark)) {
-		// XXX: Why does it matter whether currMark is a noop?
-		if (isNoopMark(currMark)) {
-			const newRenameId = moveEffects.getNewRenameForBaseRename(
-				baseMark.idOverride,
-				baseMark.count,
-			).value;
-
-			if (newRenameId !== undefined) {
-				return {
-					type: "Rename",
-					cellId: baseMark.idOverride,
-					count: baseMark.count,
-					idOverride: newRenameId,
-				};
-			}
-		}
-
 		if (currMark.type === "Rename") {
 			const doesBaseMoveAndAttach = moveEffects.doesBaseAttachNodes(
 				baseMark.idOverride,
@@ -356,6 +336,20 @@ function rebaseMarkIgnoreChild(
 				// so we should remove the rename from this location.
 				return { cellId: baseMark.idOverride, count: baseMark.count };
 			}
+		}
+
+		const newRenameId = moveEffects.getNewRenameForBaseRename(
+			baseMark.idOverride,
+			baseMark.count,
+		).value;
+
+		if (newRenameId !== undefined && currMark.type !== "Insert") {
+			return {
+				type: "Rename",
+				cellId: baseMark.idOverride,
+				count: baseMark.count,
+				idOverride: newRenameId,
+			};
 		}
 
 		return withCellId(currMark, getOutputCellId(baseMark));
@@ -504,7 +498,7 @@ function getMovedEffect(
 	const detachId = entry.value?.detachId;
 	if (detachId === undefined) {
 		assert(
-			entry.value?.bonusId === undefined,
+			entry.value?.cellRename === undefined,
 			"Cell detach should be accompanied by node detach",
 		);
 		return undefined;
@@ -515,8 +509,8 @@ function getMovedEffect(
 		revision: detachId.revision,
 		id: detachId.localId,
 	};
-	if (entry.value?.bonusId !== undefined) {
-		detach.detachCellId = entry.value.bonusId;
+	if (entry.value?.cellRename !== undefined) {
+		detach.detachCellId = entry.value.cellRename;
 	}
 
 	return detach;

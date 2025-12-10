@@ -342,7 +342,6 @@ function decodeDetach(
 	const detachId: ChangeAtomId = { revision, localId };
 	if (cellId !== undefined) {
 		context.decodeRootRename(cellId, detachId, count);
-		// XXX: detachCellId
 		return {
 			type: "Rename",
 			idOverride: cellRename ?? detachId,
@@ -469,11 +468,9 @@ function encodeRename(
 
 	const inputDetachId = context.getInputRootId(mark.idOverride, mark.count).value;
 	const isMoveInAndDetach =
-		(context.isDetachId(mark.idOverride, mark.count).value &&
-			!context.isAttachId(mark.idOverride, mark.count).value) ||
-		(inputDetachId !== undefined &&
-			!areEqualChangeAtomIds(inputDetachId, mark.cellId) &&
-			!context.isAttachId(mark.idOverride, mark.count).value);
+		!context.isAttachId(mark.idOverride, mark.count).value &&
+		(context.isDetachId(mark.idOverride, mark.count).value ||
+			(inputDetachId !== undefined && !areEqualChangeAtomIds(inputDetachId, mark.cellId)));
 
 	if (isMoveInAndDetach) {
 		// These cells are the final detach location of moved nodes.
@@ -560,9 +557,16 @@ function getLengthToSplitMark(mark: Mark, context: FieldChangeEncodingContext): 
 		case "Remove":
 			count = context.isAttachId(getDetachedRootId(mark), count).length;
 			break;
-		case "Rename":
-			// XXX
+		case "Rename": {
+			count = context.getInputRootId(mark.idOverride, count).length;
+			count = context.isAttachId(mark.idOverride, count).length;
+			count = context.isDetachId(mark.idOverride, count).length;
+			const cellId = mark.cellId ?? fail("Rename should have cell ID");
+			const renameEntry = context.rootRenames.getFirst(cellId, count);
+			count = renameEntry.length;
+			count = context.isAttachId(renameEntry.value ?? cellId, count).length;
 			break;
+		}
 		default:
 			break;
 	}
