@@ -4,7 +4,6 @@
  */
 
 import { strict as assert, fail } from "node:assert";
-import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import { validateUsageError } from "@fluidframework/test-runtime-utils/internal";
 
 import { unreachableCase } from "@fluidframework/core-utils/internal";
@@ -34,6 +33,7 @@ import {
 } from "../utils.js";
 import { insert, makeTreeFromJsonSequence, remove } from "../sequenceRootUtils.js";
 import {
+	exportConcise,
 	numberSchema,
 	SchemaFactory,
 	toInitialSchema,
@@ -2931,6 +2931,100 @@ describe("Editing", () => {
 	});
 
 	describe("Detached nodes - with any format", () => {
+		describeForAllFormats(
+			"can be attached anywhere if they have no associated cell",
+			(options) => {
+				const sf = new SchemaFactory(undefined);
+				class Child extends sf.object("Child", { id: sf.number }) {}
+				class ArrayParent extends sf.array("Array", Child) {}
+				class MapParent extends sf.map("MapParent", Child) {}
+				class ObjParent extends sf.object("ObjParent", {
+					reqChild: Child,
+					optChild: sf.optional(Child),
+				}) {}
+				class Root extends sf.object("Root", {
+					array: ArrayParent,
+					map: MapParent,
+					object: ObjParent,
+				}) {}
+				const config = new TreeViewConfiguration({ schema: Root });
+				const provider = new TestTreeProviderLite(
+					2,
+					configuredSharedTree(options).getFactory(),
+				);
+				const viewA = provider.trees[0].viewWith(config);
+				const viewB = provider.trees[1].viewWith(config);
+				viewA.initialize(
+					new Root({
+						array: new ArrayParent([]),
+						map: new MapParent([]),
+						object: new ObjParent({ reqChild: new Child({ id: 0 }) }),
+					}),
+				);
+				provider.synchronizeMessages();
+
+				const checkout = provider.trees[0].kernel.checkout;
+				const editor = checkout.editor;
+
+				function buildChild(id: number) {
+					return editor.buildRoots(
+						chunkFromJsonableTrees([
+							{
+								type: brand(Child.identifier),
+								fields: { id: [{ type: brand(sf.number.identifier), value: id }] },
+							},
+						]),
+					);
+				}
+
+				checkout.transaction.start();
+				const arrayChild = buildChild(1);
+				editor
+					.sequenceField({
+						parent: { parent: rootNode, parentField: brand("array"), parentIndex: 0 },
+						field: EmptyKey,
+					})
+					.attach(0, arrayChild);
+
+				const mapChild = buildChild(2);
+				editor
+					.optionalField({
+						parent: { parent: rootNode, parentField: brand("map"), parentIndex: 0 },
+						field: brand("dst"),
+					})
+					.attach(mapChild[0].field, true);
+
+				const objectOptChild = buildChild(3);
+				editor
+					.optionalField({
+						parent: { parent: rootNode, parentField: brand("object"), parentIndex: 0 },
+						field: brand("optChild"),
+					})
+					.attach(objectOptChild[0].field, true);
+
+				const objectReqChild = buildChild(4);
+				editor
+					.valueField({
+						parent: { parent: rootNode, parentField: brand("object"), parentIndex: 0 },
+						field: brand("reqChild"),
+					})
+					.attach(objectReqChild[0].field);
+				checkout.transaction.commit();
+				const expected = {
+					array: [{ id: 1 }],
+					map: { dst: { id: 2 } },
+					object: { optChild: { id: 3 }, reqChild: { id: 4 } },
+				};
+				const actualOnA = exportConcise(viewA.root);
+				assert.deepEqual(actualOnA, expected);
+
+				provider.synchronizeMessages();
+
+				const actualOnB = exportConcise(viewB.root);
+				assert.deepEqual(actualOnB, expected);
+			},
+		);
+
 		const allContainers = [
 			"an array",
 			"a map",
