@@ -284,42 +284,36 @@ export class SquashingTransactionStack<
 					case TransactionResult.Abort:
 						// When a transaction is aborted, roll back all the transaction's changes on the current branch
 						this.#transactionBranch.removeAfter(startHead);
-						this.onTransactionClose();
 						break;
 					case TransactionResult.Commit:
 						// If this was the outermost transaction closing...
-						if (!this.isInProgress() && this.#transactionBranch.getHead() !== startHead) {
-							// ...squash all the new commits on the transaction branch into a new commit on the original branch
-							const removedCommits: GraphCommit<TChange>[] = [];
-							findAncestor(
-								[this.#transactionBranch.getHead(), removedCommits],
-								(c) => c === startHead,
-							);
-							this.#transactionBranch.removeAfter(startHead);
-							const revision =
-								this.transactionRevision ?? fail("Expected transaction revision");
-							this.onTransactionClose();
-							branch.apply(squash(removedCommits, revision));
-						} else {
-							this.onTransactionClose();
+						if (!this.isInProgress()) {
+							if (this.#transactionBranch.getHead() !== startHead) {
+								// ...squash all the new commits on the transaction branch into a new commit on the original branch
+								const removedCommits: GraphCommit<TChange>[] = [];
+								findAncestor(
+									[this.#transactionBranch.getHead(), removedCommits],
+									(c) => c === startHead,
+								);
+								const revision =
+									this.transactionRevision ?? fail("Expected transaction revision");
+								branch.apply(squash(removedCommits, revision));
+							}
 						}
 						break;
 					default:
 						unreachableCase(result);
+				}
+				if (!this.isInProgress()) {
+					this.#transactionBranch.dispose();
+					this.setTransactionBranch(undefined);
+					this.transactionRevision = undefined;
 				}
 				onPop?.(result);
 			};
 		});
 
 		this.branch = branch;
-	}
-
-	private onTransactionClose(): void {
-		if (!this.isInProgress()) {
-			this.#transactionBranch?.dispose();
-			this.setTransactionBranch(undefined);
-			this.transactionRevision = undefined;
-		}
 	}
 
 	/** Updates the transaction branch (and therefore the active branch) and rebinds the branch events. */
