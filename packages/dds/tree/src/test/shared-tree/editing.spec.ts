@@ -2964,10 +2964,9 @@ describe("Editing", () => {
 				provider.synchronizeMessages();
 
 				const checkout = provider.trees[0].kernel.checkout;
-				const editor = checkout.editor;
 
 				function buildChild(id: number) {
-					return editor.buildRoots(
+					return checkout.editor.buildRoots(
 						chunkFromJsonableTrees([
 							{
 								type: brand(Child.identifier),
@@ -2978,7 +2977,12 @@ describe("Editing", () => {
 				}
 
 				checkout.transaction.start();
+				const editor = checkout.editor;
 				const arrayChild = buildChild(1);
+				editor.schema.setStoredSchema(
+					provider.trees[0].kernel.storedSchema,
+					provider.trees[0].kernel.storedSchema,
+				);
 				editor
 					.sequenceField({
 						parent: { parent: rootNode, parentField: brand("array"), parentIndex: 0 },

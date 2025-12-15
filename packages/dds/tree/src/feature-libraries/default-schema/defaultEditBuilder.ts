@@ -43,6 +43,7 @@ import {
 	ModularEditBuilder,
 	intoDelta as intoModularDelta,
 	relevantRemovedRoots as relevantModularRemovedRoots,
+	getBuildIds as getModularBuildIds,
 } from "../modular-schema/index.js";
 
 import {
@@ -109,6 +110,10 @@ export function intoDelta(taggedChange: TaggedChange<ModularChangeset>): DeltaRo
  */
 export function relevantRemovedRoots(change: ModularChangeset): Iterable<DeltaDetachedNodeId> {
 	return relevantModularRemovedRoots(change, fieldKinds);
+}
+
+export function getBuildsIds(change: ModularChangeset): Iterable<DeltaDetachedNodeId> {
+	return getModularBuildIds(change);
 }
 
 export type DetachedRootIds = readonly DetachedRootIdRange[];

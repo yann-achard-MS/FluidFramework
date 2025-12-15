@@ -29,6 +29,7 @@ export {
 	type OptionalFieldEditor,
 	type SequenceFieldEditor,
 	intoDelta,
+	getBuildsIds,
 	relevantRemovedRoots,
 } from "./defaultEditBuilder.js";
 
