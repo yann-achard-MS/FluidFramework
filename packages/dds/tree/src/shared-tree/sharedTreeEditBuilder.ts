@@ -86,7 +86,7 @@ export class IdBasedSharedTreeEditBuilder
 
 		this.schema = {
 			setStoredSchema: (oldSchema, newSchema) => {
-				this.changeReceiver({
+				changeReceiver({
 					revision: mintRevisionTag(),
 					change: {
 						changes: [

@@ -28,15 +28,15 @@ describe.skip("dummy content 03", () => {});
 
 // const inputRevs = new Set([tag1, tag2, undefined]);
 
-// export function testReplaceRevisions() {
-// 	describe("replaceRevisions", () => {
-// 		for (const outputRev of [tagOut, undefined]) {
-// 			describe(`{${Array.from(inputRevs.keys()).join(",")}} -> ${outputRev}`, () => {
-// 				runCases(outputRev);
-// 			});
-// 		}
-// 	});
-// }
+export function testReplaceRevisions() {
+	describe.skip("replaceRevisions", () => {
+		// 		for (const outputRev of [tagOut, undefined]) {
+		// 			describe(`{${Array.from(inputRevs.keys()).join(",")}} -> ${outputRev}`, () => {
+		// 				runCases(outputRev);
+		// 			});
+		// 		}
+	});
+}
 
 // function runCases(outputRev: RevisionTag | undefined) {
 // 	const atomOut1: Mutable<ChangeAtomId> = { localId: brand(1) };

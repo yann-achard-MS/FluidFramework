@@ -33,6 +33,7 @@ import {
 } from "../utils.js";
 import { insert, makeTreeFromJsonSequence, remove } from "../sequenceRootUtils.js";
 import {
+	exportConcise,
 	numberSchema,
 	SchemaFactory,
 	toInitialSchema,
@@ -44,6 +45,7 @@ import { fieldJsonCursor } from "../json/index.js";
 import { TreeStatus } from "../../feature-libraries/index.js";
 import { configuredSharedTree } from "../../treeFactory.js";
 import { FluidClientVersion } from "../../codec/index.js";
+import { asAlpha } from "../../api.js";
 
 const rootField: NormalizedFieldUpPath = {
 	parent: undefined,
@@ -2930,6 +2932,104 @@ describe("Editing", () => {
 	});
 
 	describe("Detached nodes - with any format", () => {
+		describeForAllFormats(
+			"can be attached anywhere if they have no associated cell",
+			(options) => {
+				const sf = new SchemaFactory(undefined);
+				class Child extends sf.object("Child", { id: sf.number }) {}
+				class ArrayParent extends sf.array("Array", Child) {}
+				class MapParent extends sf.map("MapParent", Child) {}
+				class ObjParent extends sf.object("ObjParent", {
+					reqChild: Child,
+					optChild: sf.optional(Child),
+				}) {}
+				class Root extends sf.object("Root", {
+					array: ArrayParent,
+					map: MapParent,
+					object: ObjParent,
+				}) {}
+				const config = new TreeViewConfiguration({ schema: Root });
+				const provider = new TestTreeProviderLite(
+					2,
+					configuredSharedTree(options).getFactory(),
+				);
+				const viewA = provider.trees[0].viewWith(config);
+				const viewB = provider.trees[1].viewWith(config);
+				viewA.initialize(
+					new Root({
+						array: new ArrayParent([]),
+						map: new MapParent([]),
+						object: new ObjParent({ reqChild: new Child({ id: 0 }) }),
+					}),
+				);
+				provider.synchronizeMessages();
+
+				const checkout = provider.trees[0].kernel.checkout;
+
+				function buildChild(id: number) {
+					return checkout.editor.buildRoots(
+						chunkFromJsonableTrees([
+							{
+								type: brand(Child.identifier),
+								fields: { id: [{ type: brand(sf.number.identifier), value: id }] },
+							},
+						]),
+					);
+				}
+
+				checkout.transaction.start();
+				const editor = checkout.editor;
+				const arrayChild = buildChild(1);
+				editor.schema.setStoredSchema(
+					provider.trees[0].kernel.storedSchema,
+					provider.trees[0].kernel.storedSchema,
+				);
+				editor
+					.sequenceField({
+						parent: { parent: rootNode, parentField: brand("array"), parentIndex: 0 },
+						field: EmptyKey,
+					})
+					.attach(0, arrayChild);
+
+				const mapChild = buildChild(2);
+				editor
+					.optionalField({
+						parent: { parent: rootNode, parentField: brand("map"), parentIndex: 0 },
+						field: brand("dst"),
+					})
+					.attach(mapChild[0].field, true);
+
+				const objectOptChild = buildChild(3);
+				editor
+					.optionalField({
+						parent: { parent: rootNode, parentField: brand("object"), parentIndex: 0 },
+						field: brand("optChild"),
+					})
+					.attach(objectOptChild[0].field, true);
+
+				const objectReqChild = buildChild(4);
+				editor
+					.valueField({
+						parent: { parent: rootNode, parentField: brand("object"), parentIndex: 0 },
+						field: brand("reqChild"),
+					})
+					.attach(objectReqChild[0].field);
+				checkout.transaction.commit();
+				const expected = {
+					array: [{ id: 1 }],
+					map: { dst: { id: 2 } },
+					object: { optChild: { id: 3 }, reqChild: { id: 4 } },
+				};
+				const actualOnA = exportConcise(viewA.root);
+				assert.deepEqual(actualOnA, expected);
+
+				provider.synchronizeMessages();
+
+				const actualOnB = exportConcise(viewB.root);
+				assert.deepEqual(actualOnB, expected);
+			},
+		);
+
 		const allContainers = [
 			"an array",
 			"a map",
@@ -3405,8 +3505,8 @@ describe("Editing", () => {
 						configuredSharedTree(options).getFactory(),
 					);
 					const config = new TreeViewConfiguration({ schema: Root });
-					const viewA = provider.trees[0].viewWith(config);
-					const viewB = provider.trees[1].viewWith(config);
+					const viewA = asAlpha(provider.trees[0].viewWith(config));
+					const viewB = asAlpha(provider.trees[1].viewWith(config));
 					viewA.initialize(
 						new Root({
 							array: new ArrayParent([]),
@@ -3429,7 +3529,10 @@ describe("Editing", () => {
 					if (firstMover === "viewA") {
 						viewA.root.array.insertAtEnd(hydratedChildOnA);
 						provider.trees[0].containerRuntime.flush();
-						viewB.root.map.set("dst", hydratedChildOnB);
+						const viewBFork = viewB.fork();
+						viewBFork.root.map.set("dst", hydratedChildOnB);
+						provider.synchronizeMessages();
+						viewB.merge(viewBFork);
 						provider.synchronizeMessages();
 						assert.equal(viewA.root.map.size, 1);
 						assert.equal(viewB.root.map.size, 1);
@@ -3440,7 +3543,10 @@ describe("Editing", () => {
 					} else {
 						viewB.root.map.set("dst", hydratedChildOnB);
 						provider.trees[1].containerRuntime.flush();
-						viewA.root.array.insertAtEnd(hydratedChildOnA);
+						const viewAFork = viewA.fork();
+						viewAFork.root.array.insertAtEnd(hydratedChildOnA);
+						provider.synchronizeMessages();
+						viewA.merge(viewAFork);
 						provider.synchronizeMessages();
 						assert.equal(viewA.root.array.length, 1);
 						assert.equal(viewA.root.array[0], hydratedChildOnA);

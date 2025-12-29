@@ -20,6 +20,7 @@ import {
 	type TreeChunk,
 	chunkTree,
 	defaultChunkPolicy,
+	getBuildsIds,
 	intoDelta,
 	relevantRemovedRoots,
 	updateRefreshers as updateDataChangeRefreshers,
@@ -62,6 +63,7 @@ export class SharedTreeReadonlyChangeEnricher
 	public updateChangeEnrichments(change: SharedTreeChange): SharedTreeChange {
 		return updateRefreshers(
 			change,
+			getBuildsIds,
 			this.getDetachedRoot,
 			relevantRemovedRoots,
 			updateDataChangeRefreshers,
