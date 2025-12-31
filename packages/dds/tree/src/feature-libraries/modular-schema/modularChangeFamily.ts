@@ -87,7 +87,6 @@ import {
 	type NodeId,
 } from "./modularChangeTypes.js";
 import type { FlexFieldKind } from "./fieldKind.js";
-import { DefaultRevisionReplacer } from "./defaultRevisionReplacer.js";
 
 /**
  * Implementation of ChangeFamily which delegates work in a given field to the appropriate FieldKind
@@ -1497,15 +1496,18 @@ export class ModularChangeFamily
 		}
 	}
 
+	public getRevisions(change: ModularChangeset): Set<RevisionTag | undefined> {
+		const aggregated: Set<RevisionTag | undefined> = new Set();
+		for (const revInfo of change.revisions ?? [{ revision: undefined }]) {
+			aggregated.add(revInfo.revision);
+		}
+		return aggregated;
+	}
+
 	public changeRevision(
 		change: ModularChangeset,
-		newRevision: RevisionTag,
-		replacer: RevisionReplacer = new DefaultRevisionReplacer(newRevision),
+		replacer: RevisionReplacer,
 	): ModularChangeset {
-		for (const revInfo of change.revisions ?? [{ revision: undefined }]) {
-			replacer.addOldRevision(revInfo.revision);
-		}
-		// Create idAllocator for new revision ids.
 		const updatedFields = this.replaceFieldMapRevisions(change.fieldChanges, replacer);
 		const updatedNodes = replaceIdMapRevisions(change.nodeChanges, replacer, (nodeChangeset) =>
 			this.replaceNodeChangesetRevisions(nodeChangeset, replacer),
@@ -1544,12 +1546,7 @@ export class ModularChangeFamily
 			updated.refreshers = replaceIdMapRevisions(change.refreshers, replacer);
 		}
 
-		if (newRevision !== undefined) {
-			const revInfo: Mutable<RevisionInfo> = { revision: newRevision };
-			updated.revisions = [revInfo];
-		} else {
-			delete updated.revisions;
-		}
+		updated.revisions = [{ revision: replacer.newRevision }];
 
 		return updated;
 	}

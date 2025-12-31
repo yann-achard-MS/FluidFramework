@@ -61,7 +61,7 @@ const defaultEditor = new DefaultEditBuilder(modularFamily, mintRevisionTag, (ta
 
 const rootField = { parent: undefined, field: rootFieldKey };
 // Side effects results in `dataChanges` being populated
-// The enter/exit transaction calls are used to unsure the first two change use the same local IDs in their change atoms
+// The enter/exit transaction calls are used to ensure the first two change use the same local IDs in their change atoms
 defaultEditor.enterTransaction();
 defaultEditor.valueField(rootField).set(chunkFromJsonTrees(["X"]));
 defaultEditor.exitTransaction();
