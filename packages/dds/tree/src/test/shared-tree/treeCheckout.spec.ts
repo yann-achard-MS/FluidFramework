@@ -670,13 +670,17 @@ describe("sharedTreeView", () => {
 			({ view, tree }) => {
 				view.root.insertAtEnd("A");
 				const treeBranch = tree.branch();
-				const viewBranch = asAlpha(treeBranch.viewWith(view.config));
-				const revertibles = createTestUndoRedoStacks(viewBranch.events);
-				viewBranch.root.insertAtEnd("B");
-				viewBranch.root.removeAt(0);
-				assert.deepEqual(viewBranch.root, ["B"]);
+				const viewBranch1 = asAlpha(treeBranch.viewWith(view.config));
+				const revertibles = createTestUndoRedoStacks(viewBranch1.events);
+				viewBranch1.root.insertAtEnd("B");
+				const viewBranch2 = viewBranch1.fork();
+				viewBranch1.root.removeAt(0);
+				assert.deepEqual(viewBranch1.root, ["B"]);
 				revertibles.undoStack.pop()?.revert();
-				assert.deepEqual(viewBranch.root, ["A", "B"]);
+				assert.deepEqual(viewBranch1.root, ["A", "B"]);
+
+				viewBranch2.root.moveToStart(1);
+				assert.deepEqual(viewBranch2.root, ["B", "A"]);
 
 				Tree.runTransaction(view, () => {
 					view.root.insertAtEnd("C");
@@ -685,8 +689,12 @@ describe("sharedTreeView", () => {
 					assert.deepEqual(view.root, ["A", "B", "C"]);
 					view.root.insertAtEnd("D");
 					assert.deepEqual(view.root, ["A", "B", "C", "D"]);
+					// This will re-merge the commit that inserts "B" as a new change
+					// then merge the commit that moves "B" to the start
+					view.merge(viewBranch2, true);
+					assert.deepEqual(view.root, ["B", "A", "B", "C", "D"]);
 				});
-				assert.deepEqual(view.root, ["A", "B", "C", "D"]);
+				assert.deepEqual(view.root, ["B", "A", "B", "C", "D"]);
 			},
 		);
 
