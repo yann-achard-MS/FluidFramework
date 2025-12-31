@@ -209,6 +209,7 @@ export class SquashingTransactionStack<
 	TChange,
 > extends TransactionStack {
 	#transactionBranch?: SharedTreeBranch<TEditor, TChange>;
+	private transactionRevisionMaker?: () => RevisionTag;
 
 	/**
 	 * An editor for whichever branch is currently the {@link SquashingTransactionStack.activeBranch | active branch}.
@@ -226,6 +227,14 @@ export class SquashingTransactionStack<
 	 */
 	public get activeBranch(): SharedTreeBranch<TEditor, TChange> {
 		return this.#transactionBranch ?? this.branch;
+	}
+
+	/**
+	 * The revision for the active transaction.
+	 * Returns `undefined` if there is no active transaction.
+	 */
+	public get transactionRevision(): RevisionTag | undefined {
+		return this.transactionRevisionMaker?.();
 	}
 
 	/**
@@ -280,11 +289,9 @@ export class SquashingTransactionStack<
 				const startHead = this.activeBranch.getHead();
 				const outerOnPop = onPush?.();
 				let transactionRevision: RevisionTag | undefined;
-				const transactionBranch = this.branch.fork(
-					startHead,
-					// Lazily mint the revision tag for the transaction when it is first needed
-					() => (transactionRevision ??= mintRevisionTag()),
-				);
+				// Lazily mint the revision tag for the transaction when it is first needed
+				this.transactionRevisionMaker = () => (transactionRevision ??= mintRevisionTag());
+				const transactionBranch = this.branch.fork(startHead, this.transactionRevisionMaker);
 				this.setTransactionBranch(transactionBranch);
 				transactionBranch.editor.enterTransaction();
 				// Invoked when an outer transaction ends
@@ -322,6 +329,7 @@ export class SquashingTransactionStack<
 					}
 					transactionBranch.dispose();
 					this.setTransactionBranch(undefined);
+					this.transactionRevisionMaker = undefined;
 					outerOnPop?.(result);
 				};
 				// Invoked when a nested transaction begins

@@ -50,8 +50,10 @@ import {
 	type ChangeMetadata,
 	type ChangeEncodingContext,
 	type ReadOnlyDetachedFieldIndex,
+	rebaseBranch,
 } from "../core/index.js";
 import {
+	DefaultRevisionReplacer,
 	type FieldBatchCodec,
 	type TreeCompressionStrategy,
 	allowsRepoSuperset,
@@ -909,17 +911,44 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			"The source of the branch merge has been disposed and cannot be merged.",
 		);
 		this.editLock.checkUnlocked("Merging");
-		if (this.transaction.isInProgress()) {
-			throw new UsageError(
-				"Views cannot be merged into a view while it has a pending transaction.",
-			);
-		}
 		if (checkout.transaction.isInProgress()) {
 			throw new UsageError(
 				"Views with an open transaction cannot be merged into another view.",
 			);
 		}
-		this.#transaction.activeBranch.merge(checkout.#transaction.activeBranch);
+		if (this.transaction.isInProgress()) {
+			if (!disposeMerged) {
+				// The contract for `merge` is that the merged view is either rebased or disposed after the merge completes.
+				// We don't want to leave the merged view rebased into an unfinished transaction because that would expose the application to a state where its invariants may be violated.
+				throw new UsageError(
+					"Merging a view into a view with an open transaction requires disposing the merged view. Consider merging a new fork of the view instead.",
+				);
+			}
+			// Even if we dispose the merged view after the merge, we can't rebase its branch because it might carry some event listeners that would experience the intra-transaction state.
+			const { commits } = rebaseBranch(
+				this.mintRevisionTag,
+				this.changeFamily.rebaser,
+				checkout.#transaction.branch.getHead(),
+				this.#transaction.activeBranch.getHead(),
+			);
+			const transactionRevision =
+				this.#transaction.transactionRevision ??
+				fail("Expected transaction revision to be defined during an active transaction.");
+			const replacer = new DefaultRevisionReplacer(transactionRevision);
+			for (const commit of commits.sourceCommits) {
+				const updated = this.changeFamily.rebaser.changeRevision(
+					commit.change,
+					transactionRevision,
+					replacer,
+				);
+				this.#transaction.activeBranch.apply({
+					change: updated,
+					revision: transactionRevision,
+				});
+			}
+		} else {
+			this.#transaction.branch.merge(checkout.#transaction.branch);
+		}
 		if (disposeMerged && !checkout.isSharedBranch) {
 			// Dispose the merged checkout unless it is a shared branch.
 			checkout[disposeSymbol]();
@@ -1000,14 +1029,11 @@ export class TreeCheckout implements ITreeCheckoutFork {
 
 	private revertRevertible(revision: RevisionTag, kind: CommitKind): RevertMetrics {
 		this.editLock.checkUnlocked("Reverting a commit");
-		if (this.transaction.isInProgress()) {
-			throw new UsageError("Undo is not yet supported during transactions.");
-		}
 
 		const revertibleBranch = this.revertibleCommitBranches.get(revision);
 		assert(revertibleBranch !== undefined, 0x7cc /* expected to find a revertible commit */);
 		const commitToRevert = revertibleBranch.getHead();
-		const revisionForInvert = this.mintRevisionTag();
+		const revisionForInvert = this.#transaction.transactionRevision ?? this.mintRevisionTag();
 
 		let change = tagChange(
 			this.changeFamily.rebaser.invert(commitToRevert, false, revisionForInvert),

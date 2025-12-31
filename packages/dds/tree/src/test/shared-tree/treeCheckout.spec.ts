@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { strict as assert } from "node:assert";
+import { strict as assert, fail } from "node:assert";
 
 import {
 	type IMockLoggerExt,
@@ -666,20 +666,46 @@ describe("sharedTreeView", () => {
 		});
 
 		itView(
-			"rejects merges while a transaction is in progress on the target view",
+			"accepts merges that dispose the source view while a transaction is in progress on the target view",
+			({ view, tree }) => {
+				view.root.insertAtEnd("A");
+				const treeBranch = tree.branch();
+				const viewBranch = asAlpha(treeBranch.viewWith(view.config));
+				const revertibles = createTestUndoRedoStacks(viewBranch.events);
+				viewBranch.root.insertAtEnd("B");
+				viewBranch.root.removeAt(0);
+				assert.deepEqual(viewBranch.root, ["B"]);
+				revertibles.undoStack.pop()?.revert();
+				assert.deepEqual(viewBranch.root, ["A", "B"]);
+
+				Tree.runTransaction(view, () => {
+					view.root.insertAtEnd("C");
+					assert.deepEqual(view.root, ["A", "C"]);
+					tree.merge(treeBranch, true);
+					assert.deepEqual(view.root, ["A", "B", "C"]);
+					view.root.insertAtEnd("D");
+					assert.deepEqual(view.root, ["A", "B", "C", "D"]);
+				});
+				assert.deepEqual(view.root, ["A", "B", "C", "D"]);
+			},
+		);
+
+		itView(
+			"rejects merges that don't dispose the source view while a transaction is in progress on the target view",
 			({ view, tree }) => {
 				const treeBranch = tree.branch();
 				const viewBranch = treeBranch.viewWith(view.config);
 				viewBranch.root.insertAtEnd("42");
 
-				assert.throws(() => {
-					Tree.runTransaction(view, () => {
-						view.root.insertAtEnd("43");
-						tree.merge(treeBranch, true);
-					});
-				}, validateUsageError(
-					"Views cannot be merged into a view while it has a pending transaction.",
-				));
+				Tree.runTransaction(view, () => {
+					view.root.insertAtEnd("43");
+					assert.throws(
+						() => tree.merge(treeBranch, false),
+						validateUsageError(
+							"Merging a view into a view with an open transaction requires disposing the merged view. Consider merging a new fork of the view instead.",
+						),
+					);
+				});
 			},
 		);
 
@@ -1185,6 +1211,30 @@ describe("sharedTreeView", () => {
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 			stacks.undoStack.pop()!.revert();
 			assert.equal(viewBranch.root[0], "A");
+
+			stacks.unsubscribe();
+		});
+
+		itView("can be reverted during a transaction", ({ view }) => {
+			const stacks = createTestUndoRedoStacks(asAlpha(view).events);
+			view.root.insertAtEnd("A");
+			const revertibleInsertOfA = stacks.undoStack.pop() ?? fail();
+			view.root.insertAtEnd("B");
+			const revertibleInsertOfB = stacks.undoStack.pop() ?? fail();
+			view.root.insertAtEnd("C");
+			revertibleInsertOfB.revert();
+			const revertibleRemoveOfB = stacks.redoStack.pop() ?? fail();
+
+			assert.deepEqual(view.root, ["A", "C"]);
+			Tree.runTransaction(view, () => {
+				view.root.insertAtEnd("D");
+				assert.deepEqual(view.root, ["A", "C", "D"]);
+				revertibleRemoveOfB.revert();
+				assert.deepEqual(view.root, ["A", "B", "C", "D"]);
+				revertibleInsertOfA.revert();
+				assert.deepEqual(view.root, ["B", "C", "D"]);
+			});
+			assert.deepEqual(view.root, ["B", "C", "D"]);
 
 			stacks.unsubscribe();
 		});
