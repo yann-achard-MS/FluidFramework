@@ -934,13 +934,16 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			const transactionRevision =
 				this.#transaction.transactionRevision ??
 				fail("Expected transaction revision to be defined during an active transaction.");
-			const replacer = new DefaultRevisionReplacer(transactionRevision);
+			const replacedRevisions = new Set<RevisionTag | undefined>();
 			for (const commit of commits.sourceCommits) {
-				const updated = this.changeFamily.rebaser.changeRevision(
-					commit.change,
-					transactionRevision,
-					replacer,
-				);
+				const innerSet = this.changeFamily.rebaser.getRevisions(commit.change);
+				for (const rev of innerSet) {
+					replacedRevisions.add(rev);
+				}
+			}
+			const replacer = new DefaultRevisionReplacer(transactionRevision, replacedRevisions);
+			for (const commit of commits.sourceCommits) {
+				const updated = this.changeFamily.rebaser.changeRevision(commit.change, replacer);
 				this.#transaction.activeBranch.apply({
 					change: updated,
 					revision: transactionRevision,
