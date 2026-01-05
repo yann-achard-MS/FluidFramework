@@ -10,6 +10,8 @@ import {
 	type ChangesetLocalId,
 	type RevisionTag,
 	type TaggedChange,
+	areEqualChangeAtomIds,
+	makeChangeAtomId,
 	rootFieldKey,
 	tagChange,
 } from "../../../core/index.js";
@@ -22,7 +24,7 @@ import {
 	optionalFieldEditor,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../../feature-libraries/optional-field/index.js";
-import { brand } from "../../../util/index.js";
+import { brand, brandConst } from "../../../util/index.js";
 import {
 	type ChildStateGenerator,
 	type FieldStateTree,
@@ -37,6 +39,7 @@ import { chunkFromJsonTrees } from "../../utils.js";
 import { intoDelta, type DefaultChangeset } from "../../../feature-libraries/index.js";
 import type {
 	FieldEditDescription,
+	GlobalEditDescription,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../../feature-libraries/modular-schema/modularChangeFamily.js";
 import {
@@ -184,11 +187,25 @@ const OptionalChange = {
 // 	);
 // }
 
-type OptionalFieldTestState = FieldStateTree<OptionalFieldTestContent, DefaultChangeset>;
+type OptionalFieldTestState = FieldStateTree<
+	OptionalFieldTestContent,
+	DefaultChangeset,
+	OptionalChangeMetadata
+>;
+
+interface RootNode {
+	readonly id: ChangeAtomId;
+	readonly value: string;
+}
 
 interface OptionalFieldTestContent {
-	attached: string | undefined;
-	detached: { id: ChangeAtomId; value: string }[];
+	readonly attached: string | undefined;
+	readonly detached: readonly RootNode[];
+}
+
+interface OptionalChangeMetadata {
+	readonly detach?: RootNode;
+	readonly attach?: RootNode;
 }
 
 // function computeChildChangeInputContext(inputState: OptionalFieldTestState): number[] {
@@ -227,120 +244,68 @@ const editor = defaultFamily.buildEditor(() => undefined);
 /**
  * See {@link ChildStateGenerator}
  */
-const generateChildStates: ChildStateGenerator<OptionalFieldTestContent, DefaultChangeset> =
-	function* (
-		state: OptionalFieldTestState,
-		tagFromIntention: (intention: number) => RevisionTag,
-		mintIntention: () => number,
-	): Iterable<OptionalFieldTestState> {
-		const mintId = (revision: RevisionTag): ChangeAtomId => {
-			return {
-				localId: mintIntention() as ChangesetLocalId,
+const generateChildStates: ChildStateGenerator<
+	OptionalFieldTestContent,
+	DefaultChangeset,
+	OptionalChangeMetadata
+> = function* (
+	state: OptionalFieldTestState,
+	tagFromIntention: (intention: number) => RevisionTag,
+	mintIntention: () => number,
+): Iterable<OptionalFieldTestState> {
+	const mintId = (revision: RevisionTag): ChangeAtomId => {
+		return {
+			localId: mintIntention() as ChangesetLocalId,
+			revision,
+		};
+	};
+	const edits = getSequentialEdits(state);
+	const current = state.content.attached;
+	const isEmpty = current === undefined;
+	if (current !== undefined) {
+		// Nested Change
+		{
+			const intention = mintIntention();
+			const revision = tagFromIntention(intention);
+			const fieldEdit: FieldEditDescription = {
+				type: "field",
+				field: { parent: undefined, field: rootFieldKey },
+				fieldKind: optional.identifier,
+				// This no-op change is used to force ModularChangeFamily to generate a shallow optional changeset with a child change.
+				// Otherwise, it would generate a generic changeset.
+				change: brand(optional.changeHandler.createEmpty()),
 				revision,
 			};
-		};
-		const edits = getSequentialEdits(state);
-		if (state.content.attached !== undefined) {
-			// Nested Change
-			{
-				const intention = mintIntention();
-				const revision = tagFromIntention(intention);
-				const fieldEdit: FieldEditDescription = {
-					type: "field",
-					field: { parent: undefined, field: rootFieldKey },
-					fieldKind: optional.identifier,
-					// This no-op change is used to force ModularChangeFamily to generate a shallow optional changeset with a child change.
-					// Otherwise, it would generate a generic changeset.
-					change: brand(optional.changeHandler.createEmpty()),
-					revision,
-				};
-				const nestedFieldEdit: FieldEditDescription = {
-					type: "field",
-					field: {
-						parent: {
-							parent: undefined,
-							parentField: rootFieldKey,
-							parentIndex: 0,
-							detachedNodeId: undefined,
-						},
-						field: brand("foo"),
+			const nestedFieldEdit: FieldEditDescription = {
+				type: "field",
+				field: {
+					parent: {
+						parent: undefined,
+						parentField: rootFieldKey,
+						parentIndex: 0,
+						detachedNodeId: undefined,
 					},
-					fieldKind: optional.identifier,
-					change: brand(OptionalChange.clear(true, mintId(revision))),
-					revision,
-				};
-				const modularEdit = editor.buildChanges([fieldEdit, nestedFieldEdit]);
-				yield {
-					content: state.content,
-					mostRecentEdit: {
-						changeset: tagChange(modularEdit, revision),
-						intention,
-						description: `ChildChange${intention}`,
-					},
-					parent: state,
-				};
-			}
+					field: brand("foo"),
+				},
+				fieldKind: optional.identifier,
+				change: brand(OptionalChange.clear(true, mintId(revision))),
+				revision,
+			};
+			const modularEdit = editor.buildChanges([fieldEdit, nestedFieldEdit]);
+			yield {
+				content: state.content,
+				mostRecentEdit: {
+					changeset: tagChange(modularEdit, revision),
+					intention,
+					description: `ChildChange${intention}`,
+					meta: {},
+				},
+				parent: state,
+			};
+		}
 
-			// Clear Populated Field
-			{
-				const intention = mintIntention();
-				const revision = tagFromIntention(intention);
-				const detach = mintId(revision);
-				const fieldEdit: FieldEditDescription = {
-					type: "field",
-					field: { parent: undefined, field: rootFieldKey },
-					fieldKind: optional.identifier,
-					change: brand(OptionalChange.clear(false, detach)),
-					revision,
-				};
-				const modularEdit = editor.buildChanges([fieldEdit]);
-				yield {
-					content: {
-						attached: undefined,
-						detached: [
-							...state.content.detached,
-							{ id: detach, value: state.content.attached },
-						],
-					},
-					mostRecentEdit: {
-						changeset: tagChange(modularEdit, revision),
-						intention,
-						description: "RemoveF",
-					},
-					parent: state,
-				};
-			}
-
-			// Pin node
-			{
-				const intention = mintIntention();
-				const revision = tagFromIntention(intention);
-				const [detach, attach] = [mintId(revision), mintId(revision)];
-				const fieldEdit: FieldEditDescription = {
-					type: "field",
-					field: { parent: undefined, field: rootFieldKey },
-					fieldKind: optional.identifier,
-					change: brand(
-						OptionalChange.set(false, { detach, fill: attach, detachNode: attach }),
-					),
-					revision,
-				};
-
-				const modularEdit = editor.buildChanges([fieldEdit]);
-				yield {
-					content: state.content,
-					mostRecentEdit: {
-						changeset: tagChange(modularEdit, revision),
-						intention,
-						description: "Pin",
-					},
-					parent: state,
-				};
-			}
-		} else {
-			// Clear Empty Field
-			// Even if there is no content, optional field supports an explicit clear operation with LWW semantics,
-			// as a concurrent set operation may populate the field.
+		// Clear Populated Field
+		{
 			const intention = mintIntention();
 			const revision = tagFromIntention(intention);
 			const detach = mintId(revision);
@@ -348,82 +313,269 @@ const generateChildStates: ChildStateGenerator<OptionalFieldTestContent, Default
 				type: "field",
 				field: { parent: undefined, field: rootFieldKey },
 				fieldKind: optional.identifier,
-				change: brand(OptionalChange.clear(true, detach)),
+				change: brand(OptionalChange.clear(false, detach)),
 				revision,
 			};
+			const modularEdit = editor.buildChanges([fieldEdit]);
+			yield {
+				content: {
+					attached: undefined,
+					detached: [...state.content.detached, { id: detach, value: current }],
+				},
+				mostRecentEdit: {
+					changeset: tagChange(modularEdit, revision),
+					intention,
+					description: "Remove",
+					meta: { detach: { id: detach, value: current } },
+				},
+				parent: state,
+			};
+		}
+
+		// Pin node
+		{
+			const intention = mintIntention();
+			const revision = tagFromIntention(intention);
+			const [detach, attach] = [mintId(revision), mintId(revision)];
+			const fieldEdit: FieldEditDescription = {
+				type: "field",
+				field: { parent: undefined, field: rootFieldKey },
+				fieldKind: optional.identifier,
+				change: brand(OptionalChange.set(false, { detach, fill: attach, detachNode: attach })),
+				revision,
+			};
+
 			const modularEdit = editor.buildChanges([fieldEdit]);
 			yield {
 				content: state.content,
 				mostRecentEdit: {
 					changeset: tagChange(modularEdit, revision),
 					intention,
-					description: "RemoveE",
+					description: "Pin",
+					meta: {},
 				},
 				parent: state,
 			};
 		}
+	} else {
+		// Clear Empty Field
+		// Even if there is no content, optional field supports an explicit clear operation with LWW semantics,
+		// as a concurrent set operation may populate the field.
+		const intention = mintIntention();
+		const revision = tagFromIntention(intention);
+		const detach = mintId(revision);
+		const fieldEdit: FieldEditDescription = {
+			type: "field",
+			field: { parent: undefined, field: rootFieldKey },
+			fieldKind: optional.identifier,
+			change: brand(OptionalChange.clear(true, detach)),
+			revision,
+		};
+		const modularEdit = editor.buildChanges([fieldEdit]);
+		yield {
+			content: state.content,
+			mostRecentEdit: {
+				changeset: tagChange(modularEdit, revision),
+				intention,
+				description: "RemoveE",
+				meta: {},
+			},
+			parent: state,
+		};
+	}
 
-		for (const value of ["A", "B"]) {
-			const setIntention = mintIntention();
-			const setRevision = tagFromIntention(setIntention);
-			const [fill, detach] = [mintId(setRevision), mintId(setRevision)];
-			// Using length of the input context guarantees set operations generated at different times also have different
-			// values, which should tend to be easier to debug.
-			// This also makes the logic to determine intentions simpler.
-			const newContents = `${value},${edits.length}`;
-			const build = editor.buildTrees(
-				fill.localId,
-				chunkFromJsonTrees([newContents]),
-				setRevision,
+	// Set
+	{
+		const setIntention = mintIntention();
+		const setRevision = tagFromIntention(setIntention);
+		const [fill, detach] = [mintId(setRevision), mintId(setRevision)];
+		// Using length of the input context guarantees set operations generated at different times also have different
+		// values, which should tend to be easier to debug.
+		// This also makes the logic to determine intentions simpler.
+		const newContents = `N${edits.length}`;
+		const build = editor.buildTrees(
+			fill.localId,
+			chunkFromJsonTrees([newContents]),
+			setRevision,
+		);
+		const fieldEdit: FieldEditDescription = {
+			type: "field",
+			field: { parent: undefined, field: rootFieldKey },
+			fieldKind: optional.identifier,
+			change: brand(
+				OptionalChange.set(isEmpty, {
+					fill,
+					detach,
+				}),
+			),
+			revision: setRevision,
+		};
+		const detached = [...state.content.detached];
+		let detachedNode: RootNode | undefined;
+		if (!isEmpty) {
+			detachedNode = { id: detach, value: current };
+			detached.push(detachedNode);
+		}
+		const modularEdit = editor.buildChanges([build, fieldEdit]);
+		yield {
+			content: { attached: newContents, detached },
+			mostRecentEdit: {
+				changeset: tagChange(modularEdit, setRevision),
+				intention: setIntention,
+				description: `Set${newContents}`,
+				meta: {
+					detach: detachedNode,
+					attach: { id: fill, value: newContents },
+				},
+			},
+			parent: state,
+		};
+	}
+
+	// Build
+	if (state.content.detached.length < 2) {
+		const buildIntention = mintIntention();
+		const buildRevision = tagFromIntention(buildIntention);
+		const id = mintId(buildRevision);
+		// Using length of the input context guarantees set operations generated at different times also have different
+		// values, which should tend to be easier to debug.
+		// This also makes the logic to determine intentions simpler.
+		const newContents = `N${edits.length}`;
+		const build = editor.buildTrees(
+			id.localId,
+			chunkFromJsonTrees([newContents]),
+			buildRevision,
+		);
+		const detached = [...state.content.detached, { id, value: newContents }];
+		const modularEdit = editor.buildChanges([build]);
+		yield {
+			content: { attached: current, detached },
+			mostRecentEdit: {
+				changeset: tagChange(modularEdit, buildRevision),
+				intention: buildIntention,
+				description: `Build${newContents}`,
+				meta: {},
+			},
+			parent: state,
+		};
+	}
+
+	// Attach
+	for (const node of state.content.detached) {
+		const attachIntention = mintIntention();
+		const attachRevision = tagFromIntention(attachIntention);
+		const [attach, detach] = [mintId(attachRevision), mintId(attachRevision)];
+		const rename: GlobalEditDescription = {
+			type: "global",
+			revision: attachRevision,
+			renames: [
+				{
+					count: 1,
+					oldId: node.id,
+					newId: attach,
+					detachLocation: undefined,
+				},
+			],
+		};
+		const fieldEdit: FieldEditDescription = {
+			type: "field",
+			field: { parent: undefined, field: rootFieldKey },
+			fieldKind: optional.identifier,
+			change: brand(OptionalChange.set(isEmpty, { fill: attach, detach })),
+			revision: attachRevision,
+		};
+		const modularEdit = editor.buildChanges([rename, fieldEdit]);
+		const detached = state.content.detached.filter((n) => n !== node);
+		let detachedNode: RootNode | undefined;
+		if (!isEmpty) {
+			detachedNode = { id: detach, value: current };
+			detached.push(detachedNode);
+		}
+		yield {
+			content: { attached: node.value, detached },
+			mostRecentEdit: {
+				changeset: tagChange(modularEdit, attachRevision),
+				intention: attachIntention,
+				description: `Attach${node.value}`,
+				meta: {
+					detach: detachedNode,
+					attach: node,
+				},
+			},
+			parent: state,
+		};
+	}
+
+	// Undo
+	if (
+		state.mostRecentEdit !== undefined &&
+		!state.mostRecentEdit.description.startsWith("Rollback")
+	) {
+		const { detach: priorDetach, attach: priorAttach } =
+			state.mostRecentEdit.meta ?? assert.fail();
+		const undoIntention = mintIntention();
+		const undoRevision = tagFromIntention(undoIntention);
+		const modularEdit = defaultFamily.invert(
+			state.mostRecentEdit.changeset,
+			false,
+			undoRevision,
+		);
+		const changeset = tagChange(modularEdit, undoRevision);
+		let attached: string | undefined;
+		const detached = [...state.content.detached];
+		let newAttach: RootNode | undefined;
+		let newDetach: RootNode | undefined;
+		if (priorDetach !== undefined) {
+			const entryIndex = detached.findIndex((node) =>
+				areEqualChangeAtomIds(node.id, priorDetach.id),
 			);
-			const fieldEdit: FieldEditDescription = {
-				type: "field",
-				field: { parent: undefined, field: rootFieldKey },
-				fieldKind: optional.identifier,
-				change: brand(
-					OptionalChange.set(state.content.attached === undefined, {
-						fill,
-						detach,
-					}),
-				),
-				revision: setRevision,
-			};
-			const detached =
-				state.content.attached === undefined
-					? state.content.detached
-					: [...state.content.detached, { id: detach, value: state.content.attached }];
-			const modularEdit = editor.buildChanges([build, fieldEdit]);
-			yield {
-				content: { attached: newContents, detached },
-				mostRecentEdit: {
-					changeset: tagChange(modularEdit, setRevision),
-					intention: setIntention,
-					description: `Set${newContents}`,
-				},
-				parent: state,
-			};
+			assert(entryIndex >= 0, "Expected detached node to be present");
+			attached = priorDetach.value;
+			detached.splice(entryIndex, 1);
+			newAttach = priorDetach;
 		}
-
-		if (state.mostRecentEdit !== undefined) {
-			const undoIntention = mintIntention();
-			const undoRevision = tagFromIntention(undoIntention);
-			const modularEdit = defaultFamily.invert(
-				state.mostRecentEdit.changeset,
-				false,
-				undoRevision,
-			);
-
-			yield {
-				content: (state.parent ?? assert.fail()).content,
-				mostRecentEdit: {
-					changeset: tagChange(modularEdit, undoRevision),
-					intention: undoIntention,
-					description: `Undo:${state.mostRecentEdit.description}`,
-				},
-				parent: state,
-			};
+		if (priorAttach !== undefined) {
+			const undoMark = intoDelta(changeset).fields?.get(rootFieldKey)?.at(0) ?? assert.fail();
+			const detachId = undoMark.detach ?? assert.fail("Expected detach");
+			const id = makeChangeAtomId(brand(detachId.minor), detachId.major);
+			newDetach = { id, value: priorAttach.value };
+			detached.push(newDetach);
 		}
-	};
+		yield {
+			content: { attached, detached },
+			mostRecentEdit: {
+				changeset,
+				intention: undoIntention,
+				description: `Undo:${state.mostRecentEdit.description}`,
+				meta: {
+					attach: newAttach,
+					detach: newDetach,
+				},
+			},
+			parent: state,
+		};
+	}
+
+	// Rollback
+	if (
+		state.mostRecentEdit !== undefined &&
+		!state.mostRecentEdit.description.startsWith("Rollback")
+	) {
+		const intention = mintIntention();
+		const revision = tagFromIntention(intention);
+		const modularEdit = defaultFamily.invert(state.mostRecentEdit.changeset, true, revision);
+
+		yield {
+			content: (state.parent ?? assert.fail()).content,
+			mostRecentEdit: {
+				changeset: tagChange(modularEdit, revision),
+				intention,
+				description: `Rollback:${state.mostRecentEdit.description}`,
+			},
+			parent: state,
+		};
+	}
+};
 
 // /**
 //  * Runs a suite of axiomatic tests which use combinations of single edits that are valid to apply from an initial state.
@@ -538,9 +690,26 @@ export function testRebaserAxioms() {
 		// });
 
 		describeStress("Exhaustive", ({ stressMode }) => {
-			runExhaustiveComposeRebaseSuite(
+			runExhaustiveComposeRebaseSuite<
+				OptionalFieldTestContent,
+				DefaultChangeset,
+				OptionalChangeMetadata
+			>(
 				[
-					{ content: { attached: undefined, detached: [] } },
+					{
+						content: {
+							attached: undefined,
+							detached: [
+								{
+									id: {
+										revision: mintRevisionTag(),
+										localId: brandConst(0)<ChangesetLocalId>(),
+									},
+									value: "A",
+								},
+							],
+						},
+					},
 					{ content: { attached: "A", detached: [] } },
 				],
 				generateChildStates,

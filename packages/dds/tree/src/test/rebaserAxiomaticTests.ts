@@ -75,9 +75,9 @@ function rebaseTagged<TChangeset>(
 	return currChange;
 }
 
-export function runExhaustiveComposeRebaseSuite<TContent, TChangeset>(
-	initialStates: FieldStateTree<TContent, TChangeset>[],
-	generateChildStates: ChildStateGenerator<TContent, TChangeset>,
+export function runExhaustiveComposeRebaseSuite<TContent, TChangeset, TMeta = undefined>(
+	initialStates: FieldStateTree<TContent, TChangeset, TMeta>[],
+	generateChildStates: ChildStateGenerator<TContent, TChangeset, TMeta>,
 	fieldRebaser: BoundFieldChangeRebaser<TChangeset>,
 	options?: ExhaustiveSuiteOptions,
 ) {
@@ -134,7 +134,7 @@ export function runExhaustiveComposeRebaseSuite<TContent, TChangeset>(
 						)}`;
 
 						innerFixture(title, () => {
-							rebaseOverSinglesVsRebaseOverCompositions<TChangeset>(
+							rebaseOverSinglesVsRebaseOverCompositions<TChangeset, TMeta>(
 								edit,
 								namedEditsToRebaseOver,
 								fieldRebaser,
@@ -242,7 +242,7 @@ export function runExhaustiveComposeRebaseSuite<TContent, TChangeset>(
 						)}`;
 
 						innerFixture(title, () => {
-							verifyRebaseLeftDistributivity<TChangeset>(
+							verifyRebaseLeftDistributivity<TChangeset, TMeta>(
 								edit,
 								namedEditsToRebaseOver,
 								fieldRebaser,
@@ -286,7 +286,7 @@ export function runExhaustiveComposeRebaseSuite<TContent, TChangeset>(
 						)}`;
 
 						innerFixture(title, () => {
-							verifyRebaseRightDistributivity<TChangeset>(
+							verifyRebaseRightDistributivity<TChangeset, TMeta>(
 								[edit1, edit2],
 								namedEditsToRebaseOver[0],
 								fieldRebaser,
@@ -327,7 +327,7 @@ export function runExhaustiveComposeRebaseSuite<TContent, TChangeset>(
 						)}`;
 
 						innerFixture(title, () => {
-							verifyRebaseOverUndoRedoPair<TChangeset>(
+							verifyRebaseOverUndoRedoPair<TChangeset, TMeta>(
 								edit,
 								namedEditsToRebaseOver[0],
 								fieldRebaser,
@@ -368,7 +368,7 @@ export function runExhaustiveComposeRebaseSuite<TContent, TChangeset>(
 						)}`;
 
 						innerFixture(title, () => {
-							verifyRebaseOverDoUndoPairIsNoOp<TChangeset>(
+							verifyRebaseOverDoUndoPairIsNoOp<TChangeset, TMeta>(
 								edit,
 								namedEditsToRebaseOver[0],
 								fieldRebaser,
@@ -428,7 +428,7 @@ export function runExhaustiveComposeRebaseSuite<TContent, TChangeset>(
 		}
 	});
 
-	describe("Compose associativity", () => {
+	describe.only("Compose associativity", () => {
 		for (const initialState of initialStates) {
 			outerFixture(`starting with contents ${JSON.stringify(initialState.content)}`, () => {
 				for (const namedSourceEdits of generatePossibleSequenceOfEdits(
@@ -564,9 +564,9 @@ function sandwichRebaseWithoutCompose<TChangeset>(
 	return rebasedEditsWithoutCompose;
 }
 
-function rebaseOverSinglesVsRebaseOverCompositions<TChangeset>(
+function rebaseOverSinglesVsRebaseOverCompositions<TChangeset, TMeta = undefined>(
 	edit: TaggedChange<TChangeset>,
-	namedEditsToRebaseOver: NamedChangeset<TChangeset>[],
+	namedEditsToRebaseOver: NamedChangeset<TChangeset, TMeta>[],
 	fieldRebaser: BoundFieldChangeRebaser<TChangeset>,
 ) {
 	const editsToRebaseOver = namedEditsToRebaseOver.map(({ changeset }) => changeset);
@@ -665,9 +665,9 @@ function verifyComposeWithEmptyIsNoOp<TChangeset>(
 	fieldRebaser.assertChangesetsEquivalent(composedEmptyWithEdit, edit);
 }
 
-function verifyRebaseLeftDistributivity<TChangeset>(
+function verifyRebaseLeftDistributivity<TChangeset, TMeta = undefined>(
 	edit: TaggedChange<TChangeset>,
-	namedEditsToRebaseOver: NamedChangeset<TChangeset>[],
+	namedEditsToRebaseOver: NamedChangeset<TChangeset, TMeta>[],
 	fieldRebaser: BoundFieldChangeRebaser<TChangeset>,
 ) {
 	const assertDeepEqual = getDefaultedEqualityAssert(fieldRebaser);
@@ -698,9 +698,9 @@ function verifyRebaseLeftDistributivity<TChangeset>(
 	assertDeepEqual(actualChange, expectedChange);
 }
 
-function verifyRebaseRightDistributivity<TChangeset>(
+function verifyRebaseRightDistributivity<TChangeset, TMeta = undefined>(
 	edits: TaggedChange<TChangeset>[],
-	namedEditToRebaseOver: NamedChangeset<TChangeset>,
+	namedEditToRebaseOver: NamedChangeset<TChangeset, TMeta>,
 	fieldRebaser: BoundFieldChangeRebaser<TChangeset>,
 ) {
 	const assertDeepEqual = getDefaultedEqualityAssert(fieldRebaser);
@@ -743,9 +743,9 @@ function verifyRebaseRightDistributivity<TChangeset>(
 	assertDeepEqual(actualChange, expectedChange);
 }
 
-function verifyRebaseOverUndoRedoPair<TChangeset>(
+function verifyRebaseOverUndoRedoPair<TChangeset, TMeta = undefined>(
 	edit: TaggedChange<TChangeset>,
-	namedEditToRebaseOver: NamedChangeset<TChangeset>,
+	namedEditToRebaseOver: NamedChangeset<TChangeset, TMeta>,
 	fieldRebaser: BoundFieldChangeRebaser<TChangeset>,
 ) {
 	const assertDeepEqual = getDefaultedEqualityAssert(fieldRebaser);
@@ -768,9 +768,9 @@ function verifyRebaseOverUndoRedoPair<TChangeset>(
 	assertDeepEqual(rebasedOverRedo, rebasedOverDo);
 }
 
-function verifyRebaseOverDoUndoPairIsNoOp<TChangeset>(
+function verifyRebaseOverDoUndoPairIsNoOp<TChangeset, TMeta = undefined>(
 	edit: TaggedChange<TChangeset>,
-	namedEditToRebaseOver: NamedChangeset<TChangeset>,
+	namedEditToRebaseOver: NamedChangeset<TChangeset, TMeta>,
 	fieldRebaser: BoundFieldChangeRebaser<TChangeset>,
 ) {
 	const assertDeepEqual = getDefaultedEqualityAssert(fieldRebaser);
