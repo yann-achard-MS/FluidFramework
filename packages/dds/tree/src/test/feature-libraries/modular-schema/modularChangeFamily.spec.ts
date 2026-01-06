@@ -35,6 +35,7 @@ import {
 	type EditDescription,
 	jsonableTreeFromFieldCursor,
 	DefaultRevisionReplacer,
+	type ChangeAtomIdBTree,
 } from "../../../feature-libraries/index.js";
 import {
 	makeAnonChange,
@@ -82,7 +83,6 @@ import { ajvValidator } from "../../codec/index.js";
 import { fieldJsonCursor } from "../../json/index.js";
 import {
 	newCrossFieldKeyTable,
-	type ChangeAtomIdBTree,
 	type CrossFieldKeyTable,
 	type FieldChangeMap,
 	type FieldId,
@@ -122,7 +122,7 @@ const singleNodeRebaser: FieldChangeRebaser<SingleNodeChangeset> = {
 
 const singleNodeEditor: FieldEditor<SingleNodeChangeset> = {
 	buildChildChanges: (changes: Iterable<[number, NodeId]>): SingleNodeChangeset => {
-		const changesArray = Array.from(changes);
+		const changesArray = [...changes];
 		assert(changesArray.length <= 1, "This field kind only supports one node in its field");
 		return changesArray[0] === undefined ? undefined : changesArray[0][1];
 	},
@@ -1166,7 +1166,7 @@ describe("ModularChangeFamily", () => {
 			) => {
 				return [
 					...change.shallow.map((id) => makeDetachedNodeId(id.major, id.minor)),
-					...change.nested.flatMap((c) => Array.from(relevantRemovedRootsFromChild(c))),
+					...change.nested.flatMap((c) => [...relevantRemovedRootsFromChild(c)]),
 				];
 			},
 		} as unknown as FieldChangeHandler<HasRemovedRootsRefs, FieldEditor<HasRemovedRootsRefs>>;
@@ -1178,7 +1178,7 @@ describe("ModularChangeFamily", () => {
 
 		function relevantRemovedRoots(input: ModularChangeset): DeltaDetachedNodeId[] {
 			deepFreeze(input);
-			return Array.from(relevantDetachedTreesImplementation(input, mockFieldKinds));
+			return [...relevantDetachedTreesImplementation(input, mockFieldKinds)];
 		}
 
 		function nodeChangeFromHasRemovedRootsRefs(changeset: HasRemovedRootsRefs): NodeChangeset {
