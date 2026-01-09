@@ -12,10 +12,12 @@ import type {
 	ChangeEncodingContext,
 	RevisionTag,
 	RevisionReplacer,
+	ChangesetLocalId,
 } from "../../core/index.js";
 import { makeMitigatedChangeFamily } from "../../feature-libraries/index.js";
 import type { ICodecFamily } from "../../codec/index.js";
 import { mintRevisionTag } from "../utils.js";
+import type { IdAllocator } from "../../util/index.js";
 
 const fallback = "Fallback";
 
@@ -29,10 +31,12 @@ const arg3: any = "arg3";
 const throwingFamily: ChangeFamily<ChangeFamilyEditor, string> = {
 	buildEditor: (
 		mintRevisionTagArg: () => RevisionTag,
+		idAllocator: IdAllocator<ChangesetLocalId>,
 		changeReceiver: (change: TaggedChange<string>) => void,
 	): ChangeFamilyEditor => {
-		assert.equal(mintRevisionTagArg, mintRevisionTag);
-		assert.equal(changeReceiver, arg1);
+		assert.equal(mintRevisionTagArg, arg1);
+		assert.equal(idAllocator, arg2);
+		assert.equal(changeReceiver, arg3);
 		throw new Error("buildEditor");
 	},
 	rebaser: {
@@ -65,10 +69,12 @@ const throwingFamily: ChangeFamily<ChangeFamilyEditor, string> = {
 const returningFamily: ChangeFamily<ChangeFamilyEditor, string> = {
 	buildEditor: (
 		mintRevisionTagArg: () => RevisionTag,
+		idAllocator: IdAllocator<ChangesetLocalId>,
 		changeReceiver: (change: TaggedChange<string>) => void,
 	): ChangeFamilyEditor => {
-		assert.equal(mintRevisionTagArg, mintRevisionTag);
-		assert.equal(changeReceiver, arg1);
+		assert.equal(mintRevisionTagArg, arg1);
+		assert.equal(idAllocator, arg2);
+		assert.equal(changeReceiver, arg3);
 		return "buildEditor" as unknown as ChangeFamilyEditor;
 	},
 	rebaser: {
@@ -113,8 +119,8 @@ const returningRebaser = returningFamily.rebaser;
 describe("makeMitigatedChangeFamily", () => {
 	it("does not interfere so long as nothing is thrown", () => {
 		assert.equal(
-			mitigatedReturningFamily.buildEditor(mintRevisionTag, arg1),
-			returningFamily.buildEditor(mintRevisionTag, arg1),
+			mitigatedReturningFamily.buildEditor(arg1, arg2, arg3),
+			returningFamily.buildEditor(arg1, arg2, arg3),
 		);
 		assert.equal(
 			mitigatedReturningRebaser.rebase(arg1, arg2, arg3),
@@ -165,7 +171,7 @@ describe("makeMitigatedChangeFamily", () => {
 	it("does not catch errors from buildEditor", () => {
 		errorLog.length = 0;
 		assert.throws(
-			() => mitigatedThrowingFamily.buildEditor(mintRevisionTag, arg1),
+			() => mitigatedThrowingFamily.buildEditor(arg1, arg2, arg3),
 			new Error("buildEditor"),
 		);
 		assert.deepEqual(errorLog, []);

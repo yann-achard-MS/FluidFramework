@@ -1622,9 +1622,10 @@ export class ModularChangeFamily
 
 	public buildEditor(
 		mintRevisionTag: () => RevisionTag,
+		idAllocator: IdAllocator<ChangesetLocalId>,
 		changeReceiver: (change: TaggedChange<ModularChangeset>) => void,
 	): ModularEditBuilder {
-		return new ModularEditBuilder(this, this.fieldKinds, changeReceiver);
+		return new ModularEditBuilder(this, this.fieldKinds, idAllocator, changeReceiver);
 	}
 
 	private createEmptyFieldChange(fieldKind: FieldKindIdentifier): FieldChange {
@@ -2633,31 +2634,13 @@ function makeModularChangeset(
 }
 
 export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
-	private transactionDepth: number = 0;
-	private idAllocator: IdAllocator;
-
 	public constructor(
 		family: ChangeFamily<ChangeFamilyEditor, ModularChangeset>,
 		private readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
+		private readonly idAllocator: IdAllocator<ChangesetLocalId>,
 		changeReceiver: (change: TaggedChange<ModularChangeset>) => void,
 	) {
 		super(family, changeReceiver);
-		this.idAllocator = idAllocatorFromMaxId();
-	}
-
-	public override enterTransaction(): void {
-		this.transactionDepth += 1;
-		if (this.transactionDepth === 1) {
-			this.idAllocator = idAllocatorFromMaxId();
-		}
-	}
-
-	public override exitTransaction(): void {
-		assert(this.transactionDepth > 0, 0x5b9 /* Cannot exit inexistent transaction */);
-		this.transactionDepth -= 1;
-		if (this.transactionDepth === 0) {
-			this.idAllocator = idAllocatorFromMaxId();
-		}
 	}
 
 	/**

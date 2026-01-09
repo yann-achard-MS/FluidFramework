@@ -666,7 +666,7 @@ describe("sharedTreeView", () => {
 		});
 
 		itView(
-			"accepts merges that dispose the source view while a transaction is in progress on the target view",
+			"accepts merges view while a transaction is in progress on the target view",
 			({ view, tree }) => {
 				view.root.insertAtEnd("A");
 				const treeBranch = tree.branch();
@@ -685,7 +685,7 @@ describe("sharedTreeView", () => {
 				Tree.runTransaction(view, () => {
 					view.root.insertAtEnd("C");
 					assert.deepEqual(view.root, ["A", "C"]);
-					tree.merge(treeBranch, true);
+					tree.merge(treeBranch, false);
 					assert.deepEqual(view.root, ["A", "B", "C"]);
 					view.root.insertAtEnd("D");
 					assert.deepEqual(view.root, ["A", "B", "C", "D"]);
@@ -697,26 +697,6 @@ describe("sharedTreeView", () => {
 				assert.deepEqual(view.root, ["B", "A", "B", "C", "D"]);
 			},
 		);
-
-		itView(
-			"rejects merges that don't dispose the source view while a transaction is in progress on the target view",
-			({ view, tree }) => {
-				const treeBranch = tree.branch();
-				const viewBranch = treeBranch.viewWith(view.config);
-				viewBranch.root.insertAtEnd("42");
-
-				Tree.runTransaction(view, () => {
-					view.root.insertAtEnd("43");
-					assert.throws(
-						() => tree.merge(treeBranch, false),
-						validateUsageError(
-							"Merging a view into a view with an open transaction requires disposing the merged view. Consider merging a new fork of the view instead.",
-						),
-					);
-				});
-			},
-		);
-
 		itView(
 			"rejects merges while a transaction is in progress on the source view",
 			({ view, tree }) => {

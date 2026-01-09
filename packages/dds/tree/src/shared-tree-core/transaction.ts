@@ -10,14 +10,23 @@ import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
 import {
 	findAncestor,
+	rebaseBranch,
 	tagChange,
 	type ChangeFamilyEditor,
+	type ChangesetLocalId,
 	type GraphCommit,
 	type RevisionTag,
 } from "../core/index.js";
-import { getLast, getOrCreate, hasSome } from "../util/index.js";
+import {
+	getLast,
+	getOrCreate,
+	hasSome,
+	idAllocatorFromMaxId,
+	type IdAllocator,
+} from "../util/index.js";
 
 import type { SharedTreeBranch, SharedTreeBranchEvents } from "./branch.js";
+import { DefaultRevisionReplacer } from "../feature-libraries/index.js";
 
 /**
  * Describes the result of a transaction.
@@ -198,6 +207,14 @@ export class TransactionStack implements Transactor, IDisposable {
 	}
 }
 
+interface TransactionProperties<TEditor extends ChangeFamilyEditor, TChange> {
+	readonly transactionBranch: SharedTreeBranch<TEditor, TChange>;
+	readonly idAllocator: IdAllocator<ChangesetLocalId>;
+	readonly transactionRevisionMaker: () => RevisionTag;
+	readonly mergedCommits: Set<RevisionTag>;
+	readonly replacedRevisions: Set<RevisionTag | undefined>;
+}
+
 /**
  * An implementation of {@link Transactor} that {@link TransactionStack | uses a stack} and a {@link SharedTreeBranch | branch} to manage transactions.
  * @remarks Given a branch, this class will fork the branch when a transaction begins and squash the forked branch back into the original branch when the transaction ends.
@@ -208,8 +225,7 @@ export class SquashingTransactionStack<
 	TEditor extends ChangeFamilyEditor,
 	TChange,
 > extends TransactionStack {
-	#transactionBranch?: SharedTreeBranch<TEditor, TChange>;
-	private transactionRevisionMaker?: () => RevisionTag;
+	private properties?: TransactionProperties<TEditor, TChange>;
 
 	/**
 	 * An editor for whichever branch is currently the {@link SquashingTransactionStack.activeBranch | active branch}.
@@ -226,15 +242,15 @@ export class SquashingTransactionStack<
 	 * Get the "active branch" for this transactor - either the transaction branch if a transaction is in progress, or the original branch otherwise.
 	 */
 	public get activeBranch(): SharedTreeBranch<TEditor, TChange> {
-		return this.#transactionBranch ?? this.branch;
+		return this.properties?.transactionBranch ?? this.branch;
 	}
 
 	/**
 	 * The revision for the active transaction.
 	 * Returns `undefined` if there is no active transaction.
 	 */
-	public get transactionRevision(): RevisionTag | undefined {
-		return this.transactionRevisionMaker?.();
+	public get revision(): RevisionTag | undefined {
+		return this.properties?.transactionRevisionMaker();
 	}
 
 	/**
@@ -278,7 +294,7 @@ export class SquashingTransactionStack<
 	 */
 	public constructor(
 		public readonly branch: SharedTreeBranch<TEditor, TChange>,
-		mintRevisionTag: () => RevisionTag,
+		private readonly mintRevisionTag: () => RevisionTag,
 		onPush?: () => OnPop | void,
 	) {
 		super(
@@ -288,11 +304,24 @@ export class SquashingTransactionStack<
 				// TODO:#8603: This may need to be computed differently if we allow rebasing during a transaction.
 				const startHead = this.activeBranch.getHead();
 				const outerOnPop = onPush?.();
+				const idAllocator = idAllocatorFromMaxId<ChangesetLocalId>();
 				let transactionRevision: RevisionTag | undefined;
 				// Lazily mint the revision tag for the transaction when it is first needed
-				this.transactionRevisionMaker = () => (transactionRevision ??= mintRevisionTag());
-				const transactionBranch = this.branch.fork(startHead, this.transactionRevisionMaker);
-				this.setTransactionBranch(transactionBranch);
+				const transactionRevisionMaker = (): RevisionTag =>
+					(transactionRevision ??= mintRevisionTag());
+				const transactionBranch = this.branch.fork(
+					startHead,
+					transactionRevisionMaker,
+					idAllocator,
+				);
+				const properties: TransactionProperties<TEditor, TChange> = {
+					transactionBranch,
+					transactionRevisionMaker,
+					idAllocator,
+					mergedCommits: new Set(),
+					replacedRevisions: new Set(),
+				};
+				this.setTransactionProperties(properties);
 				transactionBranch.editor.enterTransaction();
 				// Invoked when an outer transaction ends
 				const onOuterTransactionPop: OnPop = (result) => {
@@ -328,8 +357,7 @@ export class SquashingTransactionStack<
 						}
 					}
 					transactionBranch.dispose();
-					this.setTransactionBranch(undefined);
-					this.transactionRevisionMaker = undefined;
+					this.setTransactionProperties(undefined);
 					outerOnPop?.(result);
 				};
 				// Invoked when a nested transaction begins
@@ -363,12 +391,44 @@ export class SquashingTransactionStack<
 		);
 	}
 
+	public merge(sourceBranch: SharedTreeBranch<TEditor, TChange>): void {
+		if (this.isInProgress()) {
+			const properties = this.properties;
+			assert(properties !== undefined, "Expected active transaction properties to be defined");
+			const revision = properties.transactionRevisionMaker();
+			const rebaser = this.branch.changeFamily.rebaser;
+			const { commits } = rebaseBranch(
+				this.mintRevisionTag,
+				rebaser,
+				sourceBranch.getHead(),
+				this.activeBranch.getHead(),
+				this.activeBranch.getHead(),
+				(commit) => !properties.mergedCommits.has(commit.revision),
+			);
+			for (const commit of commits.sourceCommits) {
+				const innerSet = rebaser.getRevisions(commit.change);
+				for (const rev of innerSet) {
+					properties.replacedRevisions.add(rev);
+				}
+			}
+			const replacer = new DefaultRevisionReplacer(revision, properties.replacedRevisions);
+			replacer.bumpMaxId(properties.idAllocator.getMaxId());
+			for (const commit of commits.sourceCommits) {
+				const updated = rebaser.changeRevision(commit.change, replacer);
+				this.activeBranch.apply({ change: updated, revision });
+			}
+			properties.idAllocator.bumpMaxId(replacer.getMaxId());
+		} else {
+			this.branch.merge(sourceBranch);
+		}
+	}
+
 	/** Updates the transaction branch (and therefore the active branch) and rebinds the branch events. */
-	private setTransactionBranch(
-		transactionBranch: SharedTreeBranch<TEditor, TChange> | undefined,
+	private setTransactionProperties(
+		properties: TransactionProperties<TEditor, TChange> | undefined,
 	): void {
 		const oldActiveBranch = this.activeBranch;
-		this.#transactionBranch = transactionBranch;
+		this.properties = properties;
 		for (const [eventName, listeners] of this.#activeBranchEvents) {
 			for (const listener of listeners) {
 				oldActiveBranch.events.off(eventName, listener);

@@ -5,6 +5,7 @@
 
 import type {
 	ChangeFamilyEditor,
+	ChangesetLocalId,
 	RevisionTag,
 	TaggedChange,
 	TreeStoredSchema,
@@ -14,6 +15,7 @@ import {
 	type IDefaultEditBuilder,
 	type ModularChangeFamily,
 } from "../feature-libraries/index.js";
+import type { IdAllocator } from "../util/index.js";
 
 import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
 
@@ -53,9 +55,10 @@ export class SharedTreeEditBuilder
 	public constructor(
 		modularChangeFamily: ModularChangeFamily,
 		mintRevisionTag: () => RevisionTag,
+		idAllocator: IdAllocator<ChangesetLocalId>,
 		private readonly changeReceiver: (change: TaggedChange<SharedTreeChange>) => void,
 	) {
-		super(modularChangeFamily, mintRevisionTag, (taggedChange) =>
+		super(modularChangeFamily, mintRevisionTag, idAllocator, (taggedChange) =>
 			changeReceiver({
 				...taggedChange,
 				change: { changes: [{ type: "data", innerChange: taggedChange.change }] },

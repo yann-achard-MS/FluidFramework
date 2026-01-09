@@ -65,6 +65,7 @@ describe("Fuzz - Top-Level", () => {
 			skip: [
 				...[30], //  0x92a
 			],
+			replay: 15,
 		};
 		createDDSFuzzSuite(baseTreeModel, options);
 	});

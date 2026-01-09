@@ -1208,7 +1208,7 @@ export function makeDiscontinuedEncodingTestSuite(
 export function testChangeReceiver<TChange>(
 	_changeFamily?: ChangeFamily<ChangeFamilyEditor, TChange>,
 ): [
-	changeReceiver: Parameters<ChangeFamily<ChangeFamilyEditor, TChange>["buildEditor"]>[1],
+	changeReceiver: Parameters<ChangeFamily<ChangeFamilyEditor, TChange>["buildEditor"]>[2],
 	getChanges: () => readonly TChange[],
 ] {
 	const changes: TChange[] = [];

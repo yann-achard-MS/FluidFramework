@@ -13,6 +13,7 @@ import {
 	type ChangeFamily,
 	type ChangeFamilyEditor,
 	type ChangeRebaser,
+	type ChangesetLocalId,
 	type DeltaDetachedNodeId,
 	type DeltaRoot,
 	type FieldUpPath,
@@ -25,7 +26,7 @@ import {
 	compareFieldUpPaths,
 	topDownPath,
 } from "../../core/index.js";
-import { brand } from "../../util/index.js";
+import { brand, type IdAllocator } from "../../util/index.js";
 import {
 	type EditDescription,
 	type FieldChangeset,
@@ -72,9 +73,10 @@ export class DefaultChangeFamily
 
 	public buildEditor(
 		mintRevisionTag: () => RevisionTag,
+		idAllocator: IdAllocator<ChangesetLocalId>,
 		changeReceiver: (change: TaggedChange<DefaultChangeset>) => void,
 	): DefaultEditBuilder {
-		return new DefaultEditBuilder(this, mintRevisionTag, changeReceiver);
+		return new DefaultEditBuilder(this, mintRevisionTag, idAllocator, changeReceiver);
 	}
 }
 
@@ -183,9 +185,15 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 	public constructor(
 		family: ChangeFamily<ChangeFamilyEditor, DefaultChangeset>,
 		private readonly mintRevisionTag: () => RevisionTag,
+		private readonly idAllocator: IdAllocator<ChangesetLocalId>,
 		changeReceiver: (change: TaggedChange<DefaultChangeset>) => void,
 	) {
-		this.modularBuilder = new ModularEditBuilder(family, fieldKinds, changeReceiver);
+		this.modularBuilder = new ModularEditBuilder(
+			family,
+			fieldKinds,
+			idAllocator,
+			changeReceiver,
+		);
 	}
 
 	public enterTransaction(): void {
@@ -211,8 +219,8 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 					0xc12 /* Value fields should have a single top level node */,
 				);
 				const revision = this.mintRevisionTag();
-				const fill: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
-				const detach: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
+				const fill: ChangeAtomId = { localId: this.idAllocator.allocate(), revision };
+				const detach: ChangeAtomId = { localId: this.idAllocator.allocate(), revision };
 				const build = this.modularBuilder.buildTrees(fill.localId, newContent, revision);
 				const change: FieldChangeset = brand(
 					valueFieldKind.changeHandler.editor.set({
@@ -244,9 +252,9 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 				const edits: EditDescription[] = [];
 				let optionalChange: OptionalChangeset;
 				const revision = this.mintRevisionTag();
-				const detach: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
+				const detach: ChangeAtomId = { localId: this.idAllocator.allocate(), revision };
 				if (newContent !== undefined) {
-					const fill: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
+					const fill: ChangeAtomId = { localId: this.idAllocator.allocate(), revision };
 					const build = this.modularBuilder.buildTrees(fill.localId, newContent, revision);
 					edits.push(build);
 
@@ -286,8 +294,8 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 			throw new UsageError(`Expected non-negative integer count, got ${count}.`);
 		}
 		const revision = this.mintRevisionTag();
-		const detachCellId = this.modularBuilder.generateId(count);
-		const attachCellId: CellId = { localId: this.modularBuilder.generateId(count), revision };
+		const detachCellId = this.idAllocator.allocate(count);
+		const attachCellId: CellId = { localId: this.idAllocator.allocate(count), revision };
 		if (compareFieldUpPaths(sourceField, destinationField)) {
 			const change = sequence.changeHandler.editor.move(
 				sourceIndex,
@@ -388,7 +396,7 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 				}
 
 				const revision = this.mintRevisionTag();
-				const firstId: CellId = { localId: this.modularBuilder.generateId(length), revision };
+				const firstId: CellId = { localId: this.idAllocator.allocate(length), revision };
 				const build = this.modularBuilder.buildTrees(firstId.localId, content, revision);
 				const change: FieldChangeset = brand(
 					sequence.changeHandler.editor.insert(index, length, firstId, revision),
@@ -409,7 +417,7 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 					return;
 				}
 				const revision = this.mintRevisionTag();
-				const id = this.modularBuilder.generateId(count);
+				const id = this.idAllocator.allocate(count);
 				const change: FieldChangeset = brand(
 					sequence.changeHandler.editor.remove(index, count, id, revision),
 				);

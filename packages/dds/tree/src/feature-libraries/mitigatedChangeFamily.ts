@@ -7,11 +7,13 @@ import type {
 	ChangeFamily,
 	ChangeFamilyEditor,
 	ChangeRebaser,
+	ChangesetLocalId,
 	RevisionMetadataSource,
 	RevisionReplacer,
 	RevisionTag,
 	TaggedChange,
 } from "../core/index.js";
+import type { IdAllocator } from "../util/index.js";
 
 /**
  * Makes a given `ChangeFamily` safer to use by wrapping some of its functions in try-catch blocks.
@@ -35,9 +37,10 @@ export function makeMitigatedChangeFamily<TEditor extends ChangeFamilyEditor, TC
 	return {
 		buildEditor: (
 			mintRevisionTag: () => RevisionTag,
+			idAllocator: IdAllocator<ChangesetLocalId>,
 			changeReceiver: (change: TaggedChange<TChange>) => void,
 		): TEditor => {
-			return unmitigatedChangeFamily.buildEditor(mintRevisionTag, changeReceiver);
+			return unmitigatedChangeFamily.buildEditor(mintRevisionTag, idAllocator, changeReceiver);
 		},
 		rebaser: makeMitigatedRebaser(unmitigatedChangeFamily.rebaser, fallbackChange, onError),
 		codecs: unmitigatedChangeFamily.codecs,

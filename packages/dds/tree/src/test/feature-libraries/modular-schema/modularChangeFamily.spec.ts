@@ -216,7 +216,11 @@ const pathA0A: FieldUpPath = { parent: pathA0, field: fieldA };
 const pathA0B: FieldUpPath = { parent: pathA0, field: fieldB };
 const pathB0A: FieldUpPath = { parent: pathB0, field: fieldA };
 
-const mainEditor = family.buildEditor(mintRevisionTag, () => undefined);
+const mainEditor = family.buildEditor(
+	mintRevisionTag,
+	idAllocatorFromMaxId(),
+	() => undefined,
+);
 const rootChange1a = removeAliases(
 	mainEditor.buildChanges([
 		{
@@ -1462,7 +1466,7 @@ describe("ModularChangeFamily", () => {
 
 	it("build child change", () => {
 		const [changeReceiver, getChanges] = testChangeReceiver(family);
-		const editor = family.buildEditor(mintRevisionTag, changeReceiver);
+		const editor = family.buildEditor(mintRevisionTag, idAllocatorFromMaxId(), changeReceiver);
 		const path: UpPath = {
 			parent: undefined,
 			parentField: fieldA,
@@ -1617,13 +1621,13 @@ function deepFreeze(object: object) {
 }
 
 function buildChangeset(edits: EditDescription[]): ModularChangeset {
-	const editor = family.buildEditor(mintRevisionTag, () => undefined);
+	const editor = family.buildEditor(mintRevisionTag, idAllocatorFromMaxId(), () => undefined);
 	return editor.buildChanges(edits);
 }
 
 function buildExistsConstraint(path: UpPath): ModularChangeset {
 	const edits: ModularChangeset[] = [];
-	const editor = family.buildEditor(mintRevisionTag, (taggedChange) =>
+	const editor = family.buildEditor(mintRevisionTag, idAllocatorFromMaxId(), (taggedChange) =>
 		edits.push(taggedChange.change),
 	);
 	editor.addNodeExistsConstraint(path, mintRevisionTag());

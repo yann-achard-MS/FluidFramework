@@ -44,6 +44,7 @@ import {
 	mintRevisionTag,
 	testRevisionTagCodec,
 } from "../utils.js";
+import { idAllocatorFromMaxId } from "../../util/index.js";
 
 const dataChanges: ModularChangeset[] = [];
 const codecOptions: CodecWriteOptions = {
@@ -56,8 +57,11 @@ const fieldBatchCodec = {
 };
 
 const modularFamily = new ModularChangeFamily(fieldKinds, failCodecFamily);
-const defaultEditor = new DefaultEditBuilder(modularFamily, mintRevisionTag, (taggedChange) =>
-	dataChanges.push(taggedChange.change),
+const defaultEditor = new DefaultEditBuilder(
+	modularFamily,
+	mintRevisionTag,
+	idAllocatorFromMaxId(),
+	(taggedChange) => dataChanges.push(taggedChange.change),
 );
 
 const rootField = { parent: undefined, field: rootFieldKey };

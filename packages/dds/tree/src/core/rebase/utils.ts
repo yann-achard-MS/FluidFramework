@@ -153,6 +153,7 @@ export function rebaseBranch<TChange>(
  * @param sourceHead - the head of the source branch, which will be rebased onto `newBase`
  * @param targetCommit - the commit on the target branch to rebase the source branch onto.
  * @param targetHead - the head of the branch that `newBase` belongs to. Must be `newBase` or a descendent of `newBase`.
+ * @param filter - a function to filter commits on the source branch.
  * @returns a {@link BranchRebaseResult}
  * @remarks While a single branch must not have multiple commits with the same revision tag (that will result in undefined
  * behavior), there may be a commit on the source branch with the same revision tag as a commit on the target branch. If such
@@ -183,6 +184,7 @@ export function rebaseBranch<TChange>(
 	sourceHead: GraphCommit<TChange>,
 	targetCommit: GraphCommit<TChange>,
 	targetHead: GraphCommit<TChange>,
+	filter?: (commit: GraphCommit<TChange>) => boolean,
 ): BranchRebaseResult<TChange>;
 export function rebaseBranch<TChange>(
 	mintRevisionTag: () => RevisionTag,
@@ -190,6 +192,7 @@ export function rebaseBranch<TChange>(
 	sourceHead: GraphCommit<TChange>,
 	targetCommit: GraphCommit<TChange>,
 	targetHead = targetCommit,
+	filter: (commit: GraphCommit<TChange>) => boolean = () => true,
 ): BranchRebaseResult<TChange> {
 	// Get both source and target as path arrays
 	const sourcePath: GraphCommit<TChange>[] = [];
@@ -227,7 +230,7 @@ export function rebaseBranch<TChange>(
 	// have matching tags). Each commit found in the target branch can be skipped when processing the source branch
 	// because it has already been rebased onto the target. In the case that one or more of these commits are present
 	// directly after `targetCommit`, then the new base can be advanced further without having to do any work.
-	const sourceSet = new Set(sourcePath.map((r) => r.revision));
+	const sourceSet = new Set(sourcePath.filter((c) => filter(c)).map((c) => c.revision));
 	let newBaseIndex = targetCommitIndex;
 
 	for (const [i, { revision }] of targetPath.entries()) {

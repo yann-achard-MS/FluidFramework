@@ -7,7 +7,6 @@ import { strict as assert } from "node:assert";
 import {
 	type ChangesetLocalId,
 	DetachedFieldIndex,
-	type ForestRootId,
 	type IEditableForest,
 	type RevisionTag,
 	type TaggedChange,
@@ -37,7 +36,6 @@ import {
 // eslint-disable-next-line import-x/no-internal-modules
 import type { SharedTreeChange } from "../../shared-tree/sharedTreeChangeTypes.js";
 import {
-	type IdAllocator,
 	type JsonCompatible,
 	brand,
 	disposeSymbol,
@@ -62,12 +60,16 @@ const content: JsonCompatible = { x: 42 };
 const modularFamily = new ModularChangeFamily(fieldKinds, failCodecFamily);
 
 const dataChanges: ModularChangeset[] = [];
-const defaultEditor = new DefaultEditBuilder(modularFamily, mintRevisionTag, (taggedChange) =>
-	dataChanges.push(taggedChange.change),
+const defaultEditor = new DefaultEditBuilder(
+	modularFamily,
+	mintRevisionTag,
+	idAllocatorFromMaxId(),
+	(taggedChange) => dataChanges.push(taggedChange.change),
 );
 const modularBuilder = new ModularEditBuilder(
 	modularFamily,
 	modularFamily.fieldKinds,
+	idAllocatorFromMaxId(),
 	() => {},
 );
 
@@ -91,7 +93,7 @@ interface TestChangeEnricher {
 export function setupEnricher() {
 	const removedRoots = new DetachedFieldIndex(
 		"test",
-		idAllocatorFromMaxId() as IdAllocator<ForestRootId>,
+		idAllocatorFromMaxId(),
 		testRevisionTagCodec,
 		testIdCompressor,
 		{ jsonValidator: FormatValidatorBasic, minVersionForCollab: FluidClientVersion.v2_0 },

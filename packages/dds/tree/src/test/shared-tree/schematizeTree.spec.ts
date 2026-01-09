@@ -43,7 +43,7 @@ import {
 } from "../../simple-tree/index.js";
 import { toInitialSchema } from "../../simple-tree/index.js";
 import type { Transactor } from "../../shared-tree-core/index.js";
-import { Breakable } from "../../util/index.js";
+import { Breakable, idAllocatorFromMaxId } from "../../util/index.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import { makeTestDefaultChangeFamily } from "../shared-tree-core/utils.js";
 import {
@@ -71,7 +71,11 @@ function makeCheckout(
 	repository: TreeStoredSchemaRepository,
 	onChange: (change: TaggedChange<ModularChangeset>) => void = () => {},
 ) {
-	const editor = makeTestDefaultChangeFamily().buildEditor(mintRevisionTag, onChange);
+	const editor = makeTestDefaultChangeFamily().buildEditor(
+		mintRevisionTag,
+		idAllocatorFromMaxId(),
+		onChange,
+	);
 
 	return {
 		storedSchema: repository,

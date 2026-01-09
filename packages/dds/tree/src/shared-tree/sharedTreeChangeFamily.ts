@@ -11,6 +11,7 @@ import {
 	type ChangeEncodingContext,
 	type ChangeFamily,
 	type ChangeRebaser,
+	type ChangesetLocalId,
 	type DeltaDetachedNodeId,
 	type RevisionMetadataSource,
 	type RevisionReplacer,
@@ -30,6 +31,7 @@ import {
 	makeModularChangeCodecFamily,
 } from "../feature-libraries/index.js";
 import {
+	type IdAllocator,
 	type Mutable,
 	type NestedSet,
 	addToNestedSet,
@@ -81,11 +83,13 @@ export class SharedTreeChangeFamily
 
 	public buildEditor(
 		mintRevisionTag: () => RevisionTag,
+		idAllocator: IdAllocator<ChangesetLocalId>,
 		changeReceiver: (change: TaggedChange<SharedTreeChange>) => void,
 	): SharedTreeEditBuilder {
 		return new SharedTreeEditBuilder(
 			this.modularChangeFamily,
 			mintRevisionTag,
+			idAllocator,
 			changeReceiver,
 		);
 	}

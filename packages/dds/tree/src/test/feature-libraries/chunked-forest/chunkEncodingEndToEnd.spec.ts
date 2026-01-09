@@ -80,7 +80,7 @@ import type {
 } from "../../../feature-libraries/chunked-forest/index.js";
 import { jsonSequenceRootSchema } from "../../sequenceRootUtils.js";
 import { JsonAsTree } from "../../../jsonDomainSchema.js";
-import { brand } from "../../../util/index.js";
+import { brand, idAllocatorFromMaxId } from "../../../util/index.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import { ChunkedForest } from "../../../feature-libraries/chunked-forest/chunkedForest.js";
 import { MockFluidDataStoreRuntime } from "@fluidframework/test-runtime-utils/internal";
@@ -167,6 +167,7 @@ describe("End to end chunked encoding", () => {
 		const dummyEditor = new DefaultEditBuilder(
 			new DefaultChangeFamily(codec),
 			mintRevisionTag,
+			idAllocatorFromMaxId(),
 			changeReceiver,
 		);
 		const checkout = new MockTreeCheckout(forest, {

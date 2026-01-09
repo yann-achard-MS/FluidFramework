@@ -11,6 +11,7 @@ import type {
 	DefaultEditBuilder,
 } from "../feature-libraries/index.js";
 import { mintRevisionTag } from "./utils.js";
+import { idAllocatorFromMaxId } from "../util/index.js";
 
 export type Editor = (builder: DefaultEditBuilder) => void;
 
@@ -19,10 +20,14 @@ export function makeEditMinter(
 	editor: Editor,
 ): () => DefaultChangeset {
 	let builtChangeset: DefaultChangeset | undefined;
-	const innerEditor = family.buildEditor(mintRevisionTag, (taggedChange) => {
-		assert(builtChangeset === undefined);
-		builtChangeset = taggedChange.change;
-	});
+	const innerEditor = family.buildEditor(
+		mintRevisionTag,
+		idAllocatorFromMaxId(),
+		(taggedChange) => {
+			assert(builtChangeset === undefined);
+			builtChangeset = taggedChange.change;
+		},
+	);
 	return (): DefaultChangeset => {
 		assert(builtChangeset === undefined);
 		editor(innerEditor);

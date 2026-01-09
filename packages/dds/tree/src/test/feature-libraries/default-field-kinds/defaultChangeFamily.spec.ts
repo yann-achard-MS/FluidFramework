@@ -27,7 +27,7 @@ import {
 	intoDelta,
 	jsonableTreeFromCursor,
 } from "../../../feature-libraries/index.js";
-import { brand } from "../../../util/index.js";
+import { brand, idAllocatorFromMaxId } from "../../../util/index.js";
 import {
 	assertDeltaEqual,
 	buildTestForest,
@@ -132,12 +132,17 @@ function initializeEditableForest(data?: JsonableTree): {
 		testRevisionTagCodec,
 		testIdCompressor,
 	);
-	const builder = new DefaultEditBuilder(family, mintRevisionTag, (taggedChange) => {
-		changes.push(taggedChange);
-		const delta = intoDelta(taggedChange);
-		deltas.push(delta);
-		applyDelta(delta, taggedChange.revision, forest, detachedFieldIndex);
-	});
+	const builder = new DefaultEditBuilder(
+		family,
+		mintRevisionTag,
+		idAllocatorFromMaxId(),
+		(taggedChange) => {
+			changes.push(taggedChange);
+			const delta = intoDelta(taggedChange);
+			deltas.push(delta);
+			applyDelta(delta, taggedChange.revision, forest, detachedFieldIndex);
+		},
+	);
 	return {
 		forest,
 		builder,

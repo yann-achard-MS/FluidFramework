@@ -22,8 +22,14 @@ import {
 	rebaseBranch,
 	tagRollbackInverse,
 	type RebaseStatsWithDuration,
+	type ChangesetLocalId,
 } from "../core/index.js";
-import { hasSome, defineLazyCachedProperty } from "../util/index.js";
+import {
+	hasSome,
+	defineLazyCachedProperty,
+	idAllocatorFromMaxId,
+	type IdAllocator,
+} from "../util/index.js";
 import type {
 	OpSpaceCompressedId,
 	SessionSpaceCompressedId,
@@ -125,13 +131,16 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> {
 		private head: GraphCommit<TChange>,
 		public readonly changeFamily: ChangeFamily<TEditor, TChange>,
 		private readonly mintRevisionTag: () => RevisionTag,
+		idAllocator?: IdAllocator<ChangesetLocalId>,
 		private readonly branchTrimmer?: Listenable<BranchTrimmingEvents>,
 		private readonly telemetryEventBatcher?: TelemetryEventBatcher<
 			keyof RebaseStatsWithDuration
 		>,
 	) {
-		this.editor = this.changeFamily.buildEditor(mintRevisionTag, (change) =>
-			this.apply(change),
+		this.editor = this.changeFamily.buildEditor(
+			mintRevisionTag,
+			idAllocator ?? idAllocatorFromMaxId(),
+			(change) => this.apply(change),
 		);
 		this.unsubscribeBranchTrimmer = branchTrimmer?.on("ancestryTrimmed", (commit) => {
 			this.#events.emit("ancestryTrimmed", commit);
@@ -194,12 +203,14 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> {
 	public fork(
 		commit: GraphCommit<TChange> = this.head,
 		mintRevisionTag: () => RevisionTag = this.mintRevisionTag,
+		idAllocator?: IdAllocator<ChangesetLocalId>,
 	): SharedTreeBranch<TEditor, TChange> {
 		this.assertNotDisposed();
 		const fork = new SharedTreeBranch(
 			commit,
 			this.changeFamily,
 			mintRevisionTag,
+			idAllocator,
 			this.branchTrimmer,
 		);
 		this.#events.emit("fork", fork);

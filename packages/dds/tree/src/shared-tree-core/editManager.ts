@@ -145,6 +145,7 @@ export class EditManager<
 			this.trunkBase,
 			changeFamily,
 			mintRevisionTag,
+			undefined,
 			this._events,
 			this.telemetryEventBatcher,
 		);
@@ -700,6 +701,7 @@ class SharedBranch<TEditor extends ChangeFamilyEditor, TChangeset> {
 			this.trunk.getHead(),
 			changeFamily,
 			mintRevisionTag,
+			undefined,
 			branchTrimmer,
 			telemetryEventBatcher,
 		);
