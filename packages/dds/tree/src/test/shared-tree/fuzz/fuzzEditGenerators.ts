@@ -607,8 +607,9 @@ export const makeBranchEditGenerator = (
 					contents: {
 						type: "fork",
 						branchNumber:
-							forkedViewsLength === 0
-								? undefined
+							// The random bool ensure that we sometimes fork from the main view even if there are existing forks
+							forkedViewsLength === 0 || state.random.bool()
+								? "main"
 								: state.random.integer(0, forkedViewsLength - 1),
 					},
 				};
@@ -621,14 +622,6 @@ export const makeBranchEditGenerator = (
 			(state): ForkMergeOperation => {
 				const forkedViews = state.forkedViews?.get(state.client.channel) ?? [];
 				const forkedViewsLength = forkedViews.length;
-
-				if (forkedViewsLength === 0) {
-					return {
-						type: "forkMergeOperation",
-						contents: { type: "merge", baseBranch: undefined, forkBranch: undefined },
-					};
-				}
-
 				const forkedBranchIndex = state.random.integer(0, forkedViewsLength - 1);
 
 				return {
@@ -636,19 +629,16 @@ export const makeBranchEditGenerator = (
 					contents: {
 						type: "merge",
 						baseBranch:
-							forkedViews.length > 0
-								? state.random.integer(0, forkedViews.length - 1)
-								: undefined,
+							// The random bool ensure that we sometimes merge from the main view even if there are existing forks
+							forkedViews.length === 0 || state.random.bool()
+								? "main"
+								: state.random.integer(0, forkedViews.length - 1),
 						forkBranch: forkedBranchIndex,
 					},
 				};
 			},
 			opWeights.merge,
-			(state) =>
-				// Can only merge if there is no open transaction
-				state.transactionViews?.get(state.client.channel) === undefined &&
-				state.forkedViews?.get(state.client.channel) !== undefined &&
-				state.forkedViews.get(state.client.channel)?.length !== 0,
+			(state) => (state.forkedViews?.get(state.client.channel)?.length ?? 0) > 0,
 		],
 	]);
 };
@@ -761,9 +751,9 @@ export function makeOpGenerator(
 				[
 					() => makeBranchEditGenerator(weights),
 					fork + merge,
-					// Can only fork/merge if there is no open transaction
 					(state: FuzzTestState) =>
-						state.transactionViews?.get(state.client.channel) === undefined,
+						state.transactionViews?.get(state.client.channel) === undefined ||
+						(state.forkedViews?.get(state.client.channel)?.length ?? 0) > 0,
 				],
 			] as const
 		)

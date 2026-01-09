@@ -57,15 +57,21 @@ export interface ForkBranch {
 	type: "fork";
 	/**
 	 * If a branchNumber is provided, fork from the corresponding client and branchNumber's view from state.forkedViews.
-	 * If undefined, fork from the client view.
+	 * If "main", fork from the client's main view.
 	 */
-	branchNumber: number | undefined;
+	branchNumber: number | "main";
 }
 
 export interface MergeBranch {
 	type: "merge";
-	baseBranch: number | undefined;
-	forkBranch: number | undefined;
+	/**
+	 * The branch that `forkBranch` will be merged into.
+	 */
+	baseBranch: number | "main";
+	/**
+	 * The branch that will be merged into `baseBranch`.
+	 */
+	forkBranch: number;
 }
 
 export interface FieldEdit {

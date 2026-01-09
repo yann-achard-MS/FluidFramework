@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { strict as assert } from "node:assert";
+import { strict as assert, fail } from "node:assert";
 
 import { type Reducer, combineReducers } from "@fluid-private/stochastic-test-utils";
 import type { DDSFuzzTestState, Client } from "@fluid-private/test-dds-utils";
@@ -64,6 +64,7 @@ import {
 } from "../../../simple-tree/index.js";
 import type { IChannelFactory } from "@fluidframework/datastore-definitions/internal";
 import type { ISharedTree } from "../../../treeFactory.js";
+import { getOrAddEmptyToMap } from "../../../util/index.js";
 
 const syncFuzzReducer = combineReducers<
 	Operation,
@@ -197,50 +198,32 @@ export function applySchemaOp(state: FuzzTestState, operation: SchemaChange) {
 export function applyForkMergeOperation(state: FuzzTestState, branchEdit: ForkMergeOperation) {
 	switch (branchEdit.contents.type) {
 		case "fork": {
-			const forkedViews = state.forkedViews ?? new Map<ISharedTree, FuzzView[]>();
-			const clientForkedViews = forkedViews.get(state.client.channel) ?? [];
-
-			if (branchEdit.contents.branchNumber !== undefined) {
-				assert(clientForkedViews.length > branchEdit.contents.branchNumber);
-			}
+			const forkedViews = (state.forkedViews ??= new Map<ISharedTree, FuzzView[]>());
+			const clientForkedViews = getOrAddEmptyToMap(forkedViews, state.client.channel);
 
 			const view =
-				branchEdit.contents.branchNumber !== undefined
+				branchEdit.contents.branchNumber !== "main"
 					? clientForkedViews[branchEdit.contents.branchNumber]
 					: viewFromState(state);
 			assert(view !== undefined);
 			const forkedView = view.fork();
 			convertToFuzzView(forkedView, view.currentSchema);
-			clientForkedViews?.push(forkedView);
-			forkedViews.set(state.client.channel, clientForkedViews);
-			state.forkedViews = forkedViews;
+			clientForkedViews.push(forkedView);
 			break;
 		}
 		case "merge": {
 			const forkBranchIndex = branchEdit.contents.forkBranch;
-			const forkedViews = state.forkedViews ?? new Map<ISharedTree, FuzzView[]>();
-			const clientForkedViews = forkedViews.get(state.client.channel) ?? [];
+			// const forkedViews = state.forkedViews ?? fail("No forked views to merge from.");
+			const clientForkedViews =
+				state.forkedViews?.get(state.client.channel) ?? fail("No forked views to merge from.");
 
 			const baseBranch =
-				branchEdit.contents.baseBranch !== undefined
+				branchEdit.contents.baseBranch !== "main"
 					? clientForkedViews[branchEdit.contents.baseBranch]
 					: viewFromState(state);
-			assert(forkBranchIndex !== undefined);
-			const forkedBranch = clientForkedViews[forkBranchIndex];
-			if (baseBranch.checkout.transaction.isInProgress() === true) {
-				return;
-			}
+			const forkedBranch = clientForkedViews.splice(forkBranchIndex, 1)[0];
 
-			baseBranch.merge(forkedBranch, false);
-
-			const updatedClientForkedViews = clientForkedViews.filter(
-				(_, index) => index !== forkBranchIndex,
-			);
-			if (branchEdit.contents.baseBranch !== undefined) {
-				updatedClientForkedViews.push(baseBranch);
-			}
-			forkedViews.set(state.client.channel, updatedClientForkedViews);
-			state.forkedViews = forkedViews;
+			baseBranch.merge(forkedBranch, true);
 			break;
 		}
 		default: {
