@@ -29,7 +29,6 @@ import type { CodecWriteOptions, DependentFormatVersion, IJsonCodec } from "../c
 import {
 	type ChangeFamily,
 	type ChangeFamilyEditor,
-	type EditorOptions,
 	type GraphCommit,
 	type RevisionTag,
 	RevisionTagCodec,

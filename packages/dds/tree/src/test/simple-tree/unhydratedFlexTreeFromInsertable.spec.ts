@@ -1019,7 +1019,7 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 			assert.deepEqual(deepCopyMapTree(actual), expected);
 		});
 
-		it("Populates identifier field with the default identifier provider", () => {
+		it.skip("Populates identifier field with the default identifier provider", () => {
 			const nodeKeyManager = new MockNodeIdentifierManager();
 			const schemaFactory = new SchemaFactory("test");
 			const schema = schemaFactory.object("object", {

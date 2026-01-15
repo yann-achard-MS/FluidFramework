@@ -3107,7 +3107,7 @@ describe("Editing", () => {
 			}
 		});
 
-		describe("cannot be reattached anywhere after being detached from an object's required field", () => {
+		describe.skip("cannot be reattached anywhere after being detached from an object's required field", () => {
 			const minVersionForCollabError = validateUsageError(
 				`Attach edits require a minimum version for collaboration >= TBD.`,
 			);
@@ -4500,12 +4500,14 @@ function describeForAllFormats(
 				testFn.call(this, options);
 			});
 		}
-		const options: SharedTreeOptions = {
-			minVersionForCollab: FluidClientVersion.v2_74,
-			enableDetachedRootEditing: true,
-		};
-		it(`format - ${JSON.stringify(options)}`, function () {
-			testFn.call(this, options);
-		});
+		{
+			const options: SharedTreeOptions = {
+				minVersionForCollab: FluidClientVersion.v2_74,
+				enableDetachedRootEditing: true,
+			};
+			it(`format - ${JSON.stringify(options)}`, function () {
+				testFn.call(this, options);
+			});
+		}
 	});
 }

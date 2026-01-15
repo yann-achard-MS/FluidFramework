@@ -85,8 +85,8 @@
                                     "change": {
                                       "r": {
                                         "e": true,
-                                        "d": 0,
-                                        "s": 1
+                                        "d": 1,
+                                        "s": 0
                                       }
                                     }
                                   }
@@ -96,7 +96,7 @@
                                     [
                                       [
                                         [
-                                          1,
+                                          0,
                                           0
                                         ]
                                       ]
@@ -126,7 +126,7 @@
                                             [
                                               "com.fluidframework.leaf.string",
                                               true,
-                                              "8f95be09-8376-4ff7-8755-ccd7e8124b06",
+                                              "8f95be09-8376-4ff7-8755-ccd7e8124b07",
                                               []
                                             ]
                                           ]
@@ -190,7 +190,7 @@
                               }
                             }
                           ],
-                          "revision": 4,
+                          "revision": 5,
                           "sequenceNumber": 2,
                           "sessionId": "8f95be09-8376-4ff7-8755-ccd7e8124b06"
                         }
@@ -304,7 +304,7 @@
                                 [
                                   "com.fluidframework.leaf.string",
                                   true,
-                                  "8f95be09-8376-4ff7-8755-ccd7e8124b06",
+                                  "8f95be09-8376-4ff7-8755-ccd7e8124b07",
                                   []
                                 ]
                               ]

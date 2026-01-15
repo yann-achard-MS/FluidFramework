@@ -71,8 +71,8 @@
                                                         "change": {
                                                           "r": {
                                                             "e": true,
-                                                            "d": 2,
-                                                            "s": 3
+                                                            "d": 3,
+                                                            "s": 2
                                                           }
                                                         }
                                                       }
@@ -96,7 +96,7 @@
                                           0
                                         ],
                                         [
-                                          3,
+                                          2,
                                           1
                                         ]
                                       ]
@@ -152,7 +152,7 @@
                               }
                             }
                           ],
-                          "revision": 6,
+                          "revision": 9,
                           "sequenceNumber": 4,
                           "sessionId": "8f95be09-8376-4ff7-8755-ccd7e8124b06"
                         }

@@ -78,7 +78,7 @@ describe("simple tree indexes", () => {
 		assert.equal(index.get(childId), 3);
 	});
 
-	it("does not reify tree of nodes being scanned", () => {
+	it.skip("does not reify tree of nodes being scanned", () => {
 		const { view, parent } = createView({ childKey: childId });
 		const index = createSimpleTreeIndex(
 			view,

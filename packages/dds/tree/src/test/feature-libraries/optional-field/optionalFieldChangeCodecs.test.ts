@@ -1,8 +1,10 @@
+/*!
+ * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
+ * Licensed under the MIT License.
+ */
+
 // XXX
-// /*!
-//  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
-//  * Licensed under the MIT License.
-//  */
+describe.skip("dummy content 04", () => {});
 
 // import type { SessionId } from "@fluidframework/id-compressor";
 

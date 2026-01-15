@@ -41,7 +41,7 @@
                           "change": [
                             {
                               "data": {
-                                "maxId": 3,
+                                "maxId": 1,
                                 "changes": [
                                   {
                                     "fieldKey": "rootFieldKey",
@@ -59,7 +59,7 @@
                                                   "count": 1,
                                                   "effect": {
                                                     "remove": {
-                                                      "id": 2
+                                                      "id": 0
                                                     }
                                                   }
                                                 }
@@ -74,7 +74,7 @@
                               }
                             }
                           ],
-                          "revision": 5,
+                          "revision": 8,
                           "sequenceNumber": 6,
                           "sessionId": "8f95be09-8376-4ff7-8755-ccd7e8124b06"
                         }
@@ -233,8 +233,8 @@
                       "version": 2,
                       "data": [
                         [
-                          5,
-                          2,
+                          8,
+                          0,
                           2
                         ]
                       ],

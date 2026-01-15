@@ -45,7 +45,7 @@ import {
 import { assert, fail } from "@fluidframework/core-utils/internal";
 import { combineChunks, isFieldInSchema } from "../feature-libraries/index.js";
 import { getUnhydratedContext } from "./createContext.js";
-import { convertField, permissiveStoredSchemaGenerationOptions } from "./toStoredSchema.js";
+import { convertField } from "./toStoredSchema.js";
 import type { SchemaType, SimpleFieldSchema } from "./simpleSchema.js";
 
 /**
@@ -287,7 +287,7 @@ function prepareForInsertionContextlessInternal<TIn extends InsertableContent | 
 	const normalizedFieldSchema = normalizeFieldSchema(schema);
 	const fieldSchema = convertField(
 		normalizedFieldSchema as unknown as SimpleFieldSchema<SchemaType.Stored>,
-		//permissiveStoredSchemaGenerationOptions,
+		// permissiveStoredSchemaGenerationOptions,
 	);
 
 	const field = createField(

@@ -101,8 +101,8 @@
                                     "change": {
                                       "r": {
                                         "e": true,
-                                        "d": 0,
-                                        "s": 1
+                                        "d": 1,
+                                        "s": 0
                                       }
                                     }
                                   }
@@ -112,7 +112,7 @@
                                     [
                                       [
                                         [
-                                          1,
+                                          0,
                                           0
                                         ]
                                       ]
@@ -275,7 +275,7 @@
                               }
                             }
                           ],
-                          "revision": 3,
+                          "revision": 4,
                           "sequenceNumber": 2,
                           "sessionId": "8f95be09-8376-4ff7-8755-ccd7e8124b06"
                         },
@@ -363,7 +363,7 @@
                               }
                             }
                           ],
-                          "revision": 4,
+                          "revision": 5,
                           "sequenceNumber": 4,
                           "sessionId": "8f95be09-8376-4ff7-8755-ccd7e8124b06"
                         }

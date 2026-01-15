@@ -3,8 +3,6 @@
  * Licensed under the MIT License.
  */
 
-import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
-
 import {
 	type ChangeAtomId,
 	type ChangeEncodingContext,
@@ -78,11 +76,7 @@ import {
 // eslint-disable-next-line import-x/no-internal-modules
 import { newGenericChangeset } from "../../feature-libraries/modular-schema/genericFieldKindTypes.js";
 import type { SessionId } from "@fluidframework/id-compressor";
-import {
-	currentVersion,
-	FluidClientVersion,
-	type CodecWriteOptions,
-} from "../../codec/index.js";
+import { currentVersion, type CodecWriteOptions } from "../../codec/index.js";
 import { ajvValidator } from "../codec/index.js";
 
 const fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind> = new Map<
