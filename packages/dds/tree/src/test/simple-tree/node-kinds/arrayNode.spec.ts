@@ -31,6 +31,8 @@ import type {
 // eslint-disable-next-line import-x/no-internal-modules
 import { asIndex } from "../../../simple-tree/node-kinds/index.js";
 import { TestTreeProviderLite } from "../../utils.js";
+import { Tree } from "../../../shared-tree/index.js";
+import { TreeStatus } from "../../../feature-libraries/index.js";
 
 const schemaFactory = new SchemaFactory("ArrayNodeTest");
 const PojoEmulationNumberArray = schemaFactory.array(schemaFactory.number);
@@ -156,6 +158,19 @@ describe("ArrayNode", () => {
 		schemaType: typeof PojoEmulationNumberArray | typeof CustomizableNumberArray,
 	): void {
 		describeHydration(title, (init) => {
+			it("minimal insert object", () => {
+				class EmptyObject extends schemaFactory.object("Empty object", {}) {}
+				class Map extends schemaFactory.array("test map", EmptyObject) {}
+				const array = init(Map, new Map());
+				const o = new EmptyObject({});
+				const status = Tree.status(array);
+				assert.equal(Tree.status(o), TreeStatus.New);
+				array.insertAtStart(o);
+				assert.equal(array.length, 1);
+				assert.equal(Tree.status(o), status);
+				assert.equal(array[0], o); // Check that the inserted and read proxies are the same object
+			});
+
 			it("fails at runtime if attempting to set content via index assignment", () => {
 				const array = init(schemaType, [0]);
 				const mutableArray = array as Mutable<typeof array>;

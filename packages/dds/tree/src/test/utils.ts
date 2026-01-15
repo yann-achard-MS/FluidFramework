@@ -103,6 +103,7 @@ import {
 	type FieldKindIdentifier,
 	type TreeNodeSchemaIdentifier,
 	type TreeFieldStoredSchema,
+	type ChangeAtomId,
 	SchemaFormatVersion,
 } from "../core/index.js";
 import { FormatValidatorBasic } from "../external-utilities/index.js";
@@ -116,7 +117,7 @@ import {
 	mapTreeFromCursor,
 	MockNodeIdentifierManager,
 	cursorForMapTreeField,
-	type IDefaultEditBuilder,
+	type DataEditor,
 	type TreeChunk,
 	mapTreeFieldFromCursor,
 	defaultChunkPolicy,
@@ -127,6 +128,7 @@ import {
 	type MinimalMapTreeNodeView,
 	jsonableTreeFromCursor,
 	cursorForMapTreeNode,
+	type DetachedRootIds,
 	type FullSchemaPolicy,
 	type IncrementalEncodingPolicy,
 	defaultIncrementalEncodingPolicy,
@@ -138,7 +140,7 @@ import {
 	type SharedTreeContentSnapshot,
 	type TreeCheckout,
 	createTreeCheckout,
-	type ISharedTreeEditor,
+	type ILocationBasedSharedTreeEditor,
 	type ITreeCheckoutFork,
 	independentView,
 	SchematizingSimpleTreeView,
@@ -969,8 +971,8 @@ export function jsonTreeFromForest(forest: IForestSubscription): JsonCompatible[
 }
 
 export function expectJsonTree(
-	actual: ITreeCheckout | ITreeCheckout[],
-	expected: JsonCompatible[],
+	actual: ITreeCheckout | readonly ITreeCheckout[],
+	expected: readonly JsonCompatible[],
 	expectRemovedRootsAreSynchronized = true,
 ): void {
 	const trees = Array.isArray(actual) ? actual : [actual];
@@ -1382,7 +1384,7 @@ export class MockTreeCheckout implements ITreeCheckout {
 		public readonly forest: IForestSubscription,
 		private readonly options?: {
 			schema?: TreeStoredSchemaSubscription;
-			editor?: ISharedTreeEditor;
+			editor?: ILocationBasedSharedTreeEditor;
 		},
 	) {}
 
@@ -1398,7 +1400,7 @@ export class MockTreeCheckout implements ITreeCheckout {
 		}
 		return this.options.schema;
 	}
-	public get editor(): ISharedTreeEditor {
+	public get editor(): ILocationBasedSharedTreeEditor {
 		if (this.options?.editor === undefined) {
 			throw new Error("No editor provided to MockTreeCheckout.");
 		}
@@ -1456,7 +1458,9 @@ function normalizeNewFieldContent(
  * Convenience helper for performing a "move" edit where the source and destination field are the same.
  */
 export function moveWithin(
-	editor: IDefaultEditBuilder,
+	editor:
+		| ILocationBasedSharedTreeEditor
+		| DataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>,
 	field: NormalizedFieldUpPath,
 	sourceIndex: number,
 	count: number,

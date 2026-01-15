@@ -3,15 +3,24 @@
  * Licensed under the MIT License.
  */
 
+import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import type {
+	ChangeAtomId,
 	ChangeFamilyEditor,
+	EditorOptions,
 	RevisionTag,
 	TaggedChange,
+	TreeChunk,
 	TreeStoredSchema,
 } from "../core/index.js";
 import {
-	DefaultEditBuilder,
-	type IDefaultEditBuilder,
+	DefaultIdBasedDataEditor,
+	LocationBasedDataEditor,
+	type DetachedRootIds,
+	type DetachedRootLocation,
+	type DetachedRootsLocation,
+	type Locator,
+	type DataEditor,
 	type ModularChangeFamily,
 } from "../feature-libraries/index.js";
 
@@ -33,7 +42,16 @@ export interface ISchemaEditor {
 /**
  * SharedTree editor for transactional tree data and schema changes.
  */
-export interface ISharedTreeEditor extends IDefaultEditBuilder {
+export interface IIdBasedSharedTreeEditor
+	extends DataEditor<TreeChunk, ChangeAtomId, DetachedRootIds> {
+	/**
+	 * Editor for schema changes.
+	 */
+	schema: ISchemaEditor;
+}
+
+export interface ILocationBasedSharedTreeEditor
+	extends DataEditor<TreeChunk, DetachedRootLocation, DetachedRootsLocation> {
 	/**
 	 * Editor for schema changes.
 	 */
@@ -41,12 +59,12 @@ export interface ISharedTreeEditor extends IDefaultEditBuilder {
 }
 
 /**
- * Implementation of {@link IDefaultEditBuilder} based on the default set of supported field kinds.
+ * Implementation of {@link DataEditor} based on the default set of supported field kinds.
  * @sealed
  */
-export class SharedTreeEditBuilder
-	extends DefaultEditBuilder
-	implements ChangeFamilyEditor, ISharedTreeEditor
+export class IdBasedSharedTreeEditBuilder
+	extends DefaultIdBasedDataEditor
+	implements ChangeFamilyEditor, IIdBasedSharedTreeEditor
 {
 	public readonly schema: ISchemaEditor;
 
@@ -54,17 +72,22 @@ export class SharedTreeEditBuilder
 		modularChangeFamily: ModularChangeFamily,
 		mintRevisionTag: () => RevisionTag,
 		private readonly changeReceiver: (change: TaggedChange<SharedTreeChange>) => void,
+		options?: EditorOptions,
 	) {
-		super(modularChangeFamily, mintRevisionTag, (taggedChange) =>
-			changeReceiver({
-				...taggedChange,
-				change: { changes: [{ type: "data", innerChange: taggedChange.change }] },
-			}),
+		super(
+			modularChangeFamily,
+			mintRevisionTag,
+			(taggedChange) =>
+				changeReceiver({
+					...taggedChange,
+					change: { changes: [{ type: "data", innerChange: taggedChange.change }] },
+				}),
+			options,
 		);
 
 		this.schema = {
 			setStoredSchema: (oldSchema, newSchema) => {
-				this.changeReceiver({
+				changeReceiver({
 					revision: mintRevisionTag(),
 					change: {
 						changes: [
@@ -80,5 +103,17 @@ export class SharedTreeEditBuilder
 				});
 			},
 		};
+	}
+}
+
+export class LocationBasedSharedTreeEditBuilder
+	extends LocationBasedDataEditor
+	implements ILocationBasedSharedTreeEditor
+{
+	public readonly schema: ISchemaEditor;
+
+	public constructor(idBasedEditor: IIdBasedSharedTreeEditor, locator: Locator) {
+		super(idBasedEditor, locator);
+		this.schema = idBasedEditor.schema;
 	}
 }

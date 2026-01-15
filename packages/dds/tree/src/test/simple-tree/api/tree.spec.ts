@@ -4,10 +4,12 @@
  */
 
 import { strict as assert } from "node:assert";
-import { validateUsageError } from "@fluidframework/test-runtime-utils/internal";
 
 import { createIdCompressor } from "@fluidframework/id-compressor/internal";
-import { MockFluidDataStoreRuntime } from "@fluidframework/test-runtime-utils/internal";
+import {
+	MockFluidDataStoreRuntime,
+	validateUsageError,
+} from "@fluidframework/test-runtime-utils/internal";
 
 import {
 	SchemaFactory,
@@ -25,7 +27,7 @@ import {
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../../simple-tree/fieldSchema.js";
 // eslint-disable-next-line import-x/no-internal-modules
-import type { UnhydratedFlexTreeNode } from "../../../simple-tree/core/index.js";
+import { UnhydratedFlexTreeNode } from "../../../simple-tree/core/index.js";
 
 const schema = new SchemaFactory("com.example");
 
@@ -78,11 +80,13 @@ describe("simple-tree tree", () => {
 	describe("invalid default", () => {
 		// Field providers are assumed to validate their content:
 		// These tests use internal APIs to construct an intentionally invalid one to slip out of schema data into the flex tree.
-		const numberProvider: ConstantFieldProvider = (): UnhydratedFlexTreeNode[] => [
+		const numberProvider: ConstantFieldProvider = (): UnhydratedFlexTreeNode[] => {
 			// The schema listed here is intentionally incorrect,
 			// it should be a string given how this field is used below.
-			unhydratedFlexTreeFromInsertable(5, schema.number),
-		];
+			const node = unhydratedFlexTreeFromInsertable(5, schema.number);
+			assert(node instanceof UnhydratedFlexTreeNode);
+			return [node];
+		};
 
 		class InvalidDefault extends schema.object("hasID", {
 			id: createFieldSchema(FieldKind.Identifier, schema.string, {
@@ -247,7 +251,7 @@ describe("simple-tree tree", () => {
 			const config = new TreeViewConfiguration({ schema: schemaWithIdentifier });
 			const view = getView(config);
 			view.initialize({ identifier: undefined });
-			assert.equal(view.root.identifier, "beefbeef-beef-4000-8000-000000000001");
+			assert.equal(view.root.identifier, "beefbeef-beef-4000-8000-000000000002");
 		});
 
 		it("adds identifier to unpopulated identifier fields.", () => {
@@ -263,10 +267,10 @@ describe("simple-tree tree", () => {
 
 			view.root = toHydrate;
 			assert.equal(toHydrate, view.root);
-			assert.equal(toHydrate.identifier, "beefbeef-beef-4000-8000-000000000004");
+			assert.equal(toHydrate.identifier, "beefbeef-beef-4000-8000-000000000003");
 
 			view.root = { identifier: undefined };
-			assert.equal(view.root?.identifier, "beefbeef-beef-4000-8000-000000000006");
+			assert.equal(view.root?.identifier, "beefbeef-beef-4000-8000-000000000007");
 		});
 
 		it("populates field when no field defaulter is provided.", () => {

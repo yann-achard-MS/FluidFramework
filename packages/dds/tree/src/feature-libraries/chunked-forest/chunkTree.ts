@@ -436,7 +436,12 @@ function newBasicChunkTree(
 ): BasicChunk {
 	return new BasicChunk(
 		cursor.type,
-		new Map(mapCursorFields(cursor, () => [cursor.getFieldKey(), chunkField(cursor, policy)])),
+		new Map(
+			mapCursorFields(cursor, () => {
+				debugAssert(() => cursor.getFieldLength() > 0 || "field must have at least one child");
+				return [cursor.getFieldKey(), chunkField(cursor, policy)];
+			}),
+		),
 		cursor.value,
 	);
 }

@@ -14,15 +14,14 @@ import {
 } from "../../core/index.js";
 import type {
 	FieldKinds,
-	SequenceFieldEditBuilder,
-	ValueFieldEditBuilder,
-	OptionalFieldEditBuilder,
+	SequenceFieldEditor,
+	RequiredFieldEditor,
+	OptionalFieldEditor,
 } from "../default-schema/index.js";
 import type {
 	MapTreeFieldViewGeneric,
 	MapTreeNodeViewGeneric,
 	MinimalFieldMap,
-	MinimalMapTreeNodeView,
 } from "../mapTreeCursor.js";
 import type { FlexFieldKind } from "../modular-schema/index.js";
 
@@ -309,7 +308,7 @@ export type FlexibleFieldContent = readonly FlexibleNodeContent[];
 /**
  * Tree for inserting as a node.
  */
-export type FlexibleNodeContent = MinimalMapTreeNodeView;
+export type FlexibleNodeContent = FlexTreeNode;
 
 /**
  * {@link FlexTreeField} that stores a sequence of children.
@@ -354,7 +353,7 @@ export interface FlexTreeSequenceField extends FlexTreeField {
 	/**
 	 * Get an editor for this sequence.
 	 */
-	readonly editor: SequenceFieldEditBuilder<FlexibleFieldContent>;
+	readonly editor: SequenceFieldEditor<FlexibleFieldContent, readonly FlexTreeNode[]>;
 }
 
 /**
@@ -366,7 +365,7 @@ export interface FlexTreeSequenceField extends FlexTreeField {
 export interface FlexTreeRequiredField extends FlexTreeField {
 	get content(): FlexTreeUnknownUnboxed;
 
-	readonly editor: ValueFieldEditBuilder<FlexibleNodeContent>;
+	readonly editor: RequiredFieldEditor<FlexibleNodeContent, FlexTreeNode>;
 }
 
 /**
@@ -385,7 +384,7 @@ export interface FlexTreeRequiredField extends FlexTreeField {
 export interface FlexTreeOptionalField extends FlexTreeField {
 	get content(): FlexTreeUnknownUnboxed | undefined;
 
-	readonly editor: OptionalFieldEditBuilder<FlexibleNodeContent>;
+	readonly editor: OptionalFieldEditor<FlexibleNodeContent, FlexTreeNode>;
 }
 
 // #endregion

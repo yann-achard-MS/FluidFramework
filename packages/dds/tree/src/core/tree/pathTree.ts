@@ -262,7 +262,7 @@ export function compareFieldUpPaths(a: FieldUpPath, b: FieldUpPath): boolean {
 }
 
 /**
- * Checks whether or not a given path is parented under the root field.
+ * Returns the field key for the root field.
  * @param path - the path you want to check.
  * @returns the {@link DetachedField} which contains the path.
  */
@@ -276,4 +276,16 @@ export function getDetachedFieldContainingPath(path: UpPath): DetachedField {
 		}
 	}
 	return keyAsDetachedField(path.parentField);
+}
+
+/**
+ * Returns the field key for the root field.
+ * @param path - the path you want to check.
+ * @returns the {@link DetachedField} which contains the path.
+ */
+export function getDetachedFieldContainingFieldPath(path: FieldUpPath): DetachedField {
+	if (path.parent === undefined) {
+		return keyAsDetachedField(path.field);
+	}
+	return getDetachedFieldContainingPath(path.parent);
 }

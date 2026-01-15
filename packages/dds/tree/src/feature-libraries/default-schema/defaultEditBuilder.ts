@@ -3,18 +3,24 @@
  * Licensed under the MIT License.
  */
 
+import { lt as semverLessThan } from "semver-ts";
+
 import { assert, oob } from "@fluidframework/core-utils/internal";
+import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
-import type { ICodecFamily } from "../../codec/index.js";
+import { FluidClientVersion, type ICodecFamily } from "../../codec/index.js";
 import {
 	type ChangeAtomId,
 	type ChangeEncodingContext,
 	type ChangeFamily,
 	type ChangeFamilyEditor,
 	type ChangeRebaser,
+	type ChangesetLocalId,
 	type DeltaDetachedNodeId,
 	type DeltaRoot,
+	type EditorOptions,
+	type FieldUpPath,
 	type NormalizedFieldUpPath,
 	type NormalizedUpPath,
 	type RevisionTag,
@@ -22,21 +28,23 @@ import {
 	type TreeChunk,
 	type UpPath,
 	compareFieldUpPaths,
+	getDetachedFieldContainingFieldPath,
+	rootField,
 	topDownPath,
 } from "../../core/index.js";
-import { brand } from "../../util/index.js";
+import { brand, RangeMap } from "../../util/index.js";
 import {
 	type EditDescription,
 	type FieldChangeset,
 	type FieldEditDescription,
+	type GlobalEditDescription,
 	ModularChangeFamily,
 	type ModularChangeset,
 	ModularEditBuilder,
 	intoDelta as intoModularDelta,
 	relevantRemovedRoots as relevantModularRemovedRoots,
+	getBuildIds as getModularBuildIds,
 } from "../modular-schema/index.js";
-import type { OptionalChangeset } from "../optional-field/index.js";
-import type { CellId } from "../sequence-field/index.js";
 
 import {
 	fieldKinds,
@@ -44,6 +52,7 @@ import {
 	sequence,
 	required as valueFieldKind,
 } from "./defaultFieldKinds.js";
+import type { CellId } from "../sequence-field/index.js";
 
 export type DefaultChangeset = ModularChangeset;
 
@@ -53,7 +62,7 @@ export type DefaultChangeset = ModularChangeset;
  * @sealed
  */
 export class DefaultChangeFamily
-	implements ChangeFamily<DefaultEditBuilder, DefaultChangeset>
+	implements ChangeFamily<IdBasedChangeFamilyDataEditor, DefaultChangeset>
 {
 	private readonly modularFamily: ModularChangeFamily;
 
@@ -72,8 +81,9 @@ export class DefaultChangeFamily
 	public buildEditor(
 		mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<DefaultChangeset>) => void,
-	): DefaultEditBuilder {
-		return new DefaultEditBuilder(this, mintRevisionTag, changeReceiver);
+		options?: EditorOptions,
+	): IdBasedChangeFamilyDataEditor {
+		return new DefaultIdBasedDataEditor(this, mintRevisionTag, changeReceiver, options);
 	}
 }
 
@@ -102,8 +112,18 @@ export function relevantRemovedRoots(change: ModularChangeset): Iterable<DeltaDe
 	return relevantModularRemovedRoots(change, fieldKinds);
 }
 
+export function getBuildsIds(change: ModularChangeset): Iterable<DeltaDetachedNodeId> {
+	return getModularBuildIds(change);
+}
+
+export type DetachedRootIds = readonly DetachedRootIdRange[];
+export interface DetachedRootIdRange {
+	readonly first: ChangeAtomId;
+	readonly count: number;
+}
+
 /**
- * Default editor for transactional tree data changes.
+ * Default editor for tree data changes.
  * @privateRemarks
  * When taking into account not just the content of the tree,
  * but also how the merge identities (and thus anchors, flex-tree and simple-tree nodes) of nodes before and after the edits correspond,
@@ -119,32 +139,7 @@ export function relevantRemovedRoots(change: ModularChangeset): Iterable<DeltaDe
  * If/when such a mechanism becomes available, an evaluation should be done to determine if any existing editing operations should be changed to leverage it
  * (Possibly by adding opt ins at the view schema layer).
  */
-export interface IDefaultEditBuilder<TContent = TreeChunk> {
-	/**
-	 * @param field - the value field which is being edited under the parent node
-	 * @returns An object with methods to edit the given field of the given parent.
-	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
-	 * is bounded by the lifetime of this edit builder.
-	 */
-	valueField(field: NormalizedFieldUpPath): ValueFieldEditBuilder<TContent>;
-
-	/**
-	 * @param field - the optional field which is being edited under the parent node
-	 * @returns An object with methods to edit the given field of the given parent.
-	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
-	 * is bounded by the lifetime of this edit builder.
-	 */
-	optionalField(field: NormalizedFieldUpPath): OptionalFieldEditBuilder<TContent>;
-
-	/**
-	 * @param field - the sequence field which is being edited under the parent node
-	 *
-	 * @returns An object with methods to edit the given field of the given parent.
-	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
-	 * is bounded by the lifetime of this edit builder.
-	 */
-	sequenceField(field: NormalizedFieldUpPath): SequenceFieldEditBuilder<TContent>;
-
+export interface DataEditor<TContent, TDetachedRoot, TDetachedRoots> {
 	/**
 	 * Moves a subsequence from one sequence field to another sequence field.
 	 *
@@ -170,93 +165,236 @@ export interface IDefaultEditBuilder<TContent = TreeChunk> {
 	 * @param path - The path to the node that must exist when reverting a change.
 	 */
 	addNodeExistsConstraintOnRevert(path: NormalizedUpPath): void;
+
+	/**
+	 * Builds the detached roots for the given content.
+	 * @param content - The content to be built into detached nodes.
+	 *
+	 * Requires SharedTreeFormatVersion.vDetachedRoots or later.
+	 */
+	buildRoots(content: TContent): TDetachedRoots;
+
+	/**
+	 * @param field - the value field which is being edited under the parent node
+	 * @returns An object with methods to edit the given field of the given parent.
+	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
+	 * is bounded by the lifetime of this edit builder.
+	 */
+	valueField(field: NormalizedFieldUpPath): RequiredFieldEditor<TContent, TDetachedRoot>;
+
+	/**
+	 * @param field - the optional field which is being edited under the parent node
+	 * @returns An object with methods to edit the given field of the given parent.
+	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
+	 * is bounded by the lifetime of this edit builder.
+	 */
+	optionalField(field: NormalizedFieldUpPath): OptionalFieldEditor<TContent, TDetachedRoot>;
+
+	/**
+	 * @param field - the sequence field which is being edited under the parent node
+	 *
+	 * @returns An object with methods to edit the given field of the given parent.
+	 * The returned object can be used (i.e., have its methods called) multiple times but its lifetime
+	 * is bounded by the lifetime of this edit builder.
+	 */
+	sequenceField(field: NormalizedFieldUpPath): SequenceFieldEditor<TContent, TDetachedRoots>;
+}
+
+export type IdBasedChangeFamilyDataEditor = ChangeFamilyEditor &
+	DataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>;
+
+export function offsetChangesetLocalId(
+	id: ChangesetLocalId,
+	offset: number,
+): ChangesetLocalId {
+	return brand(id + offset);
+}
+
+export function subtractChangesetLocalId(a: ChangesetLocalId, b: ChangesetLocalId): number {
+	return a - b;
 }
 
 /**
- * Implementation of {@link IDefaultEditBuilder} based on the default set of supported field kinds.
+ * Implementation of {@link IdBasedChangeFamilyDataEditor} based on the default set of supported field kinds.
  * @sealed
  */
-export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuilder {
+export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	private readonly modularBuilder: ModularEditBuilder;
+	private readonly nodesWithoutCells: RangeMap<ChangesetLocalId, true> = new RangeMap(
+		offsetChangesetLocalId,
+		subtractChangesetLocalId,
+	);
 
 	public constructor(
 		family: ChangeFamily<ChangeFamilyEditor, DefaultChangeset>,
 		private readonly mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<DefaultChangeset>) => void,
+		private readonly options: EditorOptions = { canMakeDetachedRootEdits: false },
 	) {
 		this.modularBuilder = new ModularEditBuilder(family, fieldKinds, changeReceiver);
 	}
 
 	public enterTransaction(): void {
+		if (this.modularBuilder.isInTransaction() === false) {
+			this.nodesWithoutCells.clear();
+		}
 		this.modularBuilder.enterTransaction();
 	}
 	public exitTransaction(): void {
 		this.modularBuilder.exitTransaction();
+		if (this.modularBuilder.isInTransaction() === false) {
+			this.nodesWithoutCells.clear();
+		}
 	}
 
 	public addNodeExistsConstraint(path: NormalizedUpPath): void {
+		enforceEditsToDetachedTreesOptions(
+			{ parent: path.parent, field: path.parentField },
+			this.options,
+		);
 		this.modularBuilder.addNodeExistsConstraint(path, this.mintRevisionTag());
 	}
 
 	public addNodeExistsConstraintOnRevert(path: NormalizedUpPath): void {
+		enforceEditsToDetachedTreesOptions(
+			{ parent: path.parent, field: path.parentField },
+			this.options,
+		);
 		this.modularBuilder.addNodeExistsConstraintOnRevert(path, this.mintRevisionTag());
 	}
 
-	public valueField(field: NormalizedFieldUpPath): ValueFieldEditBuilder<TreeChunk> {
+	public buildRoots(content: TreeChunk): DetachedRootIds {
+		const detachedRoots = [];
+		const count = content.topLevelLength;
+		if (count > 0) {
+			const buildRevision = this.mintRevisionTag();
+			const buildId = {
+				localId: this.modularBuilder.generateId(count),
+				revision: buildRevision,
+			};
+			const build = this.modularBuilder.buildTrees(buildId.localId, content, buildRevision);
+			this.modularBuilder.submitChanges([build], buildRevision);
+			detachedRoots.push({ first: buildId, count });
+			this.nodesWithoutCells.set(buildId.localId, count, true);
+		}
+		return detachedRoots;
+	}
+
+	public valueField(
+		field: NormalizedFieldUpPath,
+	): RequiredFieldEditor<TreeChunk, ChangeAtomId> {
+		enforceEditsToDetachedTreesOptions(field, this.options);
+		const makeAttachEditDescription = (
+			fill: ChangeAtomId,
+			revision: RevisionTag,
+		): FieldEditDescription => {
+			const detachLocalId = this.modularBuilder.generateId();
+			const detach = { localId: detachLocalId, revision };
+			const change = valueFieldKind.changeHandler.editor.set({ fill, detach });
+			return {
+				type: "field",
+				field,
+				fieldKind: valueFieldKind.identifier,
+				change: brand(change),
+				revision,
+			};
+		};
 		return {
 			set: (newContent: TreeChunk): void => {
-				assert(
-					newContent.topLevelLength === 1,
-					0xc12 /* Value fields should have a single top level node */,
-				);
+				assert(newContent.topLevelLength === 1, "Expected exactly one node");
 				const revision = this.mintRevisionTag();
-				const fill: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
-				const detach: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
-				const build = this.modularBuilder.buildTrees(fill.localId, newContent, revision);
-				const change: FieldChangeset = brand(
-					valueFieldKind.changeHandler.editor.set({
-						fill,
-						detach,
-					}),
-				);
+				const buildLocalId = this.modularBuilder.generateId();
+				const buildId = { localId: buildLocalId, revision };
+				const build = this.modularBuilder.buildTrees(buildLocalId, newContent, revision);
+				const attach = makeAttachEditDescription(buildId, revision);
+				this.modularBuilder.submitChanges([build, attach], revision);
+			},
 
-				const edit: FieldEditDescription = {
-					type: "field",
-					field,
-					fieldKind: valueFieldKind.identifier,
-					change,
-					revision,
-				};
-				this.modularBuilder.submitChanges([build, edit], revision);
+			attach: (newContent: ChangeAtomId): void => {
+				const isWithoutCell = this.nodesWithoutCells.delete(newContent.localId, 1) === 1;
+				if (!isWithoutCell) {
+					throw new UsageError(
+						"A hydrated node that has been attached before cannot be attached into an object's required field. Assign new content to the field instead.",
+					);
+				}
+				const revision = this.mintRevisionTag();
+				const attach = makeAttachEditDescription(newContent, revision);
+				this.modularBuilder.submitChanges([attach], revision);
 			},
 		};
 	}
 
-	public optionalField(field: NormalizedFieldUpPath): OptionalFieldEditBuilder<TreeChunk> {
-		return {
+	public optionalField(
+		field: NormalizedFieldUpPath,
+	): OptionalFieldEditor<TreeChunk, ChangeAtomId> {
+		enforceEditsToDetachedTreesOptions(field, this.options);
+		const makeAttachEditDescription = (
+			fill: ChangeAtomId,
+			revision: RevisionTag,
+			wasEmpty: boolean,
+		): FieldEditDescription => {
+			const detachLocalId = this.modularBuilder.generateId();
+			const detach = { localId: detachLocalId, revision };
+			const change = optional.changeHandler.editor.set(wasEmpty, { fill, detach });
+			return {
+				type: "field",
+				field,
+				fieldKind: optional.identifier,
+				change: brand(change),
+				revision,
+			};
+		};
+		const editBuilder = {
 			set: (newContent: TreeChunk | undefined, wasEmpty: boolean): void => {
-				// The choice to ban empty chunks here instead of treating them as a clear is a subjective choice made to err of the side of more explicitness and stricter validation.
-				assert(
-					newContent === undefined || newContent.topLevelLength === 1,
-					0xc13 /* optional fields should have a single top level node, or undefined */,
-				);
+				if (newContent === undefined) {
+					editBuilder.clear(wasEmpty);
+					return;
+				}
+				assert(newContent.topLevelLength === 1, "Expected exactly one node");
+				const revision = this.mintRevisionTag();
+				const buildLocalId = this.modularBuilder.generateId();
+				const buildId = { localId: buildLocalId, revision };
+				const build = this.modularBuilder.buildTrees(buildLocalId, newContent, revision);
+				const attach = makeAttachEditDescription(buildId, revision, wasEmpty);
+				this.modularBuilder.submitChanges([build, attach], revision);
+			},
+			attach: (content: ChangeAtomId | undefined, wasEmpty: boolean): void => {
+				if (content === undefined) {
+					editBuilder.clear(wasEmpty);
+					return;
+				}
+				const isWithoutCell = this.nodesWithoutCells.delete(content.localId, 1) === 1;
+				if (!isWithoutCell && this.options.canMakeDetachedRootEdits !== true) {
+					throw new UsageError(
+						`Attach edits require a minimum version for collaboration >= TBD.`,
+					);
+				}
+				const revision = this.mintRevisionTag();
 				const edits: EditDescription[] = [];
-				let optionalChange: OptionalChangeset;
+				let stableSrcId: ChangeAtomId;
+				if (isWithoutCell) {
+					stableSrcId = content;
+				} else {
+					// If the node has an associated cell, then it may be concurrently moved to another location.
+					// We use a rename to ensure that the node will be moved to a specific grave before the attach.
+					stableSrcId = { localId: this.modularBuilder.generateId(), revision };
+					const rename: GlobalEditDescription = {
+						type: "global",
+						revision,
+						renames: [
+							{ count: 1, oldId: content, newId: stableSrcId, detachLocation: undefined },
+						],
+					};
+					edits.push(rename);
+				}
+				const attach = makeAttachEditDescription(stableSrcId, revision, wasEmpty);
+				edits.push(attach);
+				this.modularBuilder.submitChanges(edits, revision);
+			},
+			clear: (wasEmpty: boolean): void => {
 				const revision = this.mintRevisionTag();
 				const detach: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
-				if (newContent !== undefined) {
-					const fill: ChangeAtomId = { localId: this.modularBuilder.generateId(), revision };
-					const build = this.modularBuilder.buildTrees(fill.localId, newContent, revision);
-					edits.push(build);
-
-					optionalChange = optional.changeHandler.editor.set(wasEmpty, {
-						fill,
-						detach,
-					});
-				} else {
-					optionalChange = optional.changeHandler.editor.clear(wasEmpty, detach);
-				}
-
+				const optionalChange = optional.changeHandler.editor.clear(wasEmpty, detach);
 				const change: FieldChangeset = brand(optionalChange);
 				const edit: FieldEditDescription = {
 					type: "field",
@@ -265,11 +403,10 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 					change,
 					revision,
 				};
-				edits.push(edit);
-
-				this.modularBuilder.submitChanges(edits, revision);
+				this.modularBuilder.submitChanges([edit], revision);
 			},
 		};
+		return editBuilder;
 	}
 
 	public move(
@@ -284,6 +421,8 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 		} else if (count < 0 || !Number.isSafeInteger(count)) {
 			throw new UsageError(`Expected non-negative integer count, got ${count}.`);
 		}
+		enforceEditsToDetachedTreesOptions(sourceField, this.options);
+		enforceEditsToDetachedTreesOptions(destinationField, this.options);
 		const revision = this.mintRevisionTag();
 		const detachCellId = this.modularBuilder.generateId(count);
 		const attachCellId: CellId = { localId: this.modularBuilder.generateId(count), revision };
@@ -384,36 +523,114 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 		}
 	}
 
-	public sequenceField(field: NormalizedFieldUpPath): SequenceFieldEditBuilder<TreeChunk> {
-		return {
+	public sequenceField(
+		field: NormalizedFieldUpPath,
+	): SequenceFieldEditor<TreeChunk, DetachedRootIds> {
+		enforceEditsToDetachedTreesOptions(field, this.options);
+		const makeAttachEditDescription = (
+			index: number,
+			{ first, count }: DetachedRootIdRange,
+			revision: RevisionTag,
+			areWithoutCells: boolean,
+		): EditDescription[] => {
+			const edits: EditDescription[] = [];
+			// If the nodes have never been attached in cell, then we must use a cell ID that matches the build ID.
+			// This ensures back-compatibility with the v1 ModularChangeFamily model which requires that every node be associated with cell
+			// by generating an insert whose destination cell is the cell associated with the build ID.
+			let stableSrcId: ChangeAtomId;
+			if (areWithoutCells) {
+				stableSrcId = first;
+			} else {
+				// If the node has an associated cell, then it may be concurrently moved to another location.
+				// We use a rename to ensure that the node will be moved to a specific grave before the attach.
+				stableSrcId = { localId: this.modularBuilder.generateId(count), revision };
+				const rename: GlobalEditDescription = {
+					type: "global",
+					revision,
+					renames: [
+						{
+							count,
+							oldId: first,
+							newId: stableSrcId,
+							detachLocation: undefined,
+						},
+					],
+				};
+				edits.push(rename);
+			}
+			assert(stableSrcId.revision !== undefined, "Detached nodes ID must have a revision");
+			const change = sequence.changeHandler.editor.insert(
+				index,
+				count,
+				stableSrcId,
+				stableSrcId.revision,
+				stableSrcId.localId,
+			);
+			const attach: FieldEditDescription = {
+				type: "field",
+				field,
+				fieldKind: sequence.identifier,
+				change: brand(change),
+				revision,
+			};
+			edits.push(attach);
+			return edits;
+		};
+		const editBuilder = {
 			insert: (index: number, content: TreeChunk): void => {
-				const length = content.topLevelLength;
-				if (length === 0) {
+				const count = content.topLevelLength;
+				if (count === 0) {
 					return;
 				}
-
 				const revision = this.mintRevisionTag();
-				const firstId: CellId = { localId: this.modularBuilder.generateId(length), revision };
-				const build = this.modularBuilder.buildTrees(firstId.localId, content, revision);
-				const change: FieldChangeset = brand(
-					sequence.changeHandler.editor.insert(
-						index,
-						length,
-						firstId,
-						revision,
-						firstId.localId,
-					),
-				);
-				const attach: FieldEditDescription = {
-					type: "field",
-					field,
-					fieldKind: sequence.identifier,
-					change,
-					revision,
+				const buildLocalId = this.modularBuilder.generateId();
+				const build = this.modularBuilder.buildTrees(buildLocalId, content, revision);
+				const roots: DetachedRootIdRange = {
+					first: { localId: buildLocalId, revision },
+					count,
 				};
-				// The changes have to be submitted together, otherwise they will be assigned different revisions,
-				// which will prevent the build ID and the insert ID from matching.
-				this.modularBuilder.submitChanges([build, attach], revision);
+
+				const attach = makeAttachEditDescription(index, roots, revision, true);
+				this.modularBuilder.submitChanges([build, ...attach], revision);
+			},
+			attach: (index: number, newContent: DetachedRootIds): void => {
+				const attachRevision = this.mintRevisionTag();
+				let areAllWithoutCells = true;
+				let insertOffset = 0;
+				const edits: EditDescription[] = [];
+				for (const range of newContent) {
+					if (range.count === 0) {
+						continue;
+					}
+					const countWithoutCells = this.nodesWithoutCells.delete(
+						range.first.localId,
+						range.count,
+					);
+					assert(
+						countWithoutCells === 0 || countWithoutCells === range.count,
+						"All detached roots within the same ID range must either all have or all not have a cell",
+					);
+					const areWithoutCells = countWithoutCells === range.count;
+					if (!areWithoutCells) {
+						areAllWithoutCells = false;
+					}
+					const renameAndAttach = makeAttachEditDescription(
+						index + insertOffset,
+						range,
+						attachRevision,
+						areWithoutCells,
+					);
+					edits.push(...renameAndAttach);
+					insertOffset += range.count;
+				}
+				if (!areAllWithoutCells && this.options.canMakeDetachedRootEdits !== true) {
+					throw new UsageError(
+						`Attach edits require a minimum version for collaboration >= TBD.`,
+					);
+				}
+				if (edits.length > 0) {
+					this.modularBuilder.submitChanges(edits, attachRevision);
+				}
 			},
 			remove: (index: number, count: number): void => {
 				if (count === 0) {
@@ -424,45 +641,83 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 				const change: FieldChangeset = brand(
 					sequence.changeHandler.editor.remove(index, count, id, revision),
 				);
-
-				const fieldEdit: FieldEditDescription = {
-					type: "field",
-					field,
-					fieldKind: sequence.identifier,
-					change,
-					revision,
-				};
-				this.modularBuilder.submitChanges([fieldEdit], revision);
+				this.modularBuilder.submitChange(field, sequence.identifier, change, revision);
 			},
 		};
+		return editBuilder;
 	}
 }
 
-export interface ValueFieldEditBuilder<TContent> {
+function enforceEditsToDetachedTreesOptions(field: FieldUpPath, options: EditorOptions): void {
+	if (options.canMakeDetachedRootEdits !== true) {
+		const topField = getDetachedFieldContainingFieldPath(field);
+		if (topField !== rootField) {
+			throw new UsageError(
+				`Edits and constraints on detached trees require a minimum version for collaboration >= TBD.`,
+			);
+		}
+	}
+}
+
+export interface RequiredFieldEditor<TContent, TDetachedRoot> {
 	/**
-	 * Issues a change which replaces the current newContent of the field with `newContent`.
+	 * Issues a change which replaces the content of the field with the given detached node.
+	 * @param content - The content to be attached in the field in the given order.
+	 * Must represent a single detached node.
+	 * Must have been created in the same JS turn.
+	 *
+	 * Requires SharedTreeFormatVersion.vDetachedRoots or later.
+	 */
+	attach(content: TDetachedRoot): void;
+
+	/**
+	 * Issues a change which replaces the content of the field with `newContent`.
 	 * @param newContent - the new content for the field.
 	 */
 	set(newContent: TContent): void;
 }
 
-export interface OptionalFieldEditBuilder<TContent> {
+export interface OptionalFieldEditor<TContent, TDetachedRoots> {
 	/**
-	 * Issues a change which replaces the current newContent of the field with `newContent`.
+	 * Issues a change which replaces the content of the field with the given detached node.
+	 * @param content - The content to be attached in the field in the given order.
+	 * Must represent a single detached node.
+	 *
+	 * Requires SharedTreeFormatVersion.vDetachedRoots or later.
+	 */
+	attach(content: TDetachedRoots | undefined, wasEmpty: boolean): void;
+
+	/**
+	 * Issues a change which clears content of the field.
+	 * @param wasEmpty - whether the field is empty when creating this change
+	 */
+	clear(wasEmpty: boolean): void;
+
+	/**
+	 * Issues a change which replaces the content of the field with `newContent`
 	 * @param newContent - the new content for the field.
-	 * @param wasEmpty - whether the field is empty when creating this change.
+	 * @param wasEmpty - whether the field is empty when creating this change
 	 */
 	set(newContent: TContent | undefined, wasEmpty: boolean): void;
 }
 
 /**
- * Edit builder for the sequence field kind.
+ * Editor for the sequence field kind.
  */
-export interface SequenceFieldEditBuilder<TContent, TRemoved = void> {
+export interface SequenceFieldEditor<TContent, TDetachedRoots, TRemoved = void> {
+	/**
+	 * Issues a change which attaches a sequence of detached nodes at the given `index`.
+	 * @param index - The index at which to attach the detached nodes.
+	 * @param detachedContent - The content to be attached in the field in the given order. Each node must be detached.
+	 *
+	 * Requires SharedTreeFormatVersion.vDetachedRoots or later.
+	 */
+	attach(index: number, detachedContent: TDetachedRoots): void;
+
 	/**
 	 * Issues a change which inserts the `newContent` at the given `index`.
 	 * @param index - the index at which to insert the `newContent`.
-	 * @param newContent - the new content to be inserted in the field. Cursor can be in either Field or Node mode.
+	 * @param newContent - the new content to be inserted in the field.
 	 */
 	insert(index: number, newContent: TContent): void;
 

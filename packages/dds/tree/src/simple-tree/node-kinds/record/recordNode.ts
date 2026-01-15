@@ -128,15 +128,16 @@ function createRecordNodeProxy(
 				innerSchema instanceof MapNodeStoredSchema,
 				0xc1a /* Expected MapNodeStoredSchema */,
 			);
+			field.context.runInTransaction(() => {
+				const mapTree = prepareForInsertion(
+					value,
+					createFieldSchema(FieldKind.Optional, kernel.schema.info as ImplicitAllowedTypes),
+					innerNode.context,
+					innerSchema.mapFields,
+				);
 
-			const mapTree = prepareForInsertion(
-				value,
-				createFieldSchema(FieldKind.Optional, kernel.schema.info as ImplicitAllowedTypes),
-				innerNode.context,
-				innerSchema.mapFields,
-			);
-
-			field.editor.set(mapTree, field.length === 0);
+				field.editor.attach(mapTree, field.length === 0);
+			});
 			return true;
 		},
 		has: (target, key): boolean => {

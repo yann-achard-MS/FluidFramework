@@ -12,6 +12,7 @@ import {
 	type ChangeFamily,
 	type ChangeRebaser,
 	type DeltaDetachedNodeId,
+	type EditorOptions,
 	type RevisionMetadataSource,
 	type RevisionTag,
 	type RevisionTagCodec,
@@ -38,7 +39,7 @@ import {
 
 import { makeSharedTreeChangeCodecFamily } from "./sharedTreeChangeCodecs.js";
 import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
-import { SharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
+import { IdBasedSharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
 
 /**
  * Implementation of {@link ChangeFamily} that combines edits to fields and schema changes.
@@ -47,7 +48,7 @@ import { SharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
  */
 export class SharedTreeChangeFamily
 	implements
-		ChangeFamily<SharedTreeEditBuilder, SharedTreeChange>,
+		ChangeFamily<IdBasedSharedTreeEditBuilder, SharedTreeChange>,
 		ChangeRebaser<SharedTreeChange>
 {
 	public static readonly emptyChange: SharedTreeChange = {
@@ -81,11 +82,13 @@ export class SharedTreeChangeFamily
 	public buildEditor(
 		mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<SharedTreeChange>) => void,
-	): SharedTreeEditBuilder {
-		return new SharedTreeEditBuilder(
+		options?: EditorOptions,
+	): IdBasedSharedTreeEditBuilder {
+		return new IdBasedSharedTreeEditBuilder(
 			this.modularChangeFamily,
 			mintRevisionTag,
 			changeReceiver,
+			options,
 		);
 	}
 
@@ -259,6 +262,7 @@ function mapDataChanges(
  */
 export function updateRefreshers(
 	change: SharedTreeChange,
+	buildsFromDataChange: (taggedChange: ModularChangeset) => Iterable<DeltaDetachedNodeId>,
 	getDetachedNode: (id: DeltaDetachedNodeId) => TreeChunk | undefined,
 	relevantRemovedRootsFromDataChange: (
 		taggedChange: ModularChangeset,
@@ -305,13 +309,19 @@ export function updateRefreshers(
 	}
 	let isFirstDataChange = true;
 	return mapDataChanges(change, (dataChange) => {
+		const builtRoots = buildsFromDataChange(dataChange);
+		for (const id of builtRoots) {
+			// Detached root IDs that are used for builds are only ever used by a single node,
+			// so there is no risk of excluding needed refreshers by adding them to the list of already included roots.
+			addToNestedSet(includedRoots, id.major, id.minor);
+		}
 		const removedRoots = relevantRemovedRootsFromDataChange(dataChange);
 		if (isFirstDataChange) {
 			isFirstDataChange = false;
 			return updateDataChangeRefreshers(
 				dataChange,
 				getAndRememberDetachedNode,
-				removedRoots,
+				filterIncludedRoots(removedRoots),
 				true,
 			);
 		} else {

@@ -4,6 +4,7 @@
  */
 
 import type { IIdCompressor, SessionId } from "@fluidframework/id-compressor";
+import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 
 import type { ICodecFamily, IJsonCodec } from "../../codec/index.js";
 import type { SchemaAndPolicy } from "../../core/index.js";
@@ -14,10 +15,15 @@ export interface ChangeFamily<TEditor extends ChangeFamilyEditor, TChange> {
 	buildEditor(
 		mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<TChange>) => void,
+		options?: EditorOptions,
 	): TEditor;
 
 	readonly rebaser: ChangeRebaser<TChange>;
 	readonly codecs: ICodecFamily<TChange, ChangeEncodingContext>;
+}
+
+export interface EditorOptions {
+	readonly canMakeDetachedRootEdits: boolean; // default is false,
 }
 
 export interface ChangeEncodingContext {

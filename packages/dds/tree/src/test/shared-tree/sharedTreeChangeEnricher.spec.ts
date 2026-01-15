@@ -22,7 +22,7 @@
 // // eslint-disable-next-line import-x/no-internal-modules
 // import { optional } from "../../feature-libraries/default-schema/defaultFieldKinds.js";
 // import {
-// 	DefaultEditBuilder,
+// 	IdBasedDataEditor,
 // 	ModularChangeFamily,
 // 	type ModularChangeset,
 // 	ModularEditBuilder,

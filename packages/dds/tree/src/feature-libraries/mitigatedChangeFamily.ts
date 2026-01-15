@@ -3,10 +3,12 @@
  * Licensed under the MIT License.
  */
 
+import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import type {
 	ChangeFamily,
 	ChangeFamilyEditor,
 	ChangeRebaser,
+	EditorOptions,
 	RevisionMetadataSource,
 	RevisionTag,
 	TaggedChange,
@@ -35,8 +37,9 @@ export function makeMitigatedChangeFamily<TEditor extends ChangeFamilyEditor, TC
 		buildEditor: (
 			mintRevisionTag: () => RevisionTag,
 			changeReceiver: (change: TaggedChange<TChange>) => void,
+			options?: EditorOptions,
 		): TEditor => {
-			return unmitigatedChangeFamily.buildEditor(mintRevisionTag, changeReceiver);
+			return unmitigatedChangeFamily.buildEditor(mintRevisionTag, changeReceiver, options);
 		},
 		rebaser: makeMitigatedRebaser(unmitigatedChangeFamily.rebaser, fallbackChange, onError),
 		codecs: unmitigatedChangeFamily.codecs,

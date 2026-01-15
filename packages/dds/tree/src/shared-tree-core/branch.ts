@@ -6,6 +6,7 @@
 import { createEmitter } from "@fluid-internal/client-utils";
 import type { Listenable } from "@fluidframework/core-interfaces";
 import { assert } from "@fluidframework/core-utils/internal";
+import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import { type TelemetryEventBatcher, measure } from "@fluidframework/telemetry-utils/internal";
 
 import {
@@ -22,6 +23,7 @@ import {
 	rebaseBranch,
 	tagRollbackInverse,
 	type RebaseStatsWithDuration,
+	type EditorOptions,
 } from "../core/index.js";
 import { hasSome, defineLazyCachedProperty } from "../util/index.js";
 import type {
@@ -128,9 +130,12 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> {
 		private readonly telemetryEventBatcher?: TelemetryEventBatcher<
 			keyof RebaseStatsWithDuration
 		>,
+		private readonly editorOptions?: EditorOptions,
 	) {
-		this.editor = this.changeFamily.buildEditor(mintRevisionTag, (change) =>
-			this.apply(change),
+		this.editor = this.changeFamily.buildEditor(
+			mintRevisionTag,
+			(change) => this.apply(change),
+			this.editorOptions,
 		);
 		this.unsubscribeBranchTrimmer = branchTrimmer?.on("ancestryTrimmed", (commit) => {
 			this.#events.emit("ancestryTrimmed", commit);
@@ -196,6 +201,8 @@ export class SharedTreeBranch<TEditor extends ChangeFamilyEditor, TChange> {
 			this.changeFamily,
 			this.mintRevisionTag,
 			this.branchTrimmer,
+			undefined,
+			this.editorOptions,
 		);
 		this.#events.emit("fork", fork);
 		return fork;

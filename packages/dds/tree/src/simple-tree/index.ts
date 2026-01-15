@@ -261,7 +261,7 @@ export {
 	type TreeRecordNode,
 } from "./node-kinds/index.js";
 export {
-	unhydratedFlexTreeFromInsertable,
+	flexTreeFromInsertable as unhydratedFlexTreeFromInsertable,
 	type InsertableContent,
 	type FactoryContent,
 	type FactoryContentObject,
@@ -269,6 +269,7 @@ export {
 export {
 	prepareForInsertion,
 	prepareForInsertionContextless,
+	type PreparedContent,
 } from "./prepareForInsertion.js";
 export {
 	toStoredSchema,

@@ -7,12 +7,17 @@ import {
 	type ChangeAtomId,
 	type DeltaDetachedNodeId,
 	type DeltaRoot,
+	makeChangeAtomId,
 	makeDetachedNodeId,
 } from "../core/index.js";
-import type { Mutable } from "../util/index.js";
+import { brand, type Mutable } from "../util/index.js";
 
 export function nodeIdFromChangeAtom(changeAtom: ChangeAtomId): DeltaDetachedNodeId {
 	return makeDetachedNodeId(changeAtom.revision, changeAtom.localId);
+}
+
+export function changeAtomFromDetachedNodeId(changeAtom: DeltaDetachedNodeId): ChangeAtomId {
+	return makeChangeAtomId(brand(changeAtom.minor), changeAtom.major);
 }
 
 /**

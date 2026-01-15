@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { assert } from "@fluidframework/core-utils/internal";
+import { assert, fail } from "@fluidframework/core-utils/internal";
 import type { IIdCompressor } from "@fluidframework/id-compressor";
 
 import {
@@ -51,6 +51,12 @@ export interface ReadOnlyDetachedFieldIndex {
 	 * This does not save the field key on the index. To do so, call {@link createEntry}.
 	 */
 	toFieldKey(id: ForestRootId): FieldKey;
+
+	/**
+	 * Returns a node ID for the node in the given field.
+	 * @param field - The field key where the detached node resides.
+	 */
+	fromFieldKey(field: FieldKey): Delta.DetachedNodeId;
 
 	/**
 	 * Returns the `ForestRootId` associated with the given id.
@@ -256,6 +262,16 @@ export class DetachedFieldIndex implements ReadOnlyDetachedFieldIndex {
 
 	public toFieldKey(id: ForestRootId): FieldKey {
 		return brand(`${this.name}-${id}`);
+	}
+
+	public fromFieldKey(field: FieldKey): Delta.DetachedNodeId {
+		// TODO: maintain a lookup table or use field keys that encode the detached node ID
+		for (const { id, root } of this.entries()) {
+			if (this.toFieldKey(root) === field) {
+				return id;
+			}
+		}
+		fail("No known detached roots in the given field");
 	}
 
 	public tryGetEntry(id: Delta.DetachedNodeId): ForestRootId | undefined {

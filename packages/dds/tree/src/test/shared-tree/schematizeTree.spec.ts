@@ -26,7 +26,7 @@ import type {
 	ITreeCheckout,
 	ITreeCheckoutFork,
 	CheckoutEvents,
-	ISharedTreeEditor,
+	ILocationBasedSharedTreeEditor,
 } from "../../shared-tree/index.js";
 import {
 	canInitialize,
@@ -177,7 +177,7 @@ describe("schematizeTree", () => {
 			storedSchema,
 			// eslint-disable-next-line @typescript-eslint/consistent-type-assertions
 			forest: { isEmpty } as IForestSubscription,
-			editor: undefined as unknown as ISharedTreeEditor,
+			editor: undefined as unknown as ILocationBasedSharedTreeEditor,
 			transaction: undefined as unknown as Transactor,
 			branch(): ITreeCheckoutFork {
 				throw new Error("Function not implemented.");

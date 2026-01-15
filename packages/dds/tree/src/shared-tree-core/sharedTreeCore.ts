@@ -29,6 +29,7 @@ import type { CodecWriteOptions, DependentFormatVersion, IJsonCodec } from "../c
 import {
 	type ChangeFamily,
 	type ChangeFamilyEditor,
+	type EditorOptions,
 	type GraphCommit,
 	type RevisionTag,
 	RevisionTagCodec,
@@ -80,7 +81,9 @@ export interface ClonableSchemaAndPolicy extends SchemaAndPolicy {
 export interface SharedTreeCoreOptionsInternal
 	extends CodecWriteOptions,
 		EditManagerCodecOptions,
-		MessageCodecOptions {}
+		MessageCodecOptions {
+	canMakeDetachedRootEdits: boolean;
+}
 
 /**
  * Generic shared tree, which needs to be configured with indexes, field kinds and other configuration.
@@ -176,6 +179,7 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange>
 			localSessionId,
 			this.mintRevisionTag,
 			(branchId) => this.registerSharedBranch(branchId),
+			options,
 			rebaseLogger,
 		);
 

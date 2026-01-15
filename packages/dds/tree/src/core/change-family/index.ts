@@ -8,5 +8,6 @@ export type {
 	ChangeFamilyEditor,
 	ChangeEncodingContext,
 	ChangeFamilyCodec,
+	EditorOptions,
 } from "./changeFamily.js";
 export { EditBuilder } from "./editBuilder.js";

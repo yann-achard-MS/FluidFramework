@@ -11,7 +11,7 @@ import {
 	type FlexibleNodeContent,
 	type FlexTreeNode,
 	type FlexTreeOptionalField,
-	type OptionalFieldEditBuilder,
+	type OptionalFieldEditor,
 } from "../../../feature-libraries/index.js";
 import { tryGetTreeNodeForField } from "../../getTreeNodeForField.js";
 import { createFieldSchema, FieldKind } from "../../fieldSchema.js";
@@ -177,14 +177,14 @@ abstract class CustomMapNodeBase<const T extends ImplicitAllowedTypes> extends T
 		return getInnerNode(this);
 	}
 
-	private editor(key: string): OptionalFieldEditBuilder<FlexibleNodeContent> {
+	private editor(key: string): OptionalFieldEditor<FlexibleNodeContent, FlexTreeNode> {
 		const field = this.innerNode.getBoxed(brand(key)) as FlexTreeOptionalField;
 		return field.editor;
 	}
 
 	public delete(key: string): void {
 		const field = this.innerNode.getBoxed(brand(key));
-		this.editor(key).set(undefined, field.length === 0);
+		this.editor(key).clear(field.length === 0);
 	}
 	public *entries(): IterableIterator<[string, TreeNodeFromImplicitAllowedTypes<T>]> {
 		const node = this.innerNode;
@@ -227,7 +227,7 @@ abstract class CustomMapNodeBase<const T extends ImplicitAllowedTypes> extends T
 
 		const field = node.getBoxed(brand(key));
 
-		this.editor(key).set(mapTree, field.length === 0);
+		this.editor(key).attach(mapTree, field.length === 0);
 		return this;
 	}
 	public get size(): number {

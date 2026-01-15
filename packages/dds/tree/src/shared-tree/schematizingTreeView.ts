@@ -16,7 +16,6 @@ import { anchorSlot, rootFieldKey } from "../core/index.js";
 import {
 	type NodeIdentifierManager,
 	defaultSchemaPolicy,
-	cursorForMapTreeField,
 	TreeStatus,
 	Context,
 	combineChunks,
@@ -66,10 +65,11 @@ import {
 	type Breakable,
 	breakingClass,
 	disposeSymbol,
+	hasSingle,
 	type WithBreakable,
 } from "../util/index.js";
 
-import { canInitialize, initialize, initializerFromChunk } from "./schematizeTree.js";
+import { canInitialize, initialize } from "./schematizeTree.js";
 import type { ITreeCheckout, TreeCheckout } from "./treeCheckout.js";
 import type { TreeBranchAlpha } from "../simple-tree/index.js";
 
@@ -122,11 +122,6 @@ export class SchematizingSimpleTreeView<
 	 * which are implementation details and should not be exposed to the user.
 	 */
 	private midUpgrade = false;
-
-	/**
-	 * Hydration work deferred until Context has been created.
-	 */
-	private pendingHydration?: () => void;
 
 	private readonly rootFieldSchema: FieldSchema;
 	public readonly breaker: Breakable;
@@ -185,57 +180,54 @@ export class SchematizingSimpleTreeView<
 
 		this.runSchemaEdit(() => {
 			const schema = toInitialSchema(this.config.schema);
-			// This has to be the contextless version, since when "initialize" is called (right after this),
-			// it will do a schema change which would dispose of the current context (see inside `update`).
-			// Thus using the current context (if any) would hydrate nodes then
-			// immediately dispose them instead of having them actually be useable after initialize.
-			// For this to work,
-			// the hydration must be deferred until after the content is inserted into the tree and the final schema change is done (for required roots),
-			// but before any user event could could run.
-			const mapTree = prepareForInsertionContextless(
-				content as InsertableContent | undefined,
-				this.rootFieldSchema,
-				{
-					schema,
-					policy: defaultSchemaPolicy,
-				},
-				this,
-				schema.rootFieldSchema,
-				(batches, doHydration) => {
-					assert(
-						this.pendingHydration === undefined,
-						0xc74 /* pendingHydration already set */,
-					);
-					this.pendingHydration = () => {
-						assert(
-							batches.length <= 1,
-							0xc75 /* initialize should at most one hydration batch */,
-						);
-						for (const batch of batches) {
-							doHydration(batch, {
-								parent: undefined,
-								parentField: rootFieldKey,
-								parentIndex: 0,
-							});
-						}
-					};
-				},
-			);
-
 			this.checkout.transaction.start();
+			initialize(this.checkout, schema, () => {
+				const preparedContent = prepareForInsertionContextless(
+					content as InsertableContent | undefined,
+					this.rootFieldSchema,
+					{
+						schema,
+						policy: defaultSchemaPolicy,
+					},
+					this,
+					schema.rootFieldSchema,
+				);
 
-			initialize(
-				this.checkout,
-				schema,
-				initializerFromChunk(this.checkout, () => {
-					// This must be done after initial schema is set!
-					return combineChunks(
-						this.checkout.forest.chunkField(
-							cursorForMapTreeField(mapTree === undefined ? [] : [mapTree]),
-						),
-					);
-				}),
-			);
+				if (preparedContent.rootsLocations.length === 0) {
+					// If there's no content to attach, no work is needed
+					return undefined;
+				}
+
+				const field = { field: rootFieldKey, parent: undefined };
+				assert(
+					this.checkout.storedSchema.rootFieldSchema.kind === FieldKinds.optional.identifier,
+					"initializerFromChunk only supports optional roots",
+				);
+
+				assert(
+					hasSingle(preparedContent.rootsLocations) &&
+						preparedContent.rootsLocations[0].count === 1,
+					"Expected one root",
+				);
+				const fieldEditor = this.checkout.editor.optionalField(field);
+				fieldEditor.attach(preparedContent.rootsLocations[0].field, true);
+
+				return preparedContent;
+			})?.finalize([...this.getFlexTreeContext().root]);
+
+			// TODO:CM
+			// initialize(
+			// 	this.checkout,
+			// 	schema,
+			// 	initializerFromChunk(this.checkout, () => {
+			// 		// This must be done after initial schema is set!
+			// 		return combineChunks(
+			// 			this.checkout.forest.chunkField(
+			// 				cursorForMapTreeField(mapTree === undefined ? [] : [mapTree]),
+			// 			),
+			// 		);
+			// 	}),
+			// );
 			this.checkout.transaction.commit();
 		});
 	}
@@ -390,9 +382,7 @@ export class SchematizingSimpleTreeView<
 
 				// Track what the root was before to be able to detect changes.
 				// This uses the flex tree root to avoid demanding the simple-tree TreeNode when it might not be hydrated yet.
-				let lastRoot: FlexTreeUnknownUnboxed | undefined = (
-					this.flexTreeContext.root as FlexTreeOptionalField
-				).content;
+				let lastRoot: FlexTreeUnknownUnboxed | undefined = this.flexRoot.content;
 
 				this.flexTreeViewUnregisterCallbacks.add(
 					this.checkout.events.on("afterBatch", () => {
@@ -416,10 +406,6 @@ export class SchematizingSimpleTreeView<
 		);
 
 		if (!this.midUpgrade) {
-			assert(
-				this.pendingHydration === undefined,
-				0xc76 /* no nodes should be pending hydration when triggering events that could access nodes */,
-			);
 			this.events.emit("schemaChanged");
 			this.events.emit("rootChanged");
 		}
@@ -432,9 +418,6 @@ export class SchematizingSimpleTreeView<
 		} finally {
 			this.midUpgrade = false;
 		}
-		// Ensure hydration is flushed before events run which could access nodes.
-		this.pendingHydration?.();
-		this.pendingHydration = undefined;
 		this.events.emit("schemaChanged");
 		this.events.emit("rootChanged");
 	}
@@ -546,7 +529,7 @@ export function getCheckout(context: TreeBranch): TreeCheckout {
  * Adds constraints to a `checkout`'s pending transaction.
  *
  * @param checkout - The checkout's who's transaction will have the constraints added to it.
- * @param constraintsOnRevert - If true, use {@link ISharedTreeEditor.addNodeExistsConstraintOnRevert}.
+ * @param constraintsOnRevert - If true, use {@link IIdBasedSharedTreeEditor.addNodeExistsConstraintOnRevert}.
  * @param constraints - The constraints to add to the transaction.
  *
  * @see {@link RunTransactionParams.preconditions}.

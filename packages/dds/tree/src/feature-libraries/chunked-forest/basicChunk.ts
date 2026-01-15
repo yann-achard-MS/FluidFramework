@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { assert, oob, fail } from "@fluidframework/core-utils/internal";
+import { assert, oob, fail, debugAssert } from "@fluidframework/core-utils/internal";
 
 import {
 	CursorLocationType,
@@ -51,6 +51,12 @@ export class BasicChunk extends ReferenceCountedBase implements TreeChunk {
 		public value?: TreeValue,
 	) {
 		super();
+		debugAssert(() => {
+			for (const field of fields.values()) {
+				if (field.length === 0) return "field must have at least one child";
+			}
+			return true;
+		});
 	}
 
 	public clone(): BasicChunk {

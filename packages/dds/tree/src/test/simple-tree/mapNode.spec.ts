@@ -10,7 +10,7 @@ import { describeHydration } from "./utils.js";
 import { Tree } from "../../shared-tree/index.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import { isTreeNode } from "../../simple-tree/core/index.js";
-
+import { TreeStatus } from "../../feature-libraries/index.js";
 const schemaFactory = new SchemaFactory("Test");
 
 const object = schemaFactory.object("object", { content: schemaFactory.number });
@@ -206,9 +206,23 @@ describeHydration(
 		it("set object", () => {
 			const root = init(schema, initialTree);
 			const o = new object({ content: 42 });
-			root.objectMap.set("foo", o);
+			const map = root.objectMap;
+			map.set("foo", o);
 			assert.equal(root.objectMap.get("foo"), o); // Check that the inserted and read proxies are the same object
 			assert.equal(root.objectMap.get("foo")?.content, o.content);
+		});
+
+		it("minimal set object", () => {
+			class EmptyObject extends schemaFactory.object("Empty object", {}) {}
+			class Map extends schemaFactory.map("test map", EmptyObject) {}
+			const map = init(Map, new Map());
+			const o = new EmptyObject({});
+			const status = Tree.status(map);
+			assert.equal(Tree.status(o), TreeStatus.New);
+			map.set("foo", o);
+			assert.equal(map.size, 1);
+			assert.equal(Tree.status(o), status);
+			assert.equal(map.get("foo"), o); // Check that the inserted and read proxies are the same object
 		});
 
 		it("delete", () => {

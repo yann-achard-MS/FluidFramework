@@ -37,7 +37,6 @@ import {
 } from "../../../feature-libraries/chunked-forest/uniformChunk.js";
 import {
 	DefaultChangeFamily,
-	DefaultEditBuilder,
 	ForestSummarizer,
 	type ModularChangeset,
 	TreeCompressionStrategy,
@@ -50,12 +49,13 @@ import {
 	jsonableTreeFromCursor,
 	cursorForJsonableTreeNode,
 	defaultIncrementalEncodingPolicy,
+	DefaultIdBasedDataEditor,
 } from "../../../feature-libraries/index.js";
 import {
-	type ISharedTreeEditor,
 	Tree,
 	ForestTypeOptimized,
 	type ITreePrivate,
+	type ILocationBasedSharedTreeEditor,
 } from "../../../shared-tree/index.js";
 import {
 	MockTreeCheckout,
@@ -164,13 +164,13 @@ describe("End to end chunked encoding", () => {
 			fieldBatchCodec,
 			{ jsonValidator: FormatValidatorBasic },
 		);
-		const dummyEditor = new DefaultEditBuilder(
+		const dummyEditor = new DefaultIdBasedDataEditor(
 			new DefaultChangeFamily(codec),
 			mintRevisionTag,
 			changeReceiver,
 		);
 		const checkout = new MockTreeCheckout(forest, {
-			editor: dummyEditor as unknown as ISharedTreeEditor,
+			editor: dummyEditor as unknown as ILocationBasedSharedTreeEditor,
 		});
 		checkout.editor.sequenceField({ field: rootFieldKey, parent: undefined }).insert(0, chunk);
 		// Check that inserted change contains chunk which is reference equal to the original chunk.

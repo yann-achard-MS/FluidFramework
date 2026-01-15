@@ -87,6 +87,7 @@ export {
 	type DetachedFieldIndexCheckpoint,
 	type ForestRootId,
 	getDetachedFieldContainingPath,
+	getDetachedFieldContainingFieldPath,
 	aboveRootPlaceholder,
 	type DeltaRoot,
 	type DeltaMark,
@@ -162,6 +163,7 @@ export {
 	type ChangeEncodingContext,
 	type ChangeFamilyEditor,
 	EditBuilder,
+	EditorOptions,
 } from "./change-family/index.js";
 
 export {

@@ -104,7 +104,7 @@ import { SchematizingSimpleTreeView } from "./schematizingTreeView.js";
 import { SharedTreeReadonlyChangeEnricher } from "./sharedTreeChangeEnricher.js";
 import { SharedTreeChangeFamily } from "./sharedTreeChangeFamily.js";
 import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
-import type { SharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
+import type { IdBasedSharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
 import { type TreeCheckout, type BranchableTree, createTreeCheckout } from "./treeCheckout.js";
 import {
 	brand,
@@ -182,7 +182,7 @@ export type SharedTreeKernelView = Omit<ITreePrivate, keyof (IChannelView & IFlu
  */
 @breakingClass
 export class SharedTreeKernel
-	extends SharedTreeCore<SharedTreeEditBuilder, SharedTreeChange>
+	extends SharedTreeCore<IdBasedSharedTreeEditBuilder, SharedTreeChange>
 	implements SharedKernel
 {
 	public readonly checkout: TreeCheckout;
@@ -470,7 +470,7 @@ export class SharedTreeKernel
 
 	public override applyStashedOp(
 		...args: Parameters<
-			SharedTreeCore<SharedTreeEditBuilder, SharedTreeChange>["applyStashedOp"]
+			SharedTreeCore<IdBasedSharedTreeEditBuilder, SharedTreeChange>["applyStashedOp"]
 		>
 	): void {
 		for (const checkout of this.checkouts.values()) {
@@ -830,6 +830,7 @@ export const defaultSharedTreeOptions: Required<SharedTreeOptionsInternal> = {
 	messageFormatSelector: clientVersionToMessageFormatVersion,
 	enableSharedBranches: false,
 	enableDetachedRootEditing: false,
+	canMakeDetachedRootEdits: false,
 };
 
 /**

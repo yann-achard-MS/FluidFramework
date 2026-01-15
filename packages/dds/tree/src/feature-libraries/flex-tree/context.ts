@@ -51,6 +51,8 @@ export interface FlexTreeContext {
 	 * If true, none of the nodes in this context can be used.
 	 */
 	isDisposed(): boolean;
+
+	runInTransaction(fn: () => void): void;
 }
 
 /**
@@ -66,6 +68,14 @@ export interface FlexTreeHydratedContextMinimal {
 	 * The checkout object associated with this context.
 	 */
 	readonly checkout: ITreeCheckout;
+
+	/**
+	 * Returns a new {@link FlexTreeField} that will live as long as the caller allows up to the next call to {@link clear} or disposal of the context.
+	 * @remarks
+	 * Due to limited support for detached fields, not all operations are supported.
+	 * Additionally if the detached field's content is deleted, the field will become out of schema if it is required: it must not be used after that point.
+	 */
+	detachedField?(key: DetachedField, schema: FieldKindIdentifier): FlexTreeField;
 }
 
 /**
@@ -150,6 +160,13 @@ export class Context implements FlexTreeHydratedContext, IDisposable {
 
 	public get schema(): TreeStoredSchema {
 		return this.checkout.storedSchema;
+	}
+
+	public runInTransaction(fn: () => void): void {
+		debugAssert(() => !this.disposed || "Disposed");
+		this.checkout.transaction.start();
+		fn();
+		this.checkout.transaction.commit();
 	}
 
 	/**

@@ -50,9 +50,9 @@ import {
 } from "../../core/index.js";
 import {
 	type FactoryContent,
+	flexTreeFromInsertableNode,
 	type InsertableContent,
 	unhydratedFlexTreeFromInsertable,
-	unhydratedFlexTreeFromInsertableNode,
 } from "../../unhydratedFlexTreeFromInsertable.js";
 import { prepareArrayContentForInsertion } from "../../prepareForInsertion.js";
 import {
@@ -956,8 +956,10 @@ abstract class CustomArrayNodeBase<const T extends ImplicitAllowedTypes>
 	public insertAt(index: number, ...value: Insertable<T>): void {
 		const field = getSequenceField(this);
 		validateIndex(index, field, "TreeArrayNode.insertAt", true);
-		const content = this.#mapTreesFromFieldData(value);
-		field.editor.insert(index, content);
+		field.context.runInTransaction(() => {
+			const content = this.#mapTreesFromFieldData(value);
+			field.editor.attach(index, content);
+		});
 	}
 	public insertAtStart(...value: Insertable<T>): void {
 		this.insertAt(0, ...value);
@@ -1308,7 +1310,7 @@ export function arraySchema<
 function arrayChildToFlexTree(
 	child: InsertableContent,
 	allowedTypes: ReadonlySet<TreeNodeSchema>,
-): UnhydratedFlexTreeNode {
+): FlexTreeNode {
 	// We do not support undefined sequence entries.
 	// If we encounter an undefined entry, use null instead if supported by the schema, otherwise throw.
 	let childWithFallback = child;
@@ -1319,7 +1321,7 @@ function arrayChildToFlexTree(
 			throw new TypeError(`Received unsupported array entry value: ${child}.`);
 		}
 	}
-	return unhydratedFlexTreeFromInsertableNode(childWithFallback, allowedTypes);
+	return flexTreeFromInsertableNode(childWithFallback, allowedTypes);
 }
 
 /**

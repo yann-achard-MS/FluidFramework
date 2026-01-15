@@ -29,7 +29,7 @@ import { FormatValidatorBasic } from "../../external-utilities/index.js";
 import {
 	DefaultChangeFamily,
 	type DefaultChangeset,
-	type DefaultEditBuilder,
+	type IdBasedChangeFamilyDataEditor,
 	type ModularChangeFormatVersion,
 	TreeCompressionStrategy,
 	defaultSchemaPolicy,
@@ -50,6 +50,7 @@ import {
 	supportedEditManagerFormatVersions,
 	type MessageFormatVersion,
 	supportedMessageFormatVersions,
+	type SharedTreeCoreOptionsInternal,
 } from "../../shared-tree-core/index.js";
 import { testIdCompressor } from "../utils.js";
 import { strict as assert, fail } from "node:assert";
@@ -83,6 +84,7 @@ import { dependenciesForChangeFormat } from "../../shared-tree/sharedTreeChangeC
 import {
 	changeFormatVersionForEditManager,
 	changeFormatVersionForMessage,
+	defaultSharedTreeOptions,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../shared-tree/sharedTree.js";
 
@@ -101,9 +103,9 @@ export function createTree<TIndexes extends readonly Summarizable[]>(options: {
 	indexes: TIndexes;
 	resubmitMachine?: ResubmitMachine<DefaultChangeset>;
 	enricher?: ChangeEnricherReadonlyCheckout<DefaultChangeset>;
-	codecOptions?: CodecWriteOptions;
-}): SharedTreeCore<DefaultEditBuilder, DefaultChangeset> {
-	const { indexes, resubmitMachine, enricher, codecOptions } = options;
+	coreOptions?: SharedTreeCoreOptionsInternal;
+}): SharedTreeCore<IdBasedChangeFamilyDataEditor, DefaultChangeset> {
+	const { indexes, resubmitMachine, enricher, coreOptions } = options;
 	// This could use TestSharedTreeCore then return its kernel instead of using these mocks, but that would depend on far more code than needed (including other mocks).
 
 	// Summarizer requires ISharedObjectHandle. Specifically it looks for `bind` method.
@@ -130,7 +132,7 @@ export function createTree<TIndexes extends readonly Summarizable[]>(options: {
 		TreeCompressionStrategy.Uncompressed,
 		createIdCompressor(),
 		new TreeStoredSchemaRepository(),
-		codecOptions ?? testCodecOptions,
+		coreOptions,
 		resubmitMachine,
 		enricher,
 	)[0];
@@ -213,11 +215,11 @@ function createTreeInner(
 	chunkCompressionStrategy: TreeCompressionStrategy,
 	idCompressor: IIdCompressor,
 	schema: TreeStoredSchemaRepository,
-	codecOptions: CodecWriteOptions = testCodecOptions,
+	options: SharedTreeCoreOptionsInternal = defaultSharedTreeOptions,
 	resubmitMachine?: ResubmitMachine<DefaultChangeset>,
 	enricher?: ChangeEnricherReadonlyCheckout<DefaultChangeset>,
-	editor?: () => DefaultEditBuilder,
-): [SharedTreeCore<DefaultEditBuilder, DefaultChangeset>, DefaultChangeFamily] {
+	editor?: () => IdBasedChangeFamilyDataEditor,
+): [SharedTreeCore<IdBasedChangeFamilyDataEditor, DefaultChangeset>, DefaultChangeFamily] {
 	const changeFamily = makeTestDefaultChangeFamily({ idCompressor, chunkCompressionStrategy });
 	return [
 		new SharedTreeCore(
@@ -228,7 +230,7 @@ function createTreeInner(
 			logger,
 			summarizables,
 			changeFamily,
-			codecOptions,
+			options,
 			modularChangeFormatVersionForEditManager,
 			modularChangeFormatVersionForMessage,
 			idCompressor,
@@ -260,7 +262,7 @@ function createTreeInner(
  * Once the above is done for all users, this class should be removed.
  */
 export class TestSharedTreeCore extends SharedObject {
-	public readonly kernel: SharedTreeCore<DefaultEditBuilder, DefaultChangeset>;
+	public readonly kernel: SharedTreeCore<IdBasedChangeFamilyDataEditor, DefaultChangeset>;
 
 	private static readonly attributes: IChannelAttributes = {
 		type: "TestSharedTreeCore",
@@ -268,7 +270,10 @@ export class TestSharedTreeCore extends SharedObject {
 		packageVersion: "0.0.0",
 	};
 
-	public readonly transaction: SquashingTransactionStack<DefaultEditBuilder, DefaultChangeset>;
+	public readonly transaction: SquashingTransactionStack<
+		IdBasedChangeFamilyDataEditor,
+		DefaultChangeset
+	>;
 	private readonly changeFamily: DefaultChangeFamily;
 
 	public constructor(
@@ -293,7 +298,7 @@ export class TestSharedTreeCore extends SharedObject {
 			chunkCompressionStrategy,
 			runtime.idCompressor,
 			schema,
-			testCodecOptions,
+			undefined,
 			resubmitMachine,
 			enricher,
 			() => this.transaction.activeBranchEditor,
@@ -358,22 +363,26 @@ export class TestSharedTreeCore extends SharedObject {
 	}
 
 	protected override applyStashedOp(
-		...args: Parameters<SharedTreeCore<DefaultEditBuilder, DefaultChangeset>["applyStashedOp"]>
+		...args: Parameters<
+			SharedTreeCore<IdBasedChangeFamilyDataEditor, DefaultChangeset>["applyStashedOp"]
+		>
 	): void {
 		this.kernel.applyStashedOp(...args);
 	}
 
-	public getLocalBranch(): SharedTreeBranch<DefaultEditBuilder, DefaultChangeset> {
+	public getLocalBranch(): SharedTreeBranch<IdBasedChangeFamilyDataEditor, DefaultChangeset> {
 		return this.kernel.getLocalBranch();
 	}
 
 	protected override reSubmitCore(
-		...args: Parameters<SharedTreeCore<DefaultEditBuilder, DefaultChangeset>["reSubmitCore"]>
+		...args: Parameters<
+			SharedTreeCore<IdBasedChangeFamilyDataEditor, DefaultChangeset>["reSubmitCore"]
+		>
 	): void {
 		this.kernel.reSubmitCore(...args);
 	}
 
-	public get editor(): DefaultEditBuilder {
+	public get editor(): IdBasedChangeFamilyDataEditor {
 		return this.kernel.getEditor();
 	}
 }

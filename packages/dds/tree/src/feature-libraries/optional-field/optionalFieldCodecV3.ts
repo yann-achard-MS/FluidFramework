@@ -40,12 +40,6 @@ export function makeOptionalFieldCodec(
 
 	return {
 		encode: (change: OptionalChangeset, context: FieldChangeEncodingContext) => {
-			assert(
-				change.nodeDetach === undefined ||
-					areEqualChangeAtomIdOpts(change.valueReplace?.src, change.nodeDetach),
-				"This format only supports node detach when it represents a pin",
-			);
-
 			const encoded: EncodedOptionalChangeset<TAnySchema> = {};
 
 			if (change.valueReplace !== undefined) {
