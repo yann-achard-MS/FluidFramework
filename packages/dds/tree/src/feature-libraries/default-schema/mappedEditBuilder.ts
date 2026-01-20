@@ -92,4 +92,10 @@ export class MappedEditBuilder<TBase, TAdapted, TDetachedRoot, TDetachedRoots>
 	public addNodeExistsConstraintOnRevert(path: NormalizedUpPath): void {
 		this.baseBuilder.addNodeExistsConstraintOnRevert(path);
 	}
+	public addNoChangeConstraint(): void {
+		this.baseBuilder.addNoChangeConstraint();
+	}
+	public addNoChangeConstraintOnRevert(): void {
+		this.baseBuilder.addNoChangeConstraintOnRevert();
+	}
 }

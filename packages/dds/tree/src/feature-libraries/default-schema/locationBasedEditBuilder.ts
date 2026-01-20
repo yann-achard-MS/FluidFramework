@@ -66,6 +66,14 @@ export class LocationBasedDataEditor
 		this.idBasedEditor.addNodeExistsConstraintOnRevert(normal);
 	}
 
+	public addNoChangeConstraint(): void {
+		this.idBasedEditor.addNoChangeConstraint();
+	}
+
+	public addNoChangeConstraintOnRevert(): void {
+		this.idBasedEditor.addNoChangeConstraintOnRevert();
+	}
+
 	public buildRoots(content: TreeChunk): DetachedRootsLocation {
 		const roots = this.idBasedEditor.buildRoots(content);
 		const locations = this.locator.locationsFromIdRanges(roots);

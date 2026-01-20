@@ -5,6 +5,7 @@
 @fluid-tools/fetch-tool
 @fluidframework/devtools-core
 @fluidframework/devtools
+@fluid-internal/version-compat-tests
 @fluid-private/test-version-utils
 @fluidframework/test-utils
 @fluid-internal/test-service-load
@@ -47,7 +48,6 @@ fluid-framework
 @fluidframework/app-insights-logger
 @fluid-experimental/attributor
 @fluidframework/aqueduct
-@fluidframework/ai-collab
 @fluidframework/agent-scheduler
 @fluidframework/tinylicious-driver
 @fluidframework/routerlicious-urlresolver

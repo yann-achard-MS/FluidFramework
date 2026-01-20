@@ -3,13 +3,10 @@
  * Licensed under the MIT License.
  */
 
-import { lt as semverLessThan } from "semver-ts";
-
 import { assert, oob } from "@fluidframework/core-utils/internal";
-import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
-import { FluidClientVersion, type ICodecFamily } from "../../codec/index.js";
+import type { CodecWriteOptions, ICodecFamily } from "../../codec/index.js";
 import {
 	type ChangeAtomId,
 	type ChangeEncodingContext,
@@ -66,8 +63,11 @@ export class DefaultChangeFamily
 {
 	private readonly modularFamily: ModularChangeFamily;
 
-	public constructor(codecs: ICodecFamily<ModularChangeset, ChangeEncodingContext>) {
-		this.modularFamily = new ModularChangeFamily(fieldKinds, codecs);
+	public constructor(
+		codecs: ICodecFamily<ModularChangeset, ChangeEncodingContext>,
+		codecOptions: CodecWriteOptions,
+	) {
+		this.modularFamily = new ModularChangeFamily(fieldKinds, codecs, codecOptions);
 	}
 
 	public get rebaser(): ChangeRebaser<DefaultChangeset> {
@@ -83,7 +83,13 @@ export class DefaultChangeFamily
 		changeReceiver: (change: TaggedChange<DefaultChangeset>) => void,
 		options?: EditorOptions,
 	): IdBasedChangeFamilyDataEditor {
-		return new DefaultIdBasedDataEditor(this, mintRevisionTag, changeReceiver, options);
+		return new DefaultIdBasedDataEditor(
+			this,
+			mintRevisionTag,
+			changeReceiver,
+			options,
+			this.modularFamily.codecOptions,
+		);
 	}
 }
 
@@ -155,16 +161,26 @@ export interface DataEditor<TContent, TDetachedRoot, TDetachedRoots> {
 	): void;
 
 	/**
-	 * Add a constraint that the node at the given path must exist.
+	 * Add a constraint that, for this change to apply, the node at the given path must exist immediately before the change is applied.
 	 * @param path - The path to the node that must exist.
 	 */
 	addNodeExistsConstraint(path: NormalizedUpPath): void;
 
 	/**
-	 * Add a constraint that the node at the given path must exist when reverting a change.
+	 * Add a constraint that, for the revert of this change to apply, the node at the given path must exist immediately before the revert is applied.
 	 * @param path - The path to the node that must exist when reverting a change.
 	 */
 	addNodeExistsConstraintOnRevert(path: NormalizedUpPath): void;
+
+	/**
+	 * Add a constraint that, for this change to apply, the document must be in the same state immediately before this change is applied as it was before this change was authored.
+	 */
+	addNoChangeConstraint(): void;
+
+	/**
+	 * Add a constraint that, for the revert of this change to apply, the document must be in the same state immediately before the revert is applied as it was after this change was applied.
+	 */
+	addNoChangeConstraintOnRevert(): void;
 
 	/**
 	 * Builds the detached roots for the given content.
@@ -230,8 +246,14 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 		private readonly mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<DefaultChangeset>) => void,
 		private readonly options: EditorOptions = { canMakeDetachedRootEdits: false },
+		codecOptions: CodecWriteOptions,
 	) {
-		this.modularBuilder = new ModularEditBuilder(family, fieldKinds, changeReceiver);
+		this.modularBuilder = new ModularEditBuilder(
+			family,
+			fieldKinds,
+			changeReceiver,
+			codecOptions,
+		);
 	}
 
 	public enterTransaction(): void {
@@ -261,6 +283,14 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 			this.options,
 		);
 		this.modularBuilder.addNodeExistsConstraintOnRevert(path, this.mintRevisionTag());
+	}
+
+	public addNoChangeConstraint(): void {
+		this.modularBuilder.addNoChangeConstraint(this.mintRevisionTag());
+	}
+
+	public addNoChangeConstraintOnRevert(): void {
+		this.modularBuilder.addNoChangeConstraintOnRevert(this.mintRevisionTag());
 	}
 
 	public buildRoots(content: TreeChunk): DetachedRootIds {
@@ -738,13 +768,12 @@ function getSharedPrefixLength(pathA: readonly UpPath[], pathB: readonly UpPath[
 	while (sharedDepth < minDepth) {
 		const detachStep = pathA[sharedDepth] ?? oob();
 		const attachStep = pathB[sharedDepth] ?? oob();
-		if (detachStep !== attachStep) {
-			if (
-				detachStep.parentField !== attachStep.parentField ||
-				detachStep.parentIndex !== attachStep.parentIndex
-			) {
-				break;
-			}
+		if (
+			detachStep !== attachStep &&
+			(detachStep.parentField !== attachStep.parentField ||
+				detachStep.parentIndex !== attachStep.parentIndex)
+		) {
+			break;
 		}
 		sharedDepth += 1;
 	}
