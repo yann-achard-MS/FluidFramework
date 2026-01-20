@@ -9,6 +9,7 @@ import type {
 	ChangeRebaser,
 	EditorOptions,
 	RevisionMetadataSource,
+	RevisionReplacer,
 	RevisionTag,
 	TaggedChange,
 } from "../core/index.js";
@@ -77,11 +78,15 @@ export function makeMitigatedRebaser<TChange>(
 		): TChange => {
 			return withFallback(() => unmitigatedRebaser.rebase(change, over, revisionMetadata));
 		},
-		changeRevision: (
-			change: TChange,
-			newRevision: RevisionTag | undefined,
-			rollbackOf?: RevisionTag,
-		): TChange =>
-			withFallback(() => unmitigatedRebaser.changeRevision(change, newRevision, rollbackOf)),
+		getRevisions: (change: TChange): Set<RevisionTag | undefined> => {
+			try {
+				return unmitigatedRebaser.getRevisions(change);
+			} catch (error: unknown) {
+				onError(error);
+				return new Set();
+			}
+		},
+		changeRevision: (change: TChange, replacer: RevisionReplacer): TChange =>
+			withFallback(() => unmitigatedRebaser.changeRevision(change, replacer)),
 	};
 }

@@ -42,8 +42,13 @@ import {
 import { JsonAsTree } from "../../../jsonDomainSchema.js";
 import { numberSchema, stringSchema } from "../../../simple-tree/index.js";
 import { initializeForest } from "../initializeForest.js";
+import { FluidClientVersion, FormatValidatorBasic } from "../../../index.js";
 
-const defaultChangeFamily = new DefaultChangeFamily(failCodecFamily);
+const codecOptions = {
+	jsonValidator: FormatValidatorBasic,
+	minVersionForCollab: FluidClientVersion.v2_0,
+};
+const defaultChangeFamily = new DefaultChangeFamily(failCodecFamily, codecOptions);
 const family = defaultChangeFamily;
 
 const rootKey = rootFieldKey;
@@ -140,12 +145,18 @@ function initializeEditableForest(data?: JsonableTree): {
 		testRevisionTagCodec,
 		testIdCompressor,
 	);
-	const builder = new DefaultIdBasedDataEditor(family, mintRevisionTag, (taggedChange) => {
-		changes.push(taggedChange);
-		const delta = intoDelta(taggedChange);
-		deltas.push(delta);
-		applyDelta(delta, taggedChange.revision, forest, detachedFieldIndex);
-	});
+	const builder = new DefaultIdBasedDataEditor(
+		family,
+		mintRevisionTag,
+		(taggedChange) => {
+			changes.push(taggedChange);
+			const delta = intoDelta(taggedChange);
+			deltas.push(delta);
+			applyDelta(delta, taggedChange.revision, forest, detachedFieldIndex);
+		},
+		{ canMakeDetachedRootEdits: true },
+		codecOptions,
+	);
 	return {
 		forest,
 		builder,

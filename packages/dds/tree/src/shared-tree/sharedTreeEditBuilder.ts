@@ -82,6 +82,7 @@ export class IdBasedSharedTreeEditBuilder
 					change: { changes: [{ type: "data", innerChange: taggedChange.change }] },
 				}),
 			options,
+			modularChangeFamily.codecOptions,
 		);
 
 		this.schema = {

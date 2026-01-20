@@ -49,6 +49,7 @@ import {
 } from "@fluidframework/test-utils/internal";
 
 import {
+	type CodecWriteOptions,
 	currentVersion,
 	type FormatVersion,
 	type ICodecFamily,
@@ -829,6 +830,7 @@ export function checkoutWithContent(
 			HasListeners<CheckoutEvents>;
 		forestType?: ForestType;
 		shouldEncodeIncrementally?: IncrementalEncodingPolicy;
+		codecOptions?: Partial<CodecWriteOptions>;
 	},
 ): TreeCheckout {
 	const { checkout } = createCheckoutWithContent(content, args);
@@ -1068,7 +1070,7 @@ export function makeEncodingTestSuite<TDecoded, TEncoded, TContext>(
 	assertEquivalent: (a: TDecoded, b: TDecoded) => void = assertDeepEqual,
 	supportedVersions?: FormatVersion[],
 ): void {
-	const supportedVersionsToTest = supportedVersions ?? family.getSupportedFormats();
+	const supportedVersionsToTest = supportedVersions ?? [...family.getSupportedFormats()];
 	for (const version of supportedVersionsToTest) {
 		describe(`version ${version}`, () => {
 			const codec = family.resolve(version);
