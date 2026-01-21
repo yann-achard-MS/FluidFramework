@@ -98,7 +98,8 @@ function rebaseComposedModular(
 	const composed =
 		baseChanges.length === 0
 			? makeAnonChange(empty())
-			: baseChanges.reduce((change1, change2) =>
+			: // eslint-disable-next-line unicorn/no-array-reduce
+				baseChanges.reduce((change1, change2) =>
 					makeAnonChange(composeModular(change1, change2)),
 				);
 

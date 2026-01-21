@@ -131,9 +131,9 @@ export function prepareArrayContentForInsertion(
 	destinationContext: FlexTreeContext,
 	destinationSchema: TreeTypeSet,
 ): FlexibleFieldContent {
-	const hasHydratedData = data.find(isHydrated) !== undefined;
+	const hasHydratedData = data.some(isHydrated);
 	if (hasHydratedData) {
-		const hasUnhydratedData = data.find((item) => !isHydrated(item)) !== undefined;
+		const hasUnhydratedData = data.some((item) => !isHydrated(item));
 		if (hasUnhydratedData) {
 			throw new UsageError("Mixed hydrated and unhydrated data not supported");
 		}
@@ -287,7 +287,6 @@ function prepareForInsertionContextlessInternal<TIn extends InsertableContent | 
 	const normalizedFieldSchema = normalizeFieldSchema(schema);
 	const fieldSchema = convertField(
 		normalizedFieldSchema as unknown as SimpleFieldSchema<SchemaType.Stored>,
-		// permissiveStoredSchemaGenerationOptions,
 	);
 
 	const field = createField(
@@ -322,7 +321,9 @@ function validateAndPrepare(
 		}
 	};
 
-	if (hydratedData !== undefined) {
+	if (hydratedData === undefined) {
+		return { toAttach: [...field.children], finalize: cleanup };
+	} else {
 		// Run `chunkForInsertion` before walking the tree in `isFieldInSchema`.
 		// This ensures that when `isFieldInSchema` requests identifiers (or any other contextual defaults),
 		// they were already creating used the more specific context we have access to from `hydratedData`.
@@ -363,8 +364,6 @@ function validateAndPrepare(
 				cleanup();
 			},
 		};
-	} else {
-		return { toAttach: [...field.children], finalize: cleanup };
 	}
 }
 
@@ -449,7 +448,7 @@ function chunkFieldForInsertion(
 				}
 			}
 			// As an optimization, if there are no attach data, skip tracking it.
-			if (childAttaches.size !== 0 || child.treeNode !== undefined) {
+			if (childAttaches.size > 0 || child.treeNode !== undefined) {
 				attaches.push({
 					index: i,
 					toHydrate: child.treeNode,
