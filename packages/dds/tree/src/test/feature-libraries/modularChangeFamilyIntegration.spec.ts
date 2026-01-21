@@ -3,8 +3,6 @@
  * Licensed under the MIT License.
  */
 
-import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
-
 import {
 	type ChangeAtomId,
 	type ChangeEncodingContext,
@@ -2684,14 +2682,15 @@ describe("ModularChangeFamily integration", () => {
 function buildTransaction(
 	delegate: (editor: IdBasedChangeFamilyDataEditor) => void,
 	revision?: RevisionTag,
-	options: EditorOptions = { canMakeDetachedRootEdits: true },
+	options?: EditorOptions,
 ): TaggedChange<ModularChangeset> {
+	const optionsActual = { canMakeDetachedRootEdits: true, ...options };
 	const [changeReceiver, getChanges] = testChangeReceiver(family);
 	const transaction = new DefaultIdBasedDataEditor(
 		family,
 		mintRevisionTag,
 		changeReceiver,
-		options,
+		optionsActual,
 		codecOptions,
 	);
 	delegate(transaction);

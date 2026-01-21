@@ -1,8 +1,9 @@
-// XXX
 // /*!
 //  * Copyright (c) Microsoft Corporation and contributors. All rights reserved.
 //  * Licensed under the MIT License.
 //  */
+
+describe("Dummy replace revisions", () => {});
 
 // import type { ChangeAtomId, RevisionTag } from "../../../core/index.js";
 // import { mintRevisionTag } from "../../utils.js";

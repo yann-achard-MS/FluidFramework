@@ -18,7 +18,6 @@ import {
 	defaultSchemaPolicy,
 	TreeStatus,
 	Context,
-	combineChunks,
 	type FlexTreeOptionalField,
 	type FlexTreeUnknownUnboxed,
 	FieldKinds,

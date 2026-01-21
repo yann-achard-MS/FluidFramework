@@ -103,11 +103,7 @@ export function flexTreeFromInsertableNode(
 	if (isTreeNode(data)) {
 		const kernel = getKernel(data);
 		const inner = kernel.getInnerNode();
-		if (inner.parentField.parent.parent !== undefined) {
-			throw new UsageError(
-				"A node which already has a parent may not be used as part of a new tree.",
-			);
-		} else {
+		if (inner.parentField.parent.parent === undefined) {
 			if (!allowedTypes.has(kernel.schema)) {
 				throw new UsageError("Invalid schema for this context.");
 			}
@@ -117,6 +113,10 @@ export function flexTreeFromInsertableNode(
 			}
 
 			return inner;
+		} else {
+			throw new UsageError(
+				"A node which already has a parent may not be used as part of a new tree.",
+			);
 		}
 	}
 

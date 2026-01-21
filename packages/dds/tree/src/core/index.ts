@@ -163,7 +163,7 @@ export {
 	type ChangeEncodingContext,
 	type ChangeFamilyEditor,
 	EditBuilder,
-	EditorOptions,
+	type EditorOptions,
 } from "./change-family/index.js";
 
 export {

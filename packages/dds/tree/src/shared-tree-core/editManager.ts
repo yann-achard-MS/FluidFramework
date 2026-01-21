@@ -6,7 +6,6 @@
 import { assert, fail } from "@fluidframework/core-utils/internal";
 import { createEmitter } from "@fluid-internal/client-utils";
 import type { SessionId } from "@fluidframework/id-compressor";
-import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import { BTree } from "@tylerbu/sorted-btree-es6";
 
 import {
