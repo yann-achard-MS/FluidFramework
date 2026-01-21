@@ -45,6 +45,7 @@ import {
 import {
 	ModularChangeFamily,
 	intoDelta,
+	validateChangeset,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../feature-libraries/modular-schema/modularChangeFamily.js";
 import { brand } from "../../util/index.js";
@@ -79,12 +80,7 @@ import {
 // eslint-disable-next-line import-x/no-internal-modules
 import { newGenericChangeset } from "../../feature-libraries/modular-schema/genericFieldKindTypes.js";
 import type { SessionId } from "@fluidframework/id-compressor";
-import {
-	currentVersion,
-	FluidClientVersion,
-	type CodecWriteOptions,
-} from "../../codec/index.js";
-import { ajvValidator } from "../codec/index.js";
+import { FluidClientVersion } from "../../codec/index.js";
 import { FormatValidatorBasic } from "../../external-utilities/index.js";
 
 const fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind> = new Map<
@@ -1503,7 +1499,7 @@ describe("ModularChangeFamily integration", () => {
 			const remove = tagChangeInline(removeD, tagForCompare);
 
 			const composed = family.compose([moves, remove]);
-			family.validateChangeset(composed);
+			validateChangeset(composed, family.fieldKinds);
 			const composedDelta = normalizeDelta(intoDelta(makeAnonChange(composed), fieldKinds));
 
 			const nodeAChanges: DeltaFieldMap = new Map([
@@ -1577,7 +1573,7 @@ describe("ModularChangeFamily integration", () => {
 				]),
 			};
 
-			family.validateChangeset(composed);
+			validateChangeset(composed, family.fieldKinds);
 			const delta = intoDelta(taggedComposed, family.fieldKinds);
 			assertDeltaEqual(delta, expected);
 		});
@@ -1614,7 +1610,7 @@ describe("ModularChangeFamily integration", () => {
 
 			const moveAndInsert = family.compose([tagChangeInline(insert, tag2), moveTagged]);
 			const composed = family.compose([returnTagged, makeAnonChange(moveAndInsert)]);
-			family.validateChangeset(composed);
+			validateChangeset(composed, family.fieldKinds);
 
 			const actual = intoDelta(makeAnonChange(composed), family.fieldKinds);
 			const expected: DeltaRoot = {
