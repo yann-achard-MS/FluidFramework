@@ -209,6 +209,9 @@ export class ModularChangeFamily
 		change2: ModularChangeset,
 		idState: IdAllocationState,
 	): ModularChangeset {
+		this.validateChangeset(change1);
+		this.validateChangeset(change2);
+
 		const revInfos = composeRevInfos(change1.revisions, change2.revisions);
 
 		const { fieldChanges, nodeChanges, nodeToParent, nodeAliases, crossFieldKeys, rootNodes } =

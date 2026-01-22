@@ -54,7 +54,7 @@ export const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
 		if (detachId !== undefined) {
 			const attachIdForInverse = isRollback
 				? detachId
-				: makeChangeAtomId(detachId.localId, revision);
+				: makeChangeAtomId(detachId.localId, revision); // Isn't there are risk of collision here with ids generated through `genId.allocate()`?
 
 			nodeManager.invertDetach(detachId, 1, change.childChange, attachIdForInverse);
 
