@@ -245,7 +245,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 		family: ChangeFamily<ChangeFamilyEditor, DefaultChangeset>,
 		private readonly mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<DefaultChangeset>) => void,
-		private readonly options: EditorOptions = { canMakeDetachedRootEdits: false },
+		private readonly editorOptions: EditorOptions = { canMakeDetachedRootEdits: false },
 		codecOptions: CodecWriteOptions,
 	) {
 		this.modularBuilder = new ModularEditBuilder(
@@ -253,6 +253,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 			fieldKinds,
 			changeReceiver,
 			codecOptions,
+			editorOptions,
 		);
 	}
 
@@ -272,7 +273,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	public addNodeExistsConstraint(path: NormalizedUpPath): void {
 		enforceEditsToDetachedTreesOptions(
 			{ parent: path.parent, field: path.parentField },
-			this.options,
+			this.editorOptions,
 		);
 		this.modularBuilder.addNodeExistsConstraint(path, this.mintRevisionTag());
 	}
@@ -280,7 +281,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	public addNodeExistsConstraintOnRevert(path: NormalizedUpPath): void {
 		enforceEditsToDetachedTreesOptions(
 			{ parent: path.parent, field: path.parentField },
-			this.options,
+			this.editorOptions,
 		);
 		this.modularBuilder.addNodeExistsConstraintOnRevert(path, this.mintRevisionTag());
 	}
@@ -313,7 +314,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	public valueField(
 		field: NormalizedFieldUpPath,
 	): RequiredFieldEditor<TreeChunk, ChangeAtomId> {
-		enforceEditsToDetachedTreesOptions(field, this.options);
+		enforceEditsToDetachedTreesOptions(field, this.editorOptions);
 		const makeAttachEditDescription = (
 			fill: ChangeAtomId,
 			revision: RevisionTag,
@@ -357,7 +358,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	public optionalField(
 		field: NormalizedFieldUpPath,
 	): OptionalFieldEditor<TreeChunk, ChangeAtomId> {
-		enforceEditsToDetachedTreesOptions(field, this.options);
+		enforceEditsToDetachedTreesOptions(field, this.editorOptions);
 		const makeAttachEditDescription = (
 			fill: ChangeAtomId,
 			revision: RevisionTag,
@@ -394,7 +395,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 					return;
 				}
 				const isWithoutCell = this.nodesWithoutCells.delete(content.localId, 1) === 1;
-				if (!isWithoutCell && this.options.canMakeDetachedRootEdits !== true) {
+				if (!isWithoutCell && this.editorOptions.canMakeDetachedRootEdits !== true) {
 					throw new UsageError(
 						`Attach edits require a minimum version for collaboration >= TBD.`,
 					);
@@ -451,8 +452,8 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 		} else if (count < 0 || !Number.isSafeInteger(count)) {
 			throw new UsageError(`Expected non-negative integer count, got ${count}.`);
 		}
-		enforceEditsToDetachedTreesOptions(sourceField, this.options);
-		enforceEditsToDetachedTreesOptions(destinationField, this.options);
+		enforceEditsToDetachedTreesOptions(sourceField, this.editorOptions);
+		enforceEditsToDetachedTreesOptions(destinationField, this.editorOptions);
 		const revision = this.mintRevisionTag();
 		const detachCellId = this.modularBuilder.generateId(count);
 		const attachCellId: CellId = { localId: this.modularBuilder.generateId(count), revision };
@@ -556,7 +557,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	public sequenceField(
 		field: NormalizedFieldUpPath,
 	): SequenceFieldEditor<TreeChunk, DetachedRootIds> {
-		enforceEditsToDetachedTreesOptions(field, this.options);
+		enforceEditsToDetachedTreesOptions(field, this.editorOptions);
 		const makeAttachEditDescription = (
 			index: number,
 			{ first, count }: DetachedRootIdRange,
@@ -653,7 +654,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 					edits.push(...renameAndAttach);
 					insertOffset += range.count;
 				}
-				if (!areAllWithoutCells && this.options.canMakeDetachedRootEdits !== true) {
+				if (!areAllWithoutCells && this.editorOptions.canMakeDetachedRootEdits !== true) {
 					throw new UsageError(
 						`Attach edits require a minimum version for collaboration >= TBD.`,
 					);
