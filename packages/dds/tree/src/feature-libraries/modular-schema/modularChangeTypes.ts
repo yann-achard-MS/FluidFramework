@@ -8,6 +8,7 @@ import {
 	type ChangeAtomId,
 	type ChangeAtomIdRangeMap,
 	type ChangesetLocalId,
+	type EditorOptions,
 	type FieldKey,
 	type FieldKindIdentifier,
 	type RevisionInfo,
@@ -192,3 +193,7 @@ export interface FieldChange {
 }
 
 export type FieldChangeset = Brand<unknown, "FieldChangeset">;
+
+export interface ModularEditorOptions extends EditorOptions {
+	readonly rebaseVersionOverride?: RebaseVersion;
+}
