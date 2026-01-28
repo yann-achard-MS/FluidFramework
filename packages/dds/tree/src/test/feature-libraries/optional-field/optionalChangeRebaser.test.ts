@@ -44,6 +44,7 @@ import type {
 } from "../../../feature-libraries/optional-field/optionalFieldChangeTypes.js";
 import {
 	brand,
+	brandConst,
 	forEachInNestedMap,
 	idAllocatorFromMaxId,
 	setInNestedMap,
@@ -616,7 +617,10 @@ function inlineRevisionWrapped(
 function inlineRevision(change: OptionalChangeset, revision: RevisionTag): OptionalChangeset {
 	return optionalChangeRebaser.replaceRevisions(
 		change,
-		new DefaultRevisionReplacer(revision, new Set([undefined])),
+		new DefaultRevisionReplacer(
+			revision,
+			new Map([[undefined, brandConst(Number.MAX_SAFE_INTEGER)<ChangesetLocalId>()]]),
+		),
 	);
 }
 

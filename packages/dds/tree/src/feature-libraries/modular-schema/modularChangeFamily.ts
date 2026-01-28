@@ -61,6 +61,7 @@ import {
 	type TupleBTree,
 	RangeMap,
 	balancedReduce,
+	brandConst,
 } from "../../util/index.js";
 import {
 	getFromChangeAtomIdMap,
@@ -1521,13 +1522,16 @@ export class ModularChangeFamily
 		}
 	}
 
-	public getRevisions(change: ModularChangeset): Set<RevisionTag | undefined> {
+	public getRevisions(
+		change: ModularChangeset,
+	): Map<RevisionTag | undefined, ChangesetLocalId> {
+		const maxId = change.maxId ?? brandConst(-1)<ChangesetLocalId>();
 		if (change.revisions === undefined || change.revisions.length === 0) {
-			return new Set([undefined]);
+			return new Map([[undefined, maxId]]);
 		}
-		const aggregated: Set<RevisionTag | undefined> = new Set();
+		const aggregated: Map<RevisionTag | undefined, ChangesetLocalId> = new Map();
 		for (const revInfo of change.revisions) {
-			aggregated.add(revInfo.revision);
+			aggregated.set(revInfo.revision, maxId);
 		}
 		return aggregated;
 	}

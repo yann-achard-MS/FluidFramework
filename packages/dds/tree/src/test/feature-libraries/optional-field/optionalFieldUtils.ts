@@ -34,7 +34,7 @@ import type {
 	RegisterId,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../../feature-libraries/optional-field/optionalFieldChangeTypes.js";
-import { type Mutable, brand } from "../../../util/index.js";
+import { type Mutable, brand, brandConst } from "../../../util/index.js";
 
 const dummyDetachId: ChangeAtomId = { localId: brand(0) };
 
@@ -332,6 +332,9 @@ export function inlineRevision(
 ): OptionalChangeset {
 	return optionalChangeRebaser.replaceRevisions(
 		change,
-		new DefaultRevisionReplacer(revision, new Set([undefined])),
+		new DefaultRevisionReplacer(
+			revision,
+			new Map([[undefined, brandConst(Number.MAX_SAFE_INTEGER)<ChangesetLocalId>()]]),
+		),
 	);
 }

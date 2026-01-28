@@ -15,6 +15,7 @@ import {
 	type ChangeFamilyCodec,
 	type ChangeFamilyEditor,
 	type ChangeRebaser,
+	type ChangesetLocalId,
 	type DeltaFieldMap,
 	type DeltaRoot,
 	type FieldKey,
@@ -254,8 +255,8 @@ export class TestChangeRebaser implements ChangeRebaser<TestChange> {
 		);
 	}
 
-	public getRevisions(change: TestChange): Set<RevisionTag | undefined> {
-		return new Set();
+	public getRevisions(change: TestChange): Map<RevisionTag | undefined, ChangesetLocalId> {
+		return new Map();
 	}
 
 	public changeRevision(change: TestChange): TestChange {

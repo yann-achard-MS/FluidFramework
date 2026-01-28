@@ -30,7 +30,11 @@ const atom1: ChangeAtomId = { revision: tag1, localId: brand(1) };
 const atom2: ChangeAtomId = { revision: tag2, localId: brand(10) };
 const atom3: ChangeAtomId = { localId: brand(100) };
 
-const inputRevs = new Set([tag1, tag2, undefined]);
+const inputRevs = new Map([
+	[tag1, atom1.localId],
+	[tag2, atom2.localId],
+	[undefined, atom3.localId],
+]);
 
 export function testReplaceRevisions(): void {
 	describe(`replaceRevisions {${[...inputRevs.keys()].join(",")}} -> ${tagOut}`, () => {

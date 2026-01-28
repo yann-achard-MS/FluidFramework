@@ -5,7 +5,7 @@
 
 import { strict as assert } from "node:assert";
 
-import type { ChangeRebaser, RevisionTag } from "../../core/index.js";
+import type { ChangeRebaser, ChangesetLocalId, RevisionTag } from "../../core/index.js";
 // Allow importing from these specific files which are being tested:
 /* eslint-disable-next-line import-x/no-internal-modules */
 import { type GraphCommit, rebaseBranch } from "../../core/rebase/index.js";
@@ -37,8 +37,8 @@ export class DummyChangeRebaser implements ChangeRebaser<typeof dummyChange> {
 		return {};
 	}
 
-	public getRevisions(): Set<RevisionTag | undefined> {
-		return new Set();
+	public getRevisions(): Map<RevisionTag | undefined, ChangesetLocalId> {
+		return new Map();
 	}
 
 	public changeRevision(): typeof dummyChange {

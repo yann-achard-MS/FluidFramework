@@ -13,6 +13,7 @@ import type {
 	ChangeEncodingContext,
 	RevisionTag,
 	RevisionReplacer,
+	ChangesetLocalId,
 } from "../../core/index.js";
 import { makeMitigatedChangeFamily } from "../../feature-libraries/index.js";
 import { mintRevisionTag } from "../utils.js";
@@ -50,7 +51,7 @@ const throwingFamily: ChangeFamily<ChangeFamilyEditor, string> = {
 			assert.equal(over, arg2);
 			throw new Error("rebase");
 		},
-		getRevisions: (change: string): Set<RevisionTag | undefined> => {
+		getRevisions: (change: string): Map<RevisionTag | undefined, ChangesetLocalId> => {
 			assert.equal(change, arg1);
 			throw new Error("getRevisions");
 		},
@@ -86,9 +87,9 @@ const returningFamily: ChangeFamily<ChangeFamilyEditor, string> = {
 			assert.equal(over, arg2);
 			return "rebase";
 		},
-		getRevisions: (change: string): Set<RevisionTag | undefined> => {
+		getRevisions: (change: string): Map<RevisionTag | undefined, ChangesetLocalId> => {
 			assert.equal(change, arg1);
-			return "getRevisions" as unknown as Set<RevisionTag | undefined>;
+			return "getRevisions" as unknown as Map<RevisionTag | undefined, ChangesetLocalId>;
 		},
 		changeRevision: (change: string, replacer: RevisionReplacer): string => {
 			assert.equal(change, arg1);
@@ -153,7 +154,7 @@ describe("makeMitigatedChangeFamily", () => {
 		});
 		it("getRevisions", () => {
 			errorLog.length = 0;
-			assert.deepEqual(mitigatedThrowingRebaser.getRevisions(arg1), new Set());
+			assert.deepEqual(mitigatedThrowingRebaser.getRevisions(arg1), new Map());
 			assert.deepEqual(errorLog, ["getRevisions"]);
 		});
 		it("changeRevision", () => {

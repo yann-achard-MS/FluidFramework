@@ -11,6 +11,7 @@ import {
 	type ChangeEncodingContext,
 	type ChangeFamily,
 	type ChangeRebaser,
+	type ChangesetLocalId,
 	type DeltaDetachedNodeId,
 	type RevisionMetadataSource,
 	type RevisionReplacer,
@@ -210,15 +211,17 @@ export class SharedTreeChangeFamily
 		};
 	}
 
-	public getRevisions(change: SharedTreeChange): Set<RevisionTag | undefined> {
-		const aggregated: Set<RevisionTag | undefined> = new Set();
+	public getRevisions(
+		change: SharedTreeChange,
+	): Map<RevisionTag | undefined, ChangesetLocalId> {
+		const aggregated: Map<RevisionTag | undefined, ChangesetLocalId> = new Map();
 		for (const innerChange of change.changes) {
 			if (innerChange.type === "data") {
 				const innerRevisions = this.modularChangeFamily.rebaser.getRevisions(
 					innerChange.innerChange,
 				);
-				for (const tag of innerRevisions) {
-					aggregated.add(tag);
+				for (const [tag, localId] of innerRevisions) {
+					aggregated.set(tag, localId);
 				}
 			}
 		}

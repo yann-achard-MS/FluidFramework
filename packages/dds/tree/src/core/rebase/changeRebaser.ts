@@ -5,7 +5,7 @@
 
 import type { Invariant } from "../../util/index.js";
 
-import type { ChangeAtomId, RevisionTag } from "./types.js";
+import type { ChangeAtomId, ChangesetLocalId, RevisionTag } from "./types.js";
 
 /**
  * Rebasing logic for a particular kind of change.
@@ -92,7 +92,7 @@ export interface ChangeRebaser<TChangeset> {
 	/**
 	 * Retrieves the set of revisions associated with the given change.
 	 */
-	getRevisions(change: TChangeset): Set<RevisionTag | undefined>;
+	getRevisions(change: TChangeset): Map<RevisionTag | undefined, ChangesetLocalId>;
 
 	/**
 	 * Produces a changeset that is equivalent to the given `change`, but with all references to its own revisions replaced according to the given `replacer`.

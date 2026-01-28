@@ -87,6 +87,7 @@ import {
 	type IdAllocator,
 	type Mutable,
 	brand,
+	brandConst,
 	fakeIdAllocator,
 	getOrAddEmptyToMap,
 	idAllocatorFromMaxId,
@@ -833,7 +834,10 @@ export function tagChangeInline(
 }
 
 export function inlineRevision(change: Changeset, revision: RevisionTag): Changeset {
-	const replacer = new DefaultRevisionReplacer(revision, new Set([undefined]));
+	const replacer = new DefaultRevisionReplacer(
+		revision,
+		new Map([[undefined, brandConst(Number.MAX_SAFE_INTEGER)<ChangesetLocalId>()]]),
+	);
 	return sequenceFieldChangeRebaser.replaceRevisions(change, replacer);
 }
 
