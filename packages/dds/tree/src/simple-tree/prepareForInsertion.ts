@@ -3,7 +3,9 @@
  * Licensed under the MIT License.
  */
 
+import { assert, fail } from "@fluidframework/core-utils/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
+
 import type {
 	SchemaAndPolicy,
 	FieldKey,
@@ -27,11 +29,8 @@ import {
 	type FlexTreeField,
 	type DetachedRootsLocation,
 } from "../feature-libraries/index.js";
-import { normalizeFieldSchema, type ImplicitFieldSchema } from "./fieldSchema.js";
-import {
-	type InsertableContent,
-	flexTreeFromInsertable,
-} from "./unhydratedFlexTreeFromInsertable.js";
+import { combineChunks, isFieldInSchema } from "../feature-libraries/index.js";
+
 import {
 	createField,
 	getInnerNode,
@@ -42,11 +41,14 @@ import {
 	type TreeNode,
 	type UnhydratedFlexTreeField,
 } from "./core/index.js";
-import { assert, fail } from "@fluidframework/core-utils/internal";
-import { combineChunks, isFieldInSchema } from "../feature-libraries/index.js";
 import { getUnhydratedContext } from "./createContext.js";
-import { convertField } from "./toStoredSchema.js";
+import { normalizeFieldSchema, type ImplicitFieldSchema } from "./fieldSchema.js";
 import type { SchemaType, SimpleFieldSchema } from "./simpleSchema.js";
+import { convertField } from "./toStoredSchema.js";
+import {
+	type InsertableContent,
+	flexTreeFromInsertable,
+} from "./unhydratedFlexTreeFromInsertable.js";
 
 /**
  * For now, schema validation for inserted content is always enabled.

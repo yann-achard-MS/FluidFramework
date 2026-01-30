@@ -5,6 +5,7 @@
 
 import { strict as assert } from "node:assert";
 
+import type { ChangeAtomId } from "../core/index.js";
 import type {
 	DefaultChangeFamily,
 	DefaultChangeset,
@@ -12,8 +13,8 @@ import type {
 	DataEditor,
 	TreeChunk,
 } from "../feature-libraries/index.js";
+
 import { mintRevisionTag } from "./utils.js";
-import type { ChangeAtomId } from "../core/index.js";
 
 export type Editor = (builder: DataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>) => void;
 

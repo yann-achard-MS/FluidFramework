@@ -42,14 +42,10 @@ import {
 	relevantRemovedRoots as relevantModularRemovedRoots,
 	getBuildIds as getModularBuildIds,
 } from "../modular-schema/index.js";
+import { optional, required } from "../optional-field/index.js";
+import { sequence, type CellId } from "../sequence-field/index.js";
 
-import {
-	fieldKinds,
-	optional,
-	sequence,
-	required as valueFieldKind,
-} from "./defaultFieldKinds.js";
-import type { CellId } from "../sequence-field/index.js";
+import { fieldKinds } from "./defaultFieldKinds.js";
 
 export type DefaultChangeset = ModularChangeset;
 
@@ -320,11 +316,11 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 		): FieldEditDescription => {
 			const detachLocalId = this.modularBuilder.generateId();
 			const detach = { localId: detachLocalId, revision };
-			const change = valueFieldKind.changeHandler.editor.set({ fill, detach });
+			const change = required.changeHandler.editor.set({ fill, detach });
 			return {
 				type: "field",
 				field,
-				fieldKind: valueFieldKind.identifier,
+				fieldKind: required.identifier,
 				change: brand(change),
 				revision,
 			};

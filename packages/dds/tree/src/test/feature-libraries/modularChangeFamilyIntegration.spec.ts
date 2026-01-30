@@ -3,6 +3,8 @@
  * Licensed under the MIT License.
  */
 
+import type { SessionId } from "@fluidframework/id-compressor";
+
 import {
 	type ChangeAtomId,
 	type ChangeEncodingContext,
@@ -22,15 +24,8 @@ import {
 	tagRollbackInverse,
 } from "../../core/index.js";
 import {
-	fieldKindConfigurations,
-	optional,
-	sequence,
-	// eslint-disable-next-line import-x/no-internal-modules
-} from "../../feature-libraries/default-schema/defaultFieldKinds.js";
-import {
 	type FlexFieldKind,
 	type ModularChangeset,
-	type SequenceField as SF,
 	type EditDescription,
 	genericFieldKind,
 	type EncodedModularChangesetV1,
@@ -39,13 +34,24 @@ import {
 	DefaultIdBasedDataEditor,
 	type IdBasedChangeFamilyDataEditor,
 	DefaultRevisionReplacer,
+	FieldKinds as defaultFieldKinds,
+	fieldKindConfigurations,
 } from "../../feature-libraries/index.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import { newGenericChangeset } from "../../feature-libraries/modular-schema/genericFieldKindTypes.js";
 import {
 	ModularChangeFamily,
 	intoDelta,
 	validateChangeset,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../feature-libraries/modular-schema/modularChangeFamily.js";
+import type {
+	NodeId,
+	// eslint-disable-next-line import-x/no-internal-modules
+} from "../../feature-libraries/modular-schema/modularChangeTypes.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import type { Changeset } from "../../feature-libraries/sequence-field/types.js";
+import { FluidClientVersion, FormatValidatorBasic } from "../../index.js";
 import { brand } from "../../util/index.js";
 import {
 	assertDeltaEqual,
@@ -60,12 +66,6 @@ import {
 	type EncodingTestData,
 } from "../utils.js";
 
-import type {
-	NodeId,
-	// eslint-disable-next-line import-x/no-internal-modules
-} from "../../feature-libraries/modular-schema/modularChangeTypes.js";
-// eslint-disable-next-line import-x/no-internal-modules
-import { MarkMaker } from "./sequence-field/testEdits.js";
 import {
 	assertEqual,
 	assertModularChangesetsEqual,
@@ -76,17 +76,17 @@ import {
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "./modular-schema/modularChangesetUtil.js";
 // eslint-disable-next-line import-x/no-internal-modules
-import { newGenericChangeset } from "../../feature-libraries/modular-schema/genericFieldKindTypes.js";
-import type { SessionId } from "@fluidframework/id-compressor";
-import { FluidClientVersion } from "../../codec/index.js";
-import { FormatValidatorBasic } from "../../external-utilities/index.js";
+import { MarkMaker } from "./sequence-field/testEdits.js";
+
+const sequenceIdentifier = defaultFieldKinds.sequence.identifier;
+const optionalIdentifier = defaultFieldKinds.optional.identifier;
 
 const fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind> = new Map<
 	FieldKindIdentifier,
 	FlexFieldKind
 >([
-	[sequence.identifier, sequence],
-	[optional.identifier, optional],
+	[sequenceIdentifier, defaultFieldKinds.sequence],
+	[optionalIdentifier, defaultFieldKinds.optional],
 ]);
 
 const codecOptions = {
@@ -183,7 +183,7 @@ describe("ModularChangeFamily integration", () => {
 							Change.nodeWithId(
 								0,
 								{ revision: tag1, localId: brand(5) },
-								Change.field(fieldC, sequence.identifier, [
+								Change.field(fieldC, sequenceIdentifier, [
 									MarkMaker.skip(2),
 									MarkMaker.remove(1, brand(7)),
 								]),
@@ -213,7 +213,7 @@ describe("ModularChangeFamily integration", () => {
 						},
 					],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.remove(1, { revision: tag1, localId: brand(0) }),
 					MarkMaker.remove(
 						1,
@@ -231,7 +231,7 @@ describe("ModularChangeFamily integration", () => {
 
 			const sourceChange = Change.build(
 				{ family, maxId: 1 },
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.remove(2, { revision: tag2, localId: brand(0) }),
 				]),
 			);
@@ -255,7 +255,7 @@ describe("ModularChangeFamily integration", () => {
 						},
 					],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.tomb(tag1, brand(0), 2),
 					MarkMaker.remove(1, { revision: tag2, localId: brand(0) }),
 					MarkMaker.rename(
@@ -313,12 +313,12 @@ describe("ModularChangeFamily integration", () => {
 						{ localId: brand(8) },
 						Change.field(
 							fieldA,
-							sequence.identifier,
+							sequenceIdentifier,
 							[MarkMaker.modify(nodeId), MarkMaker.tomb(tag1, brand(0), 2)],
 							Change.nodeWithId(
 								0,
 								nodeId,
-								Change.field(fieldC, sequence.identifier, [
+								Change.field(fieldC, sequenceIdentifier, [
 									MarkMaker.skip(2),
 									MarkMaker.remove(1, brand(7)),
 								]),
@@ -365,12 +365,12 @@ describe("ModularChangeFamily integration", () => {
 				{ family, maxId: 3 },
 				Change.field(
 					fieldB,
-					sequence.identifier,
+					sequenceIdentifier,
 					[],
 					Change.nodeWithId(
 						0,
 						{ localId: brand(3) },
-						Change.field(fieldC, sequence.identifier, [MarkMaker.remove(1, brand(2))]),
+						Change.field(fieldC, sequenceIdentifier, [MarkMaker.remove(1, brand(2))]),
 					),
 				),
 			);
@@ -449,12 +449,12 @@ describe("ModularChangeFamily integration", () => {
 
 			const expected = Change.build(
 				{ family, maxId: 5 },
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.tomb(tag1, brand(0)),
 					MarkMaker.moveOut(1, brand(3)),
 					MarkMaker.moveIn(2, brand(2)),
 				]),
-				Change.field(fieldB, sequence.identifier, [MarkMaker.moveOut(1, brand(2))]),
+				Change.field(fieldB, sequenceIdentifier, [MarkMaker.moveOut(1, brand(2))]),
 			);
 
 			const tag = mintRevisionTag();
@@ -516,7 +516,7 @@ describe("ModularChangeFamily integration", () => {
 				defaultRevisionMetadataFromChanges([taggedMoves]),
 			);
 
-			const fieldAExpected: SF.Changeset = [
+			const fieldAExpected: Changeset = [
 				{ count: 2 },
 				{
 					count: 1,
@@ -524,7 +524,7 @@ describe("ModularChangeFamily integration", () => {
 				},
 			];
 
-			const fieldBExpected: SF.Changeset = [
+			const fieldBExpected: Changeset = [
 				{ count: 2 },
 				{
 					count: 1,
@@ -541,19 +541,19 @@ describe("ModularChangeFamily integration", () => {
 				{ family, maxId: 7 },
 				Change.field(
 					fieldA,
-					sequence.identifier,
+					sequenceIdentifier,
 					fieldAExpected,
 					Change.nodeWithId(
 						0,
 						nodeId1,
 						Change.field(
 							fieldB,
-							sequence.identifier,
+							sequenceIdentifier,
 							fieldBExpected,
 							Change.nodeWithId(
 								0,
 								nodeId2,
-								Change.field(fieldC, sequence.identifier, fieldCExpected),
+								Change.field(fieldC, sequenceIdentifier, fieldCExpected),
 							),
 						),
 					),
@@ -686,19 +686,19 @@ describe("ModularChangeFamily integration", () => {
 				{ family, maxId: 7 },
 				Change.field(
 					fieldA,
-					sequence.identifier,
+					sequenceIdentifier,
 					[MarkMaker.skip(1), MarkMaker.tomb(tag1, brand(3)), MarkMaker.remove(1, brand(6))],
 					Change.nodeWithId(
 						0,
 						{ revision: tag1, localId: brand(5) },
 						Change.field(
 							fieldD,
-							sequence.identifier,
+							sequenceIdentifier,
 							[],
 							Change.nodeWithId(
 								0,
 								{ revision: tag1, localId: brand(2) },
-								Change.field(fieldC, sequence.identifier, [MarkMaker.remove(1, brand(7))]),
+								Change.field(fieldC, sequenceIdentifier, [MarkMaker.remove(1, brand(7))]),
 							),
 						),
 					),
@@ -713,7 +713,7 @@ describe("ModularChangeFamily integration", () => {
 			const nodeDescription = Change.nodeWithId(
 				1,
 				{ revision: tag2, localId: brand(0) },
-				Change.field(fieldB, sequence.identifier, [
+				Change.field(fieldB, sequenceIdentifier, [
 					MarkMaker.remove(1, { revision: tag2, localId: brand(1) }),
 				]),
 			);
@@ -733,7 +733,7 @@ describe("ModularChangeFamily integration", () => {
 					family,
 					maxId: 1,
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.insert(2, { revision: tag1, localId: brand(0) }),
 				]),
 			);
@@ -746,7 +746,7 @@ describe("ModularChangeFamily integration", () => {
 
 			const expected = Change.build(
 				{ family, maxId: 2 },
-				Change.field(fieldA, sequence.identifier, [], nodeDescription),
+				Change.field(fieldA, sequenceIdentifier, [], nodeDescription),
 			);
 
 			assertEqual(rebased, expected);
@@ -768,7 +768,7 @@ describe("ModularChangeFamily integration", () => {
 					],
 					revisions: [{ revision: tag3 }],
 				},
-				Change.field(fieldA, sequence.identifier, [MarkMaker.tomb(tag1, brand(0), 2)]),
+				Change.field(fieldA, sequenceIdentifier, [MarkMaker.tomb(tag1, brand(0), 2)]),
 			);
 
 			// This change renames both detached nodes, but only revives the first one.
@@ -786,7 +786,7 @@ describe("ModularChangeFamily integration", () => {
 					],
 					revisions: [{ revision: tag2 }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.revive(1, origId, { revision: tag2 }),
 				]),
 			);
@@ -811,7 +811,7 @@ describe("ModularChangeFamily integration", () => {
 					],
 					revisions: [{ revision: tag3 }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.remove(1, { revision: tag3, localId: brand(0) }),
 					MarkMaker.tomb(tag1, brand(1), 1),
 				]),
@@ -838,7 +838,7 @@ describe("ModularChangeFamily integration", () => {
 					],
 					revisions: [{ revision: tag3 }],
 				},
-				Change.field(fieldA, sequence.identifier, [MarkMaker.rename(1, origId, newId)]),
+				Change.field(fieldA, sequenceIdentifier, [MarkMaker.rename(1, origId, newId)]),
 			);
 
 			const moveId: ChangeAtomId = { revision: tag2, localId: brand(0) };
@@ -856,7 +856,7 @@ describe("ModularChangeFamily integration", () => {
 					],
 					revisions: [{ revision: tag2 }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.rename(1, origId, moveId),
 					MarkMaker.revive(
 						1,
@@ -878,7 +878,7 @@ describe("ModularChangeFamily integration", () => {
 					maxId: 1,
 					revisions: [{ revision: tag3 }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.tomb(moveId.revision, moveId.localId),
 					MarkMaker.remove(1, newId),
 				]),
@@ -920,7 +920,7 @@ describe("ModularChangeFamily integration", () => {
 							change: Change.nodeWithId(
 								0,
 								{ revision: tag2, localId: brand(2) },
-								Change.field(fieldB, sequence.identifier, [
+								Change.field(fieldB, sequenceIdentifier, [
 									MarkMaker.remove(1, { revision: tag2, localId: brand(1) }),
 								]),
 							),
@@ -928,7 +928,7 @@ describe("ModularChangeFamily integration", () => {
 						},
 					],
 				},
-				Change.field(fieldA, sequence.identifier, [MarkMaker.tomb(tag1, brand(0), 1)]),
+				Change.field(fieldA, sequenceIdentifier, [MarkMaker.tomb(tag1, brand(0), 1)]),
 			);
 
 			assertEqual(rebased, expected);
@@ -1000,7 +1000,7 @@ describe("ModularChangeFamily integration", () => {
 							change: Change.nodeWithId(
 								0,
 								{ revision: tag2, localId: brand(3) },
-								Change.field(fieldB, sequence.identifier, [
+								Change.field(fieldB, sequenceIdentifier, [
 									MarkMaker.remove(1, { revision: tag3, localId: brand(4) }),
 								]),
 							),
@@ -1008,7 +1008,7 @@ describe("ModularChangeFamily integration", () => {
 						},
 					],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.tomb(tag1, brand(0), 1),
 					MarkMaker.tomb(tag2, brand(1), 1),
 				]),
@@ -1032,7 +1032,7 @@ describe("ModularChangeFamily integration", () => {
 							change: Change.nodeWithId(
 								0,
 								{ revision: tag2, localId: brand(3) },
-								Change.field(fieldB, sequence.identifier, [MarkMaker.insert(1, moveId)]),
+								Change.field(fieldB, sequenceIdentifier, [MarkMaker.insert(1, moveId)]),
 							),
 							detachLocation: { nodeId: undefined, field: fieldA },
 						},
@@ -1046,12 +1046,12 @@ describe("ModularChangeFamily integration", () => {
 						},
 					],
 				},
-				Change.field(fieldA, sequence.identifier, [MarkMaker.remove(1, moveId)]),
+				Change.field(fieldA, sequenceIdentifier, [MarkMaker.remove(1, moveId)]),
 			);
 
 			const remove = Change.build(
 				{ family, maxId: 4, revisions: [{ revision: tag3 }] },
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.remove(1, { revision: tag3, localId: brand(4) }),
 				]),
 			);
@@ -1073,7 +1073,7 @@ describe("ModularChangeFamily integration", () => {
 							change: Change.nodeWithId(
 								0,
 								{ revision: tag2, localId: brand(3) },
-								Change.field(fieldB, sequence.identifier, [
+								Change.field(fieldB, sequenceIdentifier, [
 									MarkMaker.remove(1, { revision: tag3, localId: brand(4) }),
 								]),
 							),
@@ -1081,7 +1081,7 @@ describe("ModularChangeFamily integration", () => {
 						},
 					],
 				},
-				Change.field(fieldA, sequence.identifier, [MarkMaker.tomb(tag2, brand(0), 1)]),
+				Change.field(fieldA, sequenceIdentifier, [MarkMaker.tomb(tag2, brand(0), 1)]),
 			);
 
 			assertEqual(rebased, expected);
@@ -1103,7 +1103,7 @@ describe("ModularChangeFamily integration", () => {
 							change: Change.nodeWithId(
 								0,
 								nodeId,
-								Change.field(fieldB, sequence.identifier, [MarkMaker.insert(1, moveId)]),
+								Change.field(fieldB, sequenceIdentifier, [MarkMaker.insert(1, moveId)]),
 							),
 						},
 					],
@@ -1111,8 +1111,8 @@ describe("ModularChangeFamily integration", () => {
 						{ oldId: oldRootId, newId: newRootId, count: 1, detachLocation: undefined },
 					],
 				},
-				Change.field(fieldA, sequence.identifier, [MarkMaker.remove(1, moveId)]),
-				Change.field(fieldC, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [MarkMaker.remove(1, moveId)]),
+				Change.field(fieldC, sequenceIdentifier, [
 					MarkMaker.insert(1, oldRootId, {
 						revision: newRootId.revision,
 						id: newRootId.localId,
@@ -1123,7 +1123,7 @@ describe("ModularChangeFamily integration", () => {
 			const removeId: ChangeAtomId = { revision: tag3, localId: brand(4) };
 			const remove = Change.build(
 				{ family, maxId: 4, revisions: [{ revision: tag3 }] },
-				Change.field(fieldA, sequence.identifier, [MarkMaker.remove(1, removeId)]),
+				Change.field(fieldA, sequenceIdentifier, [MarkMaker.remove(1, removeId)]),
 			);
 
 			const rebased = family.rebase(
@@ -1140,12 +1140,12 @@ describe("ModularChangeFamily integration", () => {
 				},
 				Change.field(
 					fieldC,
-					sequence.identifier,
+					sequenceIdentifier,
 					[],
 					Change.nodeWithId(
 						0,
 						nodeId,
-						Change.field(fieldB, sequence.identifier, [MarkMaker.remove(1, removeId)]),
+						Change.field(fieldB, sequenceIdentifier, [MarkMaker.remove(1, removeId)]),
 					),
 				),
 			);
@@ -1185,7 +1185,7 @@ describe("ModularChangeFamily integration", () => {
 
 			const expected = Change.build(
 				{ family, maxId: 5, revisions: [{ revision: tag2 }] },
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.tomb(tag1, brand(0)),
 					MarkMaker.skip(1),
 					MarkMaker.rename(
@@ -1252,7 +1252,7 @@ describe("ModularChangeFamily integration", () => {
 					],
 					revisions: [{ revision: tag2 }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.rename(1, oldId, { revision: tag2, localId: brand(1) }),
 					MarkMaker.skip(1),
 					MarkMaker.rename(
@@ -1284,7 +1284,7 @@ describe("ModularChangeFamily integration", () => {
 					],
 					revisions: [{ revision: tag1 }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.revive(1, oldId, { revision: tag1 }),
 				]),
 			);
@@ -1305,7 +1305,7 @@ describe("ModularChangeFamily integration", () => {
 					],
 					revisions: [{ revision: tag2 }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.rename(1, oldId, detachCellId),
 					MarkMaker.moveIn(1, moveId),
 				]),
@@ -1319,7 +1319,7 @@ describe("ModularChangeFamily integration", () => {
 
 			const expected = Change.build(
 				{ family, maxId: 1, revisions: [{ revision: tag2 }] },
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.moveOut(1, moveId, { detachCellId }),
 					MarkMaker.moveIn(1, moveId),
 				]),
@@ -1344,8 +1344,8 @@ describe("ModularChangeFamily integration", () => {
 					revisions: [{ revision: tag1 }],
 					maxId: 3,
 				},
-				Change.field(fieldA, sequence.identifier, [MarkMaker.rename(1, oldId, moveId)]),
-				Change.field(fieldB, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [MarkMaker.rename(1, oldId, moveId)]),
+				Change.field(fieldB, sequenceIdentifier, [
 					MarkMaker.rename(1, { revision: tag1, localId: brand(2) }, newId),
 				]),
 			);
@@ -1360,7 +1360,7 @@ describe("ModularChangeFamily integration", () => {
 							change: Change.nodeWithId(
 								0,
 								{ revision: tag2, localId: brand(0) },
-								Change.field(fieldC, sequence.identifier, [
+								Change.field(fieldC, sequenceIdentifier, [
 									MarkMaker.remove(1, { revision: tag2, localId: brand(1) }),
 								]),
 							),
@@ -1369,7 +1369,7 @@ describe("ModularChangeFamily integration", () => {
 					maxId: 1,
 					revisions: [{ revision: tag2 }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.tomb(oldId.revision, oldId.localId, 1),
 				]),
 			);
@@ -1384,7 +1384,7 @@ describe("ModularChangeFamily integration", () => {
 							change: Change.nodeWithId(
 								0,
 								{ revision: tag2, localId: brand(0) },
-								Change.field(fieldC, sequence.identifier, [
+								Change.field(fieldC, sequenceIdentifier, [
 									MarkMaker.remove(1, { revision: tag2, localId: brand(1) }),
 								]),
 							),
@@ -1393,7 +1393,7 @@ describe("ModularChangeFamily integration", () => {
 					maxId: 3,
 					revisions: [{ revision: tag2 }],
 				},
-				Change.field(fieldB, sequence.identifier, [
+				Change.field(fieldB, sequenceIdentifier, [
 					MarkMaker.tomb(newId.revision, newId.localId, 1),
 				]),
 			);
@@ -1501,23 +1501,25 @@ describe("ModularChangeFamily integration", () => {
 			const composedDelta = normalizeDelta(intoDelta(makeAnonChange(composed), fieldKinds));
 
 			const nodeAChanges: DeltaFieldMap = new Map([
-				[fieldB, [{ count: 1, attach: { minor: 1, major: tagForCompare } }]],
+				[fieldB, { marks: [{ count: 1, attach: { minor: 1, major: tagForCompare } }] }],
 			]);
 
 			const nodeBChanges: DeltaFieldMap = new Map([
-				[fieldC, [{ count: 1, attach: { minor: 2, major: tagForCompare } }]],
+				[fieldC, { marks: [{ count: 1, attach: { minor: 2, major: tagForCompare } }] }],
 			]);
 
 			const nodeCChanges: DeltaFieldMap = new Map([
-				[fieldC, [{ count: 1, detach: { minor: 3, major: tagForCompare } }]],
+				[fieldC, { marks: [{ count: 1, detach: { minor: 3, major: tagForCompare } }] }],
 			]);
 
-			const fieldAChanges: DeltaFieldChanges = [
-				{ count: 1, detach: { minor: 0, major: tagForCompare }, fields: nodeAChanges },
-				{ count: 1, attach: { minor: 0, major: tagForCompare } },
-				{ count: 1, detach: { minor: 1, major: tagForCompare }, fields: nodeBChanges },
-				{ count: 1, detach: { minor: 2, major: tagForCompare }, fields: nodeCChanges },
-			];
+			const fieldAChanges: DeltaFieldChanges = {
+				marks: [
+					{ count: 1, detach: { minor: 0, major: tagForCompare }, fields: nodeAChanges },
+					{ count: 1, attach: { minor: 0, major: tagForCompare } },
+					{ count: 1, detach: { minor: 1, major: tagForCompare }, fields: nodeBChanges },
+					{ count: 1, detach: { minor: 2, major: tagForCompare }, fields: nodeCChanges },
+				],
+			};
 
 			const expectedDelta: DeltaRoot = normalizeDelta({
 				fields: new Map([[fieldA, fieldAChanges]]),
@@ -1557,17 +1559,22 @@ describe("ModularChangeFamily integration", () => {
 				fields: new Map([
 					[
 						fieldA,
-						[
-							{
-								count: 1,
-								detach: { minor: 0, major: tagForCompare },
-								fields: new Map([
-									[fieldC, [{ count: 1, attach: { minor: 2, major: tagForCompare } }]],
-								]),
-							},
-						],
+						{
+							marks: [
+								{
+									count: 1,
+									detach: { minor: 0, major: tagForCompare },
+									fields: new Map([
+										[
+											fieldC,
+											{ marks: [{ count: 1, attach: { minor: 2, major: tagForCompare } }] },
+										],
+									]),
+								},
+							],
+						},
 					],
-					[fieldB, [{ count: 1, attach: { minor: 0, major: tagForCompare } }]],
+					[fieldB, { marks: [{ count: 1, attach: { minor: 0, major: tagForCompare } }] }],
 				]),
 			};
 
@@ -1621,13 +1628,17 @@ describe("ModularChangeFamily integration", () => {
 				fields: new Map([
 					[
 						fieldB,
-						[
-							{ count: 1 },
-							{
-								count: 1,
-								fields: new Map([[fieldC, [{ count: 1, attach: { major: tag2, minor: 2 } }]]]),
-							},
-						],
+						{
+							marks: [
+								{ count: 1 },
+								{
+									count: 1,
+									fields: new Map([
+										[fieldC, { marks: [{ count: 1, attach: { major: tag2, minor: 2 } }] }],
+									]),
+								},
+							],
+						},
 					],
 				]),
 			};
@@ -1676,17 +1687,17 @@ describe("ModularChangeFamily integration", () => {
 					maxId: 3,
 					revisions: [{ revision: tag1 }, { revision: tag2 }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.remove(1, id2, { detachCellId: id1 }),
 				]),
-				Change.field(fieldB, sequence.identifier, [
+				Change.field(fieldB, sequenceIdentifier, [
 					MarkMaker.rename(
 						1,
 						{ revision: tag1, localId: brand(1) },
 						{ revision: tag2, localId: brand(2) },
 					),
 				]),
-				Change.field(fieldC, sequence.identifier, [
+				Change.field(fieldC, sequenceIdentifier, [
 					MarkMaker.insert(1, { revision: tag2, localId: brand(3) }, { id: id2.localId }),
 				]),
 			);
@@ -1728,7 +1739,7 @@ describe("ModularChangeFamily integration", () => {
 				{ family, maxId: 5, revisions: [{ revision: tag1 }, { revision: tag2 }] },
 				Change.field(
 					fieldA,
-					sequence.identifier,
+					sequenceIdentifier,
 					[
 						MarkMaker.insert(1, { revision: tag1, localId: brand(1) }, { id: brand(0) }),
 						MarkMaker.remove(1, { revision: tag1, localId: brand(0) }),
@@ -1736,7 +1747,7 @@ describe("ModularChangeFamily integration", () => {
 					Change.nodeWithId(
 						0,
 						{ revision: tag1, localId: brand(3) },
-						Change.field(fieldB, sequence.identifier, [
+						Change.field(fieldB, sequenceIdentifier, [
 							MarkMaker.remove(1, { revision: tag1, localId: brand(2) }),
 							MarkMaker.remove(1, { revision: tag2, localId: brand(4) }),
 						]),
@@ -1785,7 +1796,7 @@ describe("ModularChangeFamily integration", () => {
 					revisions: [{ revision: tag1 }, { revision: tag2 }],
 				},
 
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.remove(1, detachId, {
 						detachCellId,
 					}),
@@ -1849,7 +1860,7 @@ describe("ModularChangeFamily integration", () => {
 					revisions: [{ revision: tag1 }, { revision: tag2 }],
 				},
 
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.rename(1, oldId, { revision: tag1, localId: brand(1) }),
 					MarkMaker.skip(1),
 					MarkMaker.rename(1, { revision: tag1, localId: brand(2) }, newId),
@@ -1903,7 +1914,7 @@ describe("ModularChangeFamily integration", () => {
 					detachedMoves: [{ detachId, count: 1, newLocation: fieldAId }],
 					revisions: [{ revision: tag1 }, { revision: tag2 }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.remove(
 						1,
 						{ revision: tag2, localId: brand(3) },
@@ -1945,7 +1956,7 @@ describe("ModularChangeFamily integration", () => {
 					],
 					detachedMoves: [{ detachId: newId, count: 1, newLocation: fieldAId }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.rename(1, oldId, cellId1),
 					MarkMaker.rename(1, cellId2, newId),
 				]),
@@ -1959,7 +1970,7 @@ describe("ModularChangeFamily integration", () => {
 					revisions: [{ revision: tag2 }],
 					renames: [{ oldId: newId, count: 1, newId: attachId, detachLocation: fieldAId }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.tomb(cellId1.revision, cellId1.localId, 1),
 					MarkMaker.insert(1, newId, { revision: attachId.revision, id: attachId.localId }),
 				]),
@@ -1977,7 +1988,7 @@ describe("ModularChangeFamily integration", () => {
 					revisions: [{ revision: tag1 }, { revision: tag2 }],
 					renames: [{ oldId, count: 1, newId: attachId, detachLocation: fieldAId }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.rename(1, oldId, cellId1),
 					MarkMaker.insert(1, cellId2, { revision: attachId.revision, id: attachId.localId }),
 				]),
@@ -1998,7 +2009,7 @@ describe("ModularChangeFamily integration", () => {
 					revisions: [{ revision: tag1 }],
 					detachedMoves: [{ detachId, count: 1, newLocation: fieldAId }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.remove(1, detachId, { detachCellId: cellId1 }),
 					MarkMaker.rename(1, cellId2, detachId),
 				]),
@@ -2012,7 +2023,7 @@ describe("ModularChangeFamily integration", () => {
 					revisions: [{ revision: tag2 }],
 					renames: [{ oldId: detachId, count: 1, newId: attachId, detachLocation: fieldAId }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.tomb(cellId1.revision, cellId1.localId, 1),
 					MarkMaker.insert(1, detachId, { revision: attachId.revision, id: attachId.localId }),
 				]),
@@ -2029,7 +2040,7 @@ describe("ModularChangeFamily integration", () => {
 					maxId: 2,
 					revisions: [{ revision: tag1 }, { revision: tag2 }],
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.remove(1, attachId, { detachCellId: cellId1 }),
 					MarkMaker.insert(1, cellId2, { revision: attachId.revision, id: attachId.localId }),
 				]),
@@ -2096,15 +2107,15 @@ describe("ModularChangeFamily integration", () => {
 							},
 						],
 					},
-					Change.field(fieldA, sequence.identifier, fieldAExpected),
+					Change.field(fieldA, sequenceIdentifier, fieldAExpected),
 					Change.field(
 						fieldB,
-						sequence.identifier,
+						sequenceIdentifier,
 						fieldBExpected,
 						Change.nodeWithId(
 							0,
 							{ revision: tag1, localId: brand(1) },
-							Change.field(fieldC, sequence.identifier, fieldCExpected),
+							Change.field(fieldC, sequenceIdentifier, fieldCExpected),
 						),
 					),
 				),
@@ -2175,7 +2186,7 @@ describe("ModularChangeFamily integration", () => {
 
 			const inverse = removeAliases(family.invert(tagChangeInline(moves, tag1), false, tag2));
 
-			const fieldAExpected: SF.Changeset = [
+			const fieldAExpected: Changeset = [
 				MarkMaker.moveOut(1, brand(0)),
 				{ count: 1 },
 				MarkMaker.returnTo(1, brand(0), { revision: tag1, localId: brand(0) }),
@@ -2211,19 +2222,19 @@ describe("ModularChangeFamily integration", () => {
 					},
 					Change.field(
 						fieldA,
-						sequence.identifier,
+						sequenceIdentifier,
 						fieldAExpected,
 						Change.nodeWithId(
 							0,
 							nodeId1,
 							Change.field(
 								fieldB,
-								sequence.identifier,
+								sequenceIdentifier,
 								fieldBExpected,
 								Change.nodeWithId(
 									0,
 									nodeId2,
-									Change.field(fieldC, sequence.identifier, fieldCExpected),
+									Change.field(fieldC, sequenceIdentifier, fieldCExpected),
 								),
 							),
 						),
@@ -2273,7 +2284,7 @@ describe("ModularChangeFamily integration", () => {
 					revisions: [{ revision: tag4 }],
 					maxId: 3,
 				},
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.insert(1, id2Undo, { cellId: originalDetachCellId }),
 					MarkMaker.tomb(id2Original.revision, id2Original.localId, 1),
 					MarkMaker.remove(1, id2Undo),
@@ -2287,7 +2298,7 @@ describe("ModularChangeFamily integration", () => {
 			// This tests undoing a single insert mark representing a move of the first node and an insert of the second.
 			const change = Change.build(
 				{ family, maxId: 3 },
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.insert(2, brand(2), { id: brand(0) }),
 					MarkMaker.remove(1, brand(0)),
 				]),
@@ -2296,7 +2307,7 @@ describe("ModularChangeFamily integration", () => {
 			const inverse = family.invert(tagChangeInline(change, tag1), false, tag2);
 			const expected = Change.build(
 				{ family, maxId: 3, revisions: [{ revision: tag2 }] },
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.remove(2, { revision: tag2, localId: brand(0) }),
 					MarkMaker.insert(1, { revision: tag1, localId: brand(0) }, { revision: tag2 }),
 				]),
@@ -2316,12 +2327,12 @@ describe("ModularChangeFamily integration", () => {
 							change: Change.nodeWithId(
 								0,
 								{ localId: brand(2) },
-								Change.field(fieldB, sequence.identifier, [MarkMaker.remove(1, brand(3))]),
+								Change.field(fieldB, sequenceIdentifier, [MarkMaker.remove(1, brand(3))]),
 							),
 						},
 					],
 				},
-				Change.field(fieldA, sequence.identifier, [MarkMaker.insert(2, brand(0))]),
+				Change.field(fieldA, sequenceIdentifier, [MarkMaker.insert(2, brand(0))]),
 			);
 
 			const taggedChange = tagChangeInline(change, tag1);
@@ -2331,12 +2342,12 @@ describe("ModularChangeFamily integration", () => {
 				{ family, maxId: 3, revisions: [{ revision: tag2, rollbackOf: tag1 }] },
 				Change.field(
 					fieldA,
-					sequence.identifier,
+					sequenceIdentifier,
 					[MarkMaker.remove(2, { revision: tag1, localId: brand(0) })],
 					Change.nodeWithId(
 						1,
 						{ revision: tag1, localId: brand(2) },
-						Change.field(fieldB, sequence.identifier, [
+						Change.field(fieldB, sequenceIdentifier, [
 							MarkMaker.insert(1, { revision: tag1, localId: brand(3) }),
 						]),
 					),
@@ -2356,7 +2367,7 @@ describe("ModularChangeFamily integration", () => {
 						parent: undefined,
 						field: brand("foo"),
 					},
-					fieldKind: sequence.identifier,
+					fieldKind: sequenceIdentifier,
 					change: brand([
 						MarkMaker.moveOut(1, { revision: tag1, localId: brand(0) }),
 						MarkMaker.moveIn(1, { revision: tag1, localId: brand(0) }),
@@ -2369,7 +2380,7 @@ describe("ModularChangeFamily integration", () => {
 						parent: undefined,
 						field: brand("bar"),
 					},
-					fieldKind: sequence.identifier,
+					fieldKind: sequenceIdentifier,
 					change: brand([
 						MarkMaker.moveOut(2, { revision: tag2, localId: brand(0) }),
 						MarkMaker.moveIn(2, { revision: tag2, localId: brand(0) }),
@@ -2396,8 +2407,8 @@ describe("ModularChangeFamily integration", () => {
 			};
 			const expected: DeltaRoot = {
 				fields: new Map([
-					[brand("foo"), [moveOut1, moveIn1]],
-					[brand("bar"), [moveOut2, moveIn2]],
+					[brand("foo"), { marks: [moveOut1, moveIn1] }],
+					[brand("bar"), { marks: [moveOut2, moveIn2] }],
 				]),
 			};
 			const actual = intoDelta(makeAnonChange(change), family.fieldKinds);
@@ -2431,7 +2442,7 @@ describe("ModularChangeFamily integration", () => {
 				],
 				revisions,
 			},
-			Change.field(fieldA, sequence.identifier, [
+			Change.field(fieldA, sequenceIdentifier, [
 				MarkMaker.revive(2, { revision: tag2, localId: brand(0) }, { revision: tag1 }),
 			]),
 		);
@@ -2451,7 +2462,7 @@ describe("ModularChangeFamily integration", () => {
 						change: Change.nodeWithId(
 							0,
 							{ revision: tag1, localId: brand(1) },
-							Change.field(fieldB, sequence.identifier, [
+							Change.field(fieldB, sequenceIdentifier, [
 								MarkMaker.remove(1, { revision: tag1, localId: brand(0) }),
 							]),
 						),
@@ -2459,7 +2470,7 @@ describe("ModularChangeFamily integration", () => {
 				],
 				revisions,
 			},
-			Change.field(fieldA, sequence.identifier, [MarkMaker.tomb(tag2, brand(0))]),
+			Change.field(fieldA, sequenceIdentifier, [MarkMaker.tomb(tag2, brand(0))]),
 		);
 
 		const editDetachedInOptional = Change.build(
@@ -2473,7 +2484,7 @@ describe("ModularChangeFamily integration", () => {
 						change: Change.nodeWithId(
 							0,
 							{ revision: tag1, localId: brand(1) },
-							Change.field(fieldB, sequence.identifier, [
+							Change.field(fieldB, sequenceIdentifier, [
 								MarkMaker.remove(1, { revision: tag1, localId: brand(0) }),
 							]),
 						),
@@ -2481,7 +2492,7 @@ describe("ModularChangeFamily integration", () => {
 				],
 				revisions,
 			},
-			Change.field(fieldA, optional.identifier, {}),
+			Change.field(fieldA, optionalIdentifier, {}),
 		);
 
 		const compositeMove = buildTransaction((editor) => {
@@ -2503,7 +2514,7 @@ describe("ModularChangeFamily integration", () => {
 			// - move from cell 1 to cell 3
 			return Change.build(
 				{ family, maxId: 5, revisions },
-				Change.field(fieldA, sequence.identifier, [
+				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.remove(1, detachId3, {
 						detachCellId: detachId1,
 						cellRename: detachId3,
@@ -2536,7 +2547,7 @@ describe("ModularChangeFamily integration", () => {
 				],
 				revisions,
 			},
-			Change.field(fieldA, sequence.identifier, [
+			Change.field(fieldA, sequenceIdentifier, [
 				MarkMaker.rename(1, oldId, moveOutId),
 				MarkMaker.revive(1, moveInId, { revision: tag1 }),
 			]),
@@ -2556,7 +2567,7 @@ describe("ModularChangeFamily integration", () => {
 				],
 				revisions,
 			},
-			Change.field(fieldA, sequence.identifier, [
+			Change.field(fieldA, sequenceIdentifier, [
 				MarkMaker.rename(1, oldId, moveInId),
 				MarkMaker.revive(1, moveInId, { revision: tag1 }),
 			]),
@@ -2578,7 +2589,7 @@ describe("ModularChangeFamily integration", () => {
 				detachedMoves: [{ detachId: removeId, count: 1, newLocation: fieldAId }],
 				revisions,
 			},
-			Change.field(fieldA, sequence.identifier, [
+			Change.field(fieldA, sequenceIdentifier, [
 				MarkMaker.rename(1, oldId, moveOutId),
 				MarkMaker.rename(1, moveInId, removeId),
 			]),
@@ -2598,7 +2609,7 @@ describe("ModularChangeFamily integration", () => {
 				],
 				revisions,
 			},
-			Change.field(fieldA, sequence.identifier, [MarkMaker.rename(1, oldId, removeId)]),
+			Change.field(fieldA, sequenceIdentifier, [MarkMaker.rename(1, oldId, removeId)]),
 		);
 
 		const renameInOptional = Change.build(
@@ -2615,7 +2626,7 @@ describe("ModularChangeFamily integration", () => {
 				],
 				revisions,
 			},
-			Change.field(fieldA, optional.identifier, {}),
+			Change.field(fieldA, optionalIdentifier, {}),
 		);
 
 		const fieldBId = { nodeId: undefined, field: fieldB };
@@ -2627,8 +2638,8 @@ describe("ModularChangeFamily integration", () => {
 				revisions,
 				maxId: 3,
 			},
-			Change.field(fieldA, sequence.identifier, [MarkMaker.rename(1, oldId, moveOutId)]),
-			Change.field(fieldB, sequence.identifier, [MarkMaker.rename(1, moveInId, removeId)]),
+			Change.field(fieldA, sequenceIdentifier, [MarkMaker.rename(1, oldId, moveOutId)]),
+			Change.field(fieldB, sequenceIdentifier, [MarkMaker.rename(1, moveInId, removeId)]),
 		);
 
 		const moveDetachedWithCellDetachId = family.rebase(

@@ -3,14 +3,13 @@
  * Licensed under the MIT License.
  */
 
+import { takeAsync, type AsyncGenerator } from "@fluid-private/stochastic-test-utils";
 import {
 	createDDSFuzzSuite,
 	type DDSFuzzModel,
 	type DDSFuzzSuiteOptions,
 	type DDSFuzzTestState,
 } from "@fluid-private/test-dds-utils";
-import type { ITree } from "../../../simple-tree/index.js";
-import { configuredSharedTree, type ISharedTree } from "../../../treeFactory.js";
 import type {
 	IChannel,
 	IChannelAttributes,
@@ -18,34 +17,46 @@ import type {
 	IChannelServices,
 	IFluidDataStoreRuntime,
 } from "@fluidframework/datastore-definitions/internal";
+import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
+
+import { ITree } from "../../../simple-tree/index.js";
+import { configuredSharedTree, type ISharedTree } from "../../../treeFactory.js";
+import { validateFuzzTreeConsistency } from "../../utils.js";
+
 import {
-	createOnCreate,
+	makeOpGenerator,
+	type EditGeneratorOpWeights,
+	type FuzzView,
+} from "./fuzzEditGenerators.js";
+import { fuzzReducer } from "./fuzzEditReducers.js";
+import {
+	createTreeViewSchema,
+	defaultTreePackageStatics,
 	deterministicIdCompressorFactory,
 	failureDirectory,
-	type SharedTreeFuzzTestFactory,
+	treeToPackageStatics,
+	type TreePackageStatics,
 } from "./fuzzUtils.js";
 import type { Operation } from "./operationTypes.js";
-import { pkgVersion } from "../../../packageVersion.js";
-import { generatorFactory } from "./baseModel.js";
-import { fuzzReducer } from "./fuzzEditReducers.js";
-import { SharedTreeTestFactory, validateFuzzTreeConsistency } from "../../utils.js";
 
-export function createCompatFuzzSuite(factoryForCompat: IChannelFactory<ITree>) {
+export function createCompatFuzzSuite(
+	factoryForCompat: IChannelFactory<ITree>,
+	compatPackageStatics: TreePackageStatics,
+	compatVersion: MinimumVersionForCollab,
+) {
 	const compatFuzzModel: DDSFuzzModel<
-		SharedTreeFuzzTestFactory,
+		CompatTestTreeFactory,
 		Operation,
-		DDSFuzzTestState<SharedTreeFuzzTestFactory>
+		DDSFuzzTestState<CompatTestTreeFactory>
 	> = {
 		workloadName: "SharedTree Compat",
-		factory: new SharedTreeTestFactory(
-			new CompatTestTreeFactory(
-				// factoryForCompat as IChannelFactory<ISharedTree>,
-				currentFactory as IChannelFactory<ISharedTree>,
-				currentFactory as IChannelFactory<ISharedTree>,
-			),
-			createOnCreate(undefined),
-			undefined,
-		),
+		factory: new CompatTestTreeFactory([
+			[factoryForCompat as IChannelFactory<ISharedTree>, compatPackageStatics],
+			[
+				makeFactorySupportingVersion(compatVersion) as IChannelFactory<ISharedTree>,
+				defaultTreePackageStatics,
+			],
+		]),
 		generatorFactory,
 		reducer: fuzzReducer,
 		validateConsistency: validateFuzzTreeConsistency,
@@ -53,6 +64,30 @@ export function createCompatFuzzSuite(factoryForCompat: IChannelFactory<ITree>) 
 
 	createDDSFuzzSuite(compatFuzzModel, options);
 }
+
+// TODO: Enable other types of ops.
+// AB#11436: Currently manually disposing the view when applying the schema op is causing a double dispose issue. Once this issue has been resolved, re-enable schema ops.
+const editGeneratorOpWeights: Partial<EditGeneratorOpWeights> = {
+	set: 3,
+	clear: 1,
+	insert: 5,
+	remove: 5,
+	intraFieldMove: 5,
+	crossFieldMove: 5,
+	start: 1,
+	commit: 1,
+	abort: 1,
+	fieldSelection: { optional: 1, required: 1, sequence: 3, recurse: 3 },
+	schema: 0,
+	nodeConstraint: 0, // XXX: Support node constraints.
+	fork: 1,
+	merge: 1,
+};
+
+const generatorFactory = (): AsyncGenerator<
+	Operation,
+	DDSFuzzTestState<IChannelFactory<ISharedTree>>
+> => takeAsync(100, makeOpGenerator(editGeneratorOpWeights));
 
 const baseOptions: Partial<DDSFuzzSuiteOptions> = {
 	numberOfClients: 3,
@@ -82,23 +117,27 @@ const options: Partial<DDSFuzzSuiteOptions> = {
 	},
 	reconnectProbability: 0.1,
 	idCompressorFactory: deterministicIdCompressorFactory(0xdeadbeef),
+	skipMinimization: true,
 };
 
-const currentFactory = configuredSharedTree({ minVersionForCollab: pkgVersion }).getFactory();
+function makeFactorySupportingVersion(
+	version: MinimumVersionForCollab,
+): IChannelFactory<ITree> {
+	return configuredSharedTree({ minVersionForCollab: version }).getFactory();
+}
 
 class CompatTestTreeFactory implements IChannelFactory<ISharedTree> {
-	private lastUsedIdx = 1;
+	private lastUsedIdx = -1;
 
 	public get type(): string {
-		return this.factory1.type;
+		return this.factories[0][0].type;
 	}
 	public get attributes(): IChannelAttributes {
-		return this.factory1.attributes;
+		return this.factories[0][0].attributes;
 	}
 
 	public constructor(
-		private readonly factory1: IChannelFactory<ISharedTree>,
-		private readonly factory2: IChannelFactory<ISharedTree>,
+		private readonly factories: readonly [IChannelFactory<ISharedTree>, TreePackageStatics][],
 	) {}
 
 	public async load(
@@ -107,15 +146,30 @@ class CompatTestTreeFactory implements IChannelFactory<ISharedTree> {
 		services: IChannelServices,
 		channelAttributes: Readonly<IChannelAttributes>,
 	): Promise<ISharedTree & IChannel> {
-		return this.getInnerFactory().load(runtime, id, services, channelAttributes);
+		const [factory, statics] = this.getInnerFactory();
+		const tree = await factory.load(runtime, id, services, channelAttributes);
+		treeToPackageStatics.set(tree, statics);
+		return tree;
 	}
 
 	public create(runtime: IFluidDataStoreRuntime, id: string): ISharedTree & IChannel {
-		return this.getInnerFactory().create(runtime, id);
+		const [factory, statics] = this.getInnerFactory();
+		const tree = factory.create(runtime, id);
+		treeToPackageStatics.set(tree, statics);
+
+		const view = tree.viewWith(
+			statics.newTreeViewConfiguration({
+				schema: createTreeViewSchema([], statics.newSchemaFactory),
+			}),
+		);
+		(view as FuzzView).initialize(undefined);
+		view.dispose();
+
+		return tree;
 	}
 
-	private getInnerFactory(): IChannelFactory<ISharedTree> {
-		this.lastUsedIdx = (this.lastUsedIdx + 1) % 2;
-		return this.lastUsedIdx === 1 ? this.factory1 : this.factory2;
+	private getInnerFactory(): [IChannelFactory<ISharedTree>, TreePackageStatics] {
+		this.lastUsedIdx = (this.lastUsedIdx + 1) % this.factories.length;
+		return this.factories[this.lastUsedIdx];
 	}
 }
