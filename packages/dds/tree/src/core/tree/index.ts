@@ -88,7 +88,6 @@ export {
 	keyAsDetachedField,
 	rootFieldKey,
 	type NodeData,
-	NodeSource,
 	rootField,
 	aboveRootPlaceholder,
 } from "./types.js";

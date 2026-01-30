@@ -93,7 +93,7 @@ export class LocationBasedDataEditor
 			},
 			attach: (newContent: DetachedRootLocation): void => {
 				const changeAtom = locator.idFromLocation(newContent);
-				validateNodeSource(changeAtom, locator);
+				validateIsAttachable(changeAtom, locator);
 				lowLevelEditor.attach(changeAtom);
 			},
 		};
@@ -116,7 +116,7 @@ export class LocationBasedDataEditor
 					return;
 				}
 				const changeAtom = locator.idFromLocation(newContent);
-				validateNodeSource(changeAtom, locator);
+				validateIsAttachable(changeAtom, locator);
 				lowLevelEditor.attach(changeAtom, wasEmpty);
 			},
 			clear: (wasEmpty: boolean): void => {
@@ -150,7 +150,7 @@ export class LocationBasedDataEditor
 			},
 			attach: (index: number, newContent: DetachedRootsLocation): void => {
 				const range = locator.idRangesFromLocations(newContent);
-				validateNodeSources(range, locator);
+				validateAreAttachable(range, locator);
 				lowLevelEditor.attach(index, range);
 			},
 			remove: (index: number, count: number): void => {
@@ -193,16 +193,16 @@ function normalizeFieldUpPath(path: FieldUpPath, locator: Locator): NormalizedFi
 	}
 }
 
-function validateNodeSources(nodeIds: DetachedRootIds, locator: Locator): void {
+function validateAreAttachable(nodeIds: DetachedRootIds, locator: Locator): void {
 	for (const idRange of nodeIds) {
 		const baseAtom = idRange.first;
 		for (let idOffset = 0; idOffset < idRange.count; idOffset++) {
-			validateNodeSource(offsetChangeAtomId(baseAtom, idOffset), locator);
+			validateIsAttachable(offsetChangeAtomId(baseAtom, idOffset), locator);
 		}
 	}
 }
 
-function validateNodeSource(nodeId: ChangeAtomId, locator: Locator): void {
+function validateIsAttachable(nodeId: ChangeAtomId, locator: Locator): void {
 	const isAttachable = locator.isAttachable(nodeId);
 	if (!(isAttachable ?? false)) {
 		throw new UsageError(
