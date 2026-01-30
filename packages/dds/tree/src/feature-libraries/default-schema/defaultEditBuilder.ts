@@ -249,6 +249,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 			fieldKinds,
 			changeReceiver,
 			codecOptions,
+			options,
 		);
 	}
 
