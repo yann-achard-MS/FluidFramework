@@ -72,7 +72,6 @@ export {
 	rebaseRevisionMetadataFromInfo,
 	intoDelta,
 	relevantRemovedRoots,
-	getBuildIds,
 	updateRefreshers,
 } from "./modularChangeFamily.js";
 export { makeModularChangeCodecFamily } from "./modularChangeCodecs.js";

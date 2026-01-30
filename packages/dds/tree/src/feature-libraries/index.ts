@@ -145,7 +145,6 @@ export {
 	fieldKindConfigurations,
 	intoDelta,
 	relevantRemovedRoots,
-	getBuildsIds,
 	type DetachedRootLocation,
 	type DetachedRootsLocation,
 	type DetachedRootIdRange,

@@ -290,7 +290,6 @@ describe("SharedTreeChangeFamily", () => {
 		};
 
 		interface MockChange {
-			readonly builds?: DeltaDetachedNodeId[];
 			readonly relevant?: DeltaDetachedNodeId[];
 			readonly refreshers?: string[];
 		}
@@ -327,9 +326,6 @@ describe("SharedTreeChangeFamily", () => {
 			deepFreeze(input);
 			const updated = updateRefreshers(
 				input,
-				// Mock for buildsFromDataChange
-				(change): Iterable<DeltaDetachedNodeId> =>
-					(change as unknown as MockChange).builds ?? [],
 				// Mock for getDetachedNode
 				(id): TreeChunk | undefined => {
 					switch (id) {
@@ -386,15 +382,6 @@ describe("SharedTreeChangeFamily", () => {
 			];
 			const updated = testUpdateRefreshers(input);
 			assert.deepEqual(updated, [[refresher1], [refresher2], []]);
-		});
-		it("excludes refreshers for builds", () => {
-			const input: MockChange[] = [
-				{ builds: [idInForest1], relevant: [idInForest1] },
-				{ builds: [idInForest2], relevant: [idInForest1, idInForest2] },
-				{ relevant: [idInForest1, idInForest2] },
-			];
-			const updated = testUpdateRefreshers(input);
-			assert.deepEqual(updated, [[], [], []]);
 		});
 		it("throws for missing refreshers in first data change", () => {
 			const input: MockChange[] = [{ relevant: [idNotInForest] }];

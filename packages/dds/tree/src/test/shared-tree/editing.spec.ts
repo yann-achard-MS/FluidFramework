@@ -27,6 +27,7 @@ import {
 	numberSchema,
 	SchemaFactory,
 	toInitialSchema,
+	toUpgradeSchema,
 	TreeArrayNode,
 	TreeViewConfiguration,
 } from "../../simple-tree/index.js";
@@ -2940,9 +2941,6 @@ describe("Editing", () => {
 	});
 
 	describe("Detached nodes - with any format", () => {
-		const minVersionForCollabError = validateUsageError(
-			`Attach edits require a minimum version for collaboration >= TBD.`,
-		);
 		describeForAllFormats(
 			"can be attached anywhere if they have no associated cell",
 			(options) => {
@@ -3731,6 +3729,62 @@ describe("Editing", () => {
 					assert.equal(hydratedObjectOnB.child, undefined);
 				},
 			});
+		});
+
+		describeForFormatsWithDetachedRoots({
+			title: "Does not include refreshers for nodes built in the same commit",
+			testFn: (options) => {
+				const sf = new SchemaFactory(undefined);
+				const startSchema = sf.array("array", sf.number);
+				const changedSchema = sf.array("array", [sf.string, sf.number]);
+				const provider = new TestTreeProviderLite(
+					2,
+					configuredSharedTree(options).getFactory(),
+				);
+				const config1 = new TreeViewConfiguration({
+					schema: startSchema,
+				});
+				const treeA = provider.trees[0];
+				const treeB = provider.trees[1];
+				const viewA1 = treeA.viewWith(config1);
+				viewA1.initialize([]);
+				provider.synchronizeMessages();
+
+				const checkoutA = treeA.kernel.checkout;
+				const checkoutB = treeB.kernel.checkout;
+
+				let received = 0;
+				checkoutB.mainBranch.events.on("afterChange", ({ change }) => {
+					const changes = change?.change.changes;
+					assert(changes?.length === 3);
+					for (const { type, innerChange } of changes) {
+						if (type === "data") {
+							received++;
+							assert(innerChange.refreshers === undefined);
+						}
+					}
+				});
+
+				checkoutA.transaction.start();
+				const content = ["X", "Y", "Z"];
+				const roots = checkoutA.editor.buildRoots(chunkFromJsonTrees(content));
+				checkoutA.updateSchema(toUpgradeSchema(changedSchema));
+				checkoutA.editor.sequenceField({ parent: rootNode, field: EmptyKey }).attach(0, roots);
+				checkoutA.transaction.commit();
+				viewA1.dispose();
+
+				provider.synchronizeMessages();
+
+				const config2 = new TreeViewConfiguration({
+					schema: changedSchema,
+				});
+				const viewA2 = treeA.viewWith(config2);
+				const viewB2 = treeB.viewWith(config2);
+				assert.deepEqual([...viewA2.root], content);
+				assert.deepEqual([...viewB2.root], content);
+
+				assert.equal(received, 2);
+			},
 		});
 	});
 

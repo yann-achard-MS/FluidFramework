@@ -2257,14 +2257,6 @@ export function* relevantRemovedRoots(
 	}
 }
 
-export function* getBuildIds(change: ModularChangeset): Iterable<DeltaDetachedNodeId> {
-	if (change.builds !== undefined) {
-		for (const [[revision, localId]] of change.builds.entries()) {
-			yield makeDetachedNodeId(revision, localId);
-		}
-	}
-}
-
 function addAttachesToSet(
 	change: ModularChangeset,
 	rootIds: ChangeAtomIdRangeMap<boolean>,
