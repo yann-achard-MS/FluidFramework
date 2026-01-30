@@ -69,6 +69,12 @@ export interface ReadOnlyDetachedFieldIndex {
 	 * Fails if no such id is known to the index.
 	 */
 	getEntry(id: Delta.DetachedNodeId): ForestRootId;
+
+	/**
+	 * Returns the source associated with the given id if any.
+	 * @param id - The detached node ID.
+	 */
+	isAttachable(id: Delta.DetachedNodeId): boolean | undefined;
 }
 
 /**
@@ -223,6 +229,10 @@ export class DetachedFieldIndex implements ReadOnlyDetachedFieldIndex {
 		return key;
 	}
 
+	public isAttachable(id: Delta.DetachedNodeId): boolean | undefined {
+		return tryGetFromNestedMap(this.detachedNodeToField, id.major, id.minor)?.isAttachable;
+	}
+
 	/**
 	 * Returns the detached root IDs for all the trees that were detached or last modified by the given revision.
 	 */
@@ -275,6 +285,7 @@ export class DetachedFieldIndex implements ReadOnlyDetachedFieldIndex {
 	public createEntry(
 		nodeId?: Delta.DetachedNodeId,
 		revision?: RevisionTag,
+		isAttachable?: boolean,
 		count: number = 1,
 	): ForestRootId {
 		const root = this.rootIdAllocator.allocate(count);
@@ -288,6 +299,7 @@ export class DetachedFieldIndex implements ReadOnlyDetachedFieldIndex {
 				setInNestedMap(this.detachedNodeToField, nodeId.major, nodeId.minor + i, {
 					root: brand<ForestRootId>(root + i),
 					latestRelevantRevision: revision,
+					isAttachable,
 				});
 				setInNestedMap(this.latestRelevantRevisionToFields, revision, root + i, {
 					major: nodeId.major,

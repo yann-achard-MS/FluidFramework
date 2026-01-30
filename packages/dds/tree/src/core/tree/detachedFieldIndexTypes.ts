@@ -49,4 +49,9 @@ export interface DetachedField {
 	 * `DetachedField` and `Forest` are GC-ed.
 	 */
 	readonly latestRelevantRevision?: RevisionTag;
+
+	/**
+	 * Indicates whether the corresponding root can safely be re-attached.
+	 */
+	readonly isAttachable?: boolean;
 }

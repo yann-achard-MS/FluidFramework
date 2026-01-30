@@ -49,7 +49,7 @@ const childChange1 = TestNodeId.create(nodeId1, TestChange.mint([0], 1));
 const childChange1Delta = TestChange.toDelta(tagChange(childChange1.testChange, tag));
 const detachId = { major: tag, minor: 42 };
 
-export const emptyFieldChanges: DeltaFieldChanges = { marks: [] };
+export const emptyFieldChanges: DeltaFieldChanges = { marks: [], allowReattach: true };
 
 export function testToDelta(): void {
 	describe("toDelta", () => {
@@ -60,7 +60,10 @@ export function testToDelta(): void {
 
 		it("child change", () => {
 			const actual = toDelta(inlineRevision(Change.modify(0, childChange1), tag));
-			const expected: DeltaFieldChanges = { marks: [{ count: 1, fields: childChange1Delta }] };
+			const expected: DeltaFieldChanges = {
+				marks: [{ count: 1, fields: childChange1Delta }],
+				allowReattach: true,
+			};
 			assert.deepEqual(actual, expected);
 		});
 
@@ -96,6 +99,7 @@ export function testToDelta(): void {
 						attach: { major: tag, minor: 0 },
 					},
 				],
+				allowReattach: true,
 			};
 			assertFieldChangesEqual(actual, expected);
 		});
@@ -118,6 +122,7 @@ export function testToDelta(): void {
 						attach: { major: tag, minor: 0 },
 					},
 				],
+				allowReattach: true,
 			};
 			assertFieldChangesEqual(actual, expected);
 		});
@@ -301,6 +306,7 @@ export function testToDelta(): void {
 				const id = { minor: 2 };
 				const expected: DeltaFieldChanges = {
 					marks: [{ count: 1 }, { count: 2, attach: id }],
+					allowReattach: true,
 				};
 				assertFieldChangesEqual(delta, expected);
 			});
@@ -311,7 +317,10 @@ export function testToDelta(): void {
 				const delta = toDelta(changeset);
 
 				const id = { minor: 0 };
-				const expected: DeltaFieldChanges = { marks: [{ count: 2, detach: id }] };
+				const expected: DeltaFieldChanges = {
+					marks: [{ count: 2, detach: id }],
+					allowReattach: true,
+				};
 				assertFieldChangesEqual(delta, expected);
 			});
 
@@ -345,6 +354,7 @@ export function testToDelta(): void {
 						{ count: 1 },
 						{ count: 2, attach: id },
 					],
+					allowReattach: true,
 				};
 				assertFieldChangesEqual(delta, expected);
 			});
@@ -358,7 +368,10 @@ export function testToDelta(): void {
 			];
 
 			const actual = toDelta(move);
-			const expected: DeltaFieldChanges = { marks: [{ count: 1, attach: { minor: 0 } }] };
+			const expected: DeltaFieldChanges = {
+				marks: [{ count: 1, attach: { minor: 0 } }],
+				allowReattach: true,
+			};
 			assertFieldChangesEqual(actual, expected);
 		});
 
@@ -383,6 +396,7 @@ export function testToDelta(): void {
 				const actual = toDelta(inlineRevision(changeset, tag));
 				const expected: DeltaFieldChanges = {
 					marks: [{ count: 1 }, { count: 1, fields: childChange1Delta }],
+					allowReattach: true,
 				};
 				assertFieldChangesEqual(actual, expected);
 			});

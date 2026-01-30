@@ -89,5 +89,5 @@ export function sequenceFieldToDelta(
 		deltaMarks.pop();
 	}
 
-	return { marks: deltaMarks };
+	return { marks: deltaMarks, allowReattach: true };
 }

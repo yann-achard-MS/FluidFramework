@@ -502,7 +502,7 @@ describe("visitDelta", () => {
 	it("destroy (root level)", () => {
 		const index = makeDetachedFieldIndex("", testRevisionTagCodec, testIdCompressor);
 		const id = { minor: 42 };
-		index.createEntry(id, undefined, 2);
+		index.createEntry(id, undefined, undefined, 2);
 		const delta: DeltaRoot = {
 			destroy: [{ id, count: 2 }],
 		};
@@ -1273,7 +1273,7 @@ describe("visitDelta", () => {
 		it("when the refreshed tree already exists in the forest", () => {
 			const index = makeDetachedFieldIndex("", testRevisionTagCodec, testIdCompressor);
 			const node = { minor: 42 };
-			index.createEntry(node, undefined, 1);
+			index.createEntry(node, undefined, undefined, 1);
 			const rootFieldDelta: DeltaFieldChanges = { marks: [{ count: 1, attach: node }] };
 			const delta: DeltaRoot = {
 				refreshers: [{ id: node, trees: chunkX }],

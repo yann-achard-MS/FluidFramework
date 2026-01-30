@@ -204,4 +204,10 @@ export interface FieldChanges {
 	 * It corresponds to the sum of `mark.count` values for all previous marks for which `isAttachMark(mark)` is false.
 	 */
 	readonly marks: readonly Mark[];
+
+	/**
+	 * Indicates whether nodes detached by this field can be safely re-attached.
+	 * Defaults to false.
+	 */
+	readonly allowReattach?: boolean;
 }

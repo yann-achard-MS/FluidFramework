@@ -3,15 +3,20 @@
  * Licensed under the MIT License.
  */
 
-import { type ChangeAtomId, Multiplicity } from "../../core/index.js";
+import { type ChangeAtomId, type DeltaFieldChanges, Multiplicity } from "../../core/index.js";
 import { requiredIdentifier, identifierFieldIdentifier } from "../fieldKindIdentifiers.js";
 import {
 	type FieldEditor,
 	type FieldChangeHandler,
 	FlexFieldKind,
+	type ToDelta,
 } from "../modular-schema/index.js";
 
-import { optionalChangeHandler, optionalFieldEditor } from "./optionalField.js";
+import {
+	optionalChangeHandler,
+	optionalFieldEditor,
+	optionalOrRequiredFieldIntoDelta,
+} from "./optionalField.js";
 import type { OptionalChangeset } from "./optionalFieldChangeTypes.js";
 
 // Required fields are a restricted version of optional fields that must always contain a value.
@@ -40,11 +45,19 @@ export const requiredFieldEditor: RequiredFieldEditor = {
 		optionalFieldEditor.set(false, ids),
 };
 
+export function requiredFieldIntoDelta(
+	change: OptionalChangeset,
+	deltaFromChild: ToDelta,
+): DeltaFieldChanges {
+	return optionalOrRequiredFieldIntoDelta(false, change, deltaFromChild);
+}
+
 export const requiredFieldChangeHandler: FieldChangeHandler<
 	OptionalChangeset,
 	RequiredFieldEditor
 > = {
 	...optionalChangeHandler,
+	intoDelta: requiredFieldIntoDelta,
 	editor: requiredFieldEditor,
 };
 

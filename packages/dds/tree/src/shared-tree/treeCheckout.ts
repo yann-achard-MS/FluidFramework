@@ -486,6 +486,9 @@ export class TreeCheckout implements ITreeCheckoutFork {
 					return { first, count: id.count };
 				});
 			},
+			isAttachable: (id: ChangeAtomId): boolean | undefined => {
+				return this.removedRoots.isAttachable(nodeIdFromChangeAtom(id));
+			},
 		};
 		this.registerForBranchEvents();
 	}

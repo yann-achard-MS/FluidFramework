@@ -26,6 +26,7 @@ export {
 	type ChildLocation,
 	type FieldMapObject,
 	type NodeData,
+	NodeSource,
 	type GenericTreeNode,
 	type JsonableTree,
 	EncodedJsonableTree,

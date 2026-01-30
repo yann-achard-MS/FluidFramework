@@ -166,7 +166,9 @@ function transferRoots(
 	refreshers: NestedMap<Major, Minor, ITreeCursorSynchronous>,
 	revision?: RevisionTag,
 ): void {
-	type AtomizedNodeRename = Omit<Delta.DetachedNodeRename, "count">;
+	type AtomizedNodeRename = Omit<Delta.DetachedNodeRename, "count"> & {
+		isAttachable?: boolean;
+	};
 	let nextBatch = rootTransfers.flatMap(({ oldId, newId, count }) => {
 		const atomized: AtomizedNodeRename[] = [];
 		// It's possible for a detached node to be revived transiently such that it ends up back in the same detached field.
@@ -176,7 +178,12 @@ function transferRoots(
 		// This if statement prevents that from happening.
 		if (!areDetachedNodeIdsEqual(oldId, newId)) {
 			for (let i = 0; i < count; i += 1) {
-				atomized.push({ oldId: offsetDetachId(oldId, i), newId: offsetDetachId(newId, i) });
+				const source = detachedFieldIndex.isAttachable(offsetDetachId(oldId, i));
+				atomized.push({
+					oldId: offsetDetachId(oldId, i),
+					newId: offsetDetachId(newId, i),
+					isAttachable: source,
+				});
 			}
 		}
 		return atomized;
@@ -184,30 +191,29 @@ function transferRoots(
 	while (nextBatch.length > 0) {
 		const delayed: AtomizedNodeRename[] = [];
 		const priorSize = nextBatch.length;
-		for (const { oldId, newId } of nextBatch) {
+		for (const { oldId, newId, isAttachable } of nextBatch) {
 			let oldRootId = detachedFieldIndex.tryGetEntry(oldId);
 			if (oldRootId === undefined) {
 				const tree = tryGetFromNestedMap(refreshers, oldId.major, oldId.minor);
 				if (tree !== undefined) {
-					buildTrees(oldId, [tree], detachedFieldIndex, revision, visitor);
+					buildTrees(oldId, [tree], detachedFieldIndex, revision, false, visitor);
 					oldRootId = detachedFieldIndex.getEntry(oldId);
 				}
 			}
 			if (oldRootId === undefined) {
 				// The source field is not populated.
 				// This can happen when another rename needs to be performed first.
-				delayed.push({ oldId, newId });
+				delayed.push({ oldId, newId, isAttachable });
 				continue;
 			}
 			let newRootId = detachedFieldIndex.tryGetEntry(newId);
 			if (newRootId !== undefined) {
 				// The destination field is already occupied.
 				// This can happen when another rename needs to be performed first.
-				delayed.push({ oldId, newId });
+				delayed.push({ oldId, newId, isAttachable });
 				continue;
 			}
-			// eslint-disable-next-line @typescript-eslint/strict-boolean-expressions -- intentional behavior
-			newRootId = detachedFieldIndex.createEntry(newId, revision);
+			newRootId = detachedFieldIndex.createEntry(newId, revision, isAttachable);
 			const fields = mapToUpdate.get(oldRootId);
 			if (fields !== undefined) {
 				mapToUpdate.delete(oldRootId);
@@ -413,7 +419,11 @@ function detachPass(
 		if (mark.detach !== undefined) {
 			for (let i = 0; i < mark.count; i += 1) {
 				const id = offsetDetachId(mark.detach, i);
-				const root = config.detachedFieldIndex.createEntry(id, config.latestRevision);
+				const root = config.detachedFieldIndex.createEntry(
+					id,
+					config.latestRevision,
+					fieldChanges.allowReattach,
+				);
 				if (mark.fields !== undefined) {
 					config.attachPassRoots.set(root, mark.fields);
 				}
@@ -432,13 +442,14 @@ function buildTrees(
 	trees: readonly ITreeCursorSynchronous[],
 	detachedFieldIndex: DetachedFieldIndex,
 	latestRevision: RevisionTag | undefined,
+	isAttachable: boolean,
 	visitor: DeltaVisitor,
 ): void {
 	for (const [i, tree] of trees.entries()) {
 		const offsettedId = offsetDetachId(id, i);
 		let root = detachedFieldIndex.tryGetEntry(offsettedId);
 		assert(root === undefined, 0x929 /* Unable to build tree that already exists */);
-		root = detachedFieldIndex.createEntry(offsettedId, latestRevision);
+		root = detachedFieldIndex.createEntry(offsettedId, latestRevision, isAttachable);
 		const field = detachedFieldIndex.toFieldKey(root);
 		visitor.create([tree], field);
 	}
@@ -456,6 +467,7 @@ function processBuilds(
 				nodeCursorsFromChunk(trees),
 				config.detachedFieldIndex,
 				config.latestRevision,
+				true,
 				visitor,
 			);
 		}
@@ -473,7 +485,14 @@ function processGlobal(
 			if (root === undefined) {
 				const tree = tryGetFromNestedMap(config.refreshers, id.major, id.minor);
 				assert(tree !== undefined, 0x928 /* refresher data not found */);
-				buildTrees(id, [tree], config.detachedFieldIndex, config.latestRevision, visitor);
+				buildTrees(
+					id,
+					[tree],
+					config.detachedFieldIndex,
+					config.latestRevision,
+					false,
+					visitor,
+				);
 				root = config.detachedFieldIndex.getEntry(id);
 			}
 			// the revision is updated for any refresher data included in the delta that is used
@@ -529,6 +548,7 @@ function attachPass(
 						[tree],
 						config.detachedFieldIndex,
 						config.latestRevision,
+						false,
 						visitor,
 					);
 					sourceRoot = config.detachedFieldIndex.getEntry(offsetAttachId);

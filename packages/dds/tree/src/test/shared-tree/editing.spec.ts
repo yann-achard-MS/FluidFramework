@@ -2940,6 +2940,9 @@ describe("Editing", () => {
 	});
 
 	describe("Detached nodes - with any format", () => {
+		const minVersionForCollabError = validateUsageError(
+			`Attach edits require a minimum version for collaboration >= TBD.`,
+		);
 		describeForAllFormats(
 			"can be attached anywhere if they have no associated cell",
 			(options) => {
@@ -3047,6 +3050,9 @@ describe("Editing", () => {
 		const reattachInRequiredFieldError = validateUsageError(
 			"A hydrated node that has been attached before cannot be attached into an object's required field. Assign new content to the field instead.",
 		);
+		const attachFromRequiredFieldError = validateUsageError(
+			"Nodes that may have been detached from a required field can only be re-attached by reverting the detach.",
+		);
 		describe("cannot be reattached into an object's required field after being detached from anywhere", () => {
 			const sf = new SchemaFactory(undefined);
 			class Child extends sf.object("Child", {}) {}
@@ -3109,7 +3115,9 @@ describe("Editing", () => {
 						assert.equal(Tree.status(hydratedChild), TreeStatus.Removed);
 						assert.throws(
 							() => (view.root.object.reqChild = hydratedChild),
-							reattachInRequiredFieldError,
+							src === "an object's required field"
+								? attachFromRequiredFieldError
+								: reattachInRequiredFieldError,
 						);
 					},
 				);
@@ -3117,12 +3125,6 @@ describe("Editing", () => {
 		});
 
 		describe("cannot be reattached anywhere after being detached from an object's required field", () => {
-			const minVersionForCollabError = validateUsageError(
-				`Attach edits require a minimum version for collaboration >= TBD.`,
-			);
-			const attachFromRequiredFieldError = validateUsageError(
-				/Once associated with a required field, a node cannot be re-attached into any field. Use revert to return the node to its original field if desired./,
-			);
 			const sf = new SchemaFactory(undefined);
 			class Child extends sf.object("Child", {}) {}
 			class ArrayParent extends sf.array("Array", Child) {}
@@ -3142,10 +3144,6 @@ describe("Editing", () => {
 				describeForAllFormats(
 					`detach from an object's required field and attach to ${dst}`,
 					(options) => {
-						const expectedError =
-							options.enableDetachedRootEditing === false
-								? minVersionForCollabError
-								: attachFromRequiredFieldError;
 						const provider = new TestTreeProviderLite(
 							2,
 							configuredSharedTree(options).getFactory(),
@@ -3168,24 +3166,30 @@ describe("Editing", () => {
 
 						switch (dst) {
 							case "an array": {
-								assert.throws(() => view.root.array.insertAtEnd(hydratedChild), expectedError);
+								assert.throws(
+									() => view.root.array.insertAtEnd(hydratedChild),
+									attachFromRequiredFieldError,
+								);
 								break;
 							}
 							case "a map": {
-								assert.throws(() => view.root.map.set("dst", hydratedChild), expectedError);
+								assert.throws(
+									() => view.root.map.set("dst", hydratedChild),
+									attachFromRequiredFieldError,
+								);
 								break;
 							}
 							case "an object's optional field": {
 								assert.throws(
 									() => (view.root.object.optChild = hydratedChild),
-									expectedError,
+									attachFromRequiredFieldError,
 								);
 								break;
 							}
 							case "an object's required field": {
 								assert.throws(
 									() => (view.root.object.reqChild = hydratedChild),
-									reattachInRequiredFieldError,
+									attachFromRequiredFieldError,
 								);
 								break;
 							}

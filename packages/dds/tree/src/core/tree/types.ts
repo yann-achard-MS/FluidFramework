@@ -155,3 +155,10 @@ export interface NodeData {
 export const aboveRootPlaceholder: TreeNodeSchemaIdentifier = brand(
 	"com.fluidframework.placeholder.aboveRoot",
 );
+
+export enum NodeSource {
+	Build = "build",
+	Sequence = "sequence",
+	Optional = "optional",
+	Required = "required",
+}

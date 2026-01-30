@@ -606,9 +606,11 @@ describe("ModularChangeFamily integration", () => {
 			const rebasedTag = mintRevisionTag();
 			const rebasedDelta = normalizeDelta(
 				intoDelta(tagChangeInline(rebased, rebasedTag), family.fieldKinds),
+				true,
 			);
 			const expectedDelta = normalizeDelta(
 				intoDelta(tagChangeInline(expected, rebasedTag), family.fieldKinds),
+				true,
 			);
 
 			assertDeltaEqual(rebasedDelta, expectedDelta);
@@ -1501,15 +1503,33 @@ describe("ModularChangeFamily integration", () => {
 			const composedDelta = normalizeDelta(intoDelta(makeAnonChange(composed), fieldKinds));
 
 			const nodeAChanges: DeltaFieldMap = new Map([
-				[fieldB, { marks: [{ count: 1, attach: { minor: 1, major: tagForCompare } }] }],
+				[
+					fieldB,
+					{
+						marks: [{ count: 1, attach: { minor: 1, major: tagForCompare } }],
+						allowReattach: true,
+					},
+				],
 			]);
 
 			const nodeBChanges: DeltaFieldMap = new Map([
-				[fieldC, { marks: [{ count: 1, attach: { minor: 2, major: tagForCompare } }] }],
+				[
+					fieldC,
+					{
+						marks: [{ count: 1, attach: { minor: 2, major: tagForCompare } }],
+						allowReattach: true,
+					},
+				],
 			]);
 
 			const nodeCChanges: DeltaFieldMap = new Map([
-				[fieldC, { marks: [{ count: 1, detach: { minor: 3, major: tagForCompare } }] }],
+				[
+					fieldC,
+					{
+						marks: [{ count: 1, detach: { minor: 3, major: tagForCompare } }],
+						allowReattach: true,
+					},
+				],
 			]);
 
 			const fieldAChanges: DeltaFieldChanges = {
@@ -1519,6 +1539,7 @@ describe("ModularChangeFamily integration", () => {
 					{ count: 1, detach: { minor: 1, major: tagForCompare }, fields: nodeBChanges },
 					{ count: 1, detach: { minor: 2, major: tagForCompare }, fields: nodeCChanges },
 				],
+				allowReattach: true,
 			};
 
 			const expectedDelta: DeltaRoot = normalizeDelta({
@@ -1567,14 +1588,24 @@ describe("ModularChangeFamily integration", () => {
 									fields: new Map([
 										[
 											fieldC,
-											{ marks: [{ count: 1, attach: { minor: 2, major: tagForCompare } }] },
+											{
+												marks: [{ count: 1, attach: { minor: 2, major: tagForCompare } }],
+												allowReattach: true,
+											},
 										],
 									]),
 								},
 							],
+							allowReattach: true,
 						},
 					],
-					[fieldB, { marks: [{ count: 1, attach: { minor: 0, major: tagForCompare } }] }],
+					[
+						fieldB,
+						{
+							marks: [{ count: 1, attach: { minor: 0, major: tagForCompare } }],
+							allowReattach: true,
+						},
+					],
 				]),
 			};
 
@@ -1634,10 +1665,17 @@ describe("ModularChangeFamily integration", () => {
 								{
 									count: 1,
 									fields: new Map([
-										[fieldC, { marks: [{ count: 1, attach: { major: tag2, minor: 2 } }] }],
+										[
+											fieldC,
+											{
+												marks: [{ count: 1, attach: { major: tag2, minor: 2 } }],
+												allowReattach: true,
+											},
+										],
 									]),
 								},
 							],
+							allowReattach: true,
 						},
 					],
 				]),
@@ -2407,8 +2445,8 @@ describe("ModularChangeFamily integration", () => {
 			};
 			const expected: DeltaRoot = {
 				fields: new Map([
-					[brand("foo"), { marks: [moveOut1, moveIn1] }],
-					[brand("bar"), { marks: [moveOut2, moveIn2] }],
+					[brand("foo"), { marks: [moveOut1, moveIn1], allowReattach: true }],
+					[brand("bar"), { marks: [moveOut2, moveIn2], allowReattach: true }],
 				]),
 			};
 			const actual = intoDelta(makeAnonChange(change), family.fieldKinds);

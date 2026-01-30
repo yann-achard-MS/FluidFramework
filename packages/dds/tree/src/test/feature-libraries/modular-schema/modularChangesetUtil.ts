@@ -407,6 +407,7 @@ export function isModularEmpty(change: ModularChangeset): boolean {
 
 export function normalizeDelta(
 	delta: DeltaRoot,
+	overrideReattach?: boolean,
 	idAllocator?: IdAllocator,
 	idMap?: Map<number, number>,
 ): DeltaRoot {
@@ -415,7 +416,7 @@ export function normalizeDelta(
 
 	const normalized: Mutable<DeltaRoot> = {};
 	if (delta.fields !== undefined) {
-		normalized.fields = normalizeDeltaFieldMap(delta.fields, genId, map);
+		normalized.fields = normalizeDeltaFieldMap(delta.fields, overrideReattach, genId, map);
 	}
 	if (delta.build !== undefined && delta.build.length > 0) {
 		normalized.build = delta.build.map(({ id, trees }) => ({
@@ -426,7 +427,7 @@ export function normalizeDelta(
 	if (delta.global !== undefined && delta.global.length > 0) {
 		normalized.global = delta.global.map(({ id, fields }) => ({
 			id: normalizeDeltaDetachedNodeId(id, genId, map),
-			fields: normalizeDeltaFieldMap(fields, genId, map),
+			fields: normalizeDeltaFieldMap(fields, overrideReattach, genId, map),
 		}));
 	}
 	if (delta.rename !== undefined && delta.rename.length > 0) {
@@ -442,25 +443,34 @@ export function normalizeDelta(
 
 function normalizeDeltaFieldMap(
 	delta: DeltaFieldMap,
+	overrideReattach: boolean | undefined,
 	genId: IdAllocator,
 	idMap: Map<number, number>,
 ): DeltaFieldMap {
 	const normalized = new Map();
 	for (const [field, fieldChanges] of delta) {
-		normalized.set(field, normalizeDeltaFieldChanges(fieldChanges, genId, idMap));
+		const normalizedFieldChanges =
+			overrideReattach === undefined
+				? fieldChanges
+				: { ...fieldChanges, allowReattach: overrideReattach };
+		normalized.set(
+			field,
+			normalizeDeltaFieldChanges(normalizedFieldChanges, overrideReattach, genId, idMap),
+		);
 	}
 	return normalized;
 }
 
 function normalizeDeltaFieldChanges(
 	delta: DeltaFieldChanges,
+	overrideReattach: boolean | undefined,
 	genId: IdAllocator,
 	idMap: Map<number, number>,
 ): DeltaFieldChanges {
 	const normalizedMarks = [];
 	let lastMark: Mutable<DeltaMark> | undefined;
 	for (const mark of delta.marks) {
-		const normalizedMark = normalizeDeltaMark(mark, genId, idMap);
+		const normalizedMark = normalizeDeltaMark(mark, overrideReattach, genId, idMap);
 		if (lastMark !== undefined && canMergeDeltaMarks(lastMark, normalizedMark)) {
 			lastMark.count += normalizedMark.count;
 		} else {
@@ -469,7 +479,7 @@ function normalizeDeltaFieldChanges(
 		}
 	}
 
-	return { marks: normalizedMarks };
+	return { ...delta, marks: normalizedMarks };
 }
 
 function canMergeDeltaMarks(mark1: DeltaMark, mark2: DeltaMark): boolean {
@@ -495,6 +505,7 @@ function areAdjacentDeltaIdRanges(
 
 function normalizeDeltaMark(
 	delta: DeltaMark,
+	overrideReattach: boolean | undefined,
 	genId: IdAllocator,
 	idMap: Map<number, number>,
 ): DeltaMark {
@@ -506,7 +517,12 @@ function normalizeDeltaMark(
 		normalized.detach = normalizeDeltaDetachedNodeId(normalized.detach, genId, idMap);
 	}
 	if (normalized.fields !== undefined) {
-		normalized.fields = normalizeDeltaFieldMap(normalized.fields, genId, idMap);
+		normalized.fields = normalizeDeltaFieldMap(
+			normalized.fields,
+			overrideReattach,
+			genId,
+			idMap,
+		);
 	}
 	return normalized;
 }

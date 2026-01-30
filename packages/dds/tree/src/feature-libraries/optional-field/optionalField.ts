@@ -466,6 +466,14 @@ export function optionalFieldIntoDelta(
 	change: OptionalChangeset,
 	deltaFromChild: ToDelta,
 ): DeltaFieldChanges {
+	return optionalOrRequiredFieldIntoDelta(true, change, deltaFromChild);
+}
+
+export function optionalOrRequiredFieldIntoDelta(
+	allowReattach: boolean,
+	change: OptionalChangeset,
+	deltaFromChild: ToDelta,
+): DeltaFieldChanges {
 	let markIsANoop = true;
 	const mark: Mutable<DeltaMark> = { count: 1 };
 	const detachId = getEffectiveDetachId(change);
@@ -485,7 +493,7 @@ export function optionalFieldIntoDelta(
 		markIsANoop = false;
 	}
 
-	return { marks: markIsANoop ? [] : [mark] };
+	return { marks: markIsANoop ? [] : [mark], allowReattach };
 }
 
 export const optionalChangeHandler: FieldChangeHandler<

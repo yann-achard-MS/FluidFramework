@@ -365,7 +365,7 @@ describe("DetachedFieldIndex methods", () => {
 			const detachedNodeId1 = makeDetachedNodeId(revisionTag1, 1);
 
 			const revisionTag2 = mintRevisionTag();
-			detachedIndex.createEntry(detachedNodeId1, revisionTag2, 2);
+			detachedIndex.createEntry(detachedNodeId1, revisionTag2, undefined, 2);
 
 			const rootIds = [...detachedIndex.getRootsLastTouchedByRevision(revisionTag2)];
 			assert.equal(rootIds.length, 2);
@@ -391,7 +391,7 @@ describe("DetachedFieldIndex methods", () => {
 
 		const revisionTag2 = mintRevisionTag();
 		const rootId1 = detachedIndex.createEntry(detachedNodeId1, revisionTag2);
-		const rootId2 = detachedIndex.createEntry(detachedNodeId2, revisionTag2, 2);
+		const rootId2 = detachedIndex.createEntry(detachedNodeId2, revisionTag2, undefined, 2);
 
 		const entries = [...detachedIndex.entries()];
 		assert.deepEqual(entries, [
@@ -414,7 +414,7 @@ describe("DetachedFieldIndex methods", () => {
 
 		const revisionTag2 = mintRevisionTag();
 		detachedIndex.createEntry(detachedNodeId1, revisionTag2);
-		detachedIndex.createEntry(detachedNodeId2, revisionTag2, 2);
+		detachedIndex.createEntry(detachedNodeId2, revisionTag2, undefined, 2);
 
 		const revisionTag3 = mintRevisionTag();
 		const detachedNodeId3 = makeDetachedNodeId(revisionTag1, 4);

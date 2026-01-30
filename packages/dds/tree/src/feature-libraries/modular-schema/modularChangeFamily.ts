@@ -22,7 +22,6 @@ import {
 	type DeltaDetachedNodeBuild,
 	type DeltaDetachedNodeDestruction,
 	type DeltaDetachedNodeId,
-	type DeltaFieldChanges,
 	type DeltaFieldMap,
 	type DeltaRoot,
 	EditBuilder,
@@ -52,6 +51,7 @@ import {
 	subtractChangeAtomIds,
 	makeChangeAtomId,
 	type RevisionReplacer,
+	type DeltaFieldChanges,
 } from "../../core/index.js";
 import {
 	type IdAllocationState,
