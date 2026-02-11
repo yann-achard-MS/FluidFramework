@@ -324,7 +324,7 @@ export function updateRefreshers(
 			return updateDataChangeRefreshers(
 				dataChange,
 				getAndRememberDetachedNode,
-				filterIncludedRoots(removedRoots),
+				removedRoots,
 				true,
 			);
 		} else {

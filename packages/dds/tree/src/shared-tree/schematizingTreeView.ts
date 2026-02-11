@@ -219,19 +219,6 @@ export class SchematizingSimpleTreeView<
 				return preparedContent;
 			})?.finalize([...this.getFlexTreeContext().root]);
 
-			// TODO:CM
-			// initialize(
-			// 	this.checkout,
-			// 	schema,
-			// 	initializerFromChunk(this.checkout, () => {
-			// 		// This must be done after initial schema is set!
-			// 		return combineChunks(
-			// 			this.checkout.forest.chunkField(
-			// 				cursorForMapTreeField(mapTree === undefined ? [] : [mapTree]),
-			// 			),
-			// 		);
-			// 	}),
-			// );
 			this.checkout.transaction.commit();
 		});
 	}

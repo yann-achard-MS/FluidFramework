@@ -56,7 +56,6 @@ import {
 	makeFieldBatchCodec,
 	makeModularChangeCodecFamily,
 } from "../../feature-libraries/index.js";
-// eslint-disable-next-line import-x/no-internal-modules
 import {
 	changeFormatVersionForEditManager,
 	changeFormatVersionForMessage,

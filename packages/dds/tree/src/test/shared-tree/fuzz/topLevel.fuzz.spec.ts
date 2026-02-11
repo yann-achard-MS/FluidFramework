@@ -39,7 +39,7 @@ const baseOptions: Partial<DDSFuzzSuiteOptions> = {
  * The fuzz tests should validate that the clients do not crash and that their document states do not diverge.
  * See the "Fuzz - Targeted" test suite for tests that validate more specific code paths or invariants.
  */
-describe.skip("Fuzz - Top-Level", () => {
+describe("Fuzz - Top-Level", () => {
 	/**
 	 * This test suite is meant exercise all public APIs of SharedTree together, as well as all service-oriented
 	 * operations (such as summarization and stashed ops).

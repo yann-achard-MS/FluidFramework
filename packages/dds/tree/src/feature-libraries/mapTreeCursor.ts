@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { assert, debugAssert } from "@fluidframework/core-utils/internal";
+import { assert } from "@fluidframework/core-utils/internal";
 
 import {
 	CursorLocationType,
@@ -161,7 +161,6 @@ export function mapTreeFromCursor(cursor: ITreeCursor): ExclusiveMapTree {
 	const fields: Map<FieldKey, ExclusiveMapTree[]> = new Map();
 	for (let inField = cursor.firstField(); inField; inField = cursor.nextField()) {
 		const field: ExclusiveMapTree[] = mapCursorField(cursor, mapTreeFromCursor);
-		debugAssert(() => field.length > 0 || "field must have at least one child");
 		fields.set(cursor.getFieldKey(), field);
 	}
 
