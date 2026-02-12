@@ -25,7 +25,7 @@ import { getUnhydratedContext } from "./createContext.js";
 import { normalizeFieldSchema, FieldKind, type ImplicitFieldSchema } from "./fieldSchema.js";
 
 /**
- * Transforms an input {@link TypedNode} tree to a {@link FlexTreeNode}.
+ * Transforms an input {@link TypedNode} tree to an {@link UnhydratedFlexTreeNode}.
  * @param data - The input tree to be converted.
  * If the data is an unsupported value (e.g. NaN), a fallback value will be used when supported,
  * otherwise an error will be thrown.
@@ -92,7 +92,41 @@ export function unhydratedFlexTreeFromInsertable<TIn extends InsertableContent |
 }
 
 /**
- * Copy content from `data` into a UnhydratedFlexTreeNode or return an existing node if `data` is a TreeNode.
+ * Copy content from `data` into a UnhydratedFlexTreeNode.
+ */
+export function unhydratedFlexTreeFromInsertableNode(
+	data: InsertableContent,
+	allowedTypes: ReadonlySet<TreeNodeSchema>,
+): UnhydratedFlexTreeNode {
+	if (isTreeNode(data)) {
+		const kernel = getKernel(data);
+		const inner = kernel.getInnerNodeIfUnhydrated();
+		if (inner === undefined) {
+			// The node is already hydrated, meaning that it already got inserted into the tree previously
+			throw new UsageError("A node may not be inserted into the tree more than once");
+		} else {
+			if (!allowedTypes.has(kernel.schema)) {
+				throw new UsageError("Invalid schema for this context.");
+			}
+			return inner;
+		}
+	}
+
+	const schema = getType(data, allowedTypes);
+	const handler = getTreeNodeSchemaPrivateData(schema).idempotentInitialize();
+	const result = handler.toFlexContent(data, allowedTypes);
+
+	// Might not match schema due to fallbacks, see TODO on toFlexContent
+	// TODO: fix TODO in `toFlexContent`, and remove this.
+	const finalSchema =
+		oneFromIterable(filterIterable(allowedTypes, (s) => s.identifier === result[0].type)) ??
+		fail(0xc9d /* missing schema */);
+
+	return new UnhydratedFlexTreeNode(...result, getUnhydratedContext(finalSchema));
+}
+
+/**
+ * Return FlexTreeNode from `data` or copy content from `data` into a UnhydratedFlexTreeNode.
  */
 export function flexTreeFromInsertableNode(
 	data: InsertableContent,
@@ -105,11 +139,6 @@ export function flexTreeFromInsertableNode(
 			if (!allowedTypes.has(kernel.schema)) {
 				throw new UsageError("Invalid schema for this context.");
 			}
-
-			if (inner.isHydrated()) {
-				// TODO: hook up event bubbling from hydrated to unhydrated tree.
-			}
-
 			return inner;
 		} else {
 			throw new UsageError(

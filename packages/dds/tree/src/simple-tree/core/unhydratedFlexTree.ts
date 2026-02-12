@@ -5,7 +5,7 @@
 
 import { createEmitter } from "@fluid-internal/client-utils";
 import type { HasListeners, Listenable } from "@fluidframework/core-interfaces/internal";
-import { assert, oob, fail, debugAssert } from "@fluidframework/core-utils/internal";
+import { assert, oob, fail } from "@fluidframework/core-utils/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
 import {
@@ -59,7 +59,7 @@ import type { Context } from "./context.js";
 import type { TreeNode } from "./treeNode.js";
 
 interface UnhydratedTreeSequenceFieldEditBuilder
-	extends SequenceFieldEditor<FlexibleFieldContent, readonly FlexTreeNode[]> {}
+	extends SequenceFieldEditor<FlexibleFieldContent, readonly UnhydratedFlexTreeNode[]> {}
 
 type UnhydratedFlexTreeNodeEvents = Pick<
 	AnchorEvents,
@@ -73,7 +73,7 @@ type LocationInField = FlexTreeNode["parentField"];
  * The {@link Unhydrated} implementation of {@link FlexTreeNode}.
  */
 export class UnhydratedFlexTreeNode
-	implements FlexTreeNode, MapTreeNodeViewGeneric<FlexTreeNode>
+	implements FlexTreeNode, MapTreeNodeViewGeneric<UnhydratedFlexTreeNode>
 {
 	public isHydrated(): this is HydratedFlexTreeNode {
 		return false;
@@ -226,7 +226,7 @@ export class UnhydratedFlexTreeNode
 	}
 
 	public borrowCursor(): ITreeCursorSynchronous {
-		return cursorForMapTreeNode<MapTreeNodeViewGeneric<FlexTreeNode>>(this);
+		return cursorForMapTreeNode<MapTreeNodeViewGeneric<UnhydratedFlexTreeNode>>(this);
 	}
 
 	public tryGetField(key: FieldKey): UnhydratedFlexTreeField | undefined {
@@ -300,11 +300,6 @@ export class UnhydratedContext implements FlexTreeContext {
 	public isHydrated(): this is FlexTreeHydratedContext {
 		return false;
 	}
-
-	public runInTransaction(fn: () => void): void {
-		debugAssert(() => !this.isDisposed() || "Disposed");
-		fn();
-	}
 }
 
 // #region Fields
@@ -332,7 +327,7 @@ const unparentedLocation: LocationInField = {
  * The {@link Unhydrated} implementation of {@link FlexTreeField}.
  */
 export class UnhydratedFlexTreeField
-	implements FlexTreeField, MapTreeFieldViewGeneric<FlexTreeNode>
+	implements FlexTreeField, MapTreeFieldViewGeneric<UnhydratedFlexTreeNode>
 {
 	public [flexTreeMarker] = FlexTreeEntityKind.Field as const;
 
@@ -349,23 +344,21 @@ export class UnhydratedFlexTreeField
 		 * See {@link fillPendingDefaults}.
 		 * Note that any fields using a {@link ConstantFieldProvider} should be evaluated before constructing the UnhydratedFlexTreeField.
 		 */
-		private lazyChildren: FlexTreeNode[] | ContextualFieldProvider,
+		private lazyChildren: UnhydratedFlexTreeNode[] | ContextualFieldProvider,
 	) {
 		// When this field is created (which only happens one time, because it is cached), all the children become parented for the first time.
 		// "Adopt" each child by updating its parent information to point to this field.
 		if (Array.isArray(lazyChildren)) {
 			for (const [i, child] of lazyChildren.entries()) {
-				if (child instanceof UnhydratedFlexTreeNode) {
-					child.adoptBy(this, i);
-				} else {
-					// TODO: hook up events from hydrated to unhydrated nodes.
-				}
+				child.adoptBy(this, i);
 			}
 		}
 	}
 
 	public borrowCursor(): ITreeCursorSynchronous {
-		return cursorForMapTreeField<MapTreeNodeViewGeneric<FlexTreeNode>>(this.children);
+		return cursorForMapTreeField<MapTreeNodeViewGeneric<UnhydratedFlexTreeNode>>(
+			this.children,
+		);
 	}
 
 	private getPendingDefault(): ContextualFieldProvider | undefined {
@@ -393,13 +386,13 @@ export class UnhydratedFlexTreeField
 		return this.getPendingDefault() !== undefined;
 	}
 
-	public get children(): FlexTreeNode[] {
+	public get children(): UnhydratedFlexTreeNode[] {
 		const provider = this.getPendingDefault();
 		if (provider) {
 			const content = provider("UseGlobalContext");
 			this.lazyChildren = content;
 		}
-		return this.lazyChildren as FlexTreeNode[];
+		return this.lazyChildren as UnhydratedFlexTreeNode[];
 	}
 
 	public get length(): number {
@@ -419,7 +412,7 @@ export class UnhydratedFlexTreeField
 		return m;
 	}
 
-	public [Symbol.iterator](): IterableIterator<FlexTreeNode> {
+	public [Symbol.iterator](): IterableIterator<UnhydratedFlexTreeNode> {
 		return this.children[Symbol.iterator]();
 	}
 
@@ -431,17 +424,19 @@ export class UnhydratedFlexTreeField
 	 * @remarks All edits to the field (i.e. mutations of the field's MapTrees) should be directed through this function.
 	 * This function ensures that the parent MapTree has no empty fields (which is an invariant of `MapTree`) after the mutation.
 	 */
-	protected edit(edit: (mapTrees: FlexTreeNode[]) => void | FlexTreeNode[]): void {
+	protected edit(
+		edit: (mapTrees: UnhydratedFlexTreeNode[]) => void | UnhydratedFlexTreeNode[],
+	): void {
 		// Clear parents for all old map trees.
 		for (const tree of this.children) {
-			orphan(tree);
+			tree.adoptBy(undefined);
 		}
 
 		this.lazyChildren = edit(this.children) ?? this.children;
 
 		// Set parents for all new map trees.
 		for (const [index, tree] of this.children.entries()) {
-			adoptNode(this, tree, index);
+			tree.adoptBy(this, index);
 		}
 
 		this.parent?.emitChangedEvent(this.key);
@@ -452,29 +447,13 @@ export class UnhydratedFlexTreeField
 	}
 
 	/** Unboxes leaf nodes to their values */
-	protected unboxed(index: number): TreeValue | FlexTreeNode {
+	protected unboxed(index: number): TreeValue | UnhydratedFlexTreeNode {
 		const child = this.children[index] ?? oob();
 		const value = child.value;
 		if (value !== undefined) {
 			return value;
 		}
 		return child;
-	}
-}
-
-function adoptNode(parent: UnhydratedFlexTreeField, node: FlexTreeNode, index: number): void {
-	if (node instanceof UnhydratedFlexTreeNode) {
-		node.adoptBy(parent, index);
-	} else {
-		// TODO: handle parenting for hydrated nodes.
-	}
-}
-
-function orphan(node: FlexTreeNode): void {
-	if (node instanceof UnhydratedFlexTreeNode) {
-		node.adoptBy(undefined);
-	} else {
-		// TODO: handle unparenting for hydrated nodes.
 	}
 }
 
@@ -567,9 +546,9 @@ export class UnhydratedSequenceField
 		insert: (index, newContent): void => {
 			for (const c of newContent) {
 				assert(c !== undefined, 0xa0a /* Unexpected sparse array content */);
-				// TODO: ensure somewhere checks for not already having parents
+				assert(c instanceof UnhydratedFlexTreeNode, 0xbb8 /* Expected unhydrated node */);
 			}
-			const newContentChecked: readonly FlexTreeNode[] = newContent;
+			const newContentChecked = newContent as readonly UnhydratedFlexTreeNode[];
 			this.edit((mapTrees) => {
 				if (newContent.length < 1000) {
 					// For "smallish arrays" (`1000` is not empirically derived), the `splice` function is appropriate...

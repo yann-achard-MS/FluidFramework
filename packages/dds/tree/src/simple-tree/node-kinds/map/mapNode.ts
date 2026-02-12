@@ -8,6 +8,7 @@ import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
 import { MapNodeStoredSchema } from "../../../core/index.js";
 import {
+	isFlexTreeNode,
 	isTreeValue,
 	type FlexibleNodeContent,
 	type FlexTreeNode,
@@ -219,7 +220,7 @@ abstract class CustomMapNodeBase<const T extends ImplicitAllowedTypes> extends T
 			0xc17 /* Expected MapNodeStoredSchema */,
 		);
 
-		const mapTree = prepareForInsertion(
+		const nodeContent = prepareForInsertion(
 			value as InsertableContent | undefined,
 			createFieldSchema(FieldKind.Optional, kernel.schema.info as ImplicitAllowedTypes),
 			node.context,
@@ -228,7 +229,13 @@ abstract class CustomMapNodeBase<const T extends ImplicitAllowedTypes> extends T
 
 		const field = node.getBoxed(brand(key));
 
-		this.editor(key).attach(mapTree, field.length === 0);
+		const entryEditor = this.editor(key);
+
+		if (isFlexTreeNode(nodeContent)) {
+			entryEditor.attach(nodeContent, field.length === 0);
+		} else {
+			entryEditor.set(nodeContent, field.length === 0);
+		}
 		return this;
 	}
 	public get size(): number {

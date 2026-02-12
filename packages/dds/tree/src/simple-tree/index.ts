@@ -270,7 +270,8 @@ export {
 	createArrayInsertionAnchor,
 } from "./node-kinds/index.js";
 export {
-	flexTreeFromInsertable as unhydratedFlexTreeFromInsertable,
+	flexTreeFromInsertable,
+	unhydratedFlexTreeFromInsertable,
 	type InsertableContent,
 	type FactoryContent,
 	type FactoryContentObject,
@@ -278,7 +279,6 @@ export {
 export {
 	prepareForInsertion,
 	prepareForInsertionContextless,
-	type PreparedContent,
 } from "./prepareForInsertion.js";
 export {
 	toStoredSchema,

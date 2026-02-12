@@ -14,6 +14,7 @@ import {
 } from "../../../core/index.js";
 import {
 	FieldKinds,
+	isFlexTreeNode,
 	isTreeValue,
 	type FlexTreeField,
 	type FlexTreeNode,
@@ -77,10 +78,10 @@ import type { SimpleObjectFieldSchema } from "../../simpleSchema.js";
 import { convertFieldKind } from "../../toStoredSchema.js";
 import {
 	unhydratedFlexTreeFromInsertable,
-	flexTreeFromInsertableNode,
 	type FactoryContent,
 	type FactoryContentObject,
 	type InsertableContent,
+	unhydratedFlexTreeFromInsertableNode,
 } from "../../unhydratedFlexTreeFromInsertable.js";
 
 import type {
@@ -354,32 +355,40 @@ export function setField(
 	value: InsertableContent | undefined,
 	destinationSchema: TreeFieldStoredSchema,
 ): void {
-	field.context.runInTransaction(() => {
-		const mapTree = prepareForInsertion(
-			value,
-			simpleFieldSchema,
-			field.context,
-			destinationSchema,
-		);
+	const nodeContent = prepareForInsertion(
+		value,
+		simpleFieldSchema,
+		field.context,
+		destinationSchema,
+	);
 
-		switch (field.schema) {
-			case FieldKinds.required.identifier: {
-				assert(mapTree !== undefined, 0xa04 /* Cannot set a required field to undefined */);
-				const typedField = field as FlexTreeRequiredField;
-				typedField.editor.attach(mapTree);
-				break;
+	switch (field.schema) {
+		case FieldKinds.required.identifier: {
+			assert(nodeContent !== undefined, 0xa04 /* Cannot set a required field to undefined */);
+			const typedField = field as FlexTreeRequiredField;
+			const fieldEditor = typedField.editor;
+			if (isFlexTreeNode(nodeContent)) {
+				fieldEditor.attach(nodeContent);
+			} else {
+				fieldEditor.set(nodeContent);
 			}
-			case FieldKinds.optional.identifier: {
-				const typedField = field as FlexTreeOptionalField;
-				typedField.editor.attach(mapTree, typedField.length === 0);
-				break;
-			}
-
-			default: {
-				fail(0xade /* invalid FieldKind */);
-			}
+			break;
 		}
-	});
+		case FieldKinds.optional.identifier: {
+			const typedField = field as FlexTreeOptionalField;
+			const fieldEditor = typedField.editor;
+			if (isFlexTreeNode(nodeContent)) {
+				fieldEditor.attach(nodeContent, typedField.length === 0);
+			} else {
+				fieldEditor.set(nodeContent, typedField.length === 0);
+			}
+			break;
+		}
+
+		default: {
+			fail(0xade /* invalid FieldKind */);
+		}
+	}
 }
 
 /**
@@ -665,7 +674,7 @@ function objectToFlexContent(
 	for (const [key, fieldInfo] of schema.flexKeyMap) {
 		const value = getFieldProperty(data, key);
 
-		let children: FlexTreeNode[] | ContextualFieldProvider;
+		let children: UnhydratedFlexTreeNode[] | ContextualFieldProvider;
 		if (value === undefined) {
 			const defaultProvider =
 				fieldInfo.schema.props?.defaultProvider ??
@@ -673,7 +682,9 @@ function objectToFlexContent(
 			const fieldProvider = extractFieldProvider(defaultProvider);
 			children = isConstant(fieldProvider) ? fieldProvider() : fieldProvider;
 		} else {
-			children = [flexTreeFromInsertableNode(value, fieldInfo.schema.allowedTypeSet)];
+			children = [
+				unhydratedFlexTreeFromInsertableNode(value, fieldInfo.schema.allowedTypeSet),
+			];
 		}
 
 		const kind =
