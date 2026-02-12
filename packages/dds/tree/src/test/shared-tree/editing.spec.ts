@@ -186,7 +186,7 @@ describe("Editing", () => {
 			expectJsonTree(tree1, [{ src: ["a"], dst: [] }]);
 		});
 
-		withAndWithoutDetachedRootEditing("can insert and move in a transaction", (options) => {
+		itWithAndWithoutDetachedRootEditing("can insert and move in a transaction", (options) => {
 			const sf = new SchemaFactory(undefined);
 			const provider = new TestTreeProviderLite(2, configuredSharedTree(options).getFactory());
 			const config = new TreeViewConfiguration({ schema: sf.array("Array", sf.number) });
@@ -2703,7 +2703,7 @@ describe("Editing", () => {
 		});
 	});
 
-	withAndWithoutDetachedRootEditing("Attached nodes", (options) => {
+	describeWithAndWithoutDetachedRootEditing("Attached nodes", (options) => {
 		const multiparentError = validateUsageError(
 			"Can only attach a detached node (i.e., a root with TreeStatus.Removed status)",
 		);
@@ -2821,7 +2821,7 @@ describe("Editing", () => {
 		});
 	});
 
-	withAndWithoutDetachedRootEditing("Detached nodes", (options) => {
+	describeWithAndWithoutDetachedRootEditing("Detached nodes", (options) => {
 		it("can be attached anywhere if they have no associated cell", () => {
 			const sf = new SchemaFactory(undefined);
 			class Child extends sf.object("Child", { id: sf.number }) {}
@@ -3068,7 +3068,7 @@ describe("Editing", () => {
 		});
 	});
 
-	withoutDetachedRootEditing("Detached nodes", (options) => {
+	describeWithoutDetachedRootEditing("Detached nodes", (options) => {
 		const containers = ["an array", "a map", "an object's optional field"] as const;
 		const minVersionForCollabError = validateUsageError(
 			`Attach edits require a minimum version for collaboration >= TBD.`,
@@ -3271,7 +3271,7 @@ describe("Editing", () => {
 		});
 	});
 
-	withDetachedRootEditing("Detached nodes", (options) => {
+	describeWithDetachedRootEditing("Detached nodes", (options) => {
 		const containers = ["an array", "a map", "an object's optional field"] as const;
 		describe("can be detached and reattached so long as neither the source nor the destination is an object's required field", () => {
 			const sf = new SchemaFactory(undefined);
@@ -4505,7 +4505,7 @@ describe("Editing", () => {
 	});
 });
 
-function withoutDetachedRootEditing(
+function describeWithoutDetachedRootEditing(
 	title: string,
 	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
 ): Mocha.Suite {
@@ -4514,7 +4514,7 @@ function withoutDetachedRootEditing(
 	});
 }
 
-function withDetachedRootEditing(
+function describeWithDetachedRootEditing(
 	title: string,
 	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
 ): Mocha.Suite {
@@ -4523,12 +4523,22 @@ function withDetachedRootEditing(
 	});
 }
 
-function withAndWithoutDetachedRootEditing(
+function describeWithAndWithoutDetachedRootEditing(
 	title: string,
 	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
 ): Mocha.Suite {
 	return describe(title, (): void => {
-		withoutDetachedRootEditing("", testFn);
-		withDetachedRootEditing("", testFn);
+		describeWithoutDetachedRootEditing("", testFn);
+		describeWithDetachedRootEditing("", testFn);
+	});
+}
+
+function itWithAndWithoutDetachedRootEditing(
+	title: string,
+	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
+): Mocha.Test {
+	return it(title, (): void => {
+		describeWithoutDetachedRootEditing("", testFn);
+		describeWithDetachedRootEditing("", testFn);
 	});
 }
