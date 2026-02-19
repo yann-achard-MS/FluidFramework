@@ -138,6 +138,7 @@ const fieldBRootPath: NormalizedUpPath = {
 // Tests the integration of ModularChangeFamily with the default field kinds.
 describe("ModularChangeFamily integration", () => {
 	describe("rebase", () => {
+		// Covered by "can rebase remove over cross-field move"?
 		it("remove over cross-field move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
 			const editor = new DefaultIdBasedDataEditor(
@@ -199,6 +200,7 @@ describe("ModularChangeFamily integration", () => {
 			assertEqual(tagChangeInline(rebased, tag), tagChangeInline(expected, tag));
 		});
 
+		// Complicated
 		it("remove over move and remove", () => {
 			// This change moves two nodes and removes the second one.
 			const targetChange = Change.build(
@@ -269,6 +271,8 @@ describe("ModularChangeFamily integration", () => {
 			assertEqual(rebased, expected);
 		});
 
+		// Convertible to forest-based test.
+		// Why is this test important? Is it the fact that the destination of the move is under the field where the remove is happening?
 		it("remove over cross-field move to edited field", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
 			const editor = new DefaultIdBasedDataEditor(
@@ -332,6 +336,7 @@ describe("ModularChangeFamily integration", () => {
 			assertEqual(tagChangeInline(rebased, tag), tagChangeInline(expected, tag));
 		});
 
+		// Covered by "can rebase edit over cross-field move of changed node"?
 		it("nested change over cross-field move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
 			const editor = new DefaultIdBasedDataEditor(
@@ -379,6 +384,10 @@ describe("ModularChangeFamily integration", () => {
 			assertEqual(tagChangeInline(rebased, tag), tagChangeInline(expected, tag));
 		});
 
+		// Covered by "can rebase cross-field move over remove"?
+		// There's something axiomatic about this test: rebasing a node-targeting change over a change which removes that node should result in a change that is equivalent to restoring the node then performing the node-targeting change.
+		// Note that this is an axiom about the semantics of the changes (which is separate from the group axioms that the change family must satisfy).
+		// Maybe we should have a set of tests that enforce this axiom.
 		it("cross-field move over remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
 			const editor = new DefaultIdBasedDataEditor(
@@ -420,6 +429,8 @@ describe("ModularChangeFamily integration", () => {
 			assertEqual(rebasedDelta, expectedDelta);
 		});
 
+		// Covered by "can handle concurrent moves of the same node"?
+		// There is a difference: this test rebases an intra-field move, whereas in "can handle concurrent moves of the same node" both moves are cross-field moves.
 		it("move over cross-field move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
 			const editor = new DefaultIdBasedDataEditor(
@@ -461,6 +472,8 @@ describe("ModularChangeFamily integration", () => {
 			assertEqual(tagChangeInline(rebased, tag), tagChangeInline(expected, tag));
 		});
 
+		// Convertible to forest-based test.
+		// Since the test is concerned with the number of passes, it is a candidate for conversion to a test harness that is able to inspect the number of passes.
 		it("Nested moves both requiring a second pass", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
 			const editor = new DefaultIdBasedDataEditor(
@@ -564,6 +577,7 @@ describe("ModularChangeFamily integration", () => {
 			assertEqual(tagChangeInline(rebased, tag), tagChangeInline(expected, tag));
 		});
 
+		// Convertible to forest-based test.
 		it("over change which moves node upward", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
 			const editor = new DefaultIdBasedDataEditor(
@@ -616,6 +630,7 @@ describe("ModularChangeFamily integration", () => {
 			assertDeltaEqual(rebasedDelta, expectedDelta);
 		});
 
+		// Convertible to forest-based test.
 		// This test demonstrates that a field may need more than two rebasing passes.
 		// When rebasing a field we may find a move into a subtree which is not represented in the new changeset.
 		// To add that subtree we may have to invalidate an ancestor field, and may then discover that the base changeset
@@ -711,6 +726,7 @@ describe("ModularChangeFamily integration", () => {
 			assertEqual(tagChangeInline(rebased, tag), tagChangeInline(expected, tag));
 		});
 
+		// Convertible to forest-based test.
 		it("change to detached root over attach of that node", () => {
 			const nodeDescription = Change.nodeWithId(
 				1,
@@ -754,6 +770,9 @@ describe("ModularChangeFamily integration", () => {
 			assertEqual(rebased, expected);
 		});
 
+		// Convertible to forest-based test aside from checking the tombstone ID.
+		// Might require some helpers get the IDs of specific detached nodes.
+		// Consider splitting this into two tests: one for rename over revive and one for rename over rename.
 		it("rename over revive", () => {
 			const origId: ChangeAtomId = { revision: tag1, localId: brand(0) };
 			const rename = Change.build(
@@ -822,6 +841,8 @@ describe("ModularChangeFamily integration", () => {
 			assertEqual(rebased, expected);
 		});
 
+		// Convertible to forest-based test aside from checking the tombstone ID.
+		// Might require some helpers get the IDs of specific detached nodes.
 		it("rename over move", () => {
 			const fieldAId = { nodeId: undefined, field: fieldA };
 			const origId: ChangeAtomId = { revision: tag1, localId: brand(0) };
@@ -889,6 +910,7 @@ describe("ModularChangeFamily integration", () => {
 			assertEqual(rebased, expected);
 		});
 
+		// Covered by "can edit a concurrently removed tree"?
 		it("node change over remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
 			const editor = new DefaultIdBasedDataEditor(
