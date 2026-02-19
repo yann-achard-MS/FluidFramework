@@ -9,7 +9,7 @@ import { fail, unreachableCase } from "@fluidframework/core-utils/internal";
 import { validateUsageError } from "@fluidframework/test-runtime-utils/internal";
 
 import { asAlpha } from "../../api.js";
-import { currentVersion, FluidClientVersion } from "../../codec/index.js";
+import { FluidClientVersion } from "../../codec/index.js";
 import {
 	EmptyKey,
 	TreeNavigationResult,
@@ -21,7 +21,7 @@ import {
 } from "../../core/index.js";
 import { TreeStatus } from "../../feature-libraries/index.js";
 import { JsonAsTree } from "../../jsonDomainSchema.js";
-import { Tree, type ITreeCheckout, type SharedTreeOptions } from "../../shared-tree/index.js";
+import { Tree, type ITreeCheckout } from "../../shared-tree/index.js";
 import {
 	exportConcise,
 	numberSchema,
@@ -40,8 +40,12 @@ import {
 	chunkFromJsonableTrees,
 	chunkFromJsonTrees,
 	createTestUndoRedoStacks,
+	describeWithAndWithoutDetachedRootEditing,
+	describeWithDetachedRootEditing,
+	describeWithoutDetachedRootEditing,
 	expectJsonTree,
 	expectNoRemovedRoots,
+	itWithAndWithoutDetachedRootEditing,
 	makeTreeFromJson,
 	moveWithin,
 	TestTreeProviderLite,
@@ -72,15 +76,6 @@ const emptyJsonContent: TreeStoredContentStrict = {
 	get initialTree() {
 		return fieldJsonCursor([]);
 	},
-};
-
-const optionsWithoutDetachedRootEditing: SharedTreeOptions = {
-	minVersionForCollab: FluidClientVersion.v2_0,
-	enableDetachedRootEditing: false,
-};
-const optionsWithDetachedRootEditing: SharedTreeOptions = {
-	minVersionForCollab: currentVersion,
-	enableDetachedRootEditing: true,
 };
 
 describe("Editing", () => {
@@ -4605,41 +4600,3 @@ describe("Editing", () => {
 		expectJsonTree(tree, [{}]);
 	});
 });
-
-function describeWithoutDetachedRootEditing(
-	title: string,
-	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
-): Mocha.Suite {
-	return describe(`${title} (Detached root editing OFF)`, function (): void {
-		testFn.call(this, optionsWithoutDetachedRootEditing);
-	});
-}
-
-function describeWithDetachedRootEditing(
-	title: string,
-	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
-): Mocha.Suite {
-	return describe(`${title} (Detached root editing ON)`, function (): void {
-		testFn.call(this, optionsWithDetachedRootEditing);
-	});
-}
-
-function describeWithAndWithoutDetachedRootEditing(
-	title: string,
-	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
-): Mocha.Suite {
-	return describe(title, (): void => {
-		describeWithoutDetachedRootEditing("", testFn);
-		describeWithDetachedRootEditing("", testFn);
-	});
-}
-
-function itWithAndWithoutDetachedRootEditing(
-	title: string,
-	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
-): Mocha.Test {
-	return it(title, (): void => {
-		describeWithoutDetachedRootEditing("", testFn);
-		describeWithDetachedRootEditing("", testFn);
-	});
-}

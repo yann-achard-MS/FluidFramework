@@ -70,6 +70,7 @@ import {
 	type ICodecFamily,
 	type IJsonCodec,
 	withSchemaValidation,
+	type CodecName,
 } from "../codec/index.js";
 import {
 	type ChangeFamily,
@@ -174,6 +175,7 @@ import {
 	type ForestType,
 	ForestTypeReference,
 	type SharedTreeOptionsInternal,
+	type SharedTreeOptions,
 } from "../shared-tree/index.js";
 import type { Transactor } from "../shared-tree-core/index.js";
 import {
@@ -1712,4 +1714,53 @@ export function inMemorySnapshotFileSystem(): [SnapshotFileSystem, Map<string, s
 		},
 	};
 	return [fileSystem, snapshots];
+}
+
+const optionsWithoutDetachedRootEditing: SharedTreeOptions = {
+	minVersionForCollab: FluidClientVersion.v2_0,
+	enableDetachedRootEditing: false,
+};
+const optionsWithDetachedRootEditing: SharedTreeOptions = {
+	minVersionForCollab: currentVersion,
+	enableDetachedRootEditing: true,
+	// TODO add overrides to test new codecs
+	writeVersionOverrides: new Map<CodecName, FormatVersion>([]),
+};
+
+export function describeWithoutDetachedRootEditing(
+	title: string,
+	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
+): Mocha.Suite {
+	return describe(`${title} (Detached root editing OFF)`, function (): void {
+		testFn.call(this, optionsWithoutDetachedRootEditing);
+	});
+}
+
+export function describeWithDetachedRootEditing(
+	title: string,
+	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
+): Mocha.Suite {
+	return describe(`${title} (Detached root editing ON)`, function (): void {
+		testFn.call(this, optionsWithDetachedRootEditing);
+	});
+}
+
+export function describeWithAndWithoutDetachedRootEditing(
+	title: string,
+	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
+): Mocha.Suite {
+	return describe(title, (): void => {
+		describeWithoutDetachedRootEditing("", testFn);
+		describeWithDetachedRootEditing("", testFn);
+	});
+}
+
+export function itWithAndWithoutDetachedRootEditing(
+	title: string,
+	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
+): Mocha.Test {
+	return it(title, (): void => {
+		describeWithoutDetachedRootEditing("", testFn);
+		describeWithDetachedRootEditing("", testFn);
+	});
 }

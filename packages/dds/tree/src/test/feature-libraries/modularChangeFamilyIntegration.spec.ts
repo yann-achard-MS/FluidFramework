@@ -20,6 +20,7 @@ import {
 	type TaggedChange,
 	makeAnonChange,
 	revisionMetadataSourceFromInfo,
+	rootFieldKey,
 	tagChange,
 	tagRollbackInverse,
 } from "../../core/index.js";
@@ -48,6 +49,7 @@ import {
 } from "../../feature-libraries/modular-schema/modularChangeFamily.js";
 import type {
 	NodeId,
+	RebaseVersion,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../feature-libraries/modular-schema/modularChangeTypes.js";
 // eslint-disable-next-line import-x/no-internal-modules
@@ -58,6 +60,7 @@ import {
 	assertDeltaEqual,
 	chunkFromJsonTrees,
 	defaultRevisionMetadataFromChanges,
+	describeWithAndWithoutDetachedRootEditing,
 	makeEncodingTestSuite,
 	mintRevisionTag,
 	moveWithin,
@@ -103,7 +106,6 @@ const codec = makeModularChangeCodecFamily(
 );
 const family = new ModularChangeFamily(fieldKinds, codec, codecOptions);
 
-const rootField: FieldKey = brand("Root");
 const fieldA: FieldKey = brand("FieldA");
 const fieldB: FieldKey = brand("FieldB");
 const fieldC: FieldKey = brand("FieldC");
@@ -118,7 +120,7 @@ const tag4: RevisionTag = mintRevisionTag();
 const rootPath: NormalizedUpPath = {
 	detachedNodeId: undefined,
 	parent: undefined,
-	parentField: rootField,
+	parentField: rootFieldKey,
 	parentIndex: 0,
 };
 
@@ -137,19 +139,27 @@ const fieldBRootPath: NormalizedUpPath = {
 };
 
 // Tests the integration of ModularChangeFamily with the default field kinds.
-describe("ModularChangeFamily integration", () => {
+describeWithAndWithoutDetachedRootEditing("ModularChangeFamily integration", (options) => {
+	function makeEditor(changeReceiver: (change: TaggedChange<ModularChangeset>) => void) {
+		return new DefaultIdBasedDataEditor(
+			family,
+			mintRevisionTag,
+			changeReceiver,
+			{
+				enableDetachedRootEditing: options.enableDetachedRootEditing ?? false,
+			},
+			{
+				...codecOptions,
+				...options,
+			},
+		);
+	}
+	const rebaseVersion: RebaseVersion = options.enableDetachedRootEditing === true ? 2 : 1;
+
 	describe("rebase", () => {
 		it("remove over cross-field move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 
 			editor.move(
 				{ parent: rootPath, field: fieldA },
@@ -169,9 +179,9 @@ describe("ModularChangeFamily integration", () => {
 			);
 
 			const expected = Change.build(
-				{ family, maxId: 8 },
+				{ family, rebaseVersion, maxId: 8 },
 				Change.field(
-					rootField,
+					rootFieldKey,
 					genericFieldKind.identifier,
 					newGenericChangeset(),
 					Change.nodeWithId(
@@ -205,6 +215,7 @@ describe("ModularChangeFamily integration", () => {
 			const targetChange = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 4,
 					detachedMoves: [
 						{
@@ -231,7 +242,7 @@ describe("ModularChangeFamily integration", () => {
 			);
 
 			const sourceChange = Change.build(
-				{ family, maxId: 1 },
+				{ family, rebaseVersion, maxId: 1 },
 				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.detach(2, { revision: tag2, localId: brand(0) }),
 				]),
@@ -246,6 +257,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 4,
 					renames: [
 						{
@@ -272,15 +284,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("remove over cross-field move to edited field", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 
 			editor.move(
 				{
@@ -304,9 +308,9 @@ describe("ModularChangeFamily integration", () => {
 
 			const nodeId: NodeId = { revision: tag1, localId: brand(5) };
 			const expected = Change.build(
-				{ family, maxId: 8 },
+				{ family, rebaseVersion, maxId: 8 },
 				Change.field(
-					rootField,
+					rootFieldKey,
 					genericFieldKind.identifier,
 					newGenericChangeset(),
 					Change.nodeWithId(
@@ -335,15 +339,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("nested change over cross-field move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 
 			editor.move(
 				{ parent: undefined, field: fieldA },
@@ -363,7 +359,7 @@ describe("ModularChangeFamily integration", () => {
 			);
 
 			const expected = Change.build(
-				{ family, maxId: 3 },
+				{ family, rebaseVersion, maxId: 3 },
 				Change.field(
 					fieldB,
 					sequenceIdentifier,
@@ -382,15 +378,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("cross-field move over remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 			editor.sequenceField({ parent: undefined, field: fieldA }).remove(1, 1);
 			editor.move(
 				{ parent: undefined, field: fieldA },
@@ -423,15 +411,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("move over cross-field move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -449,7 +429,7 @@ describe("ModularChangeFamily integration", () => {
 			);
 
 			const expected = Change.build(
-				{ family, maxId: 5 },
+				{ family, rebaseVersion, maxId: 5 },
 				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.tomb(tag1, brand(0)),
 					MarkMaker.moveOut(1, brand(3)),
@@ -464,15 +444,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("Nested moves both requiring a second pass", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 
@@ -539,7 +511,7 @@ describe("ModularChangeFamily integration", () => {
 			const nodeId2: NodeId = { localId: brand(6) };
 
 			const expected = Change.build(
-				{ family, maxId: 7 },
+				{ family, rebaseVersion, maxId: 7 },
 				Change.field(
 					fieldA,
 					sequenceIdentifier,
@@ -567,15 +539,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("over change which moves node upward", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 			const nodeAPath = fieldARootPath;
 			const nodeBPath: NormalizedUpPath = {
 				parent: nodeAPath,
@@ -624,15 +588,7 @@ describe("ModularChangeFamily integration", () => {
 		// Note that this only happens once in this test, but could happen an arbitrary number of times.
 		it("over change which moves into moved subtree", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 			const nodePath1: NormalizedUpPath = {
 				detachedNodeId: undefined,
 				parent: undefined,
@@ -686,7 +642,7 @@ describe("ModularChangeFamily integration", () => {
 			);
 
 			const expected = Change.build(
-				{ family, maxId: 7 },
+				{ family, rebaseVersion, maxId: 7 },
 				Change.field(
 					fieldA,
 					sequenceIdentifier,
@@ -722,6 +678,7 @@ describe("ModularChangeFamily integration", () => {
 			);
 			const sourceChange = Change.build({
 				family,
+				rebaseVersion,
 				maxId: 2,
 				roots: [
 					{
@@ -734,6 +691,7 @@ describe("ModularChangeFamily integration", () => {
 			const targetChange = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 1,
 				},
 				Change.field(fieldA, sequenceIdentifier, [
@@ -748,7 +706,7 @@ describe("ModularChangeFamily integration", () => {
 			);
 
 			const expected = Change.build(
-				{ family, maxId: 2 },
+				{ family, rebaseVersion, maxId: 2 },
 				Change.field(fieldA, sequenceIdentifier, [], nodeDescription),
 			);
 
@@ -760,6 +718,7 @@ describe("ModularChangeFamily integration", () => {
 			const rename = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 1,
 					renames: [
 						{
@@ -778,6 +737,7 @@ describe("ModularChangeFamily integration", () => {
 			const revive = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 0,
 					renames: [
 						{
@@ -803,6 +763,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 1,
 					renames: [
 						{
@@ -830,6 +791,7 @@ describe("ModularChangeFamily integration", () => {
 			const rename = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 1,
 					renames: [
 						{
@@ -848,6 +810,7 @@ describe("ModularChangeFamily integration", () => {
 			const move = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 0,
 					renames: [
 						{
@@ -878,6 +841,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 1,
 					revisions: [{ revision: tag3 }],
 				},
@@ -892,15 +856,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("node change over remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 			editor.sequenceField({ parent: undefined, field: fieldA }).remove(0, 1);
 			editor.sequenceField({ parent: fieldARootPath, field: fieldB }).remove(0, 1);
 
@@ -915,6 +871,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 2,
 					revisions: [{ revision: tag2 }],
 					roots: [
@@ -939,15 +896,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("remove over move to detached tree", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 
 			// Remove node0 from fieldA
 			editor.sequenceField({ parent: undefined, field: fieldA }).remove(0, 1);
@@ -995,6 +944,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 4,
 					revisions: [{ revision: tag3 }],
 					roots: [
@@ -1027,6 +977,7 @@ describe("ModularChangeFamily integration", () => {
 			const moveToDetached = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 3,
 					revisions: [{ revision: tag2 }],
 					roots: [
@@ -1053,7 +1004,7 @@ describe("ModularChangeFamily integration", () => {
 			);
 
 			const remove = Change.build(
-				{ family, maxId: 4, revisions: [{ revision: tag3 }] },
+				{ family, rebaseVersion, maxId: 4, revisions: [{ revision: tag3 }] },
 				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.detach(1, { revision: tag3, localId: brand(4) }),
 				]),
@@ -1068,6 +1019,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 4,
 					revisions: [{ revision: tag3 }],
 					roots: [
@@ -1098,6 +1050,7 @@ describe("ModularChangeFamily integration", () => {
 			const moveToReattached = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 3,
 					revisions: [{ revision: tag2 }],
 					roots: [
@@ -1125,7 +1078,7 @@ describe("ModularChangeFamily integration", () => {
 
 			const removeId: ChangeAtomId = { revision: tag3, localId: brand(4) };
 			const remove = Change.build(
-				{ family, maxId: 4, revisions: [{ revision: tag3 }] },
+				{ family, rebaseVersion, maxId: 4, revisions: [{ revision: tag3 }] },
 				Change.field(fieldA, sequenceIdentifier, [MarkMaker.detach(1, removeId)]),
 			);
 
@@ -1138,6 +1091,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 4,
 					revisions: [{ revision: tag3 }],
 				},
@@ -1158,15 +1112,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("composite move over move", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.move(fieldAPath, 0, 1, fieldAPath, 3);
@@ -1187,7 +1133,7 @@ describe("ModularChangeFamily integration", () => {
 			);
 
 			const expected = Change.build(
-				{ family, maxId: 5, revisions: [{ revision: tag2 }] },
+				{ family, rebaseVersion, maxId: 5, revisions: [{ revision: tag2 }] },
 				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.tomb(tag1, brand(0)),
 					MarkMaker.skip(1),
@@ -1212,15 +1158,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("composite move over remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.sequenceField(fieldAPath).remove(0, 1);
@@ -1244,6 +1182,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 4,
 					renames: [
 						{
@@ -1276,6 +1215,7 @@ describe("ModularChangeFamily integration", () => {
 			const revive = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 0,
 					renames: [
 						{
@@ -1297,6 +1237,7 @@ describe("ModularChangeFamily integration", () => {
 			const move = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 1,
 					renames: [
 						{
@@ -1321,7 +1262,7 @@ describe("ModularChangeFamily integration", () => {
 			);
 
 			const expected = Change.build(
-				{ family, maxId: 1, revisions: [{ revision: tag2 }] },
+				{ family, rebaseVersion, maxId: 1, revisions: [{ revision: tag2 }] },
 				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.moveOut(1, moveId, { detachCellId }),
 					MarkMaker.moveIn(1, moveId),
@@ -1342,6 +1283,7 @@ describe("ModularChangeFamily integration", () => {
 			const detachedMove = Change.build(
 				{
 					family,
+					rebaseVersion,
 					renames: [{ oldId, newId, count: 1, detachLocation: fieldAId }],
 					detachedMoves: [{ detachId: newId, count: 1, newLocation: fieldBId }],
 					revisions: [{ revision: tag1 }],
@@ -1356,6 +1298,7 @@ describe("ModularChangeFamily integration", () => {
 			const rootChange = Change.build(
 				{
 					family,
+					rebaseVersion,
 					roots: [
 						{
 							detachId: oldId,
@@ -1380,6 +1323,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					roots: [
 						{
 							detachId: newId,
@@ -1412,15 +1356,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("prunes its output", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 			const nodeAPath = fieldARootPath;
 			const nodeBPath = fieldBRootPath;
 
@@ -1452,15 +1388,7 @@ describe("ModularChangeFamily integration", () => {
 			 */
 
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 			const nodeAPath = fieldARootPath;
 
 			// Moves A to an adjacent cell to its right
@@ -1552,15 +1480,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("cross-field move and nested changes", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -1617,15 +1537,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("cross-field move and inverse with nested changes", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -1687,15 +1599,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("two cross-field moves of same node", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -1723,6 +1627,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 3,
 					revisions: [{ revision: tag1 }, { revision: tag2 }],
 				},
@@ -1746,15 +1651,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("move and modify with modify", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 			editor.move(
 				{ parent: undefined, field: fieldA },
 				0,
@@ -1775,7 +1672,12 @@ describe("ModularChangeFamily integration", () => {
 			]);
 
 			const expected = Change.build(
-				{ family, maxId: 5, revisions: [{ revision: tag1 }, { revision: tag2 }] },
+				{
+					family,
+					rebaseVersion,
+					maxId: 5,
+					revisions: [{ revision: tag1 }, { revision: tag2 }],
+				},
 				Change.field(
 					fieldA,
 					sequenceIdentifier,
@@ -1798,15 +1700,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("move and remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.move(fieldAPath, 0, 1, fieldAPath, 2);
@@ -1824,6 +1718,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 2,
 					detachedMoves: [
 						{
@@ -1853,15 +1748,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("move root and remove", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.sequenceField(fieldAPath).remove(0, 1);
@@ -1887,6 +1774,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 3,
 					renames: [{ oldId, newId, count: 1, detachLocation: fieldAId }],
 					detachedMoves: [
@@ -1911,15 +1799,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("detach and (move and remove)", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.sequenceField(fieldAPath).remove(0, 1);
@@ -1949,6 +1829,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 3,
 					detachedMoves: [{ detachId, count: 1, newLocation: fieldAId }],
 					revisions: [{ revision: tag1 }, { revision: tag2 }],
@@ -1983,6 +1864,7 @@ describe("ModularChangeFamily integration", () => {
 			const detachedMove = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 2,
 					revisions: [{ revision: tag1 }],
 					renames: [
@@ -2005,6 +1887,7 @@ describe("ModularChangeFamily integration", () => {
 			const reattach = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 0,
 					revisions: [{ revision: tag2 }],
 					renames: [{ oldId: newId, count: 1, newId: attachId, detachLocation: fieldAId }],
@@ -2023,6 +1906,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 2,
 					revisions: [{ revision: tag1 }, { revision: tag2 }],
 					renames: [{ oldId, count: 1, newId: attachId, detachLocation: fieldAId }],
@@ -2044,6 +1928,7 @@ describe("ModularChangeFamily integration", () => {
 			const detachAndMove = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 2,
 					revisions: [{ revision: tag1 }],
 					detachedMoves: [{ detachId, count: 1, newLocation: fieldAId }],
@@ -2058,6 +1943,7 @@ describe("ModularChangeFamily integration", () => {
 			const reattach = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 0,
 					revisions: [{ revision: tag2 }],
 					renames: [{ oldId: detachId, count: 1, newId: attachId, detachLocation: fieldAId }],
@@ -2076,6 +1962,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 2,
 					revisions: [{ revision: tag1 }, { revision: tag2 }],
 				},
@@ -2092,15 +1979,7 @@ describe("ModularChangeFamily integration", () => {
 	describe("invert", () => {
 		it("Cross-field move of edited node", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 			editor.enterTransaction();
 
 			// Remove a node
@@ -2133,6 +2012,7 @@ describe("ModularChangeFamily integration", () => {
 				Change.build(
 					{
 						family,
+						rebaseVersion,
 						maxId: 3,
 						renames: [
 							{
@@ -2166,15 +2046,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("Nested moves both requiring a second pass", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 			editor.enterTransaction();
@@ -2246,6 +2118,7 @@ describe("ModularChangeFamily integration", () => {
 				Change.build(
 					{
 						family,
+						rebaseVersion,
 						maxId: 7,
 						renames: [
 							{
@@ -2287,15 +2160,7 @@ describe("ModularChangeFamily integration", () => {
 
 		it("Undo move with rename", () => {
 			const [changeReceiver, getChanges] = testChangeReceiver(family);
-			const editor = new DefaultIdBasedDataEditor(
-				family,
-				mintRevisionTag,
-				changeReceiver,
-				{
-					enableDetachedRootEditing: true,
-				},
-				codecOptions,
-			);
+			const editor = makeEditor(changeReceiver);
 
 			const fieldAPath = { parent: undefined, field: fieldA };
 
@@ -2320,6 +2185,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					revisions: [{ revision: tag4 }],
 					maxId: 3,
 				},
@@ -2336,7 +2202,7 @@ describe("ModularChangeFamily integration", () => {
 		it("Undo insert and move", () => {
 			// This tests undoing a single insert mark representing a move of the first node and an insert of the second.
 			const change = Change.build(
-				{ family, maxId: 3 },
+				{ family, rebaseVersion, maxId: 3 },
 				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.attach(2, brand(2), { id: brand(0) }),
 					MarkMaker.detach(1, brand(0)),
@@ -2345,7 +2211,7 @@ describe("ModularChangeFamily integration", () => {
 
 			const inverse = family.invert(tagChangeInline(change, tag1), false, tag2);
 			const expected = Change.build(
-				{ family, maxId: 3, revisions: [{ revision: tag2 }] },
+				{ family, rebaseVersion, maxId: 3, revisions: [{ revision: tag2 }] },
 				Change.field(fieldA, sequenceIdentifier, [
 					MarkMaker.detach(2, { revision: tag2, localId: brand(0) }),
 					MarkMaker.attach(1, { revision: tag1, localId: brand(0) }, { revision: tag2 }),
@@ -2359,6 +2225,7 @@ describe("ModularChangeFamily integration", () => {
 			const change = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 3,
 					roots: [
 						{
@@ -2378,7 +2245,7 @@ describe("ModularChangeFamily integration", () => {
 			const inverse = family.invert(taggedChange, true, tag2);
 
 			const expected = Change.build(
-				{ family, maxId: 3, revisions: [{ revision: tag2, rollbackOf: tag1 }] },
+				{ family, rebaseVersion, maxId: 3, revisions: [{ revision: tag2, rollbackOf: tag1 }] },
 				Change.field(
 					fieldA,
 					sequenceIdentifier,
@@ -2407,6 +2274,7 @@ describe("ModularChangeFamily integration", () => {
 			const detachedMove = Change.build(
 				{
 					family,
+					rebaseVersion,
 					renames: [{ oldId, newId, count: 1, detachLocation: fieldAId }],
 					detachedMoves: [{ detachId: newId, count: 1, newLocation: fieldBId }],
 					revisions: [{ revision: tag1 }],
@@ -2423,6 +2291,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					renames: [{ oldId: newId, newId: oldId, count: 1, detachLocation: fieldBId }],
 					detachedMoves: [{ detachId: oldId, count: 1, newLocation: fieldAId }],
 					revisions: [{ revision: tag2, rollbackOf: tag1 }],
@@ -2446,6 +2315,7 @@ describe("ModularChangeFamily integration", () => {
 			const move = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 3,
 					renames: [
 						{
@@ -2468,6 +2338,7 @@ describe("ModularChangeFamily integration", () => {
 			const expected = Change.build(
 				{
 					family,
+					rebaseVersion,
 					maxId: 3,
 					detachedMoves: [{ detachId: oldId, count: 1, newLocation: fieldAId }],
 					revisions: [{ revision: tag2, rollbackOf: tag1 }],
@@ -2814,7 +2685,7 @@ function buildTransaction(
 	revision?: RevisionTag,
 	options?: EditorOptions,
 ): TaggedChange<ModularChangeset> {
-	const optionsActual = { enableDetachedRootEditing: true, ...options };
+	const optionsActual = { enableDetachedRootEditing: false, ...options };
 	const [changeReceiver, getChanges] = testChangeReceiver(family);
 	const transaction = new DefaultIdBasedDataEditor(
 		family,
