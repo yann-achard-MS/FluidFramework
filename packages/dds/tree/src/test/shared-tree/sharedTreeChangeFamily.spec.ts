@@ -6,6 +6,7 @@
 import { strict as assert, fail } from "node:assert";
 
 import { deepFreeze } from "@fluidframework/test-runtime-utils/internal";
+
 import { currentVersion, type CodecWriteOptions } from "../../codec/index.js";
 import {
 	type DeltaDetachedNodeId,
@@ -60,7 +61,7 @@ const defaultEditor = new DefaultIdBasedDataEditor(
 	modularFamily,
 	mintRevisionTag,
 	(taggedChange) => dataChanges.push(taggedChange.change),
-	{ canMakeDetachedRootEdits: true },
+	{ enableDetachedRootEditing: true },
 	codecOptions,
 );
 
@@ -274,10 +275,13 @@ describe("SharedTreeChangeFamily", () => {
 		// The tests below heavily mock the inputs to updateRefreshers.
 		// This is done to simplify the tests, but it also has the effect of reducing their dependency on the
 		// ModularChangeset format and on the behavior of the helper functions that operate on it.
-		// ModularChangeset instances that are used as input are mocked to represent the list of relevant node IDs that
-		// they need refreshers for.
-		// ModularChangeset instances that are used as output are mocked to represent the list refreshers that are
-		// included in them. The refreshers themselves are mocked using unique strings.
+		interface MockChange {
+			/** The IDs of the nodes that are relevant to this change. This is the test input. */
+			readonly relevant?: DeltaDetachedNodeId[];
+			/** The refreshers associated with this change. This is the test output. */
+			readonly refreshers?: string[];
+		}
+
 		const idInForest1: DeltaDetachedNodeId = { minor: 1 };
 		const idInForest2: DeltaDetachedNodeId = { minor: 2 };
 		const idNotInForest: DeltaDetachedNodeId = { minor: 3 };
@@ -289,7 +293,6 @@ describe("SharedTreeChangeFamily", () => {
 		};
 
 		interface MockChange {
-			readonly builds?: DeltaDetachedNodeId[];
 			readonly relevant?: DeltaDetachedNodeId[];
 			readonly refreshers?: string[];
 		}
@@ -326,9 +329,6 @@ describe("SharedTreeChangeFamily", () => {
 			deepFreeze(input);
 			const updated = updateRefreshers(
 				input,
-				// Mock for buildsFromDataChange
-				(change): Iterable<DeltaDetachedNodeId> =>
-					(change as unknown as MockChange).builds ?? [],
 				// Mock for getDetachedNode
 				(id): TreeChunk | undefined => {
 					switch (id) {
@@ -385,15 +385,6 @@ describe("SharedTreeChangeFamily", () => {
 			];
 			const updated = testUpdateRefreshers(input);
 			assert.deepEqual(updated, [[refresher1], [refresher2], []]);
-		});
-		it("excludes refreshers for builds", () => {
-			const input: MockChange[] = [
-				{ builds: [idInForest1], relevant: [idInForest1] },
-				{ builds: [idInForest2], relevant: [idInForest1, idInForest2] },
-				{ relevant: [idInForest1, idInForest2] },
-			];
-			const updated = testUpdateRefreshers(input);
-			assert.deepEqual(updated, [[], [], []]);
 		});
 		it("throws for missing refreshers in first data change", () => {
 			const input: MockChange[] = [{ relevant: [idNotInForest] }];
@@ -457,7 +448,7 @@ describe("SharedTreeChangeFamily", () => {
 				assert.equal(change3.type, "data");
 				const delta1 = intoDelta(tagChange(change1.innerChange, undefined));
 				const delta3 = intoDelta(tagChange(change3.innerChange, undefined));
-				const detachedNodeId = delta1.fields?.get(rootFieldKey)?.[0]?.detach;
+				const detachedNodeId = delta1.fields?.get(rootFieldKey)?.marks[0]?.detach;
 				const reference = delta3.rename?.[0]?.oldId;
 				assert.notEqual(reference, undefined);
 				assert.deepEqual(reference, detachedNodeId);

@@ -4,24 +4,26 @@
  */
 
 // XXX
-describe.skip("dummy content 05", () => {});
-
 // import path from "node:path";
 
 // import type { IIdCompressor } from "@fluidframework/id-compressor";
 
 // import { type ChangesetLocalId, RevisionTagCodec } from "../../../core/index.js";
+// import type {
+// 	OptionalChangeset,
+// 	// eslint-disable-next-line import-x/no-internal-modules
+// } from "../../../feature-libraries/optional-field/optionalFieldChangeTypes.js";
 // import {
-// 	type OptionalChangeset,
 // 	makeOptionalFieldCodecFamily,
 // 	// eslint-disable-next-line import-x/no-internal-modules
-// } from "../../../feature-libraries/optional-field/index.js";
+// } from "../../../feature-libraries/optional-field/optionalFieldCodecs.js";
 // import { brand } from "../../../util/index.js";
 // import { takeJsonSnapshot, useSnapshotDirectory } from "../../snapshots/index.js";
-// import { TestNodeId } from "../../testNodeId.js";
-// import { Change } from "./optionalFieldUtils.js";
 // import { TestChange } from "../../testChange.js";
+// import { TestNodeId } from "../../testNodeId.js";
 // import { createSnapshotCompressor, testIdCompressor } from "../../utils.js";
+
+// import { Change } from "./optionalFieldUtils.js";
 
 // function generateTestChangesets(
 // 	idCompressor: IIdCompressor,
@@ -61,32 +63,32 @@ describe.skip("dummy content 05", () => {});
 // 	];
 // }
 
-export function testSnapshots() {
+export function testSnapshots(): void {
 	describe("Snapshots", () => {
-		// 		const snapshotCompressor = createSnapshotCompressor();
-		// 		const changesets = generateTestChangesets(snapshotCompressor);
-		// 		const family = makeOptionalFieldCodecFamily(new RevisionTagCodec(snapshotCompressor));
-		// 		const baseContext = {
-		// 			originatorId: snapshotCompressor.localSessionId,
-		// 			revision: undefined,
-		// 			idCompressor: testIdCompressor,
-		// 		};
-		// 		for (const version of family.getSupportedFormats()) {
-		// 			describe(`version ${version}`, () => {
-		// 				const dir = path.join("optional-field", `V${version}`);
-		// 				useSnapshotDirectory(dir);
-		// 				const codec = family.resolve(version);
-		// 				for (const { name, change } of changesets) {
-		// 					it(name, () => {
-		// 						const encoded = codec.json.encode(change, {
-		// 							baseContext,
-		// 							encodeNode: (node) => TestNodeId.encode(node, baseContext),
-		// 							decodeNode: (node) => TestNodeId.decode(node, baseContext),
-		// 						});
-		// 						takeJsonSnapshot(encoded);
-		// 					});
-		// 				}
+		// const snapshotCompressor = createSnapshotCompressor();
+		// const changesets = generateTestChangesets(snapshotCompressor);
+		// const family = makeOptionalFieldCodecFamily(new RevisionTagCodec(snapshotCompressor));
+		// const baseContext = {
+		// 	originatorId: snapshotCompressor.localSessionId,
+		// 	revision: undefined,
+		// 	idCompressor: testIdCompressor,
+		// };
+		// for (const version of family.getSupportedFormats()) {
+		// 	describe(`version ${version}`, () => {
+		// 		const dir = path.join("optional-field", `V${version}`);
+		// 		useSnapshotDirectory(dir);
+		// 		const codec = family.resolve(version);
+		// 		for (const { name, change } of changesets) {
+		// 			it(name, () => {
+		// 				const encoded = codec.encode(change, {
+		// 					baseContext,
+		// 					encodeNode: (node) => TestNodeId.encode(node, baseContext),
+		// 					decodeNode: (node) => TestNodeId.decode(node, baseContext),
+		// 				});
+		// 				takeJsonSnapshot(encoded);
 		// 			});
 		// 		}
+		// 	});
+		// }
 	});
 }

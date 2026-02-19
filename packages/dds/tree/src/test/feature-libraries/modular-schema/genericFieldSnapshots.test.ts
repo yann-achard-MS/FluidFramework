@@ -3,17 +3,20 @@
  * Licensed under the MIT License.
  */
 
-import type { GenericChangeset } from "../../../feature-libraries/index.js";
+import { newChangeAtomIdTransform } from "../../../core/index.js";
+import {
+	newChangeAtomIdBTree,
+	type GenericChangeset,
+} from "../../../feature-libraries/index.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import { makeGenericChangeCodec } from "../../../feature-libraries/modular-schema/genericFieldKindCodecs.js";
-import { takeJsonSnapshot, useSnapshotDirectory } from "../../snapshots/index.js";
-import { brand, newTupleBTree } from "../../../util/index.js";
-import { TestNodeId } from "../../testNodeId.js";
-import { TestChange } from "../../testChange.js";
-import { snapshotSessionId, testIdCompressor } from "../../utils.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import { newGenericChangeset } from "../../../feature-libraries/modular-schema/genericFieldKindTypes.js";
-import { newChangeAtomIdTransform } from "../../../core/index.js";
+import { brand } from "../../../util/index.js";
+import { takeJsonSnapshot, useSnapshotDirectory } from "../../snapshots/index.js";
+import { TestChange } from "../../testChange.js";
+import { TestNodeId } from "../../testNodeId.js";
+import { snapshotSessionId, testIdCompressor } from "../../utils.js";
 
 const nodeChange = TestNodeId.create({ localId: brand(0) }, TestChange.mint([], 1));
 const testChangesets: { name: string; change: GenericChangeset }[] = [
@@ -35,7 +38,7 @@ const testChangesets: { name: string; change: GenericChangeset }[] = [
 	},
 ];
 
-export function testSnapshots() {
+export function testSnapshots(): void {
 	describe("Snapshots", () => {
 		useSnapshotDirectory("generic-field");
 		const family = makeGenericChangeCodec();
@@ -44,7 +47,7 @@ export function testSnapshots() {
 				const codec = family.resolve(version);
 				for (const { name, change } of testChangesets) {
 					it(name, () => {
-						const encoded = codec.json.encode(change, {
+						const encoded = codec.encode(change, {
 							baseContext,
 							getInputRootId: (id, count) => ({ start: id, value: id, length: count }),
 							isAttachId: (id, count) => ({
@@ -57,9 +60,14 @@ export function testSnapshots() {
 								value: false,
 								length: count,
 							}),
+							getCellIdForMove: (id, count) => ({
+								start: id,
+								length: count,
+								value: undefined,
+							}),
 							encodeNode: (nodeId) => TestNodeId.encode(nodeId, baseContext),
 							decodeNode: (nodeId) => TestNodeId.decode(nodeId, baseContext),
-							rootNodeChanges: newTupleBTree(),
+							rootNodeChanges: newChangeAtomIdBTree(),
 							rootRenames: newChangeAtomIdTransform(),
 							decodeRootNodeChange: () => {},
 							decodeRootRename: () => {},

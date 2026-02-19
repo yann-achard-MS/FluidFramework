@@ -16,6 +16,7 @@ import {
 } from "@fluidframework/shared-object-base/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
+import { FluidClientVersion } from "./codec/index.js";
 import {
 	SharedTreeKernel,
 	type ITreePrivate,
@@ -24,16 +25,15 @@ import {
 	type SharedTreeOptionsInternal,
 	type SharedTreeKernelView,
 } from "./shared-tree/index.js";
-import { SharedTreeFactoryType, SharedTreeAttributes } from "./sharedTreeAttributes.js";
-import type { ITree } from "./simple-tree/index.js";
-import { Breakable, copyProperty } from "./util/index.js";
-import { FluidClientVersion } from "./codec/index.js";
 import {
 	editManagerFormatVersionSelectorForDetachedRootEditing,
 	editManagerFormatVersionSelectorForSharedBranches,
 	messageFormatVersionSelectorForDetachedRootEditing,
 	messageFormatVersionSelectorForSharedBranches,
 } from "./shared-tree-core/index.js";
+import { SharedTreeFactoryType, SharedTreeAttributes } from "./sharedTreeAttributes.js";
+import type { ITree } from "./simple-tree/index.js";
+import { Breakable, copyProperty } from "./util/index.js";
 
 /**
  * {@link ITreePrivate} extended with ISharedObject.
@@ -215,7 +215,9 @@ export function resolveOptions(options: SharedTreeOptions): SharedTreeOptionsInt
 
 function resolveFormatOptions(options: SharedTreeOptions): SharedTreeOptionsInternal {
 	if (options.enableSharedBranches === true && options.enableDetachedRootEditing === true) {
-		throw new UsageError("enableDetachRootEditing cannot be used with enableSharedBranches.");
+		throw new UsageError(
+			"enableDetachedRootEditing cannot be used with enableSharedBranches.",
+		);
 	}
 	if (options.enableSharedBranches === true) {
 		return sharedBranchesOptions;
@@ -233,5 +235,5 @@ const sharedBranchesOptions: SharedTreeOptionsInternal = {
 const detachRootEditingOptions: SharedTreeOptionsInternal = {
 	messageFormatSelector: messageFormatVersionSelectorForDetachedRootEditing,
 	editManagerFormatSelector: editManagerFormatVersionSelectorForDetachedRootEditing,
-	canMakeDetachedRootEdits: true,
+	enableDetachedRootEditing: true,
 };

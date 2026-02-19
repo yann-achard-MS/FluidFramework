@@ -272,7 +272,6 @@ function mapDataChanges(
  */
 export function updateRefreshers(
 	change: SharedTreeChange,
-	buildsFromDataChange: (taggedChange: ModularChangeset) => Iterable<DeltaDetachedNodeId>,
 	getDetachedNode: (id: DeltaDetachedNodeId) => TreeChunk | undefined,
 	relevantRemovedRootsFromDataChange: (
 		taggedChange: ModularChangeset,
@@ -319,19 +318,13 @@ export function updateRefreshers(
 	}
 	let isFirstDataChange = true;
 	return mapDataChanges(change, (dataChange) => {
-		const builtRoots = buildsFromDataChange(dataChange);
-		for (const id of builtRoots) {
-			// Detached root IDs that are used for builds are only ever used by a single node,
-			// so there is no risk of excluding needed refreshers by adding them to the list of already included roots.
-			addToNestedSet(includedRoots, id.major, id.minor);
-		}
 		const removedRoots = relevantRemovedRootsFromDataChange(dataChange);
 		if (isFirstDataChange) {
 			isFirstDataChange = false;
 			return updateDataChangeRefreshers(
 				dataChange,
 				getAndRememberDetachedNode,
-				filterIncludedRoots(removedRoots),
+				removedRoots,
 				true,
 			);
 		} else {

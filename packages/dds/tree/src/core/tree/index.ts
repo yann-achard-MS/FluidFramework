@@ -30,17 +30,17 @@ export {
 	CursorMarker,
 	isCursor,
 } from "./cursor.js";
-export type {
-	ProtoNodes,
-	Root as DeltaRoot,
-	Mark as DeltaMark,
-	DetachedNodeId as DeltaDetachedNodeId,
-	FieldMap as DeltaFieldMap,
-	DetachedNodeChanges as DeltaDetachedNodeChanges,
-	DetachedNodeBuild as DeltaDetachedNodeBuild,
-	DetachedNodeDestruction as DeltaDetachedNodeDestruction,
-	DetachedNodeRename as DeltaDetachedNodeRename,
-	FieldChanges as DeltaFieldChanges,
+export {
+	type ProtoNodes,
+	type Root as DeltaRoot,
+	type Mark as DeltaMark,
+	type DetachedNodeId as DeltaDetachedNodeId,
+	type FieldMap as DeltaFieldMap,
+	type DetachedNodeChanges as DeltaDetachedNodeChanges,
+	type DetachedNodeBuild as DeltaDetachedNodeBuild,
+	type DetachedNodeDestruction as DeltaDetachedNodeDestruction,
+	type DetachedNodeRename as DeltaDetachedNodeRename,
+	type FieldChanges as DeltaFieldChanges,
 } from "./delta.js";
 export { type MapTree, type ExclusiveMapTree, deepCopyMapTree } from "./mapTree.js";
 export {

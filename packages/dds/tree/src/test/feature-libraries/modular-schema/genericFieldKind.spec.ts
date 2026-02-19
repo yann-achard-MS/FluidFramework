@@ -6,13 +6,24 @@
 import { strict as assert } from "node:assert";
 
 import type { SessionId } from "@fluidframework/id-compressor";
-import type { GenericChangeset } from "../../../feature-libraries/index.js";
+
+import { newChangeAtomIdTransform, type DeltaFieldChanges } from "../../../core/index.js";
 import {
-	fakeIdAllocator,
-	brand,
-	idAllocatorFromMaxId,
-	newTupleBTree,
-} from "../../../util/index.js";
+	newChangeAtomIdBTree,
+	type GenericChangeset,
+} from "../../../feature-libraries/index.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import { newGenericChangeset } from "../../../feature-libraries/modular-schema/genericFieldKindTypes.js";
+import {
+	type FieldChangeEncodingContext,
+	type NodeId,
+	type RebaseRevisionMetadata,
+	genericChangeHandler,
+	// eslint-disable-next-line import-x/no-internal-modules
+} from "../../../feature-libraries/modular-schema/index.js";
+import { fakeIdAllocator, brand, idAllocatorFromMaxId } from "../../../util/index.js";
+import { TestChange } from "../../testChange.js";
+import { TestNodeId } from "../../testNodeId.js";
 import {
 	type EncodingTestData,
 	defaultRevisionMetadataFromChanges,
@@ -21,20 +32,9 @@ import {
 	testIdCompressor,
 	testRevisionTagCodec,
 } from "../../utils.js";
-import {
-	type FieldChangeEncodingContext,
-	type NodeId,
-	type RebaseRevisionMetadata,
-	genericChangeHandler,
-	// eslint-disable-next-line import-x/no-internal-modules
-} from "../../../feature-libraries/modular-schema/index.js";
-import { TestNodeId } from "../../testNodeId.js";
-import { TestChange } from "../../testChange.js";
+
 import { testSnapshots } from "./genericFieldSnapshots.test.js";
-// eslint-disable-next-line import-x/no-internal-modules
-import { newGenericChangeset } from "../../../feature-libraries/modular-schema/genericFieldKindTypes.js";
 import { failComposeManager, failInvertManager, failRebaseManager } from "./nodeQueryUtils.js";
-import { newChangeAtomIdTransform, type DeltaFieldChanges } from "../../../core/index.js";
 
 const nodeId1: NodeId = { localId: brand(1) };
 const nodeId2: NodeId = { localId: brand(2) };
@@ -184,11 +184,13 @@ describe("GenericField", () => {
 			[2, nodeChange2],
 		]);
 
-		const expected: DeltaFieldChanges = [
-			{ count: 1, fields: TestNodeId.deltaFromChild(nodeChange1) },
-			{ count: 1 },
-			{ count: 1, fields: TestNodeId.deltaFromChild(nodeChange2) },
-		];
+		const expected: DeltaFieldChanges = {
+			marks: [
+				{ count: 1, fields: TestNodeId.deltaFromChild(nodeChange1) },
+				{ count: 1 },
+				{ count: 1, fields: TestNodeId.deltaFromChild(nodeChange2) },
+			],
+		};
 
 		const actual = genericChangeHandler.intoDelta(input, TestNodeId.deltaFromChild);
 		assert.deepEqual(actual, expected);
@@ -226,9 +228,14 @@ describe("GenericField", () => {
 							value: false,
 							length: count,
 						}),
+						getCellIdForMove: (id, count) => ({
+							start: id,
+							length: count,
+							value: undefined,
+						}),
 						encodeNode: (nodeId) => TestNodeId.encode(nodeId, baseContext),
 						decodeNode: (nodeId) => TestNodeId.decode(nodeId, baseContext),
-						rootNodeChanges: newTupleBTree(),
+						rootNodeChanges: newChangeAtomIdBTree(),
 						rootRenames: newChangeAtomIdTransform(),
 						decodeRootNodeChange: () => {},
 						decodeRootRename: () => {},

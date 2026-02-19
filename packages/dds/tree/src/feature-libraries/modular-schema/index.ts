@@ -18,7 +18,7 @@ export {
 	type CrossFieldMap,
 	type CrossFieldQuerySet,
 	type DetachedNodeEntry,
-	CrossFieldTarget,
+	NodeMoveType,
 	setInCrossFieldMap,
 } from "./crossFieldQueries.js";
 export {
@@ -72,10 +72,12 @@ export {
 	rebaseRevisionMetadataFromInfo,
 	intoDelta,
 	relevantRemovedRoots,
-	getBuildIds,
 	updateRefreshers,
 } from "./modularChangeFamily.js";
-export { makeModularChangeCodecFamily } from "./modularChangeCodecs.js";
+export {
+	ModularChangeFormatVersion,
+	makeModularChangeCodecFamily,
+} from "./modularChangeCodecs.js";
 export type {
 	FieldKindConfiguration,
 	FieldKindConfigurationEntry,

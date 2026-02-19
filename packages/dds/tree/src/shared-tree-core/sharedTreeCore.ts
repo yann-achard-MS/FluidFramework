@@ -30,11 +30,11 @@ import {
 	type ChangeFamily,
 	type ChangeFamilyEditor,
 	type GraphCommit,
+	replaceChange,
 	type RevisionTag,
 	RevisionTagCodec,
 	type SchemaAndPolicy,
 	type SchemaPolicy,
-	type TaggedChange,
 	type TreeStoredSchemaRepository,
 } from "../core/index.js";
 import {
@@ -48,7 +48,7 @@ import {
 
 import type { BranchId, SharedTreeBranch } from "./branch.js";
 import { BranchCommitEnricher } from "./branchCommitEnricher.js";
-import { type ChangeEnricherReadonlyCheckout, NoOpChangeEnricher } from "./changeEnricher.js";
+import type { ChangeEnricher } from "./changeEnricher.js";
 import { DefaultResubmitMachine } from "./defaultResubmitMachine.js";
 import { EditManager, minimumPossibleSequenceNumber } from "./editManager.js";
 import { makeEditManagerCodec, type EditManagerCodecOptions } from "./editManagerCodecs.js";
@@ -59,9 +59,9 @@ import {
 	type MessageEncodingContext,
 	makeMessageCodec,
 } from "./messageCodecs.js";
+import type { MessageFormatVersion } from "./messageFormat.js";
 import type { DecodedMessage } from "./messageTypes.js";
 import type { ResubmitMachine } from "./resubmitMachine.js";
-import type { MessageFormatVersion } from "./messageFormat.js";
 import {
 	minVersionToSharedTreeSummaryFormatVersion,
 	summarizablesTreeKey,
@@ -81,7 +81,12 @@ export interface SharedTreeCoreOptionsInternal
 	extends CodecWriteOptions,
 		EditManagerCodecOptions,
 		MessageCodecOptions {
-	canMakeDetachedRootEdits: boolean;
+	readonly enableDetachedRootEditing: boolean;
+}
+
+export interface EnrichmentConfig<TChange> {
+	readonly enricher: ChangeEnricher<TChange>;
+	readonly resubmitMachine?: ResubmitMachine<TChange>;
 }
 
 /**
@@ -145,8 +150,7 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange>
 		protected readonly idCompressor: IIdCompressor,
 		schema: TreeStoredSchemaRepository,
 		schemaPolicy: SchemaPolicy,
-		resubmitMachine?: ResubmitMachine<TChange>,
-		enricher?: ChangeEnricherReadonlyCheckout<TChange>,
+		enrichmentConfig?: EnrichmentConfig<TChange>,
 		public readonly getEditor: () => TEditor = () => this.getLocalBranch().editor,
 	) {
 		super(
@@ -213,11 +217,13 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange>
 			options,
 		);
 
-		this.registerSharedBranchForEditing(
-			"main",
-			enricher ?? new NoOpChangeEnricher(),
-			resubmitMachine,
-		);
+		if (enrichmentConfig !== undefined) {
+			this.registerSharedBranchForEditing(
+				"main",
+				enrichmentConfig.enricher,
+				enrichmentConfig.resubmitMachine,
+			);
+		}
 	}
 
 	// TODO: SharedObject's merging of the two summary methods into summarizeCore is not what we want here:
@@ -310,11 +316,12 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange>
 	}
 
 	private registerSharedBranch(branchId: BranchId): void {
-		this.editManager.getLocalBranch(branchId).events.on("beforeChange", (change) => {
+		const branch = this.editManager.getLocalBranch(branchId);
+		branch.events.on("beforeChange", (change) => {
 			if (change.type === "append") {
 				if (this.detachedRevision === undefined) {
 					// Commit enrichment is only necessary for changes that will be submitted as ops, and changes issued while detached are not submitted.
-					this.getCommitEnricher(branchId).processChange(change);
+					this.getCommitEnricher(branchId).prepareChanges(change.newCommits);
 				}
 
 				for (const commit of change.newCommits) {
@@ -352,11 +359,6 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange>
 			0x95a /* Detached revision should only be set when not attached */,
 		);
 
-		const enrichedCommit =
-			this.detachedRevision === undefined && !isResubmit
-				? this.getCommitEnricher(branchId).enrich(commit)
-				: commit;
-
 		// Edits submitted before the first attach are treated as sequenced because they will be included
 		// in the attach summary that is uploaded to the service.
 		// Until this attach workflow happens, this instance essentially behaves as a centralized data structure.
@@ -364,7 +366,7 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange>
 			const newRevision: SeqNumber = brand((this.detachedRevision as number) + 1);
 			this.detachedRevision = newRevision;
 			this.editManager.addSequencedChanges(
-				[enrichedCommit],
+				[commit],
 				this.editManager.localSessionId,
 				newRevision,
 				this.detachedRevision,
@@ -373,6 +375,10 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange>
 			this.editManager.advanceMinimumSequenceNumber(newRevision, false);
 			return undefined;
 		}
+
+		const enrichedCommit = isResubmit
+			? commit
+			: replaceChange(commit, this.getCommitEnricher(branchId).retrieveChange(commit));
 
 		this.submitMessage(
 			{
@@ -638,21 +644,14 @@ export class SharedTreeCore<TEditor extends ChangeFamilyEditor, TChange>
 
 	protected registerSharedBranchForEditing(
 		branchId: BranchId,
-		enricher: ChangeEnricherReadonlyCheckout<TChange>,
+		enricher: ChangeEnricher<TChange>,
 		resubmitMachine?: ResubmitMachine<TChange>,
 	): void {
-		const changeEnricher = enricher ?? new NoOpChangeEnricher();
-		const commitEnricher = new BranchCommitEnricher(this.changeFamily.rebaser, changeEnricher);
+		const commitEnricher = new BranchCommitEnricher(enricher);
 		assert(!this.enrichers.has(branchId), 0xc6d /* Branch already registered */);
 		this.enrichers.set(branchId, {
 			enricher: commitEnricher,
-			resubmitMachine:
-				resubmitMachine ??
-				new DefaultResubmitMachine(
-					(change: TaggedChange<TChange>) =>
-						this.changeFamily.rebaser.invert(change, true, this.mintRevisionTag()),
-					changeEnricher,
-				),
+			resubmitMachine: resubmitMachine ?? new DefaultResubmitMachine(enricher),
 		});
 	}
 

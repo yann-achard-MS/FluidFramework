@@ -22,6 +22,7 @@ import {
 	rootFieldKey,
 } from "../../core/index.js";
 import { disposeSymbol, getOrCreate } from "../../util/index.js";
+import { combineChunks } from "../chunked-forest/index.js";
 import {
 	FieldKinds,
 	MappedEditBuilder,
@@ -55,7 +56,6 @@ import {
 import { LazyEntity } from "./lazyEntity.js";
 import { LazyTreeNode, getOrCreateHydratedFlexTreeNode } from "./lazyNode.js";
 import { indexForAt, treeStatusFromAnchorCache } from "./utilities.js";
-import { combineChunks } from "../chunked-forest/index.js";
 
 /**
  * Reuse fields.
@@ -246,9 +246,7 @@ export abstract class LazyField extends LazyEntity<FieldAnchor> implements FlexT
 			}
 		}
 
-		throw new UsageError(
-			"Editing only allowed on the root field or on fields under nodes with TreeStatus.InDocument or TreeStatus.Removed status",
-		);
+		throw new UsageError("Editing only allowed on fields with TreeStatus.InDocument status");
 	}
 
 	protected getEditor(): DataEditor<

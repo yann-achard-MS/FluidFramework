@@ -29,9 +29,9 @@ import { getOrCreate } from "../../util/index.js";
 import { isStableNodeIdentifier } from "../node-identifier/index.js";
 
 import { BasicChunk } from "./basicChunk.js";
+import type { IncrementalEncodingPolicy } from "./codec/index.js";
 import { SequenceChunk } from "./sequenceChunk.js";
 import { type FieldShape, TreeShape, UniformChunk } from "./uniformChunk.js";
-import type { IncrementalEncodingPolicy } from "./codec/index.js";
 
 export interface Disposable {
 	/**
@@ -436,12 +436,7 @@ function newBasicChunkTree(
 ): BasicChunk {
 	return new BasicChunk(
 		cursor.type,
-		new Map(
-			mapCursorFields(cursor, () => {
-				debugAssert(() => cursor.getFieldLength() > 0 || "field must have at least one child");
-				return [cursor.getFieldKey(), chunkField(cursor, policy)];
-			}),
-		),
+		new Map(mapCursorFields(cursor, () => [cursor.getFieldKey(), chunkField(cursor, policy)])),
 		cursor.value,
 	);
 }

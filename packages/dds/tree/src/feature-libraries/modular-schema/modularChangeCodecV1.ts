@@ -4,12 +4,13 @@
  */
 
 import { assert, fail, oob } from "@fluidframework/core-utils/internal";
+import type { TAnySchema } from "@sinclair/typebox";
+
 import {
 	extractJsonValidator,
 	withSchemaValidation,
 	type ICodecOptions,
 	type IJsonCodec,
-	type IMultiFormatCodec,
 	type SchemaValidationFunction,
 } from "../../codec/index.js";
 import {
@@ -28,7 +29,6 @@ import {
 import {
 	brand,
 	idAllocatorFromMaxId,
-	newTupleBTree,
 	type IdAllocator,
 	type JsonCompatibleReadOnly,
 	type Mutable,
@@ -37,25 +37,44 @@ import {
 	type TupleBTree,
 } from "../../util/index.js";
 import {
+	newChangeAtomIdBTree,
+	setInChangeAtomIdMap,
+	type ChangeAtomIdBTree,
+} from "../changeAtomIdBTree.js";
+import {
 	chunkFieldSingle,
 	defaultChunkPolicy,
 	type FieldBatchCodec,
 	type TreeChunk,
 } from "../chunked-forest/index.js";
 import { TreeCompressionStrategy } from "../treeCompressionUtils.js";
+
+import type { FieldChangeEncodingContext, FieldChangeHandler } from "./fieldChangeHandler.js";
+import type { FlexFieldKind } from "./fieldKind.js";
 import type {
 	FieldKindConfiguration,
 	FieldKindConfigurationEntry,
 } from "./fieldKindConfiguration.js";
+import { genericFieldKind } from "./genericFieldKind.js";
 import {
 	addNodeRename,
 	getFirstAttachField,
 	getFirstDetachField,
+	newFieldIdKeyBTree,
 	newRootTable,
 	normalizeFieldId,
 	validateChangeset,
 	type FieldIdKey,
 } from "./modularChangeFamily.js";
+import { EncodedModularChangesetV1 } from "./modularChangeFormatV1.js";
+import type {
+	EncodedBuilds,
+	EncodedBuildsArray,
+	EncodedFieldChange,
+	EncodedFieldChangeMap,
+	EncodedNodeChangeset,
+	EncodedRevisionInfo,
+} from "./modularChangeFormatV1.js";
 import {
 	newCrossFieldRangeTable,
 	type CrossFieldKeyTable,
@@ -68,20 +87,6 @@ import {
 	type NodeLocation,
 	type RootNodeTable,
 } from "./modularChangeTypes.js";
-import type {
-	EncodedBuilds,
-	EncodedBuildsArray,
-	EncodedFieldChange,
-	EncodedFieldChangeMap,
-	EncodedNodeChangeset,
-	EncodedRevisionInfo,
-} from "./modularChangeFormatV1.js";
-import { EncodedModularChangesetV1 } from "./modularChangeFormatV1.js";
-import type { FieldChangeEncodingContext, FieldChangeHandler } from "./fieldChangeHandler.js";
-import { genericFieldKind } from "./genericFieldKind.js";
-import type { TAnySchema } from "@sinclair/typebox";
-import { setInChangeAtomIdMap, type ChangeAtomIdBTree } from "../changeAtomIdBTree.js";
-import type { FlexFieldKind } from "./fieldKind.js";
 
 type ModularChangeCodec = IJsonCodec<
 	ModularChangeset,
@@ -90,7 +95,7 @@ type ModularChangeCodec = IJsonCodec<
 	ChangeEncodingContext
 >;
 
-type FieldCodec = IMultiFormatCodec<
+type FieldCodec = IJsonCodec<
 	FieldChangeset,
 	JsonCompatibleReadOnly,
 	JsonCompatibleReadOnly,
@@ -130,8 +135,8 @@ export function getFieldChangesetCodecs(
 		const codec = kind.changeHandler.codecsFactory(revisionTagCodec).resolve(formatVersion);
 		return {
 			codec,
-			compiledSchema: codec.json.encodedSchema
-				? extractJsonValidator(codecOptions.jsonValidator).compile(codec.json.encodedSchema)
+			compiledSchema: codec.encodedSchema
+				? extractJsonValidator(codecOptions.jsonValidator).compile(codec.encodedSchema)
 				: undefined,
 		};
 	};
@@ -170,6 +175,7 @@ function encodeFieldChangesForJson(
 	getInputRootId: ChangeAtomMappingQuery,
 	isAttachId: ChangeAtomIdRangeQuery,
 	isDetachId: ChangeAtomIdRangeQuery,
+	getCellIdForMove: ChangeAtomMappingQuery,
 	fieldChangesetCodecs: FieldChangesetCodecs,
 ): EncodedFieldChangeMap {
 	const encodedFields: EncodedFieldChangeMap = [];
@@ -183,13 +189,15 @@ function encodeFieldChangesForJson(
 
 		const fieldContext: FieldChangeEncodingContext = {
 			baseContext: context,
-			rootNodeChanges: rootChanges?.nodeChanges ?? newTupleBTree(),
+			rootNodeChanges: rootChanges?.nodeChanges ?? newChangeAtomIdBTree(),
 			rootRenames: rootChanges?.renames ?? newChangeAtomIdTransform(),
 
 			encodeNode,
 			getInputRootId,
 			isAttachId,
 			isDetachId,
+			getCellIdForMove,
+
 			decodeNode: () => fail(0xb1e /* Should not decode nodes during field encoding */),
 			decodeRootNodeChange: () => fail("Should not be called during encoding"),
 			decodeRootRename: () => fail("Should not be called during encoding"),
@@ -197,7 +205,7 @@ function encodeFieldChangesForJson(
 			generateId: () => fail("Should not be called during encoding"),
 		};
 
-		const encodedChange = codec.json.encode(fieldChange.change, fieldContext);
+		const encodedChange = codec.encode(fieldChange.change, fieldContext);
 		if (compiledSchema !== undefined && !compiledSchema.check(encodedChange)) {
 			fail(0xb1f /* Encoded change didn't pass schema validation. */);
 		}
@@ -233,6 +241,7 @@ function encodeNodeChangesForJson(
 	getInputRootId: ChangeAtomMappingQuery,
 	isAttachId: ChangeAtomIdRangeQuery,
 	isDetachId: ChangeAtomIdRangeQuery,
+	getCellIdForMove: ChangeAtomMappingQuery,
 	fieldChangesetCodecs: FieldChangesetCodecs,
 ): EncodedNodeChangeset {
 	const encodedChange: EncodedNodeChangeset = {};
@@ -249,6 +258,7 @@ function encodeNodeChangesForJson(
 			getInputRootId,
 			isAttachId,
 			isDetachId,
+			getCellIdForMove,
 			fieldChangesetCodecs,
 		);
 	}
@@ -300,13 +310,14 @@ function decodeFieldChangesFromJson(
 
 		const fieldContext: FieldChangeEncodingContext = {
 			baseContext: context,
-			rootNodeChanges: newTupleBTree(),
+			rootNodeChanges: newChangeAtomIdBTree(),
 			rootRenames: newChangeAtomIdTransform(),
 
 			encodeNode: () => fail(0xb21 /* Should not encode nodes during field decoding */),
 			getInputRootId: () => fail("Should not query during decoding"),
 			isAttachId: () => fail("Should not query during decoding"),
 			isDetachId: () => fail("Should not query during decoding"),
+			getCellIdForMove: () => fail("Should not query during decoding"),
 
 			decodeNode: (encodedNode: EncodedNodeChangeset): NodeId => {
 				return decodeNode(encodedNode, { field: fieldId });
@@ -335,7 +346,7 @@ function decodeFieldChangesFromJson(
 			}),
 		};
 
-		const fieldChangeset = codec.json.decode(field.change, fieldContext);
+		const fieldChangeset = codec.decode(field.change, fieldContext);
 
 		const crossFieldKeys = getChangeHandler(fieldKinds, field.fieldKind).getCrossFieldKeys(
 			fieldChangeset,
@@ -391,7 +402,7 @@ function decodeNodeChangesetFromJson(
 	return decodedChange;
 }
 
-function decodeDetachedNodes(
+export function decodeDetachedNodes(
 	encoded: EncodedBuilds | undefined,
 	context: ChangeEncodingContext,
 	revisionTagCodec: IJsonCodec<
@@ -420,7 +431,7 @@ function decodeDetachedNodes(
 		});
 	};
 
-	const map: ModularChangeset["builds"] = newTupleBTree();
+	const map: ModularChangeset["builds"] = newChangeAtomIdBTree();
 	// eslint-disable-next-line unicorn/no-array-for-each -- Codec internals: minimizing changes to serialization logic
 	encoded.builds.forEach((build) => {
 		// EncodedRevisionTag cannot be an array so this ensures that we can isolate the tuple
@@ -440,7 +451,7 @@ function decodeDetachedNodes(
 	return map;
 }
 
-function decodeRevisionInfos(
+export function decodeRevisionInfos(
 	revisions: readonly EncodedRevisionInfo[] | undefined,
 	context: ChangeEncodingContext,
 	revisionTagCodec: IJsonCodec<
@@ -493,6 +504,7 @@ export function makeModularChangeCodecV1(
 			encodeChange(
 				change,
 				context,
+				fieldKinds,
 				fieldChangesetCodecs,
 				revisionTagCodec,
 				fieldsCodec,
@@ -521,6 +533,7 @@ export function makeModularChangeCodecV1(
 export function encodeChange(
 	change: ModularChangeset,
 	context: ChangeEncodingContext,
+	fieldKinds: FieldKindConfiguration,
 	fieldChangesetCodecs: FieldChangesetCodecs,
 	revisionTagCodec: IJsonCodec<
 		RevisionTag,
@@ -547,6 +560,12 @@ export function encodeChange(
 		return { start: id, value: isDetach, length: renameEntry.length };
 	};
 
+	const moveIdToCellId = getMoveIdToCellId(change, fieldKinds, fieldToRoots);
+	const getCellIdForMove = (
+		id: ChangeAtomId,
+		count: number,
+	): RangeQueryResult<ChangeAtomId | undefined> => moveIdToCellId.getFirst(id, count);
+
 	const getInputRootId = (
 		id: ChangeAtomId,
 		count: number,
@@ -567,6 +586,7 @@ export function encodeChange(
 			getInputRootId,
 			isAttachId,
 			isDetachId,
+			getCellIdForMove,
 			fieldChangesetCodecs,
 		);
 	};
@@ -588,6 +608,7 @@ export function encodeChange(
 			getInputRootId,
 			isAttachId,
 			isDetachId,
+			getCellIdForMove,
 			fieldChangesetCodecs,
 		),
 		builds: encodeDetachedNodes(
@@ -610,7 +631,7 @@ export function encodeChange(
 	return encoded;
 }
 
-function encodeRevisionInfos(
+export function encodeRevisionInfos(
 	revisions: readonly RevisionInfo[],
 	context: ChangeEncodingContext,
 	revisionTagCodec: IJsonCodec<
@@ -622,7 +643,9 @@ function encodeRevisionInfos(
 ): EncodedRevisionInfo[] | undefined {
 	if (context.revision !== undefined) {
 		assert(
+			// eslint-disable-next-line @typescript-eslint/prefer-optional-chain -- Using optional chaining here would change behavior: `revisions[0]?.rollbackOf === undefined` is true when revisions[0] is undefined, but this check requires revisions[0] to be defined. As currently written, such a change would be safe because context.revision is included in the check and from a couple lines above is confirmed not undefined. But this more verbose form is clearer.
 			revisions.length === 1 &&
+				// eslint-disable-next-line @typescript-eslint/prefer-optional-chain
 				revisions[0] !== undefined &&
 				revisions[0].revision === context.revision &&
 				revisions[0].rollbackOf === undefined,
@@ -648,7 +671,7 @@ function encodeRevisionInfos(
 	return encodedRevisions;
 }
 
-function encodeDetachedNodes(
+export function encodeDetachedNodes(
 	detachedNodes: ChangeAtomIdBTree<TreeChunk> | undefined,
 	context: ChangeEncodingContext,
 	revisionTagCodec: IJsonCodec<
@@ -739,7 +762,7 @@ function getFieldToRoots(
 	rootTable: RootNodeTable,
 	aliases: ChangeAtomIdBTree<NodeId>,
 ): FieldRootMap {
-	const fieldToRoots: FieldRootMap = newTupleBTree();
+	const fieldToRoots: FieldRootMap = newFieldIdKeyBTree();
 	for (const [[revision, localId], nodeId] of rootTable.nodeChanges.entries()) {
 		const detachId: ChangeAtomId = { revision, localId };
 		const fieldId = rootTable.detachLocations.getFirst(detachId, 1).value;
@@ -778,11 +801,56 @@ function getOrAddInFieldRootMap(map: FieldRootMap, fieldId: FieldId): FieldRootC
 	}
 
 	const newRootChanges: FieldRootChanges = {
-		nodeChanges: newTupleBTree(),
+		nodeChanges: newChangeAtomIdBTree(),
 		renames: newChangeAtomIdTransform(),
 	};
 	map.set(key, newRootChanges);
 	return newRootChanges;
+}
+
+export function getMoveIdToCellId(
+	change: ModularChangeset,
+	fieldKinds: FieldKindConfiguration,
+	fieldToRoot: FieldRootMap,
+): ChangeAtomIdRangeMap<ChangeAtomId> {
+	const map = newChangeAtomIdTransform();
+	getMoveIdToCellIdsForFieldChanges(
+		change.fieldChanges,
+		undefined,
+		fieldKinds,
+		fieldToRoot,
+		map,
+	);
+	for (const [nodeId, nodeChange] of change.nodeChanges.entries()) {
+		if (nodeChange.fieldChanges !== undefined) {
+			getMoveIdToCellIdsForFieldChanges(
+				nodeChange.fieldChanges,
+				{ revision: nodeId[0], localId: nodeId[1] },
+				fieldKinds,
+				fieldToRoot,
+				map,
+			);
+		}
+	}
+	return map;
+}
+
+function getMoveIdToCellIdsForFieldChanges(
+	changes: FieldChangeMap,
+	nodeId: NodeId | undefined,
+	fieldKinds: FieldKindConfiguration,
+	fieldToRoots: FieldRootMap,
+	moveIdToCellId: ChangeAtomIdRangeMap<ChangeAtomId>,
+): void {
+	for (const [fieldKey, field] of changes.entries()) {
+		for (const entry of getChangeHandler(fieldKinds, field.fieldKind).getDetachCellIds(
+			field.change,
+			fieldToRoots.get([nodeId?.revision, nodeId?.localId, fieldKey])?.renames ??
+				newChangeAtomIdTransform(),
+		)) {
+			moveIdToCellId.set(entry.detachId, entry.count, entry.cellId);
+		}
+	}
 }
 
 export function decodeChange(
@@ -806,8 +874,8 @@ export function decodeChange(
 	chunkCompressionStrategy: TreeCompressionStrategy,
 ): Mutable<ModularChangeset> {
 	const idAllocator = idAllocatorFromMaxId(encodedChange.maxId);
-	const nodeChanges: ChangeAtomIdBTree<NodeChangeset> = newTupleBTree();
-	const nodeToParent: ChangeAtomIdBTree<NodeLocation> = newTupleBTree();
+	const nodeChanges: ChangeAtomIdBTree<NodeChangeset> = newChangeAtomIdBTree();
+	const nodeToParent: ChangeAtomIdBTree<NodeLocation> = newChangeAtomIdBTree();
 	const crossFieldKeys: CrossFieldKeyTable = newCrossFieldRangeTable();
 	const rootNodes = newRootTable();
 
@@ -857,7 +925,7 @@ export function decodeChange(
 		nodeChanges,
 		rootNodes,
 		nodeToParent,
-		nodeAliases: newTupleBTree(),
+		nodeAliases: newChangeAtomIdBTree(),
 		crossFieldKeys,
 	};
 

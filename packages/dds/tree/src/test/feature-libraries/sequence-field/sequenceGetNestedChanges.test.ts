@@ -5,21 +5,22 @@
 
 import { strict as assert } from "node:assert";
 
+import type { RevisionTag } from "../../../core/index.js";
 import type { NodeId } from "../../../feature-libraries/index.js";
 // eslint-disable-next-line import-x/no-internal-modules
-import { sequenceFieldChangeHandler } from "../../../feature-libraries/sequence-field/index.js";
-import { brand } from "../../../util/index.js";
-import { MarkMaker as Mark } from "./testEdits.js";
-import type { RevisionTag } from "../../../core/index.js";
-import { mintRevisionTag } from "../../utils.js";
-// eslint-disable-next-line import-x/no-internal-modules
 import type { NestedChangesIndices } from "../../../feature-libraries/modular-schema/fieldChangeHandler.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import { sequenceFieldChangeHandler } from "../../../feature-libraries/sequence-field/sequenceFieldChangeHandler.js";
+import { brand } from "../../../util/index.js";
+import { mintRevisionTag } from "../../utils.js";
+
+import { MarkMaker as Mark } from "./testEdits.js";
 
 const tag1: RevisionTag = mintRevisionTag();
 const nodeId1: NodeId = { localId: brand(1) };
 const nodeId2: NodeId = { localId: brand(2) };
 
-export function testGetNestedChanges() {
+export function testGetNestedChanges(): void {
 	describe("getNestedChanges", () => {
 		it("is empty for an empty change", () => {
 			const change = sequenceFieldChangeHandler.createEmpty();
@@ -28,7 +29,7 @@ export function testGetNestedChanges() {
 		});
 		it("includes changes to nodes in the field", () => {
 			const change = [
-				Mark.remove(1, brand(42), { changes: nodeId1 }),
+				Mark.detach(1, brand(42), { changes: nodeId1 }),
 				{ count: 42 },
 				Mark.modify(nodeId2),
 			];

@@ -53,13 +53,28 @@ import {
 	currentObserver,
 } from "../../feature-libraries/index.js";
 import { brand, filterIterable, getOrCreate, mapIterable } from "../../util/index.js";
+import type { ContextualFieldProvider } from "../fieldSchema.js";
 
 import type { Context } from "./context.js";
-import type { ContextualFieldProvider } from "../fieldSchema.js";
 import type { TreeNode } from "./treeNode.js";
 
 interface UnhydratedTreeSequenceFieldEditBuilder
-	extends SequenceFieldEditor<FlexibleFieldContent, readonly FlexTreeNode[]> {}
+	extends SequenceFieldEditor<FlexibleFieldContent, readonly FlexTreeNode[]> {
+	/**
+	 * Moves elements from a source position to a destination position.
+	 * Can move within the same field or from another unhydrated sequence field.
+	 * @param sourceIndex - The index of the first element to move.
+	 * @param count - The number of elements to move.
+	 * @param destIndex - The index at which to insert the moved elements.
+	 * @param source - The source field to move from (defaults to this field for within-field moves).
+	 */
+	move(
+		sourceIndex: number,
+		count: number,
+		destIndex: number,
+		source?: UnhydratedSequenceField,
+	): void;
+}
 
 type UnhydratedFlexTreeNodeEvents = Pick<
 	AnchorEvents,
@@ -559,11 +574,7 @@ export class UnhydratedSequenceField
 	extends UnhydratedFlexTreeField
 	implements FlexTreeSequenceField
 {
-	public readonly editor: SequenceFieldEditor<
-		readonly FlexibleNodeContent[],
-		readonly FlexTreeNode[],
-		FlexTreeNode[]
-	> = {
+	public readonly editor = {
 		insert: (index, newContent): void => {
 			for (const c of newContent) {
 				assert(c !== undefined, 0xa0a /* Unexpected sparse array content */);
@@ -593,6 +604,33 @@ export class UnhydratedSequenceField
 		},
 		attach: (index, content: readonly FlexTreeNode[]): void => {
 			this.editor.insert(index, content);
+		},
+		move: (sourceIndex, count, destIndex, source?): void => {
+			const sourceField = source ?? this;
+			if (sourceField === this) {
+				// Within-field move: do both operations in a single edit to emit only one event
+				this.edit((mapTrees) => {
+					const removed = mapTrees.splice(sourceIndex, count);
+					// Adjust destination index if it comes after the source
+					const adjustedDest = destIndex > sourceIndex ? destIndex - count : destIndex;
+					if (removed.length < 1000) {
+						// For "smallish arrays" (`1000` is not empirically derived), the `splice` function is appropriate...
+						mapTrees.splice(adjustedDest, 0, ...removed);
+					} else {
+						// ...but we avoid using `splice` + spread for very large arrays since there is a limit on how many elements can be spread (too many will overflow the stack).
+						return [
+							...mapTrees.slice(0, adjustedDest),
+							...removed,
+							...mapTrees.slice(adjustedDest),
+						];
+					}
+				});
+			} else {
+				// Cross-field move: remove from source, insert into destination
+				// Each field emits one event (correct behavior for different fields)
+				const removed = sourceField.editor.remove(sourceIndex, count);
+				this.editor.insert(destIndex, removed);
+			}
 		},
 	} satisfies UnhydratedTreeSequenceFieldEditBuilder;
 

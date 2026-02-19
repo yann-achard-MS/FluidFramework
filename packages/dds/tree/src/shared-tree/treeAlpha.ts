@@ -3,17 +3,40 @@
  * Licensed under the MIT License.
  */
 
+import type { IFluidHandle } from "@fluidframework/core-interfaces";
 import {
 	assert,
 	debugAssert,
 	fail,
 	unreachableCase,
 } from "@fluidframework/core-utils/internal";
-import { createIdCompressor } from "@fluidframework/id-compressor/internal";
-import { UsageError } from "@fluidframework/telemetry-utils/internal";
-import type { IFluidHandle } from "@fluidframework/core-interfaces";
 import type { IIdCompressor, SessionSpaceCompressedId } from "@fluidframework/id-compressor";
+import { createIdCompressor } from "@fluidframework/id-compressor/internal";
+import { isFluidHandle } from "@fluidframework/runtime-utils";
+import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
+import {
+	FluidClientVersion,
+	type ICodecOptions,
+	type CodecWriteOptions,
+	FormatValidatorNoOp,
+} from "../codec/index.js";
+import { EmptyKey, type FieldKey, type ITreeCursorSynchronous } from "../core/index.js";
+import {
+	cursorForMapTreeField,
+	defaultSchemaPolicy,
+	isTreeValue,
+	makeFieldBatchCodec,
+	mapTreeFromCursor,
+	TreeCompressionStrategy,
+	type FieldBatch,
+	type FieldBatchEncodingContext,
+	type LocalNodeIdentifier,
+	type FlexTreeSequenceField,
+	type FlexTreeNode,
+	type Observer,
+	withObservation,
+} from "../feature-libraries/index.js";
 import {
 	asIndex,
 	getKernel,
@@ -62,31 +85,9 @@ import {
 	type TreeBranchAlpha,
 } from "../simple-tree/index.js";
 import { brand, extractFromOpaque, type JsonCompatible } from "../util/index.js";
-import {
-	FluidClientVersion,
-	type ICodecOptions,
-	type CodecWriteOptions,
-	FormatValidatorNoOp,
-} from "../codec/index.js";
-import { EmptyKey, type FieldKey, type ITreeCursorSynchronous } from "../core/index.js";
-import {
-	cursorForMapTreeField,
-	defaultSchemaPolicy,
-	isTreeValue,
-	makeFieldBatchCodec,
-	mapTreeFromCursor,
-	TreeCompressionStrategy,
-	type FieldBatch,
-	type FieldBatchEncodingContext,
-	type LocalNodeIdentifier,
-	type FlexTreeSequenceField,
-	type FlexTreeNode,
-	type Observer,
-	withObservation,
-} from "../feature-libraries/index.js";
+
 import { independentInitializedView, type ViewContent } from "./independentView.js";
 import { SchematizingSimpleTreeView, ViewSlot } from "./schematizingTreeView.js";
-import { isFluidHandle } from "@fluidframework/runtime-utils";
 
 const identifier: TreeIdentifierUtils = (node: TreeNode): string | undefined => {
 	return getIdentifierFromNode(node, "uncompressed");
@@ -225,7 +226,7 @@ export interface TreeIdentifierUtils {
  * There should be a way to provide a source for defaulted identifiers for unhydrated node creation, either via these APIs or some way to add them to its output later.
  * If an option were added to these APIs, it could also be used to enable unknown optional fields.
  *
- * @system @sealed @alpha
+ * @sealed @alpha
  */
 export interface TreeAlpha {
 	/**

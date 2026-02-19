@@ -34,7 +34,19 @@ import {
 	Context,
 	isFlexTreeNode,
 } from "../../../feature-libraries/index.js";
+import { JsonAsTree } from "../../../jsonDomainSchema.js";
+import { unhydratedFlexTreeFromCursor } from "../../../simple-tree/api/create.js";
+import { getUnhydratedContext } from "../../../simple-tree/createContext.js";
+import {
+	numberSchema,
+	SchemaFactory,
+	stringSchema,
+	toInitialSchema,
+	restrictiveStoredSchemaGenerationOptions,
+	toStoredSchema,
+} from "../../../simple-tree/index.js";
 import { brand, disposeSymbol } from "../../../util/index.js";
+import { singleJsonCursor } from "../../json/index.js";
 import {
 	fieldCursorFromInsertable,
 	flexTreeViewWithContent,
@@ -48,18 +60,6 @@ import {
 	readonlyTreeWithContent,
 	rootFieldAnchor,
 } from "./utils.js";
-import {
-	numberSchema,
-	SchemaFactory,
-	stringSchema,
-	toInitialSchema,
-	restrictiveStoredSchemaGenerationOptions,
-	toStoredSchema,
-} from "../../../simple-tree/index.js";
-import { singleJsonCursor } from "../../json/index.js";
-import { JsonAsTree } from "../../../jsonDomainSchema.js";
-import { unhydratedFlexTreeFromCursor } from "../../../simple-tree/api/create.js";
-import { getUnhydratedContext } from "../../../simple-tree/createContext.js";
 
 const detachedField: FieldKey = brand("detached");
 const detachedFieldAnchor: FieldAnchor = { parent: undefined, fieldKey: detachedField };
@@ -86,12 +86,9 @@ describe("LazyField", () => {
 			detachedFieldAnchor,
 		);
 		cursor.free();
-		const expectedError = validateAssertionError(
-			/Editing only allowed on the root field or on fields under nodes with TreeStatus.InDocument or TreeStatus.Removed status/,
-		);
 		assert.throws(
 			() => optionalField.editor.set(undefined, optionalField.length === undefined),
-			expectedError,
+			validateAssertionError(/only allowed on fields with TreeStatus.InDocument status/),
 		);
 	});
 

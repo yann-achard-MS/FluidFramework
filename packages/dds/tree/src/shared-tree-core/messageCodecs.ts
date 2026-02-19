@@ -4,6 +4,7 @@
  */
 
 import { unreachableCase } from "@fluidframework/core-utils/internal";
+import type { IIdCompressor } from "@fluidframework/id-compressor";
 import type { MinimumVersionForCollab } from "@fluidframework/runtime-definitions/internal";
 import {
 	getConfigForMinVersionForCollab,
@@ -31,11 +32,10 @@ import type {
 } from "../core/index.js";
 import { brand, unbrand, type JsonCompatibleReadOnly } from "../util/index.js";
 
-import type { DecodedMessage } from "./messageTypes.js";
-import type { IIdCompressor } from "@fluidframework/id-compressor";
 import { makeV1ToV4CodecWithVersion } from "./messageCodecV1ToV4.js";
 import { makeSharedBranchesCodecWithVersion } from "./messageCodecVSharedBranches.js";
 import { MessageFormatVersion, messageFormatVersions } from "./messageFormat.js";
+import type { DecodedMessage } from "./messageTypes.js";
 
 export interface MessageEncodingContext {
 	idCompressor: IIdCompressor;
@@ -156,9 +156,7 @@ export function makeMessageCodecs<TChangeset>(
 			case unbrand(MessageFormatVersion.v4):
 			case unbrand(MessageFormatVersion.v6):
 			case unbrand(MessageFormatVersion.vDetachedRoots): {
-				const changeCodec = changeCodecs.resolve(
-					dependentChangeFormatVersion.lookup(version),
-				).json;
+				const changeCodec = changeCodecs.resolve(dependentChangeFormatVersion.lookup(version));
 				return [
 					version,
 					makeV1ToV4CodecWithVersion(changeCodec, revisionTagCodec, options, version),
@@ -168,9 +166,7 @@ export function makeMessageCodecs<TChangeset>(
 				return [version, makeDiscontinuedCodecVersion(options, version, "2.74.0")];
 			}
 			case unbrand(MessageFormatVersion.vSharedBranches): {
-				const changeCodec = changeCodecs.resolve(
-					dependentChangeFormatVersion.lookup(version),
-				).json;
+				const changeCodec = changeCodecs.resolve(dependentChangeFormatVersion.lookup(version));
 				return [
 					version,
 					makeSharedBranchesCodecWithVersion(changeCodec, revisionTagCodec, options, version),

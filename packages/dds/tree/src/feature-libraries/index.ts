@@ -48,8 +48,8 @@ export {
 	jsonableTreeFromForest,
 } from "./treeTextCursor.js";
 
-// Split this up into separate import and export for compatibility with API-Extractor.
 import * as SequenceField from "./sequence-field/index.js";
+// eslint-disable-next-line unicorn/prefer-export-from -- fixing requires `export * as` (breaks API-Extractor) or named exports (changes public API)
 export { SequenceField };
 
 export {
@@ -72,7 +72,7 @@ export {
 	type ComposeNodeManager,
 	type InvertNodeManager,
 	type RebaseNodeManager,
-	CrossFieldTarget,
+	NodeMoveType,
 	FlexFieldKind,
 	type FullSchemaPolicy,
 	allowsRepoSuperset,
@@ -90,6 +90,7 @@ export {
 	type FieldKindConfigurationEntry,
 	isNeverTree,
 	DefaultRevisionReplacer,
+	ModularChangeFormatVersion,
 } from "./modular-schema/index.js";
 
 export {
@@ -131,11 +132,6 @@ export {
 
 export {
 	FieldKinds,
-	type Required,
-	type Optional,
-	type Sequence,
-	type Identifier,
-	type Forbidden,
 	type DefaultChangeset,
 	type DetachedRootIds,
 	DefaultChangeFamily,
@@ -150,7 +146,6 @@ export {
 	fieldKindConfigurations,
 	intoDelta,
 	relevantRemovedRoots,
-	getBuildsIds,
 	type DetachedRootLocation,
 	type DetachedRootsLocation,
 	type DetachedRootIdRange,
@@ -158,7 +153,6 @@ export {
 	LocationBasedDataEditor,
 	type ILocationBasedDataEditor,
 	getCodecTreeForModularChangeFormat,
-	type ModularChangeFormatVersion,
 } from "./default-schema/index.js";
 
 export {
@@ -229,6 +223,7 @@ export {
 
 export {
 	type ChangeAtomIdBTree,
+	newChangeAtomIdBTree,
 	getFromChangeAtomIdMap,
 	setInChangeAtomIdMap,
 } from "./changeAtomIdBTree.js";

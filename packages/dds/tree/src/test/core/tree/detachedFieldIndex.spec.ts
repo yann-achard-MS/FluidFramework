@@ -9,6 +9,7 @@ import path from "node:path";
 import type { IIdCompressor } from "@fluidframework/id-compressor";
 import { createIdCompressor } from "@fluidframework/id-compressor/internal";
 
+import { FluidClientVersion, type CodecWriteOptions } from "../../../codec/index.js";
 import {
 	DetachedFieldIndex,
 	type ForestRootId,
@@ -20,13 +21,13 @@ import {
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../../core/tree/detachedFieldIndexCodecs.js";
 // eslint-disable-next-line import-x/no-internal-modules
+import { DetachedFieldIndexFormatVersion } from "../../../core/tree/detachedFieldIndexFormatCommon.js";
+// eslint-disable-next-line import-x/no-internal-modules
 import type { FormatV1 } from "../../../core/tree/detachedFieldIndexFormatV1.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import type { FormatV2 } from "../../../core/tree/detachedFieldIndexFormatV2.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import type { DetachedFieldSummaryData } from "../../../core/tree/detachedFieldIndexTypes.js";
-// eslint-disable-next-line import-x/no-internal-modules
-import { DetachedFieldIndexFormatVersion } from "../../../core/tree/detachedFieldIndexFormatCommon.js";
 import { FormatValidatorBasic } from "../../../external-utilities/index.js";
 import {
 	type IdAllocator,
@@ -42,7 +43,6 @@ import {
 	assertIsSessionId,
 	mintRevisionTag,
 } from "../../utils.js";
-import { FluidClientVersion, type CodecWriteOptions } from "../../../codec/index.js";
 
 const mintedTag = testIdCompressor.generateCompressedId();
 const finalizedTag = testIdCompressor.normalizeToOpSpace(mintedTag);
@@ -319,7 +319,7 @@ describe("DetachedFieldIndex Codecs", () => {
 			unfinalizedIdCompressor,
 		)) {
 			describe(name, () => {
-				for (const format of detachedFieldIndexCodecBuilder.registry.values()) {
+				for (const format of detachedFieldIndexCodecBuilder.registry) {
 					const version = format.formatVersion;
 					if (validFor !== undefined && version !== undefined && !validFor.has(version)) {
 						continue;
@@ -365,7 +365,7 @@ describe("DetachedFieldIndex methods", () => {
 			const detachedNodeId1 = makeDetachedNodeId(revisionTag1, 1);
 
 			const revisionTag2 = mintRevisionTag();
-			detachedIndex.createEntry(detachedNodeId1, revisionTag2, 2);
+			detachedIndex.createEntry(detachedNodeId1, revisionTag2, undefined, 2);
 
 			const rootIds = [...detachedIndex.getRootsLastTouchedByRevision(revisionTag2)];
 			assert.equal(rootIds.length, 2);
@@ -391,7 +391,7 @@ describe("DetachedFieldIndex methods", () => {
 
 		const revisionTag2 = mintRevisionTag();
 		const rootId1 = detachedIndex.createEntry(detachedNodeId1, revisionTag2);
-		const rootId2 = detachedIndex.createEntry(detachedNodeId2, revisionTag2, 2);
+		const rootId2 = detachedIndex.createEntry(detachedNodeId2, revisionTag2, undefined, 2);
 
 		const entries = [...detachedIndex.entries()];
 		assert.deepEqual(entries, [
@@ -414,7 +414,7 @@ describe("DetachedFieldIndex methods", () => {
 
 		const revisionTag2 = mintRevisionTag();
 		detachedIndex.createEntry(detachedNodeId1, revisionTag2);
-		detachedIndex.createEntry(detachedNodeId2, revisionTag2, 2);
+		detachedIndex.createEntry(detachedNodeId2, revisionTag2, undefined, 2);
 
 		const revisionTag3 = mintRevisionTag();
 		const detachedNodeId3 = makeDetachedNodeId(revisionTag1, 4);

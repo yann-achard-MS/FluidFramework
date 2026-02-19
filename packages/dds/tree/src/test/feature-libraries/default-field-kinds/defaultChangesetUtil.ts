@@ -3,6 +3,9 @@
  * Licensed under the MIT License.
  */
 
+import { strict as assert } from "node:assert";
+
+import { currentVersion } from "../../../codec/index.js";
 import {
 	makeAnonChange,
 	type RevisionMetadataSource,
@@ -18,19 +21,18 @@ import {
 	makeModularChangeCodecFamily,
 	ModularChangeFamily,
 	type DefaultChangeset,
-	type FieldKindConfiguration,
-	type ModularChangeFormatVersion,
 	type ModularChangeset,
 } from "../../../feature-libraries/index.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import type { RebaseRevisionMetadata } from "../../../feature-libraries/modular-schema/index.js";
 import {
 	rebaseRevisionMetadataFromInfo,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../../feature-libraries/modular-schema/modularChangeFamily.js";
-import { strict as assert } from "node:assert";
 import type { CodecWriteOptions } from "../../../index.js";
 import { ajvValidator } from "../../codec/index.js";
-import { defaultRevInfosFromChanges, testRevisionTagCodec } from "../../utils.js";
 import type { BoundFieldChangeRebaser } from "../../exhaustiveRebaserUtils.js";
+import { defaultRevInfosFromChanges, testRevisionTagCodec } from "../../utils.js";
 import {
 	assertEqual,
 	assertModularChangesetsEqual,
@@ -39,25 +41,14 @@ import {
 	normalizeDelta,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../modular-schema/modularChangesetUtil.js";
-// eslint-disable-next-line import-x/no-internal-modules
-import type { RebaseRevisionMetadata } from "../../../feature-libraries/modular-schema/index.js";
-import { brand } from "../../../util/index.js";
-import { currentVersion } from "../../../codec/index.js";
 
 const codecOptions: CodecWriteOptions = {
 	jsonValidator: ajvValidator,
 	minVersionForCollab: currentVersion,
 };
 
-const fieldKindConfiguration: FieldKindConfiguration =
-	fieldKindConfigurations.get(brand(5)) ?? assert.fail("Field kind configuration not found");
-assert(
-	fieldKindConfigurations.get(6 as ModularChangeFormatVersion) === undefined,
-	"There's a newer configuration. It probably should be used.",
-);
-
 const codec = makeModularChangeCodecFamily(
-	new Map([[1, fieldKindConfiguration]]),
+	fieldKindConfigurations,
 	testRevisionTagCodec,
 	makeFieldBatchCodec(codecOptions),
 	codecOptions,
