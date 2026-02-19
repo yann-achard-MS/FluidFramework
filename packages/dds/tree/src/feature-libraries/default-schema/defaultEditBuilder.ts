@@ -17,7 +17,6 @@ import {
 	type DeltaDetachedNodeId,
 	type DeltaRoot,
 	type EditorOptions,
-	type FieldUpPath,
 	type NormalizedFieldUpPath,
 	type NormalizedUpPath,
 	type RevisionTag,
@@ -25,8 +24,6 @@ import {
 	type TreeChunk,
 	type UpPath,
 	compareFieldUpPaths,
-	getDetachedFieldContainingFieldPath,
-	rootField,
 	topDownPath,
 } from "../../core/index.js";
 import { brand, RangeMap } from "../../util/index.js";
@@ -262,18 +259,10 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	}
 
 	public addNodeExistsConstraint(path: NormalizedUpPath): void {
-		enforceEditsToDetachedTreesOptions(
-			{ parent: path.parent, field: path.parentField },
-			this.options,
-		);
 		this.modularBuilder.addNodeExistsConstraint(path, this.mintRevisionTag());
 	}
 
 	public addNodeExistsConstraintOnRevert(path: NormalizedUpPath): void {
-		enforceEditsToDetachedTreesOptions(
-			{ parent: path.parent, field: path.parentField },
-			this.options,
-		);
 		this.modularBuilder.addNodeExistsConstraintOnRevert(path, this.mintRevisionTag());
 	}
 
@@ -305,7 +294,6 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	public valueField(
 		field: NormalizedFieldUpPath,
 	): RequiredFieldEditor<TreeChunk, ChangeAtomId> {
-		enforceEditsToDetachedTreesOptions(field, this.options);
 		const makeAttachEditDescription = (
 			fill: ChangeAtomId,
 			revision: RevisionTag,
@@ -349,7 +337,6 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	public optionalField(
 		field: NormalizedFieldUpPath,
 	): OptionalFieldEditor<TreeChunk, ChangeAtomId> {
-		enforceEditsToDetachedTreesOptions(field, this.options);
 		const makeAttachEditDescription = (
 			fill: ChangeAtomId,
 			revision: RevisionTag,
@@ -443,8 +430,6 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 		} else if (count < 0 || !Number.isSafeInteger(count)) {
 			throw new UsageError(`Expected non-negative integer count, got ${count}.`);
 		}
-		enforceEditsToDetachedTreesOptions(sourceField, this.options);
-		enforceEditsToDetachedTreesOptions(destinationField, this.options);
 		const revision = this.mintRevisionTag();
 		const detachCellId = this.modularBuilder.generateId(count);
 		const attachCellId: CellId = { localId: this.modularBuilder.generateId(count), revision };
@@ -548,7 +533,6 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 	public sequenceField(
 		field: NormalizedFieldUpPath,
 	): SequenceFieldEditor<TreeChunk, DetachedRootIds> {
-		enforceEditsToDetachedTreesOptions(field, this.options);
 		const makeAttachEditDescription = (
 			index: number,
 			{ first, count }: DetachedRootIdRange,
@@ -667,17 +651,6 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 			},
 		};
 		return editBuilder;
-	}
-}
-
-function enforceEditsToDetachedTreesOptions(field: FieldUpPath, options: EditorOptions): void {
-	if (options.enableDetachedRootEditing !== true) {
-		const topField = getDetachedFieldContainingFieldPath(field);
-		if (topField !== rootField) {
-			throw new UsageError(
-				`Edits and constraints on detached trees require a minimum version for collaboration >= TBD.`,
-			);
-		}
 	}
 }
 
