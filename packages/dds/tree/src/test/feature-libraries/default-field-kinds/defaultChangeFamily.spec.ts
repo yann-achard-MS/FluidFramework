@@ -154,7 +154,7 @@ function initializeEditableForest(data?: JsonableTree): {
 			deltas.push(delta);
 			applyDelta(delta, taggedChange.revision, forest, detachedFieldIndex);
 		},
-		{ canMakeDetachedRootEdits: true },
+		{ enableDetachedRootEditing: true },
 		codecOptions,
 	);
 	return {

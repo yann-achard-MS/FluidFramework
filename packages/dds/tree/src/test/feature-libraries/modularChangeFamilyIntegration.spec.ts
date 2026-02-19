@@ -146,7 +146,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -277,7 +277,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -340,7 +340,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -387,7 +387,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -428,7 +428,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -469,7 +469,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -572,7 +572,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -629,7 +629,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -897,7 +897,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -944,7 +944,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -1163,7 +1163,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -1217,7 +1217,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -1417,7 +1417,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -1457,7 +1457,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -1557,7 +1557,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -1622,7 +1622,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -1692,7 +1692,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -1751,7 +1751,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -1803,7 +1803,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -1858,7 +1858,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -1916,7 +1916,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -2097,7 +2097,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -2171,7 +2171,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -2292,7 +2292,7 @@ describe("ModularChangeFamily integration", () => {
 				mintRevisionTag,
 				changeReceiver,
 				{
-					canMakeDetachedRootEdits: true,
+					enableDetachedRootEditing: true,
 				},
 				codecOptions,
 			);
@@ -2814,7 +2814,7 @@ function buildTransaction(
 	revision?: RevisionTag,
 	options?: EditorOptions,
 ): TaggedChange<ModularChangeset> {
-	const optionsActual = { canMakeDetachedRootEdits: true, ...options };
+	const optionsActual = { enableDetachedRootEditing: true, ...options };
 	const [changeReceiver, getChanges] = testChangeReceiver(family);
 	const transaction = new DefaultIdBasedDataEditor(
 		family,

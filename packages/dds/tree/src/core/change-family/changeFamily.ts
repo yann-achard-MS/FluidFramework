@@ -22,7 +22,7 @@ export interface ChangeFamily<TEditor extends ChangeFamilyEditor, TChange> {
 }
 
 export interface EditorOptions {
-	readonly canMakeDetachedRootEdits: boolean; // default is false,
+	readonly enableDetachedRootEditing: boolean; // default is false,
 }
 
 export interface ChangeEncodingContext {

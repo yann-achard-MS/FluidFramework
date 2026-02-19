@@ -3512,7 +3512,7 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 		// TODO: make this dependent on the CodecWriteOptions once there is an FF version that supports RebaseVersion 2
 		this.rebaseVersion =
 			editorOptions?.rebaseVersionOverride ??
-			(editorOptions?.canMakeDetachedRootEdits === true ? 2 : 1);
+			(editorOptions?.enableDetachedRootEditing === true ? 2 : 1);
 	}
 
 	public isInTransaction(): boolean {

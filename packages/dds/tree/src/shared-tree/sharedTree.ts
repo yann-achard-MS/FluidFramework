@@ -780,7 +780,6 @@ export const defaultSharedTreeOptions: Required<SharedTreeOptionsInternal> = {
 	writeVersionOverrides: new Map(),
 	allowPossiblyIncompatibleWriteVersionOverrides: false,
 	enableDetachedRootEditing: false,
-	canMakeDetachedRootEdits: false,
 };
 
 /**

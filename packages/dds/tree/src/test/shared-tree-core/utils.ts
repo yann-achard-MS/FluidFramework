@@ -84,7 +84,7 @@ import { testIdCompressor } from "../utils.js";
 export const testCoreOptions: SharedTreeCoreOptionsInternal = {
 	jsonValidator: FormatValidatorBasic,
 	minVersionForCollab: currentVersion,
-	canMakeDetachedRootEdits: false,
+	enableDetachedRootEditing: false,
 };
 
 class MockSharedObjectHandle extends MockHandle<ISharedObject> implements ISharedObjectHandle {

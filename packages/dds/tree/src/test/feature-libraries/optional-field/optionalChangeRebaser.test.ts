@@ -282,7 +282,7 @@ const generateChildStateForRebaseVersion = function* (
 		};
 	};
 	const editor = defaultFamily.buildEditor(makeRevisionTagMinter(), () => undefined, {
-		canMakeDetachedRootEdits: rebaseVersion >= 2,
+		enableDetachedRootEditing: rebaseVersion >= 2,
 		rebaseVersionOverride: rebaseVersion,
 	});
 	const edits = getSequentialEdits(state);

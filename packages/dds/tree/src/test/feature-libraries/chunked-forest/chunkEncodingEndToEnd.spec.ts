@@ -170,7 +170,7 @@ describe("End to end chunked encoding", () => {
 			new DefaultChangeFamily(codec, options),
 			mintRevisionTag,
 			changeReceiver,
-			{ canMakeDetachedRootEdits: true },
+			{ enableDetachedRootEditing: true },
 			options,
 		);
 		const checkout = new MockTreeCheckout(forest, {

@@ -215,7 +215,9 @@ export function resolveOptions(options: SharedTreeOptions): SharedTreeOptionsInt
 
 function resolveFormatOptions(options: SharedTreeOptions): SharedTreeOptionsInternal {
 	if (options.enableSharedBranches === true && options.enableDetachedRootEditing === true) {
-		throw new UsageError("enableDetachRootEditing cannot be used with enableSharedBranches.");
+		throw new UsageError(
+			"enableDetachedRootEditing cannot be used with enableSharedBranches.",
+		);
 	}
 	if (options.enableSharedBranches === true) {
 		return sharedBranchesOptions;
@@ -233,5 +235,5 @@ const sharedBranchesOptions: SharedTreeOptionsInternal = {
 const detachRootEditingOptions: SharedTreeOptionsInternal = {
 	messageFormatSelector: messageFormatVersionSelectorForDetachedRootEditing,
 	editManagerFormatSelector: editManagerFormatVersionSelectorForDetachedRootEditing,
-	canMakeDetachedRootEdits: true,
+	enableDetachedRootEditing: true,
 };

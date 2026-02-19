@@ -236,7 +236,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 		family: ChangeFamily<ChangeFamilyEditor, DefaultChangeset>,
 		private readonly mintRevisionTag: () => RevisionTag,
 		changeReceiver: (change: TaggedChange<DefaultChangeset>) => void,
-		private readonly options: EditorOptions = { canMakeDetachedRootEdits: false },
+		private readonly options: EditorOptions = { enableDetachedRootEditing: false },
 		codecOptions: CodecWriteOptions,
 	) {
 		this.modularBuilder = new ModularEditBuilder(
@@ -386,7 +386,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 					return;
 				}
 				const isWithoutCell = this.nodesWithoutCells.delete(content.localId, 1) === 1;
-				if (!isWithoutCell && this.options.canMakeDetachedRootEdits !== true) {
+				if (!isWithoutCell && this.options.enableDetachedRootEditing !== true) {
 					throw new UsageError(
 						`Attach edits require a minimum version for collaboration >= TBD.`,
 					);
@@ -645,7 +645,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 					edits.push(...renameAndAttach);
 					insertOffset += range.count;
 				}
-				if (!areAllWithoutCells && this.options.canMakeDetachedRootEdits !== true) {
+				if (!areAllWithoutCells && this.options.enableDetachedRootEditing !== true) {
 					throw new UsageError(
 						`Attach edits require a minimum version for collaboration >= TBD.`,
 					);
@@ -671,7 +671,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 }
 
 function enforceEditsToDetachedTreesOptions(field: FieldUpPath, options: EditorOptions): void {
-	if (options.canMakeDetachedRootEdits !== true) {
+	if (options.enableDetachedRootEditing !== true) {
 		const topField = getDetachedFieldContainingFieldPath(field);
 		if (topField !== rootField) {
 			throw new UsageError(

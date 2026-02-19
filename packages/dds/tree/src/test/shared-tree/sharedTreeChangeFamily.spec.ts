@@ -61,7 +61,7 @@ const defaultEditor = new DefaultIdBasedDataEditor(
 	modularFamily,
 	mintRevisionTag,
 	(taggedChange) => dataChanges.push(taggedChange.change),
-	{ canMakeDetachedRootEdits: true },
+	{ enableDetachedRootEditing: true },
 	codecOptions,
 );
 
