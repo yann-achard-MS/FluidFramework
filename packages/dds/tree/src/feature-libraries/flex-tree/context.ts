@@ -164,7 +164,7 @@ export class Context implements FlexTreeHydratedContext, IDisposable {
 
 	public runInTransaction(fn: () => void): void {
 		debugAssert(() => !this.disposed || "Disposed");
-		this.checkout.transaction.start();
+		this.checkout.transaction.start(false);
 		fn();
 		this.checkout.transaction.commit();
 	}

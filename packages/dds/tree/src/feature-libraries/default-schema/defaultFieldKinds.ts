@@ -12,7 +12,6 @@ import {
 	forbiddenFieldKindIdentifier,
 	Multiplicity,
 } from "../../core/index.js";
-import { brand, type Brand } from "../../util/index.js";
 import { identifierFieldIdentifier } from "../fieldKindIdentifiers.js";
 import {
 	type FieldChangeHandler,
@@ -21,6 +20,7 @@ import {
 	type FieldKindConfigurationEntry,
 	FlexFieldKind,
 	type FullSchemaPolicy,
+	ModularChangeFormatVersion,
 	type ToDelta,
 	referenceFreeFieldChangeRebaser,
 } from "../modular-schema/index.js";
@@ -46,6 +46,7 @@ export const noChangeHandler: FieldChangeHandler<0> = {
 	getNestedChanges: (change: 0) => [],
 	createEmpty: () => 0,
 	getCrossFieldKeys: () => [],
+	getDetachCellIds: () => [],
 };
 
 /**
@@ -105,9 +106,9 @@ export const forbidden: Forbidden = new FlexFieldKind(
 export const fieldKindConfigurations: ReadonlyMap<
 	ModularChangeFormatVersion,
 	FieldKindConfiguration
-> = new Map([
+> = new Map<ModularChangeFormatVersion, FieldKindConfiguration>([
 	[
-		brand(3),
+		ModularChangeFormatVersion.v3,
 		new Map<FieldKindIdentifier, FieldKindConfigurationEntry>([
 			[required.identifier, { kind: required, formatVersion: 2 }],
 			[optional.identifier, { kind: optional, formatVersion: 2 }],
@@ -117,7 +118,7 @@ export const fieldKindConfigurations: ReadonlyMap<
 		]),
 	],
 	[
-		brand(4),
+		ModularChangeFormatVersion.v4,
 		new Map<FieldKindIdentifier, FieldKindConfigurationEntry>([
 			[required.identifier, { kind: required, formatVersion: 2 }],
 			[optional.identifier, { kind: optional, formatVersion: 2 }],
@@ -127,7 +128,7 @@ export const fieldKindConfigurations: ReadonlyMap<
 		]),
 	],
 	[
-		brand(5),
+		ModularChangeFormatVersion.v5,
 		new Map<FieldKindIdentifier, FieldKindConfigurationEntry>([
 			[required.identifier, { kind: required, formatVersion: 2 }],
 			[optional.identifier, { kind: optional, formatVersion: 2 }],
@@ -137,7 +138,7 @@ export const fieldKindConfigurations: ReadonlyMap<
 		]),
 	],
 	[
-		brand(101), // Detached roots
+		ModularChangeFormatVersion.vDetachedRoots,
 		new Map<FieldKindIdentifier, FieldKindConfigurationEntry>([
 			[required.identifier, { kind: required, formatVersion: 2 }],
 			[optional.identifier, { kind: optional, formatVersion: 3 }],
@@ -148,7 +149,6 @@ export const fieldKindConfigurations: ReadonlyMap<
 	],
 ]);
 
-export type ModularChangeFormatVersion = Brand<3 | 4 | 5 | 101, "ModularChangeFormatVersion">;
 export function getCodecTreeForModularChangeFormat(
 	version: ModularChangeFormatVersion,
 ): CodecTree {

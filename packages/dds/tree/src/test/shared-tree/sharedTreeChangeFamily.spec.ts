@@ -275,10 +275,13 @@ describe("SharedTreeChangeFamily", () => {
 		// The tests below heavily mock the inputs to updateRefreshers.
 		// This is done to simplify the tests, but it also has the effect of reducing their dependency on the
 		// ModularChangeset format and on the behavior of the helper functions that operate on it.
-		// ModularChangeset instances that are used as input are mocked to represent the list of relevant node IDs that
-		// they need refreshers for.
-		// ModularChangeset instances that are used as output are mocked to represent the list refreshers that are
-		// included in them. The refreshers themselves are mocked using unique strings.
+		interface MockChange {
+			/** The IDs of the nodes that are relevant to this change. This is the test input. */
+			readonly relevant?: DeltaDetachedNodeId[];
+			/** The refreshers associated with this change. This is the test output. */
+			readonly refreshers?: string[];
+		}
+
 		const idInForest1: DeltaDetachedNodeId = { minor: 1 };
 		const idInForest2: DeltaDetachedNodeId = { minor: 2 };
 		const idNotInForest: DeltaDetachedNodeId = { minor: 3 };

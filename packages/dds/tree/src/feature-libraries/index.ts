@@ -72,7 +72,7 @@ export {
 	type ComposeNodeManager,
 	type InvertNodeManager,
 	type RebaseNodeManager,
-	CrossFieldTarget,
+	NodeMoveType,
 	FlexFieldKind,
 	type FullSchemaPolicy,
 	allowsRepoSuperset,
@@ -90,6 +90,7 @@ export {
 	type FieldKindConfigurationEntry,
 	isNeverTree,
 	DefaultRevisionReplacer,
+	ModularChangeFormatVersion,
 } from "./modular-schema/index.js";
 
 export {
@@ -152,7 +153,6 @@ export {
 	LocationBasedDataEditor,
 	type ILocationBasedDataEditor,
 	getCodecTreeForModularChangeFormat,
-	type ModularChangeFormatVersion,
 } from "./default-schema/index.js";
 
 export {
@@ -223,6 +223,7 @@ export {
 
 export {
 	type ChangeAtomIdBTree,
+	newChangeAtomIdBTree,
 	getFromChangeAtomIdMap,
 	setInChangeAtomIdMap,
 } from "./changeAtomIdBTree.js";

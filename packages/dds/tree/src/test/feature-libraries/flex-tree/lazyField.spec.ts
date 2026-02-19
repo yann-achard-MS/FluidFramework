@@ -86,12 +86,9 @@ describe("LazyField", () => {
 			detachedFieldAnchor,
 		);
 		cursor.free();
-		const expectedError = validateAssertionError(
-			/Editing only allowed on the root field or on fields under nodes with TreeStatus.InDocument or TreeStatus.Removed status/,
-		);
 		assert.throws(
 			() => optionalField.editor.set(undefined, optionalField.length === undefined),
-			expectedError,
+			validateAssertionError(/only allowed on fields with TreeStatus.InDocument status/),
 		);
 	});
 

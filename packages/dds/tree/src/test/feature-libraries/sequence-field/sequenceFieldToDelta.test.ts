@@ -128,7 +128,7 @@ export function testToDelta(): void {
 		});
 
 		it("remove", () => {
-			const changeset = [Mark.remove(10, brand(42))];
+			const changeset = [Mark.detach(10, brand(42))];
 			const expected: DeltaFieldChanges = {
 				marks: [
 					{
@@ -143,7 +143,7 @@ export function testToDelta(): void {
 
 		it("remove with override", () => {
 			const detachIdOverride: SF.CellId = { revision: tag2, localId: brand(1) };
-			const changeset = [Mark.remove(10, brand(42), { cellRename: detachIdOverride })];
+			const changeset = [Mark.detach(10, brand(42), { cellRename: detachIdOverride })];
 			const expected: DeltaFieldChanges = {
 				marks: [
 					{
@@ -220,9 +220,9 @@ export function testToDelta(): void {
 
 		it("multiple changes", () => {
 			const changeset: Changeset = [
-				Mark.remove(10, brand(42)),
+				Mark.detach(10, brand(42)),
 				{ count: 3 },
-				Mark.insert(1, brand(52)),
+				Mark.attach(1, brand(52)),
 				{ count: 1 },
 				Mark.modify(childChange1),
 			];
@@ -242,7 +242,7 @@ export function testToDelta(): void {
 		});
 
 		it("insert and modify => insert", () => {
-			const changeset = [Mark.insert(1, brand(0), { changes: childChange1 })];
+			const changeset = [Mark.attach(1, brand(0), { changes: childChange1 })];
 			const buildId = { major: tag, minor: 0 };
 			const expected: DeltaFieldChanges = { marks: [{ count: 1, attach: buildId }] };
 			const actual = toDelta(inlineRevision(changeset, tag));
@@ -250,7 +250,7 @@ export function testToDelta(): void {
 		});
 
 		it("modify and remove => remove", () => {
-			const changeset = [Mark.remove(1, brand(42), { changes: childChange1 })];
+			const changeset = [Mark.detach(1, brand(42), { changes: childChange1 })];
 			const expected: DeltaFieldChanges = {
 				marks: [{ count: 1, detach: detachId, fields: childChange1Delta }],
 			};
@@ -272,7 +272,7 @@ export function testToDelta(): void {
 		it("insert and modify w/ move-in => insert", () => {
 			const nodeId: NodeId = { localId: brand(0) };
 
-			const changeset = [Mark.insert(1, brand(0), { changes: nodeId })];
+			const changeset = [Mark.attach(1, brand(0), { changes: nodeId })];
 			const nestedMoveDelta = new Map([
 				[fooField, { marks: [{ attach: { minor: moveId }, count: 42 }] }],
 			]);
@@ -289,7 +289,7 @@ export function testToDelta(): void {
 		describe("Transient changes", () => {
 			// TODO: Should test revives and returns in addition to inserts and moves
 			it("insert & remove", () => {
-				const changeset = [Mark.remove(2, brand(2), { cellId: { localId: brand(0) } })];
+				const changeset = [Mark.detach(2, brand(2), { cellId: { localId: brand(0) } })];
 				const delta = toDelta(changeset);
 				assertFieldChangesEqual(delta, emptyFieldChanges);
 			});
@@ -377,13 +377,13 @@ export function testToDelta(): void {
 
 		describe("Idempotent changes", () => {
 			it("remove", () => {
-				const deletion = [Mark.remove(1, brand(0), { cellId })];
+				const deletion = [Mark.detach(1, brand(0), { cellId })];
 				const actual = toDelta(inlineRevision(deletion, tag));
 				assertFieldChangesEqual(actual, emptyFieldChanges);
 			});
 
 			it("modify and remove", () => {
-				const deletion = [Mark.remove(1, brand(0), { cellId, changes: childChange1 })];
+				const deletion = [Mark.detach(1, brand(0), { cellId, changes: childChange1 })];
 				const actual = toDelta(inlineRevision(deletion, tag));
 				assertFieldChangesEqual(actual, emptyFieldChanges);
 			});
