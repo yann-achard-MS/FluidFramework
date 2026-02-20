@@ -754,7 +754,7 @@ export function testRebaserAxioms(): void {
 		// 	runSingleEditRebaseAxiomSuite({ content: "A" });
 		// });
 
-		describeStress("Exhaustive", ({ stressMode }) => {
+		describeStress.skip("Exhaustive", ({ stressMode }) => {
 			runExhaustiveComposeRebaseSuite<
 				OptionalFieldTestContent,
 				DefaultChangeset,

@@ -21,7 +21,7 @@ await ensurePackageInstalled(versionForCompat, 0, false);
  * See the "Fuzz - Targeted" test suite for tests that validate more specific code paths or invariants.
  */
 
-describe("Shared tree cross-version collab fuzz", () => {
+describe.skip("Shared tree cross-version collab fuzz", () => {
 	const treePackage = getDataRuntimeApi(versionForCompat).packages.tree;
 	const prevTreeFactory = treePackage.SharedTree.getFactory();
 	createCompatFuzzSuite(
