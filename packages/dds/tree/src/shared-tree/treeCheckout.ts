@@ -61,6 +61,7 @@ import {
 	type ReadOnlyDetachedFieldIndex,
 	makeAnonChange,
 	type TaggedChange,
+	type EditorOptions,
 } from "../core/index.js";
 import {
 	type DetachedRootIds,
@@ -310,6 +311,7 @@ export function createTreeCheckout(
 	idCompressor: IIdCompressor,
 	mintRevisionTag: () => RevisionTag,
 	revisionTagCodec: RevisionTagCodec,
+	editorOptions: EditorOptions,
 	args?: {
 		branch?: SharedTreeBranch<IdBasedSharedTreeEditBuilder, SharedTreeChange>;
 		changeFamily?: ChangeFamily<IdBasedSharedTreeEditBuilder, SharedTreeChange>;
@@ -364,6 +366,7 @@ export function createTreeCheckout(
 		mintRevisionTag,
 		revisionTagCodec,
 		idCompressor,
+		editorOptions,
 		args?.removedRoots,
 		args?.logger,
 		breaker,
@@ -450,6 +453,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 		private readonly mintRevisionTag: () => RevisionTag,
 		private readonly revisionTagCodec: RevisionTagCodec,
 		private readonly idCompressor: IIdCompressor,
+		public readonly editorOptions: EditorOptions,
 		private readonly _removedRoots: DetachedFieldIndex = makeDetachedFieldIndex(
 			"repair",
 			revisionTagCodec,
@@ -888,7 +892,11 @@ export class TreeCheckout implements ITreeCheckoutFork {
 
 	public get editor(): ILocationBasedSharedTreeEditor {
 		this.checkNotDisposed();
-		return new LocationBasedSharedTreeEditBuilder(this.editLock.editor, this.locator);
+		return new LocationBasedSharedTreeEditBuilder(
+			this.editLock.editor,
+			this.locator,
+			this.editorOptions,
+		);
 	}
 
 	public locate(anchor: Anchor): AnchorNode | undefined {
@@ -935,6 +943,7 @@ export class TreeCheckout implements ITreeCheckoutFork {
 			this.mintRevisionTag,
 			this.revisionTagCodec,
 			this.idCompressor,
+			this.editorOptions,
 			this._removedRoots.clone(),
 			this.logger,
 			this.breaker,

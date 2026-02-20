@@ -228,12 +228,18 @@ export function createIndependentTreeAlpha<const TSchema extends ImplicitFieldSc
 		defaultIncrementalEncodingPolicy,
 	);
 
-	const checkout = createTreeCheckout(idCompressor, mintRevisionTag, revisionTagCodec, {
-		forest,
-		schema: schemaRepository,
-		breaker,
-		codecOptions: options,
-	});
+	const checkout = createTreeCheckout(
+		idCompressor,
+		mintRevisionTag,
+		revisionTagCodec,
+		{ enableDetachedRootEditing: true },
+		{
+			forest,
+			schema: schemaRepository,
+			breaker,
+			codecOptions: options,
+		},
+	);
 
 	if (options?.content !== undefined) {
 		// Any version can be passed down to `makeSchemaCodec` and `makeFieldBatchCodec` here.

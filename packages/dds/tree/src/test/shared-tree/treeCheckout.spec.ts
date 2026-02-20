@@ -1900,6 +1900,7 @@ function itView<
 			testIdCompressor,
 			mintRevisionTag,
 			testRevisionTagCodec,
+			{ enableDetachedRootEditing: true },
 			{
 				forest: buildTestForest({ additionalAsserts: true, schema }),
 				schema,
