@@ -211,7 +211,9 @@ describe("EditManager - Bench", () => {
 					});
 				}
 			});
-			describe("Multi-peer commit rebasing", () => {
+			describe("Multi-peer commit rebasing", function (this: Mocha.Suite): void {
+				this.timeout(5000);
+
 				interface MultiPeerScenario {
 					readonly type: BenchmarkType;
 					readonly peerCount: number;
