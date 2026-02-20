@@ -1180,6 +1180,8 @@ export function makeDiscontinuedEncodingTestSuite(
 	family: ICodecFamily<unknown, unknown>,
 	discontinuedVersions: FormatVersion[],
 ): void {
+	registerValidationHook(family, discontinuedVersions);
+
 	for (const version of discontinuedVersions) {
 		describe(`${version} (discontinued)`, () => {
 			const codec = family.resolve(version);
