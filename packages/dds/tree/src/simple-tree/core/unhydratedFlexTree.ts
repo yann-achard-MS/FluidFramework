@@ -481,7 +481,6 @@ export class UnhydratedOptionalField
 {
 	public readonly editor: OptionalFieldEditor<FlexibleNodeContent, FlexTreeNode> = {
 		set: (newContent: FlexibleNodeContent | undefined): void => {
-			// If the new content is a UnhydratedFlexTreeNode, it needs to have its parent pointer updated
 			if (newContent !== undefined) {
 				assert(
 					newContent instanceof UnhydratedFlexTreeNode,

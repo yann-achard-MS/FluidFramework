@@ -142,10 +142,12 @@ export function unhydratedFlexTreeFromInsertableNode(
 		const inner = kernel.getInnerNodeIfUnhydrated();
 		if (inner === undefined) {
 			// The node is already hydrated, meaning that it already got inserted into the tree previously
-			throw new UsageError("A node may not be inserted into the tree more than once");
+			throw new UsageError(
+				`A node with schema ${quotedSchemaIdentifierWithName(kernel.schema)} was inserted into the tree more than once. This is not supported.`,
+			);
 		} else {
 			if (!allowedTypes.has(kernel.schema)) {
-				throw new UsageError("Invalid schema for this context.");
+				allowedTypesInsertableSchemaError(allowedTypes, kernel.schema);
 			}
 			return inner;
 		}

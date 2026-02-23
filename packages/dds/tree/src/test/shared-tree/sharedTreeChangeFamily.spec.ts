@@ -292,11 +292,6 @@ describe("SharedTreeChangeFamily", () => {
 			innerChange: "MockSchemaChange" as unknown as SchemaChange,
 		};
 
-		interface MockChange {
-			readonly relevant?: DeltaDetachedNodeId[];
-			readonly refreshers?: string[];
-		}
-
 		function updateDataChangeRefreshers(
 			change: ModularChangeset,
 			getDetachedNode: (id: DeltaDetachedNodeId) => TreeChunk | undefined,
