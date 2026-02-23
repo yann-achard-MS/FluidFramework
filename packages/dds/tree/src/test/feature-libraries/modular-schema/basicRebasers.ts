@@ -88,7 +88,8 @@ export const valueHandler = {
 	rebaser: replaceRebaser(),
 	codecsFactory: () => {
 		const inner = makeValueCodec<TUnsafe<ValueChangeset>, FieldChangeEncodingContext>(
-			JsonCompatibleReadOnlySchema,
+			// As this is just a test rebaser, it is acceptable to not use a proper schema, and thus not detect invalid data here.
+			JsonCompatibleReadOnlySchema as TUnsafe<ValueChangeset>,
 		);
 		return makeCodecFamily([[1, eraseEncodedType(inner)]]);
 	},
@@ -109,6 +110,7 @@ export const valueHandler = {
 	getNestedChanges: (change) => [],
 	createEmpty: () => 0,
 	getCrossFieldKeys: (_change) => [],
+	getDetachCellIds: (_change) => [],
 } satisfies FieldChangeHandler<ValueChangeset>;
 
 export const valueField = new FlexFieldKind(

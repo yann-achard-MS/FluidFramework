@@ -215,7 +215,9 @@ export {
 	type ChangeAtomIdRangeMap,
 	newChangeAtomIdRangeMap,
 	newChangeAtomIdTransform,
-	compareRevisions,
+	comparePartialRevisions,
+	compareChangesetLocalIds,
+	comparePartialChangesetLocalIds,
 	diffHistories,
 	type RevisionReplacer,
 } from "./rebase/index.js";

@@ -81,7 +81,7 @@ export interface SharedTreeCoreOptionsInternal
 	extends CodecWriteOptions,
 		EditManagerCodecOptions,
 		MessageCodecOptions {
-	canMakeDetachedRootEdits: boolean;
+	readonly enableDetachedRootEditing: boolean;
 }
 
 export interface EnrichmentConfig<TChange> {

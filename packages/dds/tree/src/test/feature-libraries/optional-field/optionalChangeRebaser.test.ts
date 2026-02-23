@@ -282,7 +282,7 @@ const generateChildStateForRebaseVersion = function* (
 		};
 	};
 	const editor = defaultFamily.buildEditor(makeRevisionTagMinter(), () => undefined, {
-		canMakeDetachedRootEdits: rebaseVersion >= 2,
+		enableDetachedRootEditing: rebaseVersion >= 2,
 		rebaseVersionOverride: rebaseVersion,
 	});
 	const edits = getSequentialEdits(state);
@@ -783,7 +783,7 @@ export function testRebaserAxioms(): void {
 					numberOfEditsToRebase: 2,
 					numberOfEditsToRebaseOver: stressMode === StressMode.Short ? 2 : 5,
 					numberOfEditsToVerifyAssociativity: stressMode === StressMode.Short ? 2 : 6,
-					groupSubSuites: false,
+					groupSubSuites: true,
 				},
 			);
 		});

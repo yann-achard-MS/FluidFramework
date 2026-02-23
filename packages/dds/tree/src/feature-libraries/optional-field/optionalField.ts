@@ -38,7 +38,7 @@ import {
 	type ComposeNodeManager,
 	type InvertNodeManager,
 	type CrossFieldKeyRange,
-	CrossFieldTarget,
+	NodeMoveType,
 	type RebaseVersion,
 	type RebaseRevisionMetadata,
 	FlexFieldKind,
@@ -86,9 +86,10 @@ export const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
 				inverted.childChange = attachEntry.value.nodeChange;
 			}
 
-			// TODO: Use nodeDetach instead of valueReplace if not supporting older client versions.
-			// inverted.nodeDetach = detachIdForInverse;
-			if (inverted.valueReplace === undefined) {
+			// TODO: Always use nodeDetach instead of valueReplace if not supporting older client versions.
+			if (isPin(change)) {
+				inverted.nodeDetach = detachIdForInverse;
+			} else if (inverted.valueReplace === undefined) {
 				inverted.valueReplace = { isEmpty: false, dst: detachIdForInverse };
 			} else {
 				(inverted.valueReplace as Mutable<Replace>).dst = detachIdForInverse;
@@ -114,13 +115,14 @@ export const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
 
 		const rebasedChild = rebaseChild(newChange.childChange, overChange.childChange);
 		const overDetach = getEffectiveDetachId(overChange);
-		if (overDetach !== undefined) {
-			const isPin = areEqualChangeAtomIdOpts(
-				newChange.nodeDetach,
-				newChange.valueReplace?.src,
-			);
 
-			const nodeDetach = rebaseVersion < 2 && !isPin ? undefined : newChange.nodeDetach;
+		// Note that composition ignores rebase version, and so will create node detaches even when we are supporting collaboration with older clients.
+		// Therefore, in rebase version 1 we must rebase node detach as if it were a clear, matching the behavior of older clients.
+		const hasNodeDetachTreatedAsClear =
+			newChange.nodeDetach !== undefined && rebaseVersion < 2 && !isPin(newChange);
+
+		if (overDetach !== undefined) {
+			const nodeDetach = hasNodeDetachTreatedAsClear ? undefined : newChange.nodeDetach;
 			nodeManager.rebaseOverDetach(overDetach, 1, nodeDetach, rebasedChild);
 		}
 
@@ -134,10 +136,10 @@ export const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
 
 			if (movedChangeEntry?.detachId !== undefined) {
 				rebased.nodeDetach = movedChangeEntry.detachId;
-				if (rebased.valueReplace !== undefined) {
+				if (newChange.valueReplace !== undefined) {
 					// Now that the rebased change has a node detach,
 					// the detach from the value replace no longer takes effect.
-					nodeManager.removeDetach(rebased.valueReplace.dst, 1);
+					nodeManager.removeDetach(newChange.valueReplace.dst, 1);
 				}
 			}
 		} else if (overDetach === undefined) {
@@ -151,10 +153,23 @@ export const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
 			}
 		}
 
-		if (newChange.valueReplace !== undefined) {
+		if (hasNodeDetachTreatedAsClear && overDetach !== undefined) {
+			// In order to emulate the rebasing behavior of older clients,
+			// we convert the node detach to a clear.
+			const valueReplace: Mutable<Replace> = {
+				dst: newChange.nodeDetach,
+				isEmpty: overAttach === undefined,
+			};
+
+			if (newChange.valueReplace?.src !== undefined) {
+				valueReplace.src = newChange.valueReplace.src;
+			}
+
+			rebased.valueReplace = valueReplace;
+		} else if (newChange.valueReplace !== undefined) {
 			const isEmpty =
-				overDetach !== undefined || overChange.valueReplace !== undefined
-					? overChange.valueReplace?.src === undefined
+				overDetach !== undefined || overAttach !== undefined
+					? overAttach === undefined
 					: newChange.valueReplace.isEmpty;
 
 			rebased.valueReplace = { ...newChange.valueReplace, isEmpty };
@@ -163,17 +178,14 @@ export const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
 		const detachId = getEffectiveDetachId(newChange);
 		const rebasedDetachId = getEffectiveDetachId(rebased);
 
-		if (detachId !== undefined && !areEqualChangeAtomIdOpts(detachId, rebasedDetachId)) {
-			nodeManager.removeDetach(detachId, 1);
+		if (!areEqualChangeAtomIdOpts(detachId, rebasedDetachId)) {
+			if (detachId !== undefined) {
+				nodeManager.removeDetach(detachId, 1);
+			}
+			if (rebasedDetachId !== undefined) {
+				nodeManager.addDetach(rebasedDetachId, 1);
+			}
 		}
-
-		if (
-			rebasedDetachId !== undefined &&
-			!areEqualChangeAtomIdOpts(rebasedDetachId, detachId)
-		) {
-			nodeManager.addDetach(rebasedDetachId, 1);
-		}
-
 		return rebased;
 	},
 
@@ -205,6 +217,10 @@ export const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
 
 		if (valueReplace !== undefined) {
 			updated.valueReplace = valueReplace;
+		}
+
+		if (change.nodeDetach !== undefined) {
+			updated.nodeDetach = replacer.getUpdatedAtomId(change.nodeDetach);
 		}
 
 		return updated;
@@ -257,6 +273,12 @@ function composeNodeDetaches(
 	if (detach1 !== undefined) {
 		const newDetachId = nodeManager.getNewChangesForBaseDetach(detach1, 1).value?.detachId;
 		if (newDetachId !== undefined) {
+			// change2 either renames or detaches this node (the latter case implying that change1 reattaches/moves it).
+			// In either case, the composition ends with the node detached by `newDetachId`.
+			// Note that even if change2 detaches the node with a location-targeting detach (e.g. an optional field clear),
+			// the composition should still have a node-targeting detach.
+			// This is because change1 must attach the node in the location targeted by the detach,
+			// and rebasing does not affect attaches, although that could change if slice moves are implemented.
 			return newDetachId;
 		}
 	}
@@ -265,9 +287,7 @@ function composeNodeDetaches(
 		return change1.nodeDetach;
 	}
 
-	return detach1 !== undefined || change1.valueReplace?.isEmpty === true
-		? undefined
-		: change2.nodeDetach;
+	return change1.valueReplace === undefined ? change2.nodeDetach : undefined;
 }
 
 function composeReplaces(
@@ -350,7 +370,7 @@ function getComposedChildChanges(
 
 function makeChangeset(
 	replace: Replace | undefined,
-	detachId: ChangeAtomId | undefined,
+	nodeDetach: ChangeAtomId | undefined,
 	childChange: NodeId | undefined,
 ): OptionalChangeset {
 	const changeset: Mutable<OptionalChangeset> = {};
@@ -358,8 +378,8 @@ function makeChangeset(
 		changeset.valueReplace = replace;
 	}
 
-	if (detachId !== undefined) {
-		changeset.nodeDetach = detachId;
+	if (nodeDetach !== undefined) {
+		changeset.nodeDetach = nodeDetach;
 	}
 
 	if (childChange !== undefined) {
@@ -402,47 +422,45 @@ export interface OptionalFieldEditor extends FieldEditor<OptionalChangeset> {
 	 * with new content.
 	 * The content in the field will be moved to the `ids.detach` register.
 	 * The content in the `ids.detach` register will be moved to into the field.
-	 * @param wasEmpty - whether the field is empty when creating this change
-	 * @param ids - the "fill" and "detach" ids associated with the change.
+	 * @param isEmpty - whether the field is empty when creating this change
+	 * @param ids - the ids associated with the change.
 	 */
 	set(
-		wasEmpty: boolean,
+		isEmpty: boolean,
 		ids: {
+			/** The ID of the node to attach in the field. */
 			fill: ChangeAtomId;
+			/** The ID to assign to whichever node (if any) is detached from the field when the change applies. */
 			detach: ChangeAtomId;
-			detachNode?: ChangeAtomId;
 		},
 	): OptionalChangeset;
 
 	/**
 	 * Creates a change which clears the field's contents (if any).
-	 * @param wasEmpty - whether the field is empty when creating this change
-	 * @param detachId - the ID of the register that existing field content (if any) will be moved to.
+	 * @param isEmpty - whether the field is empty when creating this change
+	 * @param detachId - the ID to assign to whichever node (if any) is detached from the field when the change applies.
 	 */
-	clear(wasEmpty: boolean, detachId: ChangeAtomId): OptionalChangeset;
+	clear(isEmpty: boolean, detachId: ChangeAtomId): OptionalChangeset;
 }
 
 export const optionalFieldEditor: OptionalFieldEditor = {
 	set: (
-		wasEmpty: boolean,
+		isEmpty: boolean,
 		ids: {
 			fill: ChangeAtomId;
-			// Should be interpreted as a set of an empty field if undefined.
 			detach: ChangeAtomId;
-			detachNode?: ChangeAtomId;
 		},
 	): OptionalChangeset => ({
 		valueReplace: {
-			isEmpty: wasEmpty,
+			isEmpty,
 			src: ids.fill,
 			dst: ids.detach,
 		},
-		nodeDetach: ids.detachNode,
 	}),
 
-	clear: (wasEmpty: boolean, detachId: ChangeAtomId): OptionalChangeset => ({
+	clear: (isEmpty: boolean, detachId: ChangeAtomId): OptionalChangeset => ({
 		valueReplace: {
-			isEmpty: wasEmpty,
+			isEmpty,
 			dst: detachId,
 		},
 	}),
@@ -478,14 +496,15 @@ export function optionalOrRequiredFieldIntoDelta(
 	const mark: Mutable<DeltaMark> = { count: 1 };
 	const detachId = getEffectiveDetachId(change);
 	const attachId = change.valueReplace?.src;
-	if (detachId !== undefined && !areEqualChangeAtomIdOpts(detachId, attachId)) {
-		mark.detach = nodeIdFromChangeAtom(detachId);
+	if (!areEqualChangeAtomIdOpts(detachId, attachId)) {
 		markIsANoop = false;
-	}
 
-	if (attachId !== undefined && !areEqualChangeAtomIdOpts(attachId, detachId)) {
-		mark.attach = nodeIdFromChangeAtom(attachId);
-		markIsANoop = false;
+		if (detachId !== undefined) {
+			mark.detach = nodeIdFromChangeAtom(detachId);
+		}
+		if (attachId !== undefined) {
+			mark.attach = nodeIdFromChangeAtom(attachId);
+		}
 	}
 
 	if (change.childChange !== undefined) {
@@ -515,13 +534,14 @@ export const optionalChangeHandler: FieldChangeHandler<
 
 	createEmpty: () => ({}),
 	getCrossFieldKeys,
+	getDetachCellIds: (_change) => [],
 };
 
 function getCrossFieldKeys(change: OptionalChangeset): CrossFieldKeyRange[] {
 	const keys: CrossFieldKeyRange[] = [];
 	if (change.valueReplace?.src !== undefined) {
 		keys.push({
-			key: { ...change.valueReplace.src, target: CrossFieldTarget.Destination },
+			key: { ...change.valueReplace.src, target: NodeMoveType.Attach },
 			count: 1,
 		});
 	}
@@ -529,7 +549,7 @@ function getCrossFieldKeys(change: OptionalChangeset): CrossFieldKeyRange[] {
 	const detachId = getEffectiveDetachId(change);
 
 	if (detachId !== undefined) {
-		keys.push({ key: { ...detachId, target: CrossFieldTarget.Source }, count: 1 });
+		keys.push({ key: { ...detachId, target: NodeMoveType.Detach }, count: 1 });
 	}
 
 	return keys;
@@ -554,6 +574,13 @@ function invertAttachId(
 	}
 
 	return detachId ?? attachId;
+}
+
+function isPin(change: OptionalChangeset): boolean {
+	return (
+		change.nodeDetach !== undefined &&
+		areEqualChangeAtomIdOpts(change.nodeDetach, change.valueReplace?.src)
+	);
 }
 
 interface Optional
