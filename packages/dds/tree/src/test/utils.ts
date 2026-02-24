@@ -1757,10 +1757,14 @@ export function describeWithAndWithoutDetachedRootEditing(
 
 export function itWithAndWithoutDetachedRootEditing(
 	title: string,
-	testFn: (this: Mocha.Suite, options: SharedTreeOptions) => void,
-): Mocha.Test {
-	return it(title, (): void => {
-		describeWithoutDetachedRootEditing("", testFn);
-		describeWithDetachedRootEditing("", testFn);
+	testFn: (this: Mocha.Context, options: SharedTreeOptions) => void,
+): Mocha.Suite {
+	return describe(title, (): void => {
+		it("(Detached root editing OFF)", function (): void {
+			testFn.call(this, optionsWithoutDetachedRootEditing);
+		});
+		it("(Detached root editing ON)", function (): void {
+			testFn.call(this, optionsWithDetachedRootEditing);
+		});
 	});
 }
