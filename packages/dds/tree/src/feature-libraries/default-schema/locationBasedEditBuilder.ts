@@ -58,7 +58,7 @@ export class LocationBasedDataEditor
 	public constructor(
 		private readonly idBasedEditor: DataEditor<TreeChunk, ChangeAtomId, DetachedRootIds>,
 		private readonly locator: Locator,
-		private readonly options: EditorOptions = { enableDetachedRootEditing: false },
+		private readonly options: EditorOptions,
 	) {}
 
 	public addNodeExistsConstraint(path: UpPath): void {

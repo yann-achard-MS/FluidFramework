@@ -880,6 +880,7 @@ function createCheckoutWithContent(
 		testIdCompressor,
 		mintRevisionTag,
 		testRevisionTagCodec,
+		{ enableDetachedRootEditing: true },
 		{
 			...args,
 			forest,

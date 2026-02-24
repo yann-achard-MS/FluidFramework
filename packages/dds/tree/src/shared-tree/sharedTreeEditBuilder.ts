@@ -112,8 +112,12 @@ export class LocationBasedSharedTreeEditBuilder
 {
 	public readonly schema: ISchemaEditor;
 
-	public constructor(idBasedEditor: IIdBasedSharedTreeEditor, locator: Locator) {
-		super(idBasedEditor, locator);
+	public constructor(
+		idBasedEditor: IIdBasedSharedTreeEditor,
+		locator: Locator,
+		options: EditorOptions,
+	) {
+		super(idBasedEditor, locator, options);
 		this.schema = idBasedEditor.schema;
 	}
 }

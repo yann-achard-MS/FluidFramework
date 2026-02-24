@@ -658,11 +658,17 @@ function independentInitializedViewInternal<const TSchema extends ImplicitFieldS
 		defaultIncrementalEncodingPolicy,
 	);
 
-	const checkout = createTreeCheckout(idCompressor, mintRevisionTag, revisionTagCodec, {
-		forest,
-		schema: schemaRepository,
-		breaker,
-	});
+	const checkout = createTreeCheckout(
+		idCompressor,
+		mintRevisionTag,
+		revisionTagCodec,
+		{ enableDetachedRootEditing: true },
+		{
+			forest,
+			schema: schemaRepository,
+			breaker,
+		},
+	);
 
 	initialize(
 		checkout,

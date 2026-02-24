@@ -311,18 +311,24 @@ export class SharedTreeKernel
 			defaultSchemaPolicy,
 		);
 
-		this.checkout = createTreeCheckout(idCompressor, this.mintRevisionTag, revisionTagCodec, {
-			branch: this.getLocalBranch(),
-			changeFamily,
-			schema,
-			forest,
-			fieldBatchCodec,
-			removedRoots,
-			chunkCompressionStrategy: options.treeEncodeType,
-			logger,
-			breaker: this.breaker,
-			disposeForksAfterTransaction: options.disposeForksAfterTransaction,
-		});
+		this.checkout = createTreeCheckout(
+			idCompressor,
+			this.mintRevisionTag,
+			revisionTagCodec,
+			{ enableDetachedRootEditing: options.enableDetachedRootEditing },
+			{
+				branch: this.getLocalBranch(),
+				changeFamily,
+				schema,
+				forest,
+				fieldBatchCodec,
+				removedRoots,
+				chunkCompressionStrategy: options.treeEncodeType,
+				logger,
+				breaker: this.breaker,
+				disposeForksAfterTransaction: options.disposeForksAfterTransaction,
+			},
+		);
 
 		this.registerSharedBranchForEditing("main", this.checkout);
 		this.registerCheckout("main", this.checkout);
