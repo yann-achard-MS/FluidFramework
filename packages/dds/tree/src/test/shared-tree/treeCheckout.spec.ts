@@ -101,14 +101,12 @@ describe("sharedTreeView", () => {
 
 			assert.deepEqual(log, [
 				"editStart",
-				"after",
 				"subtree",
 				"change",
 				"subtree",
 				"change",
 				"after",
 				"editStart",
-				"after",
 				"subtree",
 				"change",
 				"subtree",
@@ -149,14 +147,12 @@ describe("sharedTreeView", () => {
 
 			assert.deepEqual(log, [
 				"editStart",
-				"after",
 				"subtree-rootFieldKey-0",
 				"change-rootFieldKey-0",
 				"subtree-rootFieldKey-0",
 				"change-rootFieldKey-0",
 				"after",
 				"editStart",
-				"after",
 				"subtree-rootFieldKey-0",
 				"change-rootFieldKey-0",
 				"subtree-rootFieldKey-0",

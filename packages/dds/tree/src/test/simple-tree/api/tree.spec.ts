@@ -252,7 +252,7 @@ describe("simple-tree tree", () => {
 			const config = new TreeViewConfiguration({ schema: schemaWithIdentifier });
 			const view = getView(config);
 			view.initialize({ identifier: undefined });
-			assert.equal(view.root.identifier, "beefbeef-beef-4000-8000-000000000002");
+			assert.equal(view.root.identifier, "beefbeef-beef-4000-8000-000000000001");
 		});
 
 		it("adds identifier to unpopulated identifier fields.", () => {

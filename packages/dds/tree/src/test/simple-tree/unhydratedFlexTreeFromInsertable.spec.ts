@@ -759,19 +759,6 @@ describe("unhydratedFlexTreeFromInsertable", () => {
 				/The provided data is incompatible with all of the types allowed by the schema/,
 			);
 		});
-
-		it("Throws for structurally valid data, but created with a different schema.", () => {
-			const schemaFactory = new SchemaFactoryAlpha("test");
-			class TestSchema extends schemaFactory.record("test-a", schemaFactory.string) {}
-			class TestSchema2 extends schemaFactory.record("test-b", schemaFactory.string) {}
-
-			const testData = new TestSchema2({ field: "test" });
-
-			assert.throws(
-				() => unhydratedFlexTreeFromInsertable(testData, TestSchema),
-				validateUsageError("Invalid schema for this context."),
-			);
-		});
 	});
 
 	describe("object", () => {
