@@ -589,7 +589,7 @@ export class DefaultIdBasedDataEditor implements IdBasedChangeFamilyDataEditor {
 					return;
 				}
 				const revision = this.mintRevisionTag();
-				const buildLocalId = this.modularBuilder.generateId();
+				const buildLocalId = this.modularBuilder.generateId(count);
 				const build = this.modularBuilder.buildTrees(buildLocalId, content, revision);
 				const roots: DetachedRootIdRange = {
 					first: { localId: buildLocalId, revision },
