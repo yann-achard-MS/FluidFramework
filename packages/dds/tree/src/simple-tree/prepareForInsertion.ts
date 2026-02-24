@@ -83,19 +83,33 @@ export function prepareForInsertion<TIn extends InsertableContent | undefined>(
 	schema: ImplicitFieldSchema,
 	destinationContext: FlexTreeContext,
 	destinationSchema: TreeFieldStoredSchema,
-): TIn extends undefined ? undefined : FlexibleNodeContent {
+):
+	| {
+			readonly isHydrated: true;
+			readonly content: FlexTreeNode;
+	  }
+	| {
+			readonly isHydrated: false;
+			readonly content: TIn extends undefined ? undefined : FlexibleNodeContent;
+	  } {
 	if (data !== undefined && isHydratedInsertableContent(data)) {
 		const treeNode = getInnerNode(data as TreeNode);
 		assertIsDetachedFlexTreeNode(treeNode);
-		return treeNode as TIn extends undefined ? undefined : FlexibleNodeContent;
+		return {
+			isHydrated: true,
+			content: treeNode,
+		};
 	}
-	return prepareForInsertionContextless(
-		data,
-		schema,
-		getSchemaAndPolicy(destinationContext),
-		destinationContext.isHydrated() ? destinationContext : undefined,
-		destinationSchema,
-	);
+	return {
+		isHydrated: false,
+		content: prepareForInsertionContextless(
+			data,
+			schema,
+			getSchemaAndPolicy(destinationContext),
+			destinationContext.isHydrated() ? destinationContext : undefined,
+			destinationSchema,
+		),
+	};
 }
 
 /**

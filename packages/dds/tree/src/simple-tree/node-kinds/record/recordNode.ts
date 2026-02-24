@@ -8,7 +8,6 @@ import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
 import { MapNodeStoredSchema } from "../../../core/index.js";
 import {
-	isFlexTreeNode,
 	isTreeValue,
 	type FlexTreeNode,
 	type FlexTreeOptionalField,
@@ -128,7 +127,7 @@ function createRecordNodeProxy(
 				innerSchema instanceof MapNodeStoredSchema,
 				0xc1a /* Expected MapNodeStoredSchema */,
 			);
-			const nodeContent = prepareForInsertion(
+			const prepared = prepareForInsertion(
 				value,
 				createFieldSchema(FieldKind.Optional, kernel.schema.info as ImplicitAllowedTypes),
 				innerNode.context,
@@ -136,10 +135,10 @@ function createRecordNodeProxy(
 			);
 
 			const fieldEditor = field.editor;
-			if (isFlexTreeNode(nodeContent) && nodeContent.isHydrated()) {
-				fieldEditor.attach(nodeContent, field.length === 0);
+			if (prepared.isHydrated) {
+				fieldEditor.attach(prepared.content, field.length === 0);
 			} else {
-				fieldEditor.set(nodeContent, field.length === 0);
+				fieldEditor.set(prepared.content, field.length === 0);
 			}
 			return true;
 		},

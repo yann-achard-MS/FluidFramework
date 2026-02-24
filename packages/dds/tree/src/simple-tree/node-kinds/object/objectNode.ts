@@ -14,7 +14,6 @@ import {
 } from "../../../core/index.js";
 import {
 	FieldKinds,
-	isFlexTreeNode,
 	isTreeValue,
 	type FlexTreeField,
 	type FlexTreeNode,
@@ -355,7 +354,7 @@ export function setField(
 	value: InsertableContent | undefined,
 	destinationSchema: TreeFieldStoredSchema,
 ): void {
-	const nodeContent = prepareForInsertion(
+	const prepared = prepareForInsertion(
 		value,
 		simpleFieldSchema,
 		field.context,
@@ -364,23 +363,26 @@ export function setField(
 
 	switch (field.schema) {
 		case FieldKinds.required.identifier: {
-			assert(nodeContent !== undefined, 0xa04 /* Cannot set a required field to undefined */);
+			assert(
+				prepared.content !== undefined,
+				0xa04 /* Cannot set a required field to undefined */,
+			);
 			const typedField = field as FlexTreeRequiredField;
 			const fieldEditor = typedField.editor;
-			if (isFlexTreeNode(nodeContent) && nodeContent.isHydrated()) {
-				fieldEditor.attach(nodeContent);
+			if (prepared.isHydrated) {
+				fieldEditor.attach(prepared.content);
 			} else {
-				fieldEditor.set(nodeContent);
+				fieldEditor.set(prepared.content);
 			}
 			break;
 		}
 		case FieldKinds.optional.identifier: {
 			const typedField = field as FlexTreeOptionalField;
 			const fieldEditor = typedField.editor;
-			if (isFlexTreeNode(nodeContent) && nodeContent.isHydrated()) {
-				fieldEditor.attach(nodeContent, typedField.length === 0);
+			if (prepared.isHydrated) {
+				fieldEditor.attach(prepared.content, field.length === 0);
 			} else {
-				fieldEditor.set(nodeContent, typedField.length === 0);
+				fieldEditor.set(prepared.content, field.length === 0);
 			}
 			break;
 		}
