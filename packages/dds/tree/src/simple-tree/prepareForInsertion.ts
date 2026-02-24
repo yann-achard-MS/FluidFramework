@@ -116,7 +116,7 @@ export function prepareArrayContentForInsertion(
 	schema: ImplicitAllowedTypes,
 	destinationContext: FlexTreeContext,
 	destinationSchema: TreeTypeSet,
-): FlexibleFieldContent {
+): { readonly isHydrated: boolean; readonly content: FlexibleFieldContent } {
 	const hasHydratedData = data.some(isHydratedInsertableContent);
 	if (hasHydratedData) {
 		const hasUnhydratedData = data.some((item) => !isHydratedInsertableContent(item));
@@ -127,7 +127,7 @@ export function prepareArrayContentForInsertion(
 		for (const node of treeNodes) {
 			assertIsDetachedFlexTreeNode(node);
 		}
-		return treeNodes;
+		return { isHydrated: true, content: treeNodes };
 	}
 	const mapTrees: UnhydratedFlexTreeNode[] = data.map((item) =>
 		unhydratedFlexTreeFromInsertable(item, schema),
@@ -144,7 +144,7 @@ export function prepareArrayContentForInsertion(
 		mapTrees,
 	);
 
-	return mapTrees;
+	return { isHydrated: false, content: mapTrees };
 }
 
 /**

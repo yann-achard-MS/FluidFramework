@@ -893,7 +893,10 @@ abstract class CustomArrayNodeBase<const T extends ImplicitAllowedTypes>
 		super(input ?? []);
 	}
 
-	#mapTreesFromFieldData(value: Insertable<T>): FlexibleFieldContent {
+	#mapTreesFromFieldData(value: Insertable<T>): {
+		readonly isHydrated: boolean;
+		readonly content: FlexibleFieldContent;
+	} {
 		const sequenceField = getSequenceField(this);
 		const content = value as readonly (
 			| InsertableContent
@@ -919,14 +922,14 @@ abstract class CustomArrayNodeBase<const T extends ImplicitAllowedTypes>
 		);
 		const fieldSchema = innerSchema.getFieldSchema(EmptyKey);
 
-		const mapTrees = prepareArrayContentForInsertion(
+		const prepared = prepareArrayContentForInsertion(
 			contentArray,
 			this.childSchema,
 			sequenceField.context,
 			fieldSchema.types,
 		);
 
-		return mapTrees;
+		return prepared;
 	}
 
 	public toJSON(): unknown {
@@ -969,8 +972,12 @@ abstract class CustomArrayNodeBase<const T extends ImplicitAllowedTypes>
 	public insertAt(index: number, ...value: Insertable<T>): void {
 		const field = getSequenceField(this);
 		validateIndex(index, field, "TreeArrayNode.insertAt", true);
-		const content = this.#mapTreesFromFieldData(value);
-		field.editor.insert(index, content);
+		const { isHydrated, content } = this.#mapTreesFromFieldData(value);
+		if (isHydrated) {
+			field.editor.attach(index, content);
+		} else {
+			field.editor.insert(index, content);
+		}
 	}
 	public insertAtStart(...value: Insertable<T>): void {
 		this.insertAt(0, ...value);
