@@ -2803,9 +2803,7 @@ describe("Editing", () => {
 		const multiparentError = validateUsageError(
 			"Can only attach a detached node (i.e., a root with TreeStatus.Removed status)",
 		);
-		const hybridTreeError = validateUsageError(
-			"A node which already has a parent may not be used as part of a new tree.",
-		);
+		const hybridTreeError = validateUsageError(/was inserted into the tree more than once/);
 		it("cannot be attached into a hydrated array", () => {
 			const sf = new SchemaFactory(undefined);
 			class Child extends sf.object("Child", {}) {}
