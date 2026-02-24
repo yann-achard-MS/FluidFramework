@@ -367,7 +367,7 @@ export function setField(
 			assert(nodeContent !== undefined, 0xa04 /* Cannot set a required field to undefined */);
 			const typedField = field as FlexTreeRequiredField;
 			const fieldEditor = typedField.editor;
-			if (isFlexTreeNode(nodeContent)) {
+			if (isFlexTreeNode(nodeContent) && nodeContent.isHydrated()) {
 				fieldEditor.attach(nodeContent);
 			} else {
 				fieldEditor.set(nodeContent);
@@ -377,7 +377,7 @@ export function setField(
 		case FieldKinds.optional.identifier: {
 			const typedField = field as FlexTreeOptionalField;
 			const fieldEditor = typedField.editor;
-			if (isFlexTreeNode(nodeContent)) {
+			if (isFlexTreeNode(nodeContent) && nodeContent.isHydrated()) {
 				fieldEditor.attach(nodeContent, typedField.length === 0);
 			} else {
 				fieldEditor.set(nodeContent, typedField.length === 0);

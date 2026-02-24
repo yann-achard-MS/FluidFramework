@@ -231,7 +231,7 @@ abstract class CustomMapNodeBase<const T extends ImplicitAllowedTypes> extends T
 
 		const entryEditor = this.editor(key);
 
-		if (isFlexTreeNode(nodeContent)) {
+		if (isFlexTreeNode(nodeContent) && nodeContent.isHydrated()) {
 			entryEditor.attach(nodeContent, field.length === 0);
 		} else {
 			entryEditor.set(nodeContent, field.length === 0);

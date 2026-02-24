@@ -136,7 +136,7 @@ function createRecordNodeProxy(
 			);
 
 			const fieldEditor = field.editor;
-			if (isFlexTreeNode(nodeContent)) {
+			if (isFlexTreeNode(nodeContent) && nodeContent.isHydrated()) {
 				fieldEditor.attach(nodeContent, field.length === 0);
 			} else {
 				fieldEditor.set(nodeContent, field.length === 0);
