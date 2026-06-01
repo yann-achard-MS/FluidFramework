@@ -28,12 +28,12 @@ import {
 	EditBuilder,
 	type FieldKey,
 	type FieldKindIdentifier,
-	type FieldUpPath,
+	type NormalizedFieldUpPath,
+	type NormalizedUpPath,
 	type RevisionInfo,
 	type RevisionMetadataSource,
 	type RevisionTag,
 	type TaggedChange,
-	type UpPath,
 	makeDetachedNodeId,
 	revisionMetadataSourceFromInfo,
 	areEqualChangeAtomIds,
@@ -2751,7 +2751,7 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 	 * @param revision - the revision of the change
 	 */
 	public submitChange(
-		field: FieldUpPath,
+		field: NormalizedFieldUpPath,
 		fieldKind: FieldKindIdentifier,
 		change: FieldChangeset,
 		revision: RevisionTag,
@@ -2824,7 +2824,7 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 		return brand(this.idAllocator.allocate(count));
 	}
 
-	public addNodeExistsConstraint(path: UpPath, revision: RevisionTag): void {
+	public addNodeExistsConstraint(path: NormalizedUpPath, revision: RevisionTag): void {
 		const nodeChange: NodeChangeset = {
 			nodeExistsConstraint: { violated: false },
 		};
@@ -2845,7 +2845,7 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 		);
 	}
 
-	public addNodeExistsConstraintOnRevert(path: UpPath, revision: RevisionTag): void {
+	public addNodeExistsConstraintOnRevert(path: NormalizedUpPath, revision: RevisionTag): void {
 		const nodeChange: NodeChangeset = {
 			nodeExistsConstraintOnRevert: { violated: false },
 		};
@@ -2898,7 +2898,7 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 }
 
 function buildModularChangesetFromField(props: {
-	path: FieldUpPath;
+	path: NormalizedFieldUpPath;
 	fieldChange: FieldChange;
 	nodeChanges: ChangeAtomIdBTree<NodeChangeset>;
 	nodeToParent: ChangeAtomIdBTree<FieldId>;
@@ -2973,7 +2973,7 @@ function buildModularChangesetFromField(props: {
 }
 
 function buildModularChangesetFromNode(props: {
-	path: UpPath;
+	path: NormalizedUpPath;
 	nodeChange: NodeChangeset;
 	nodeChanges: ChangeAtomIdBTree<NodeChangeset>;
 	nodeToParent: ChangeAtomIdBTree<FieldId>;
@@ -3011,7 +3011,7 @@ function buildModularChangesetFromNode(props: {
 
 export interface FieldEditDescription {
 	type: "field";
-	field: FieldUpPath;
+	field: NormalizedFieldUpPath;
 	fieldKind: FieldKindIdentifier;
 	change: FieldChangeset;
 	revision: RevisionTag;
