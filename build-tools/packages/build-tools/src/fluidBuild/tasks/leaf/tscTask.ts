@@ -11,9 +11,9 @@ import isEqual from "lodash.isequal";
 import type * as ts54Types from "typescript-5.4";
 import type * as ts59Types from "typescript-5.9";
 
-import { getTscUtils, type TscUtil } from "../../tscUtils";
-import { getInstalledPackageVersion } from "../taskUtils";
-import { LeafTask, LeafWithDoneFileTask } from "./leafTask";
+import { getTscUtils, type TscUtil } from "../../tscUtils.js";
+import { getInstalledPackageVersion } from "../taskUtils.js";
+import { LeafTask, LeafWithDoneFileTask } from "./leafTask.js";
 
 type tsTypes = typeof ts54Types | typeof ts59Types;
 type tsParsedCommandLine = ts54Types.ParsedCommandLine | ts59Types.ParsedCommandLine;
@@ -217,7 +217,7 @@ export class TscTask extends LeafTask {
 			}
 		} catch (e) {
 			this.traceTrigger(
-				`Unable to get installed package version for typescript from ${this.node.pkg.directory}`,
+				`Unable to get installed package version for typescript from ${this.node.pkg.directory}: ${e}`,
 			);
 			return false;
 		}
@@ -532,8 +532,11 @@ export abstract class TscDependentTask extends LeafWithDoneFileTask {
 				tsBuildInfoFiles,
 			});
 		} catch (e) {
+			// Re-throw so that the user-visible warning in markExecDone surfaces the real
+			// cause (e.g. a ReferenceError from missing tooling). Returning undefined here
+			// would silently mark the task as non-incremental with no actionable detail.
 			this.traceError(`error generating done file content ${e}`);
-			return undefined;
+			throw e;
 		}
 	}
 
