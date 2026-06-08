@@ -374,6 +374,7 @@ export class DefaultEditBuilder implements ChangeFamilyEditor, IDefaultEditBuild
 						// Extend with index-adjusted parent.
 						parent = {
 							parent,
+							detachedNodeId: undefined,
 							parentIndex: firstDifferentAttachAncestor.parentIndex - count,
 							parentField: firstDifferentAttachAncestor.parentField,
 						};
