@@ -1820,7 +1820,7 @@ export interface TreeBranchEvents {
 
 // @alpha @sealed
 export interface TreeBranchHistory {
-    readonly size: number;
+    readonly commitCount: number;
 }
 
 // @public @sealed
