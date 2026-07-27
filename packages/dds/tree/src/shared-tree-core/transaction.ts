@@ -273,8 +273,8 @@ export interface ChangeProcessor<TChange> {
 	 * Processes the given change, returning a change with the same observable effect.
 	 */
 	readonly processChange: (
-		change: TChange,
 		changeFamily: ChangeFamily<ChangeFamilyEditor, TChange>,
+		change: TChange,
 	) => TChange;
 }
 

@@ -5,16 +5,17 @@
 
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
-import { minimizeModularChangeset, ModularChangeFamily } from "../feature-libraries/index.js";
+import { minimizeModularChangeset } from "../feature-libraries/index.js";
 import { ChangeProcessorApplicability } from "../shared-tree-core/index.js";
 import type { TransactionPostProcessor } from "../simple-tree/index.js";
 
-import { mapDataChanges } from "./sharedTreeChangeFamily.js";
+import {
+	makeSharedTreeChangeFamilyExtension,
+	mapDataChanges,
+} from "./sharedTreeChangeFamily.js";
 import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
 import { createTransactionPostProcessor } from "./transactionPostProcessor.js";
-import { SharedTreeChangeFamily } from "./sharedTreeChangeFamily.js";
-import type { ChangeFamily, ChangeFamilyEditor } from "../core/index.js";
-import { assert } from "@fluidframework/core-utils/internal";
+import type { SharedTreeChangeFamily } from "./sharedTreeChangeFamily.js";
 
 /**
  * "Minimizes" a {@link SharedTreeChange} so that it contains no extraneous
@@ -30,8 +31,8 @@ import { assert } from "@fluidframework/core-utils/internal";
  * Schema changes are left unchanged.
  */
 function minimizeSharedTreeChange(
+	this: SharedTreeChangeFamily,
 	change: SharedTreeChange,
-	changeFamily: ChangeFamily<ChangeFamilyEditor, SharedTreeChange>,
 ): SharedTreeChange {
 	const countOfDataChanges = change.changes.filter(
 		(innerChange) => innerChange.type === "data",
@@ -41,11 +42,8 @@ function minimizeSharedTreeChange(
 			`At most one edit group can be minimized, but ${countOfDataChanges} were found. To workaround this limitation, pair at most one content edit with any schema changes.`,
 		);
 	}
-	assert(changeFamily instanceof SharedTreeChangeFamily, "Expected a SharedTreeChangeFamily");
-	const modularChangeFamily = changeFamily.modularChangeFamily;
-	assert(modularChangeFamily instanceof ModularChangeFamily, "Expected a ModularChangeFamily");
 	return mapDataChanges(change, (dataChange) =>
-		minimizeModularChangeset(dataChange, modularChangeFamily),
+		minimizeModularChangeset(dataChange, this.modularChangeFamily),
 	);
 }
 
@@ -79,5 +77,5 @@ function minimizeSharedTreeChange(
  */
 export const minimize: TransactionPostProcessor = createTransactionPostProcessor({
 	applicability: ChangeProcessorApplicability.IfOutermost,
-	processChange: minimizeSharedTreeChange,
+	processChange: makeSharedTreeChangeFamilyExtension(minimizeSharedTreeChange),
 });

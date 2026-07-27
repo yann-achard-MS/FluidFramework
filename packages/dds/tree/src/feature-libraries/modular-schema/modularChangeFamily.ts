@@ -136,7 +136,7 @@ export class ModularChangeFamily
 		change: ModularChangeset,
 		processor: ChangeProcessor<ModularChangeset>,
 	): ModularChangeset {
-		return processor.processChange(change, this);
+		return processor.processChange(this, change);
 	}
 
 	/**

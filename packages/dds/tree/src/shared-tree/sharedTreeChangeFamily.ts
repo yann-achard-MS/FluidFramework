@@ -10,6 +10,7 @@ import type { CodecWriteOptions, ICodecFamily } from "../codec/index.js";
 import {
 	type ChangeEncodingContext,
 	type ChangeFamily,
+	type ChangeFamilyEditor,
 	type ChangeRebaser,
 	type DeltaDetachedNodeId,
 	type RevisionMetadataSource,
@@ -23,7 +24,6 @@ import {
 	type FieldBatchCodec,
 	ModularChangeFamily,
 	type ModularChangeset,
-	type ModularEditBuilder,
 	type TreeChunk,
 	type TreeCompressionStrategy,
 	fieldKindConfigurations,
@@ -58,7 +58,7 @@ export class SharedTreeChangeFamily
 	};
 
 	public readonly codecs: ICodecFamily<SharedTreeChange, ChangeEncodingContext>;
-	public readonly modularChangeFamily: ChangeFamily<ModularEditBuilder, ModularChangeset>;
+	protected readonly modularChangeFamily: ModularChangeFamily;
 
 	public constructor(
 		revisionTagCodec: RevisionTagCodec,
@@ -101,7 +101,7 @@ export class SharedTreeChangeFamily
 		change: SharedTreeChange,
 		processor: ChangeProcessor<SharedTreeChange>,
 	): SharedTreeChange {
-		return processor.processChange(change, this);
+		return processor.processChange(this, change);
 	}
 
 	public compose(changes: TaggedChange<SharedTreeChange>[]): SharedTreeChange {
@@ -351,4 +351,17 @@ export function updateRefreshers(
 			);
 		}
 	});
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function makeSharedTreeChangeFamilyExtension<TArgs extends any[], TReturn>(
+	extension: (this: SharedTreeChangeFamily, ...args: TArgs) => TReturn,
+): (impl: ChangeFamily<ChangeFamilyEditor, SharedTreeChange>, ...args: TArgs) => TReturn {
+	return function (
+		impl: ChangeFamily<ChangeFamilyEditor, SharedTreeChange>,
+		...args: TArgs
+	): TReturn {
+		assert(impl instanceof SharedTreeChangeFamily, "Expected a SharedTreeChangeFamily");
+		return extension.apply(impl, args);
+	};
 }

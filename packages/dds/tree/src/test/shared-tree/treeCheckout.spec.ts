@@ -901,7 +901,7 @@ describe("sharedTreeView", () => {
 		// identity change processor, and the checkout should extract that same processor back out and inject it at start time.
 		const noopChangeProcessor: TransactionPostProcessorInternal = {
 			applicability: ChangeProcessorApplicability.IfOutermost,
-			processChange: (change) => change,
+			processChange: (_family, change) => change,
 		};
 		const noopPostProcessor = createTransactionPostProcessor(noopChangeProcessor);
 

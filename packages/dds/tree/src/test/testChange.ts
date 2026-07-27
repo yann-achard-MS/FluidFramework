@@ -350,7 +350,7 @@ export function testChangeFamilyFactory(
 			exitTransaction: () => assert.fail("Unexpected edit"),
 		}),
 		postProcess: (change: TestChange, processor: ChangeProcessor<TestChange>): TestChange => {
-			return processor.processChange(change, family);
+			return processor.processChange(family, change);
 		},
 	};
 	return family;

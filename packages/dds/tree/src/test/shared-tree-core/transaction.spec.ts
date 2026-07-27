@@ -382,7 +382,7 @@ describe("SquashingTransactionStacks", () => {
 			const transaction = new SquashingTransactionStack(branch, mintRevisionTag);
 			const postProcessor: ChangeProcessor<DefaultChangeset> = {
 				applicability,
-				processChange: (change) => {
+				processChange: (_family, change) => {
 					received.push(change);
 					return change;
 				},
@@ -401,7 +401,7 @@ describe("SquashingTransactionStacks", () => {
 		): ChangeProcessor<DefaultChangeset> {
 			return {
 				applicability,
-				processChange: (change) => {
+				processChange: (_family, change) => {
 					received.push({ processor: label, change });
 					return change;
 				},

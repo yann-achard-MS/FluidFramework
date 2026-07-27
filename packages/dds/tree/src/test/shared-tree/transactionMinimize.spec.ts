@@ -20,13 +20,10 @@ import { JsonStringify } from "@fluidframework/core-interfaces/internal";
 // Additional imports used for direct ModularChangeset.builds inspection
 // supplementing testing prior to full minimization implementation.
 import type { ModularChangeset } from "../../feature-libraries/index.js";
-import {
-	mapTreeFromCursor,
-	minimizeModularChangeset,
-	ModularChangeFamily,
-} from "../../feature-libraries/index.js";
+import { mapTreeFromCursor, minimizeModularChangeset } from "../../feature-libraries/index.js";
 import { SchematizingSimpleTreeView, SharedTreeChange } from "../../shared-tree/index.js";
 import {
+	makeSharedTreeChangeFamilyExtension,
 	mapDataChanges,
 	SharedTreeChangeFamily,
 	// eslint-disable-next-line import-x/no-internal-modules -- internal details to be removed once minimization is fully implemented
@@ -2464,32 +2461,28 @@ describe("transaction minimize post-processor", () => {
 	>(scenario: TransactionScenario<TSchema, TApplyReturn>): void {
 		const { tree, view } = createScenarioView(scenario);
 
+		function minimizeSharedTreeChange(
+			this: SharedTreeChangeFamily,
+			change: SharedTreeChange,
+		): SharedTreeChange {
+			return mapDataChanges(change, (dataChange) => {
+				const minimized = minimizeModularChangeset(
+					dataChange,
+					this.modularChangeFamily,
+					/* testOnlyArg_DisableBuildMinification */ false,
+				);
+
+				assertBuildContentExpectations(minimized, scenario.expectSurvivingMarker);
+
+				// Unadulterated change is returned to avoid horking other transaction
+				// expectations of a fully valid change.
+				return dataChange;
+			});
+		}
+
 		const postProcessor = createTransactionPostProcessor({
 			applicability: ChangeProcessorApplicability.IfOutermost,
-			processChange: (change, sharedTreeChangeFamily) => {
-				assert(
-					sharedTreeChangeFamily instanceof SharedTreeChangeFamily,
-					"Expected a SharedTreeChangeFamily",
-				);
-				const modularChangeFamily = sharedTreeChangeFamily.modularChangeFamily;
-				assert(
-					modularChangeFamily instanceof ModularChangeFamily,
-					"Expected a ModularChangeFamily",
-				);
-				return mapDataChanges(change, (dataChange) => {
-					const minimized = minimizeModularChangeset(
-						dataChange,
-						modularChangeFamily,
-						/* testOnlyArg_DisableBuildMinification */ false,
-					);
-
-					assertBuildContentExpectations(minimized, scenario.expectSurvivingMarker);
-
-					// Unadulterated change is returned to avoid horking other transaction
-					// expectations of a fully valid change.
-					return dataChange;
-				});
-			},
+			processChange: makeSharedTreeChangeFamilyExtension(minimizeSharedTreeChange),
 		});
 		view.runTransaction(() => ({ value: scenario.apply(view.root, tree, view) }), {
 			postProcessor,
