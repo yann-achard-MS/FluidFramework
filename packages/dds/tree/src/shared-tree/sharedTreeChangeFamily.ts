@@ -23,6 +23,7 @@ import {
 	type FieldBatchCodec,
 	ModularChangeFamily,
 	type ModularChangeset,
+	type ModularEditBuilder,
 	type TreeChunk,
 	type TreeCompressionStrategy,
 	fieldKindConfigurations,
@@ -57,12 +58,12 @@ export class SharedTreeChangeFamily
 	};
 
 	public readonly codecs: ICodecFamily<SharedTreeChange, ChangeEncodingContext>;
-	public readonly modularChangeFamily: ModularChangeFamily;
+	public readonly modularChangeFamily: ChangeFamily<ModularEditBuilder, ModularChangeset>;
 
 	public constructor(
 		revisionTagCodec: RevisionTagCodec,
 		fieldBatchCodec: FieldBatchCodec,
-		codecOptions: CodecWriteOptions,
+		private readonly codecOptions: CodecWriteOptions,
 		chunkCompressionStrategy?: TreeCompressionStrategy,
 		private readonly idCompressor?: IIdCompressor,
 	) {
@@ -90,6 +91,7 @@ export class SharedTreeChangeFamily
 	): SharedTreeEditBuilder {
 		return new SharedTreeEditBuilder(
 			this.modularChangeFamily,
+			this.codecOptions,
 			mintRevisionTag,
 			changeReceiver,
 		);
@@ -110,7 +112,7 @@ export class SharedTreeChangeFamily
 			if (dataChangeRun.length > 0) {
 				newChanges.push({
 					type: "data",
-					innerChange: this.modularChangeFamily.compose(dataChangeRun),
+					innerChange: this.modularChangeFamily.rebaser.compose(dataChangeRun),
 				});
 				dataChangeRun.length = 0;
 			}
@@ -143,7 +145,7 @@ export class SharedTreeChangeFamily
 				case "data": {
 					return {
 						type: "data",
-						innerChange: this.modularChangeFamily.invert(
+						innerChange: this.modularChangeFamily.rebaser.invert(
 							mapTaggedChange(change, innerChange.innerChange),
 							isRollback,
 							revision,
@@ -209,7 +211,7 @@ export class SharedTreeChangeFamily
 			changes: [
 				{
 					type: "data",
-					innerChange: this.modularChangeFamily.rebase(
+					innerChange: this.modularChangeFamily.rebaser.rebase(
 						mapTaggedChange(change, dataChangeIntention.innerChange),
 						mapTaggedChange(over, dataChangeOver.innerChange),
 						revisionMetadata,

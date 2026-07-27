@@ -20,7 +20,11 @@ import { JsonStringify } from "@fluidframework/core-interfaces/internal";
 // Additional imports used for direct ModularChangeset.builds inspection
 // supplementing testing prior to full minimization implementation.
 import type { ModularChangeset } from "../../feature-libraries/index.js";
-import { mapTreeFromCursor, minimizeModularChangeset } from "../../feature-libraries/index.js";
+import {
+	mapTreeFromCursor,
+	minimizeModularChangeset,
+	ModularChangeFamily,
+} from "../../feature-libraries/index.js";
 import { SchematizingSimpleTreeView, SharedTreeChange } from "../../shared-tree/index.js";
 import {
 	mapDataChanges,
@@ -2467,10 +2471,15 @@ describe("transaction minimize post-processor", () => {
 					sharedTreeChangeFamily instanceof SharedTreeChangeFamily,
 					"Expected a SharedTreeChangeFamily",
 				);
+				const modularChangeFamily = sharedTreeChangeFamily.modularChangeFamily;
+				assert(
+					modularChangeFamily instanceof ModularChangeFamily,
+					"Expected a ModularChangeFamily",
+				);
 				return mapDataChanges(change, (dataChange) => {
 					const minimized = minimizeModularChangeset(
 						dataChange,
-						sharedTreeChangeFamily.modularChangeFamily,
+						modularChangeFamily,
 						/* testOnlyArg_DisableBuildMinification */ false,
 					);
 

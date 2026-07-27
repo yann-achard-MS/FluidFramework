@@ -3,7 +3,9 @@
  * Licensed under the MIT License.
  */
 
+import type { CodecWriteOptions } from "../codec/index.js";
 import type {
+	ChangeFamily,
 	ChangeFamilyEditor,
 	RevisionTag,
 	TaggedChange,
@@ -12,7 +14,8 @@ import type {
 import {
 	DefaultEditBuilder,
 	type IDefaultEditBuilder,
-	type ModularChangeFamily,
+	type ModularChangeset,
+	type ModularEditBuilder,
 } from "../feature-libraries/index.js";
 
 import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
@@ -51,7 +54,8 @@ export class SharedTreeEditBuilder
 	public readonly schema: ISchemaEditor;
 
 	public constructor(
-		modularChangeFamily: ModularChangeFamily,
+		modularChangeFamily: ChangeFamily<ModularEditBuilder, ModularChangeset>,
+		codecOptions: CodecWriteOptions,
 		mintRevisionTag: () => RevisionTag,
 		private readonly changeReceiver: (change: TaggedChange<SharedTreeChange>) => void,
 	) {
@@ -63,7 +67,7 @@ export class SharedTreeEditBuilder
 					...taggedChange,
 					change: { changes: [{ type: "data", innerChange: taggedChange.change }] },
 				}),
-			modularChangeFamily.codecOptions,
+			codecOptions,
 		);
 
 		this.schema = {

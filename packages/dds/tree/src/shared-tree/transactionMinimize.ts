@@ -5,7 +5,7 @@
 
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
-import { minimizeModularChangeset } from "../feature-libraries/index.js";
+import { minimizeModularChangeset, ModularChangeFamily } from "../feature-libraries/index.js";
 import { ChangeProcessorApplicability } from "../shared-tree-core/index.js";
 import type { TransactionPostProcessor } from "../simple-tree/index.js";
 
@@ -42,8 +42,10 @@ function minimizeSharedTreeChange(
 		);
 	}
 	assert(changeFamily instanceof SharedTreeChangeFamily, "Expected a SharedTreeChangeFamily");
+	const modularChangeFamily = changeFamily.modularChangeFamily;
+	assert(modularChangeFamily instanceof ModularChangeFamily, "Expected a ModularChangeFamily");
 	return mapDataChanges(change, (dataChange) =>
-		minimizeModularChangeset(dataChange, changeFamily.modularChangeFamily),
+		minimizeModularChangeset(dataChange, modularChangeFamily),
 	);
 }
 
