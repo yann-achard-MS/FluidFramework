@@ -12,6 +12,7 @@ import type {
 	RevisionTag,
 	TaggedChange,
 } from "../core/index.js";
+import type { ChangeProcessor } from "../shared-tree-core/index.js";
 
 /**
  * Makes a given `ChangeFamily` safer to use by wrapping some of its functions in try-catch blocks.
@@ -41,6 +42,14 @@ export function makeMitigatedChangeFamily<TEditor extends ChangeFamilyEditor, TC
 		},
 		rebaser: makeMitigatedRebaser(unmitigatedChangeFamily.rebaser, fallbackChange, onError),
 		codecs: unmitigatedChangeFamily.codecs,
+		postProcess: (change: TChange, processor: ChangeProcessor<TChange>): TChange => {
+			try {
+				return unmitigatedChangeFamily.postProcess(change, processor);
+			} catch (error: unknown) {
+				onError(error);
+				return fallbackChange;
+			}
+		},
 	};
 }
 

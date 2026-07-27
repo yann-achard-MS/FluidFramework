@@ -9,6 +9,7 @@ import type { ICodecFamily, IJsonCodec } from "../../codec/index.js";
 import type { SchemaAndPolicy } from "../../core/index.js";
 import type { IdentifierHealingConfig, JsonCompatibleReadOnly } from "../../util/index.js";
 import type { ChangeRebaser, RevisionTag, TaggedChange } from "../rebase/index.js";
+import type { ChangeProcessor } from "../../shared-tree-core/index.js";
 
 export interface ChangeFamily<TEditor extends ChangeFamilyEditor, TChange> {
 	buildEditor(
@@ -18,6 +19,8 @@ export interface ChangeFamily<TEditor extends ChangeFamilyEditor, TChange> {
 
 	readonly rebaser: ChangeRebaser<TChange>;
 	readonly codecs: ICodecFamily<TChange, ChangeEncodingContext>;
+
+	postProcess(change: TChange, processor: ChangeProcessor<TChange>): TChange;
 }
 
 export interface ChangeEncodingContext {

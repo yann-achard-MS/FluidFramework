@@ -23,6 +23,7 @@ import {
 	emptyDelta,
 } from "../core/index.js";
 import { type JsonCompatibleReadOnly, type RecursiveReadonly, brand } from "../util/index.js";
+import type { ChangeProcessor } from "../shared-tree-core/index.js";
 
 export interface NonEmptyTestChange {
 	/**
@@ -348,6 +349,9 @@ export function testChangeFamilyFactory(
 			enterTransaction: () => assert.fail("Unexpected edit"),
 			exitTransaction: () => assert.fail("Unexpected edit"),
 		}),
+		postProcess: (change: TestChange, processor: ChangeProcessor<TestChange>): TestChange => {
+			return processor.processChange(change, family);
+		},
 	};
 	return family;
 }

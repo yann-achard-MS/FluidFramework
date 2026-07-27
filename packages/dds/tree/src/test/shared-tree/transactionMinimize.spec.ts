@@ -20,14 +20,13 @@ import { JsonStringify } from "@fluidframework/core-interfaces/internal";
 // Additional imports used for direct ModularChangeset.builds inspection
 // supplementing testing prior to full minimization implementation.
 import type { ModularChangeset } from "../../feature-libraries/index.js";
-import {
-	fieldKinds,
-	mapTreeFromCursor,
-	minimizeModularChangeset,
-} from "../../feature-libraries/index.js";
+import { mapTreeFromCursor, minimizeModularChangeset } from "../../feature-libraries/index.js";
 import { SchematizingSimpleTreeView, SharedTreeChange } from "../../shared-tree/index.js";
-// eslint-disable-next-line import-x/no-internal-modules -- internal details to be removed once minimization is fully implemented
-import { mapDataChanges } from "../../shared-tree/sharedTreeChangeFamily.js";
+import {
+	mapDataChanges,
+	SharedTreeChangeFamily,
+	// eslint-disable-next-line import-x/no-internal-modules -- internal details to be removed once minimization is fully implemented
+} from "../../shared-tree/sharedTreeChangeFamily.js";
 // eslint-disable-next-line import-x/no-internal-modules -- internal details to be removed once minimization is fully implemented
 import { createTransactionPostProcessor } from "../../shared-tree/transactionPostProcessor.js";
 import { ChangeProcessorApplicability } from "../../shared-tree-core/index.js";
@@ -2463,11 +2462,15 @@ describe("transaction minimize post-processor", () => {
 
 		const postProcessor = createTransactionPostProcessor({
 			applicability: ChangeProcessorApplicability.IfOutermost,
-			processChange: (change) =>
-				mapDataChanges(change, (dataChange) => {
+			processChange: (change, sharedTreeChangeFamily) => {
+				assert(
+					sharedTreeChangeFamily instanceof SharedTreeChangeFamily,
+					"Expected a SharedTreeChangeFamily",
+				);
+				return mapDataChanges(change, (dataChange) => {
 					const minimized = minimizeModularChangeset(
 						dataChange,
-						fieldKinds,
+						sharedTreeChangeFamily.modularChangeFamily,
 						/* testOnlyArg_DisableBuildMinification */ false,
 					);
 
@@ -2476,7 +2479,8 @@ describe("transaction minimize post-processor", () => {
 					// Unadulterated change is returned to avoid horking other transaction
 					// expectations of a fully valid change.
 					return dataChange;
-				}),
+				});
+			},
 		});
 		view.runTransaction(() => ({ value: scenario.apply(view.root, tree, view) }), {
 			postProcessor,

@@ -105,6 +105,7 @@ import {
 	type NodeId,
 } from "./modularChangeTypes.js";
 import { nodeChangeFromId } from "./modularChangeUtils.js";
+import type { ChangeProcessor } from "../../shared-tree-core/index.js";
 
 /**
  * Implementation of ChangeFamily which delegates work in a given field to the appropriate FieldKind
@@ -129,6 +130,13 @@ export class ModularChangeFamily
 
 	public get rebaser(): ChangeRebaser<ModularChangeset> {
 		return this;
+	}
+
+	public postProcess(
+		change: ModularChangeset,
+		processor: ChangeProcessor<ModularChangeset>,
+	): ModularChangeset {
+		return processor.processChange(change, this);
 	}
 
 	/**

@@ -26,7 +26,7 @@ import { newChangeAtomIdBTree } from "../changeAtomIdBTree.js";
 import { NodeAttachState } from "./fieldChangeHandler.js";
 import type { FlexFieldKind } from "./fieldKind.js";
 import { computeMinimizedBuilds } from "./minimizeBuilds.js";
-import { ModularChangeFamily } from "./modularChangeFamily.js";
+import type { ModularChangeFamily } from "./modularChangeFamily.js";
 import { getChangeHandler, intoDelta } from "./modularChangeFamily.js";
 import type { FieldChangeMap, ModularChangeset, NodeChangeset } from "./modularChangeTypes.js";
 import { nodeChangeFromId } from "./modularChangeUtils.js";
@@ -79,7 +79,7 @@ function indexGlobalById(delta: DeltaRoot): ChangeAtomIdMap<DeltaFieldMap> {
  */
 export function minimizeModularChangeset(
 	change: ModularChangeset,
-	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
+	changeFamily: ModularChangeFamily,
 	testOnlyArg_DisableBuildMinification: boolean = true,
 ): ModularChangeset {
 	const builds = change.builds;
@@ -89,12 +89,12 @@ export function minimizeModularChangeset(
 
 	assert(change.destroys === undefined, "No destroys expected in change to be minimized");
 
-	const delta = intoDelta(makeAnonChange(change), fieldKinds);
+	const delta = intoDelta(makeAnonChange(change), changeFamily.fieldKinds);
 	const globalById = indexGlobalById(delta);
 
 	// Compute the set of detached node IDs whose content ends up attached in the resulting document. Content built by
 	// this change but absent from this set has no observable effect and is treated as "dead" / trimmable below.
-	const outputAttachStates = getOutputNodeAttachStates(new ModularChangeFamily(fieldKinds, ... /* needs codec and options */), change);
+	const outputAttachStates = getOutputNodeAttachStates(changeFamily, change);
 	const isLive = ({ revision, localId }: ChangeAtomId): boolean =>
 		// `|| true` (non-test default) effectively disables the minimization, which is
 		// not viable without paired edit minimization that is not yet implemented.

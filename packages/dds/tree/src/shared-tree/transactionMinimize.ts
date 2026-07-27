@@ -5,13 +5,16 @@
 
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
-import { fieldKinds, minimizeModularChangeset } from "../feature-libraries/index.js";
+import { minimizeModularChangeset } from "../feature-libraries/index.js";
 import { ChangeProcessorApplicability } from "../shared-tree-core/index.js";
 import type { TransactionPostProcessor } from "../simple-tree/index.js";
 
 import { mapDataChanges } from "./sharedTreeChangeFamily.js";
 import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
 import { createTransactionPostProcessor } from "./transactionPostProcessor.js";
+import { SharedTreeChangeFamily } from "./sharedTreeChangeFamily.js";
+import type { ChangeFamily, ChangeFamilyEditor } from "../core/index.js";
+import { assert } from "@fluidframework/core-utils/internal";
 
 /**
  * "Minimizes" a {@link SharedTreeChange} so that it contains no extraneous
@@ -26,7 +29,10 @@ import { createTransactionPostProcessor } from "./transactionPostProcessor.js";
  *
  * Schema changes are left unchanged.
  */
-function minimizeSharedTreeChange(change: SharedTreeChange): SharedTreeChange {
+function minimizeSharedTreeChange(
+	change: SharedTreeChange,
+	changeFamily: ChangeFamily<ChangeFamilyEditor, SharedTreeChange>,
+): SharedTreeChange {
 	const countOfDataChanges = change.changes.filter(
 		(innerChange) => innerChange.type === "data",
 	).length;
@@ -35,8 +41,9 @@ function minimizeSharedTreeChange(change: SharedTreeChange): SharedTreeChange {
 			`At most one edit group can be minimized, but ${countOfDataChanges} were found. To workaround this limitation, pair at most one content edit with any schema changes.`,
 		);
 	}
+	assert(changeFamily instanceof SharedTreeChangeFamily, "Expected a SharedTreeChangeFamily");
 	return mapDataChanges(change, (dataChange) =>
-		minimizeModularChangeset(dataChange, fieldKinds),
+		minimizeModularChangeset(dataChange, changeFamily.modularChangeFamily),
 	);
 }
 

@@ -15,6 +15,7 @@ import {
 	mintCommit,
 	rebaseBranch,
 	tagChange,
+	type ChangeFamily,
 	type ChangeFamilyEditor,
 	type GraphCommit,
 	type RevisionTag,
@@ -271,7 +272,10 @@ export interface ChangeProcessor<TChange> {
 	/**
 	 * Processes the given change, returning a change with the same observable effect.
 	 */
-	readonly processChange: (change: TChange) => TChange;
+	readonly processChange: (
+		change: TChange,
+		changeFamily: ChangeFamily<ChangeFamilyEditor, TChange>,
+	) => TChange;
 }
 
 /**
@@ -396,7 +400,8 @@ export class SquashingTransactionStack<
 				postProcessorStack.push(resolvePostProcessor(startOptions?.postProcessor));
 				// Keep track of the commit that each transaction was on when it started
 				const startHead = this.activeBranch.getHead();
-				const rebaser = this.branch.changeFamily.rebaser;
+				const changeFamily = this.branch.changeFamily;
+				const rebaser = changeFamily.rebaser;
 				const outerOnPop = onPush?.();
 				let transactionRevision: RevisionTag | undefined;
 				const transactionBranch = this.branch.fork(
@@ -462,7 +467,9 @@ export class SquashingTransactionStack<
 								// Apply this transaction's post-processor (if any) to the squashed change (for example, to
 								// "minimize" it so that it contains no extraneous information).
 								const change =
-									postProcessor === undefined ? squash : postProcessor.processChange(squash);
+									postProcessor === undefined
+										? squash
+										: changeFamily.postProcess(squash, postProcessor);
 
 								if (change !== squash) {
 									// The post-processor produced a change that differs from the
@@ -558,7 +565,10 @@ export class SquashingTransactionStack<
 												0xd07 /* Expected transaction revision in the presence of transaction steps */,
 											);
 											const squash = rebaser.compose(nestedSteps);
-											const processedSquash = nestedPostProcessor.processChange(squash);
+											const processedSquash = changeFamily.postProcess(
+												squash,
+												nestedPostProcessor,
+											);
 											// Roll back the transaction branch to the nested start head and apply the
 											// processed change if it differs from the original change.
 											if (processedSquash !== squash) {

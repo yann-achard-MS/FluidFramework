@@ -40,6 +40,7 @@ import {
 import { makeSharedTreeChangeCodecFamily } from "./sharedTreeChangeCodecs.js";
 import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
 import { SharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
+import type { ChangeProcessor } from "../shared-tree-core/index.js";
 
 /**
  * Implementation of {@link ChangeFamily} that combines edits to fields and schema changes.
@@ -56,7 +57,7 @@ export class SharedTreeChangeFamily
 	};
 
 	public readonly codecs: ICodecFamily<SharedTreeChange, ChangeEncodingContext>;
-	private readonly modularChangeFamily: ModularChangeFamily;
+	public readonly modularChangeFamily: ModularChangeFamily;
 
 	public constructor(
 		revisionTagCodec: RevisionTagCodec,
@@ -92,6 +93,13 @@ export class SharedTreeChangeFamily
 			mintRevisionTag,
 			changeReceiver,
 		);
+	}
+
+	public postProcess(
+		change: SharedTreeChange,
+		processor: ChangeProcessor<SharedTreeChange>,
+	): SharedTreeChange {
+		return processor.processChange(change, this);
 	}
 
 	public compose(changes: TaggedChange<SharedTreeChange>[]): SharedTreeChange {

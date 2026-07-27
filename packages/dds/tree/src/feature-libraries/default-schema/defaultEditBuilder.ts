@@ -40,6 +40,7 @@ import { optional, type OptionalChangeset, required } from "../optional-field/in
 import { sequence, type CellId } from "../sequence-field/index.js";
 
 import { fieldKinds } from "./defaultFieldKinds.js";
+import type { ChangeProcessor } from "../../shared-tree-core/index.js";
 
 export type DefaultChangeset = ModularChangeset;
 
@@ -78,6 +79,13 @@ export class DefaultChangeFamily
 			changeReceiver,
 			this.modularFamily.codecOptions,
 		);
+	}
+
+	public postProcess(
+		change: DefaultChangeset,
+		processor: ChangeProcessor<DefaultChangeset>,
+	): DefaultChangeset {
+		return this.modularFamily.postProcess(change, processor);
 	}
 }
 

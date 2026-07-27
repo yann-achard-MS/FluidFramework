@@ -16,6 +16,7 @@ import type {
 } from "../../core/index.js";
 import { makeMitigatedChangeFamily } from "../../feature-libraries/index.js";
 import { mintRevisionTag } from "../utils.js";
+import type { ChangeProcessor } from "../../shared-tree-core/index.js";
 
 const fallback = "Fallback";
 
@@ -34,6 +35,11 @@ const throwingFamily: ChangeFamily<ChangeFamilyEditor, string> = {
 		assert.equal(mintRevisionTagArg, mintRevisionTag);
 		assert.equal(changeReceiver, arg1);
 		throw new Error("buildEditor");
+	},
+	postProcess: (change: string, processor: ChangeProcessor<string>): string => {
+		assert.equal(change, arg1);
+		assert.equal(processor, arg2);
+		throw new Error("postProcess");
 	},
 	rebaser: {
 		compose: (changes: TaggedChange<string>[]): string => {
@@ -70,6 +76,11 @@ const returningFamily: ChangeFamily<ChangeFamilyEditor, string> = {
 		assert.equal(mintRevisionTagArg, mintRevisionTag);
 		assert.equal(changeReceiver, arg1);
 		return "buildEditor" as unknown as ChangeFamilyEditor;
+	},
+	postProcess: (change: string, processor: ChangeProcessor<string>): string => {
+		assert.equal(change, arg1);
+		assert.equal(processor, arg2);
+		return "postProcess";
 	},
 	rebaser: {
 		compose: (changes: TaggedChange<string>[]): string => {
