@@ -30,22 +30,15 @@ const codecOptions = {
 	minVersionForCollab: FluidClientVersion.v2_0,
 };
 
-function createBranch(): SharedTreeBranch<
+type BranchType = SharedTreeBranch<
 	ReturnType<SharedTreeChangeFamily["buildEditor"]>,
-	ReturnType<SharedTreeChangeFamily["compose"]>
+	ReturnType<SharedTreeChangeFamily["compose"]>,
+	unknown
 >;
-function createBranch(
-	branchTrimmer: Listenable<BranchTrimmingEvents>,
-): SharedTreeBranch<
-	ReturnType<SharedTreeChangeFamily["buildEditor"]>,
-	ReturnType<SharedTreeChangeFamily["compose"]>
->;
-function createBranch(
-	branchTrimmer?: Listenable<BranchTrimmingEvents>,
-): SharedTreeBranch<
-	ReturnType<SharedTreeChangeFamily["buildEditor"]>,
-	ReturnType<SharedTreeChangeFamily["compose"]>
-> {
+
+function createBranch(): BranchType;
+function createBranch(branchTrimmer: Listenable<BranchTrimmingEvents>): BranchType;
+function createBranch(branchTrimmer?: Listenable<BranchTrimmingEvents>): BranchType {
 	const changeFamily = new SharedTreeChangeFamily(
 		testRevisionTagCodec,
 		fieldBatchCodecBuilder.build(codecOptions),
@@ -65,13 +58,7 @@ function createBranch(
 	);
 }
 
-function setRootValue(
-	branch: SharedTreeBranch<
-		ReturnType<SharedTreeChangeFamily["buildEditor"]>,
-		ReturnType<SharedTreeChangeFamily["compose"]>
-	>,
-	value: number,
-): void {
+function setRootValue(branch: BranchType, value: number): void {
 	const content = chunkFromJsonableTrees([{ type: brand("TestValue"), value }]);
 	branch.editor.valueField({ parent: undefined, field: rootFieldKey }).set(content);
 }

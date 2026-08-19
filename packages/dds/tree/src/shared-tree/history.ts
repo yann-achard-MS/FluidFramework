@@ -47,7 +47,11 @@ export class TreeBranchHistoryImpl implements TreeBranchHistory {
 	private cachedCommitCount: number = 0;
 
 	public constructor(
-		private readonly branch: SharedTreeBranch<SharedTreeEditBuilder, SharedTreeChange>,
+		private readonly branch: SharedTreeBranch<
+			SharedTreeEditBuilder,
+			SharedTreeChange,
+			unknown
+		>,
 		private readonly idCompressor: IIdCompressor,
 	) {}
 

@@ -13,6 +13,7 @@ import { validateUsageError } from "@fluidframework/test-runtime-utils/internal"
 
 import { asAlpha } from "../../api.js";
 import {
+	createAnnouncedVisitor,
 	type Revertible,
 	rootFieldKey,
 	RevertibleStatus,
@@ -40,6 +41,8 @@ import {
 } from "../../shared-tree/transactionPostProcessor.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import { SchematizingSimpleTreeView } from "../../shared-tree/schematizingTreeView.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import type { SharedTreeChangeProcessingContext } from "../../shared-tree/sharedTreeChangeFamily.js";
 import {
 	getInnerNode,
 	SchemaFactory,
@@ -53,7 +56,7 @@ import {
 } from "../../simple-tree/index.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import { stringSchema } from "../../simple-tree/leafNodeSchema.js";
-import { brand } from "../../util/index.js";
+import { brand, Breakable } from "../../util/index.js";
 import {
 	StringArray,
 	TestTreeProviderLite,
@@ -886,7 +889,12 @@ describe("sharedTreeView", () => {
 				commits: 0,
 			};
 			const originalStart = transactor.start.bind(transactor);
-			transactor.start = (options?: SquashingTransactionOptions<SharedTreeChange>): void => {
+			transactor.start = (
+				options?: SquashingTransactionOptions<
+					SharedTreeChange,
+					SharedTreeChangeProcessingContext
+				>,
+			): void => {
 				result.postProcessors.push(options?.postProcessor);
 				originalStart(options);
 			};
@@ -1771,7 +1779,11 @@ describe("sharedTreeView", () => {
 				assert.equal(change.newCommits.length, 1);
 				const commit = change.newCommits[0];
 				view1.checkout.resetEnrichmentStats();
-				const enriched = view1.checkout.enrich(commit.parent ?? assert.fail(), [commit]);
+				const enriched = view1.checkout.enrich(
+					commit.parent ?? assert.fail(),
+					[commit],
+					false,
+				);
 				assertEnrichmentCount(enriched[0], 1);
 				assert.deepEqual(view1.checkout.getEnrichmentStats(), {
 					batches: 1,
@@ -1799,7 +1811,11 @@ describe("sharedTreeView", () => {
 				assert.equal(change.newCommits.length, 1);
 				const commit = change.newCommits[0];
 				view1.checkout.resetEnrichmentStats();
-				const enriched = view1.checkout.enrich(commit.parent ?? assert.fail(), [commit]);
+				const enriched = view1.checkout.enrich(
+					commit.parent ?? assert.fail(),
+					[commit],
+					false,
+				);
 				assertEnrichmentCount(enriched[0], 1);
 				assert.deepEqual(view1.checkout.getEnrichmentStats(), {
 					batches: 1,
@@ -1836,6 +1852,7 @@ describe("sharedTreeView", () => {
 				const enriched = view1.checkout.enrich(
 					change.newCommits[0].parent ?? assert.fail(),
 					change.newCommits,
+					false,
 				);
 				assertEnrichmentCount(enriched[0], 1);
 				assertEnrichmentCount(enriched[1], 0);
@@ -1874,6 +1891,7 @@ describe("sharedTreeView", () => {
 				const enriched = view1.checkout.enrich(
 					change.newCommits[0].parent ?? assert.fail(),
 					change.newCommits,
+					false,
 				);
 				assertEnrichmentCount(enriched[0], 1);
 				assertEnrichmentCount(enriched[1], 0);
@@ -1903,7 +1921,11 @@ describe("sharedTreeView", () => {
 				assert.equal(change.newCommits.length, 1);
 				const commit = change.newCommits[0];
 				view1.checkout.resetEnrichmentStats();
-				const enriched = view1.checkout.enrich(commit.parent ?? assert.fail(), [commit]);
+				const enriched = view1.checkout.enrich(
+					commit.parent ?? assert.fail(),
+					[commit],
+					false,
+				);
 				assertEnrichmentCount(enriched[0], 0);
 				assert.deepEqual(view1.checkout.getEnrichmentStats(), {
 					batches: 1,
@@ -1936,7 +1958,11 @@ describe("sharedTreeView", () => {
 				assert.equal(change.newCommits.length, 1);
 				const commit = change.newCommits[0];
 				view1.checkout.resetEnrichmentStats();
-				const enriched = view1.checkout.enrich(commit.parent ?? assert.fail(), [commit]);
+				const enriched = view1.checkout.enrich(
+					commit.parent ?? assert.fail(),
+					[commit],
+					false,
+				);
 				assertEnrichmentCount(enriched[0], 0);
 				assert.deepEqual(view1.checkout.getEnrichmentStats(), {
 					batches: 1,
@@ -1967,9 +1993,11 @@ describe("sharedTreeView", () => {
 			view1.root.insertAtEnd({ id: "C" });
 
 			view1.checkout.resetEnrichmentStats();
-			const enriched = view1.checkout.enrich(revertCommit.parent ?? assert.fail(), [
-				revertCommit,
-			]);
+			const enriched = view1.checkout.enrich(
+				revertCommit.parent ?? assert.fail(),
+				[revertCommit],
+				false,
+			);
 			assertEnrichmentCount(enriched[0], 1);
 			assert.deepEqual(view1.checkout.getEnrichmentStats(), {
 				batches: 1,
@@ -1992,7 +2020,11 @@ describe("sharedTreeView", () => {
 				assert.equal(change.newCommits.length, 1);
 				const commit = change.newCommits[0];
 				view1.checkout.resetEnrichmentStats();
-				const enriched = view1.checkout.enrich(commit.parent ?? assert.fail(), [commit]);
+				const enriched = view1.checkout.enrich(
+					commit.parent ?? assert.fail(),
+					[commit],
+					false,
+				);
 				assertEnrichmentCount(enriched[0], 0);
 				assert.deepEqual(view1.checkout.getEnrichmentStats(), {
 					batches: 1,
@@ -2025,7 +2057,11 @@ describe("sharedTreeView", () => {
 				assert.equal(change.newCommits.length, 1);
 				const commit = change.newCommits[0];
 				view1.checkout.resetEnrichmentStats();
-				const enriched = view1.checkout.enrich(commit.parent ?? assert.fail(), [commit]);
+				const enriched = view1.checkout.enrich(
+					commit.parent ?? assert.fail(),
+					[commit],
+					false,
+				);
 				assertEnrichmentCount(enriched[0], 0);
 				assert.deepEqual(view1.checkout.getEnrichmentStats(), {
 					batches: 1,
@@ -2065,7 +2101,11 @@ describe("sharedTreeView", () => {
 					assert.equal(change.newCommits.length, 1);
 					const commit = change.newCommits[0];
 					view1.checkout.resetEnrichmentStats();
-					const enriched = view1.checkout.enrich(commit.parent ?? assert.fail(), [commit]);
+					const enriched = view1.checkout.enrich(
+						commit.parent ?? assert.fail(),
+						[commit],
+						false,
+					);
 					assertEnrichmentCount(enriched[0], 2);
 					assert.deepEqual(view1.checkout.getEnrichmentStats(), {
 						batches: 1,
@@ -2098,7 +2138,11 @@ describe("sharedTreeView", () => {
 					assert.equal(change.newCommits.length, 1);
 					const commit = change.newCommits[0];
 					view1.checkout.resetEnrichmentStats();
-					const enriched = view1.checkout.enrich(commit.parent ?? assert.fail(), [commit]);
+					const enriched = view1.checkout.enrich(
+						commit.parent ?? assert.fail(),
+						[commit],
+						false,
+					);
 					assertEnrichmentCount(enriched[0], 2);
 					assert.deepEqual(view1.checkout.getEnrichmentStats(), {
 						batches: 1,
@@ -2113,7 +2157,7 @@ describe("sharedTreeView", () => {
 			assert.equal(callCount, 1);
 		});
 
-		it("delays diff computation if no refresher is needed", () => {
+		it("when validation is off, delays diff computation if no refresher is needed", () => {
 			const { view1 } = setup([]);
 			view1.root.insertAtEnd({ id: "A" });
 			const commit = view1.checkout.mainBranch.getHead();
@@ -2121,7 +2165,7 @@ describe("sharedTreeView", () => {
 			view1.root.insertAtEnd({ id: "C" });
 
 			view1.checkout.resetEnrichmentStats();
-			view1.checkout.enrich(commit.parent ?? assert.fail(), [commit]);
+			view1.checkout.enrich(commit.parent ?? assert.fail(), [commit], false);
 			assert.deepEqual(view1.checkout.getEnrichmentStats(), {
 				batches: 1,
 				diffs: 0,
@@ -2132,7 +2176,7 @@ describe("sharedTreeView", () => {
 			});
 		});
 
-		it("delays apply changes if no refresher is needed", () => {
+		it("when validation is off, delays apply changes if no refresher is needed", () => {
 			const { view1 } = setup([]);
 			const start = view1.checkout.mainBranch.getHead();
 			view1.root.insertAtEnd({ id: "A" });
@@ -2143,7 +2187,7 @@ describe("sharedTreeView", () => {
 			const commit3 = view1.checkout.mainBranch.getHead();
 
 			view1.checkout.resetEnrichmentStats();
-			view1.checkout.enrich(start, [commit1, commit2, commit3]);
+			view1.checkout.enrich(start, [commit1, commit2, commit3], false);
 			assert.deepEqual(view1.checkout.getEnrichmentStats(), {
 				batches: 1,
 				diffs: 0,
@@ -2153,6 +2197,60 @@ describe("sharedTreeView", () => {
 				applied: 0,
 			});
 		});
+
+		it("when validation is on, applies changes even if no refresher is needed", () => {
+			const { view1 } = setup([]);
+			const start = view1.checkout.mainBranch.getHead();
+			view1.root.insertAtEnd({ id: "A" });
+			const commit1 = view1.checkout.mainBranch.getHead();
+			view1.root.insertAtEnd({ id: "B" });
+			const commit2 = view1.checkout.mainBranch.getHead();
+			view1.root.insertAtEnd({ id: "C" });
+			const commit3 = view1.checkout.mainBranch.getHead();
+
+			view1.checkout.resetEnrichmentStats();
+			view1.checkout.enrich(start, [commit1, commit2, commit3], true);
+			assert.deepEqual(view1.checkout.getEnrichmentStats(), {
+				batches: 1,
+				diffs: 1,
+				commitsEnriched: 3,
+				refreshers: 0,
+				forks: 1,
+				applied: 4,
+			});
+		});
+
+		it("when validation is on, throws an error if validation fails", () => {
+			const { view1 } = setup([]);
+			const fork = view1.fork();
+
+			fork.root.insertAtEnd({ id: "A" });
+
+			// This hides the commit that inserted "A".
+			fork.checkout.mainBranch.setHead(view1.checkout.mainBranch.getHead());
+
+			fork.root.removeAt(0);
+
+			// The merge will fail because only the commit that removes "A" will be merged.
+			assert.throws(() => view1.merge(fork));
+
+			assert.throws(() => view1.checkout.breaker.use());
+			assert.throws(() => view1.breaker.use());
+		});
+	});
+
+	itView("breaks the checkout when an announced visitor throws", ({ view, tree }) => {
+		const error = new Error("Announced visitor failure");
+		tree.forest.registerAnnouncedVisitor(() =>
+			createAnnouncedVisitor({
+				afterCreate: () => {
+					throw error;
+				},
+			}),
+		);
+
+		assert.throws(() => view.root.insertAtEnd("x"), error);
+		assert.throws(() => view.root, validateUsageError(/invalid state/));
 	});
 
 	describe("fork breaker isolation", () => {
@@ -2331,6 +2429,7 @@ function itView<
 		logger: IMockLoggerExt;
 	} {
 		const logger = createMockLoggerExt();
+		const breaker = new Breakable("createTreeCheckout", logger);
 
 		const schema = new TreeStoredSchemaRepository();
 		const checkout = createTreeCheckout(
@@ -2338,9 +2437,8 @@ function itView<
 			mintRevisionTag,
 			testRevisionTagCodec,
 			{
-				forest: buildTestForest({ additionalAsserts: true, schema }),
+				forest: buildTestForest({ additionalAsserts: true, schema, breaker }),
 				schema,
-				logger,
 			},
 		);
 		const view = new SchematizingSimpleTreeView<TRootSchema>(

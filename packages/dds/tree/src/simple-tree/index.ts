@@ -100,7 +100,6 @@ export {
 	type ArrayNodeRetainOp,
 	type ArrayNodeTreeChangedDeltaOp,
 	type ArrayNodeTreeChangedRetainOp,
-	deltaMarksToArrayOps,
 	type NodeChangedData,
 	type NodeChangedDataAlpha,
 	type NodeChangedDataDelta,
@@ -330,6 +329,6 @@ export {
 	handleSchema,
 	nullSchema,
 } from "./leafNodeSchema.js";
-export type { LeafSchema } from "./leafNodeSchema.js";
+export type { LeafSchema, StringSchema } from "./leafNodeSchema.js";
 export { getUnhydratedContext } from "./createContext.js";
 export { type TreeSchema, createTreeSchema } from "./treeSchema.js";
