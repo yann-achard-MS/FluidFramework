@@ -197,7 +197,10 @@ export interface RevisionInfo {
 	readonly rollbackOf?: RevisionTag;
 }
 
-export function tagChange<T>(change: T, revision: RevisionTag | undefined): TaggedChange<T> {
+export function tagChange<T, TTag = RevisionTag | undefined>(
+	change: T,
+	revision: TTag,
+): TaggedChange<T, TTag> {
 	return { revision, change };
 }
 

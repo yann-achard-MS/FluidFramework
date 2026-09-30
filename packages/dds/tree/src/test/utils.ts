@@ -26,7 +26,11 @@ import type {
 	IChannelFactory,
 } from "@fluidframework/datastore-definitions/internal";
 import type { ISequencedDocumentMessage } from "@fluidframework/driver-definitions/internal";
-import type { IIdCompressor, SessionId } from "@fluidframework/id-compressor";
+import type {
+	IIdCompressor,
+	SessionId,
+	SessionSpaceCompressedId,
+} from "@fluidframework/id-compressor";
 import {
 	assertIsStableId,
 	createIdCompressor,
@@ -122,6 +126,8 @@ import {
 	type TreeFieldStoredSchema,
 	type SchemaAndPolicy,
 	RevertibleStatus,
+	tagChange,
+	type GraphCommit,
 } from "../core/index.js";
 import { FormatValidatorBasic } from "../external-utilities/index.js";
 import {
@@ -179,6 +185,7 @@ import {
 	ForestTypeReference,
 	type SharedTreeOptionsInternal,
 	type TreeTransactor,
+	type SharedTreeChange,
 } from "../shared-tree/index.js";
 import {
 	type ImplicitFieldSchema,
@@ -741,17 +748,14 @@ export function validateTreeConsistency(treeA: ITreePrivate, treeB: ITreePrivate
 		treeB.contentSnapshot(),
 		`id: ${treeA.id} vs id: ${treeB.id}`,
 	);
+	validateCellOrderConsistency(treeA, treeB);
 }
 
 export function validateFuzzTreeConsistency(
 	treeA: Client<IChannelFactory<ISharedTree>>,
 	treeB: Client<IChannelFactory<ISharedTree>>,
 ): void {
-	validateSnapshotConsistency(
-		treeA.channel.contentSnapshot(),
-		treeB.channel.contentSnapshot(),
-		`id: ${treeA.channel.id} vs id: ${treeB.channel.id}`,
-	);
+	validateTreeConsistency(treeA.channel, treeB.channel);
 }
 
 export function validateTreeContent(tree: ITreeCheckout, content: TreeSimpleContent): void {
@@ -829,6 +833,149 @@ export function validateSnapshotConsistency(
 		}
 	});
 	expectSchemaEqual(treeA.schema, treeB.schema, idDifferentiator);
+}
+
+/**
+ * Asserts that the cell order is consistent in every field across all commits in the history of each tree.
+ * Asserts that the cell order is consistent in every field across both trees for each commit they have in common.
+ * @param treeA - The first tree to compare.
+ * @param treeB - The second tree to compare.
+ */
+export function validateCellOrderConsistency(treeA: ITreePrivate, treeB: ITreePrivate): void {
+	const mainA = treeA.kernel.getLocalBranch();
+	const mainB = treeB.kernel.getLocalBranch();
+	const historyA = getHistory(mainA.getHead());
+	const historyB = getHistory(mainB.getHead());
+
+	// The aim of these two compose calls is to detect inconsistencies in the cell order within each client's history,
+	// but a failure here may also be caused by some other issue.
+	assert.doesNotThrow(() => mainA.changeFamily.rebaser.compose(historyA));
+	assert.doesNotThrow(() => mainB.changeFamily.rebaser.compose(historyB));
+
+	const compressorA = treeA.kernel.idCompressor;
+	const compressorB = treeB.kernel.idCompressor;
+	const revisionsInA = new Set(
+		historyA.map(({ revision }) => compressorA.decompress(revision)),
+	);
+	const revisionsInB = new Set(
+		historyB.map(({ revision }) => compressorB.decompress(revision)),
+	);
+	const oldestCommonAncestorInA = historyA.findIndex((commit) =>
+		revisionsInB.has(compressorA.decompress(commit.revision)),
+	);
+	const oldestCommonAncestorInB = historyB.findIndex((commit) =>
+		revisionsInA.has(compressorB.decompress(commit.revision)),
+	);
+	if (oldestCommonAncestorInA === -1 || oldestCommonAncestorInB === -1) {
+		return;
+	}
+	const oldestDivergentAncestorInA = historyA
+		.slice(oldestCommonAncestorInA + 1)
+		.findIndex((commit) => !revisionsInB.has(compressorA.decompress(commit.revision)));
+	const oldestDivergentAncestorInB = historyB
+		.slice(oldestCommonAncestorInB + 1)
+		.findIndex((commit) => !revisionsInA.has(compressorB.decompress(commit.revision)));
+	const commonInA = historyA.slice(
+		oldestCommonAncestorInA,
+		oldestDivergentAncestorInA === -1 ? undefined : oldestDivergentAncestorInA,
+	);
+	const commonInB = historyB.slice(
+		oldestCommonAncestorInB,
+		oldestDivergentAncestorInB === -1 ? undefined : oldestDivergentAncestorInB,
+	);
+	assert.equal(commonInA.length, commonInB.length);
+
+	for (let index = 0; index < commonInA.length; index++) {
+		const commitFromAInAFormat = commonInA[index];
+		const commitFromBInBFormat = commonInB[index];
+		assert(
+			compressorA.decompress(commitFromAInAFormat.revision) ===
+				compressorB.decompress(commitFromBInBFormat.revision),
+		);
+		const commitFromAInBFormat = transcodeChange(commitFromAInAFormat, treeA, treeB);
+		const commitFromBInAFormat = transcodeChange(commitFromBInBFormat, treeB, treeA);
+
+		// The aim of these two rebase calls is to detect inconsistencies in the cell order between the two client's versions of the same commit,
+		// but a failure here may also be caused by some other issue.
+		assert.doesNotThrow(() =>
+			mainA.changeFamily.rebaser.rebase(
+				commitFromAInAFormat,
+				commitFromBInAFormat,
+				revisionMetadataSourceFromInfo([]),
+			),
+		);
+		assert.doesNotThrow(() =>
+			mainB.changeFamily.rebaser.rebase(
+				commitFromBInBFormat,
+				commitFromAInBFormat,
+				revisionMetadataSourceFromInfo([]),
+			),
+		);
+	}
+}
+
+/**
+ * Converts a change from the in-memory representation of one tree to the in-memory representation of another tree.
+ * @param changeAtSource - The change in the source tree's format.
+ * @param source - The source tree.
+ * @param destination - The destination tree.
+ * @returns The change in the destination tree's format.
+ */
+function transcodeChange(
+	changeAtSource: TaggedChange<SharedTreeChange>,
+	source: ITreePrivate,
+	destination: ITreePrivate,
+): TaggedChange<SharedTreeChange> {
+	assert(changeAtSource.revision !== undefined, "Revision tag is undefined");
+	const sourceCodecs = source.kernel.getLocalBranch().changeFamily.codecs;
+	const destinationCodecs = destination.kernel.getLocalBranch().changeFamily.codecs;
+	const messageFormat = source.kernel.messageCodec.writeVersion;
+	assert(messageFormat !== undefined);
+	const changeFormat = source.kernel.changeFormatVersionForMessage.lookup(messageFormat);
+	const encoder = sourceCodecs.resolve(changeFormat);
+	const encoded = encoder.encode(changeAtSource.change, {
+		originatorId: source.kernel.idCompressor.localSessionId,
+		schema: {
+			schema: source.kernel.storedSchema,
+			policy: defaultSchemaPolicy,
+		},
+		idCompressor: source.kernel.idCompressor,
+		revision: changeAtSource.revision,
+		isSummary: false,
+	});
+	const decoder = destinationCodecs.resolve(changeFormat);
+	const revisionAtDestination = transcodeRevision(
+		changeAtSource.revision,
+		source,
+		destination,
+	);
+	const decoded = decoder.decode(encoded, {
+		originatorId: source.kernel.idCompressor.localSessionId,
+		idCompressor: destination.kernel.idCompressor,
+		revision: revisionAtDestination,
+		isSummary: false,
+	});
+	return tagChange(decoded, revisionAtDestination);
+}
+
+/**
+ * Converts a revision tag from the in-memory representation of one tree to the in-memory representation of another tree.
+ * @param revisionAtSource - The revision tag in the source tree's session space.
+ * @param source - The source tree.
+ * @param destination - The destination tree.
+ * @returns The revision tag in the destination tree's session space.
+ */
+function transcodeRevision(
+	revisionAtSource: RevisionTag,
+	source: ITreePrivate,
+	destination: ITreePrivate,
+): RevisionTag {
+	if (typeof revisionAtSource === "string") {
+		return revisionAtSource;
+	}
+	const decompressed = source.kernel.idCompressor.decompress(revisionAtSource);
+	const recompressed = destination.kernel.idCompressor.recompress(decompressed);
+	return recompressed;
 }
 
 /**
@@ -1853,4 +2000,26 @@ export function inMemorySnapshotFileSystem(): [SnapshotFileSystem, Map<string, s
 		},
 	};
 	return [fileSystem, snapshots];
+}
+
+/**
+ * Builds the history of commits from the root to the specified commit.
+ * @param commit - The commit from which to start building the history.
+ * @returns An array of commits representing the history from the root to the given commit.
+ */
+export function getHistory<TChange>(
+	commit: GraphCommit<TChange>,
+): TaggedChange<TChange, SessionSpaceCompressedId>[] {
+	const history: TaggedChange<TChange, SessionSpaceCompressedId>[] = [];
+	let current: GraphCommit<TChange> | undefined = commit;
+	while (current !== undefined && !current.wasTrimmed) {
+		assert(
+			typeof current.revision === "number",
+			"Non-trimmed commit must have a numeric revision",
+		);
+		history.push(tagChange(current.change, current.revision));
+		current = current.parent;
+	}
+	history.reverse();
+	return history;
 }

@@ -26,7 +26,12 @@ import type {
 } from "@fluidframework/shared-object-base/internal";
 import { createChildLogger, UsageError } from "@fluidframework/telemetry-utils/internal";
 
-import type { CodecWriteOptions, DependentFormatVersion, IJsonCodec } from "../codec/index.js";
+import type {
+	CodecWriteOptions,
+	DependentFormatVersion,
+	IJsonCodec,
+	VersionDispatchingCodec,
+} from "../codec/index.js";
 import {
 	type ChangeFamily,
 	type ChangeFamilyEditor,
@@ -56,7 +61,11 @@ import { EditManager, minimumPossibleSequenceNumber } from "./editManager.js";
 import { makeEditManagerCodecBuilder } from "./editManagerCodecs.js";
 import type { EditManagerFormatVersion, SeqNumber } from "./editManagerFormatCommons.js";
 import { EditManagerSummarizer } from "./editManagerSummarizer.js";
-import { type MessageEncodingContext, makeMessageCodecBuilder } from "./messageCodecs.js";
+import {
+	type MessageDecodingContext,
+	type MessageEncodingContext,
+	makeMessageCodecBuilder,
+} from "./messageCodecs.js";
 import type { MessageFormatVersion } from "./messageFormat.js";
 import type { DecodedMessage } from "./messageTypes.js";
 import type { ResubmitMachine } from "./resubmitMachine.js";
@@ -134,12 +143,19 @@ export class SharedTreeCore<
 	 * as necessary (e.g. an upgrade op came in, or the configuration changed within the collab window
 	 * and an op needs to be interpreted which isn't written with the current configuration).
 	 */
-	private readonly messageCodec: IJsonCodec<
+	public readonly messageCodec: IJsonCodec<
 		DecodedMessage<TChange>,
 		unknown,
 		unknown,
-		MessageEncodingContext
-	>;
+		MessageEncodingContext,
+		MessageDecodingContext
+	> &
+		VersionDispatchingCodec<
+			DecodedMessage<TChange>,
+			MessageEncodingContext,
+			MessageFormatVersion | undefined,
+			MessageDecodingContext
+		>;
 
 	private readonly enrichers: Map<BranchId, EnricherState<TChange>> = new Map();
 
@@ -165,9 +181,9 @@ export class SharedTreeCore<
 		summarizables: readonly Summarizable[],
 		protected readonly changeFamily: ChangeFamily<TEditor, TChange, TChangeProcessingContext>,
 		private readonly coreOptions: SharedTreeCoreOptionsInternal,
-		changeFormatVersionForEditManager: DependentFormatVersion<EditManagerFormatVersion>,
-		changeFormatVersionForMessage: DependentFormatVersion<MessageFormatVersion>,
-		protected readonly idCompressor: IIdCompressor,
+		public readonly changeFormatVersionForEditManager: DependentFormatVersion<EditManagerFormatVersion>,
+		public readonly changeFormatVersionForMessage: DependentFormatVersion<MessageFormatVersion>,
+		public readonly idCompressor: IIdCompressor,
 		schema: TreeStoredSchemaRepository,
 		schemaPolicy: SchemaPolicy,
 		enrichmentConfig?: EnrichmentConfig<TChange>,
