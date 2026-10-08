@@ -504,8 +504,7 @@ export class SquashingTransactionStack<
 
 								// Squash all the new commits on the transaction branch into a new commit on the original branch
 								const squash = rebaser.ensureCompatibility(rebaser.compose(transactionSteps));
-								const validator = changeFamily.validator ?? (() => true);
-								debugAssert(() => validator(squash));
+								debugAssert(() => changeFamily.validator(squash));
 
 								// Apply this transaction's post-processor (if any) to the squashed change (for example, to
 								// "minimize" it so that it contains no extraneous information).

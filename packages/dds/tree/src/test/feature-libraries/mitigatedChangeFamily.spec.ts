@@ -69,6 +69,7 @@ const throwingFamily: ChangeFamily<ChangeFamilyEditor, string, unknown> = {
 			throw new Error("buildProcessor return invocation");
 		};
 	},
+	validator: (change: string): true | string => true,
 };
 const returningFamily: ChangeFamily<ChangeFamilyEditor, string, unknown> = {
 	buildEditor: (
@@ -113,6 +114,7 @@ const returningFamily: ChangeFamily<ChangeFamilyEditor, string, unknown> = {
 			return "buildProcessor";
 		};
 	},
+	validator: (change: string): true | string => true,
 };
 
 const errorLog: unknown[] = [];
