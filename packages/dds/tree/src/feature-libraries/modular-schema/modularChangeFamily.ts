@@ -141,6 +141,7 @@ import {
 	getNodeParent,
 	getRevInfoFromTaggedChanges,
 	hasConflicts,
+	isChangesetValid,
 	makeModularChangeset,
 	newConstraintState,
 	newRootTable,
@@ -185,6 +186,9 @@ export class ModularChangeFamily
 	public get rebaser(): ChangeRebaser<ModularChangeset> {
 		return this;
 	}
+
+	public readonly validator = (change: ModularChangeset): true | string =>
+		isChangesetValid(change, this.fieldKinds);
 
 	public buildProcessor(
 		processFn: ProcessChangeFn<ModularChangeset, ModularChangeFamily>,

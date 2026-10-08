@@ -5,7 +5,7 @@
 
 import { createEmitter } from "@fluid-internal/client-utils";
 import type { IDisposable, Listenable } from "@fluidframework/core-interfaces";
-import { assert, unreachableCase } from "@fluidframework/core-utils/internal";
+import { assert, debugAssert, unreachableCase } from "@fluidframework/core-utils/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
 import {
@@ -504,6 +504,9 @@ export class SquashingTransactionStack<
 
 								// Squash all the new commits on the transaction branch into a new commit on the original branch
 								const squash = rebaser.ensureCompatibility(rebaser.compose(transactionSteps));
+								const validator = changeFamily.validator ?? (() => true);
+								debugAssert(() => validator(squash));
+
 								// Apply this transaction's post-processor (if any) to the squashed change (for example, to
 								// "minimize" it so that it contains no extraneous information).
 								const change =
@@ -551,6 +554,8 @@ export class SquashingTransactionStack<
 										rebaser,
 										unrebasedHead,
 										branch.getHead(),
+										branch.getHead(),
+										changeFamily.validator,
 									);
 									assert(
 										rebased.newSourceHead.revision === transactionRevision,

@@ -113,6 +113,18 @@ export class SharedTreeChangeFamily
 			});
 	}
 
+	public readonly validator = (change: SharedTreeChange): true | string => {
+		for (const innerChange of change.changes) {
+			if (innerChange.type === "data") {
+				const result = this.modularChangeFamily.validator(innerChange.innerChange);
+				if (result !== true) {
+					return result;
+				}
+			}
+		}
+		return true;
+	};
+
 	public compose(changes: TaggedChange<SharedTreeChange>[]): SharedTreeChange {
 		const newChanges: Mutable<SharedTreeChange["changes"]> = [];
 		const dataChangeRun: TaggedChange<ModularChangeset>[] = [];

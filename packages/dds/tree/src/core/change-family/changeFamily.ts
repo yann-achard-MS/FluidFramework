@@ -35,6 +35,13 @@ export interface ChangeFamily<
 	buildProcessor(
 		processFn: ProcessChangeFn<TChange, TChangeProcessingContext>,
 	): (change: TChange) => TChange;
+
+	/**
+	 * Optional validation function to check if a change is well-formed.
+	 * @param change - The change to validate.
+	 * @returns `true` if the change is well-formed, otherwise a string describing the validation error.
+	 */
+	validator?: (change: TChange) => true | string;
 }
 
 export interface ChangeEncodingContext {

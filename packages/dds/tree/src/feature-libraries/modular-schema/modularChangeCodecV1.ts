@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { assert, fail, oob } from "@fluidframework/core-utils/internal";
+import { assert, debugAssert, fail, oob } from "@fluidframework/core-utils/internal";
 import type { TAnySchema } from "@sinclair/typebox";
 import { EmptyBTree } from "@tylerbu/sorted-btree-es6";
 
@@ -89,10 +89,12 @@ import {
 } from "./modularChangeTypes.js";
 import {
 	addNodeRename,
+	fieldKindsFromConfiguration,
 	getFirstAttachField,
 	getFirstDetachField,
 	newRootTable,
 	normalizeFieldId,
+	isChangesetValid,
 	type FieldIdKey,
 } from "./modularChangeUtils.js";
 
@@ -411,8 +413,8 @@ export function makeModularChangeCodecV1(
 				chunkCompressionStrategy,
 			),
 
-		decode: (encodedChange, context) =>
-			decodeChange(
+		decode: (encodedChange, context) => {
+			const decoded = decodeChange(
 				encodedChange,
 				context,
 				fieldKinds,
@@ -420,7 +422,10 @@ export function makeModularChangeCodecV1(
 				revisionTagCodec,
 				fieldsCodec,
 				chunkCompressionStrategy,
-			),
+			);
+			debugAssert(() => isChangesetValid(decoded, fieldKindsFromConfiguration(fieldKinds)));
+			return decoded;
+		},
 	};
 
 	return withSchemaValidation(

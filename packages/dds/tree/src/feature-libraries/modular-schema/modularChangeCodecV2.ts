@@ -3,6 +3,8 @@
  * Licensed under the MIT License.
  */
 
+import { debugAssert } from "@fluidframework/core-utils/internal";
+
 import {
 	type ICodecOptions,
 	type IJsonCodec,
@@ -26,6 +28,7 @@ import {
 } from "./modularChangeCodecV1.js";
 import { EncodedModularChangesetV2 } from "./modularChangeFormatV2.js";
 import type { ModularChangeset } from "./modularChangeTypes.js";
+import { fieldKindsFromConfiguration, isChangesetValid } from "./modularChangeUtils.js";
 
 type ModularChangeCodec = IJsonCodec<
 	ModularChangeset,
@@ -80,6 +83,7 @@ export function makeModularChangeCodecV2(
 			if (encodedChange.noChangeConstraint !== undefined) {
 				decoded.noChangeConstraint = encodedChange.noChangeConstraint;
 			}
+			debugAssert(() => isChangesetValid(decoded, fieldKindsFromConfiguration(fieldKinds)));
 			return decoded;
 		},
 	};

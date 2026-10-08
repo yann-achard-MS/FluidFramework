@@ -59,9 +59,9 @@ import {
 	getOldRootIdFromNewRootId,
 	nodeChangeFromId,
 	normalizeNodeId,
-	validateChangeset,
+	isChangesetValid,
 } from "./modularChangeUtils.js";
-import { assert, fail } from "@fluidframework/core-utils/internal";
+import { assert, debugAssert, fail } from "@fluidframework/core-utils/internal";
 
 /**
  * "Minimizes" a {@link ModularChangeset} so that it contains no extraneous
@@ -118,7 +118,7 @@ class ModularChangeMinimizer {
 
 		this.squashBuilds(residualChange, forestFactory);
 
-		validateChangeset(residualChange, this.fieldKinds);
+		debugAssert(() => isChangesetValid(residualChange, this.fieldKinds));
 		return residualChange;
 	}
 

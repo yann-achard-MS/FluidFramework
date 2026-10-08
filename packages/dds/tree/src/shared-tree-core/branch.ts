@@ -405,6 +405,7 @@ export class SharedTreeBranch<
 				head,
 				upTo,
 				onto.getHead(),
+				this.changeFamily.validator,
 			),
 		);
 

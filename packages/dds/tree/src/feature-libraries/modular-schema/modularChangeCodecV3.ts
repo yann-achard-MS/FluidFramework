@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { assert, fail } from "@fluidframework/core-utils/internal";
+import { assert, debugAssert, fail } from "@fluidframework/core-utils/internal";
 import type { TAnySchema } from "@sinclair/typebox";
 
 import {
@@ -54,7 +54,12 @@ import {
 	getFieldChangesetCodecs,
 	makeFieldEncodingContextFactory,
 } from "./modularChangeCodecV1.js";
-import { addNodeRename, newRootTable } from "./modularChangeUtils.js";
+import {
+	addNodeRename,
+	fieldKindsFromConfiguration,
+	newRootTable,
+	isChangesetValid,
+} from "./modularChangeUtils.js";
 import type {
 	EncodedFieldChange,
 	EncodedFieldChangeMap,
@@ -483,6 +488,7 @@ export function makeModularChangeCodecV3(
 			if (encodedChange.maxId !== undefined) {
 				decoded.maxId = encodedChange.maxId;
 			}
+			debugAssert(() => isChangesetValid(decoded, fieldKindsFromConfiguration(fieldKinds)));
 			return decoded;
 		},
 	};

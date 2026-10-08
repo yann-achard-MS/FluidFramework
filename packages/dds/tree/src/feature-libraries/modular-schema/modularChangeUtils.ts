@@ -53,6 +53,7 @@ import {
 	type RootNodeTable,
 } from "./modularChangeTypes.js";
 import { NodeMoveType } from "./crossFieldQueries.js";
+import type { FieldKindConfiguration } from "./fieldKindConfiguration.js";
 
 export function hasConflicts(change: ModularChangeset): boolean {
 	return (change.constraintViolationCount ?? 0) > 0;
@@ -334,19 +335,38 @@ function populateInversionsFromFieldMap(
 		}
 	}
 }
+
+export function fieldKindsFromConfiguration(
+	configuration: FieldKindConfiguration,
+): ReadonlyMap<FieldKindIdentifier, FlexFieldKind> {
+	return new Map(Array.from(configuration.values(), ({ kind }) => [kind.identifier, kind]));
+}
+
 export function validateChangeset(
 	change: ModularChangeset,
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): void {
+	const result = isChangesetValid(change, fieldKinds);
+	if (result !== true) {
+		throw new Error(`Malformed changeset: ${result}`);
+	}
+}
+
+export function isChangesetValid(
+	change: ModularChangeset,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
+): true | string {
 	for (const nodeIdKey of change.nodeChanges.keys()) {
-		assert(change.nodeToParent.has(nodeIdKey), "Every node should have a location entry");
+		if (!change.nodeToParent.has(nodeIdKey)) {
+			return `NodeId ${JSON.stringify(nodeIdKey)} does not have a corresponding parent entry`;
+		}
 	}
 
 	const unreachableNodes: ChangeAtomIdBTree<NodeLocation> = brand(change.nodeToParent.clone());
 
 	const unreachableCFKs = change.crossFieldKeys.clone();
 
-	validateFieldChanges(
+	const rootFieldResult = isFieldChangeValid(
 		fieldKinds,
 		change,
 		change.fieldChanges,
@@ -354,6 +374,9 @@ export function validateChangeset(
 		unreachableNodes,
 		unreachableCFKs,
 	);
+	if (rootFieldResult !== true) {
+		return rootFieldResult;
+	}
 
 	for (const [[revision, localId], node] of change.nodeChanges.entries()) {
 		if (node.fieldChanges === undefined) {
@@ -361,7 +384,7 @@ export function validateChangeset(
 		}
 
 		const nodeId = normalizeNodeId({ revision, localId }, change.nodeAliases);
-		validateFieldChanges(
+		const fieldResult = isFieldChangeValid(
 			fieldKinds,
 			change,
 			node.fieldChanges,
@@ -369,12 +392,17 @@ export function validateChangeset(
 			unreachableNodes,
 			unreachableCFKs,
 		);
+		if (fieldResult !== true) {
+			return fieldResult;
+		}
 	}
 
 	for (const [detachIdKey, nodeId] of change.rootNodes.nodeChanges.entries()) {
 		const detachId: ChangeAtomId = { revision: detachIdKey[0], localId: detachIdKey[1] };
 		const location = getNodeParent(change, nodeId);
-		assert(areEqualChangeAtomIdOpts(location.root, detachId), "Inconsistent node location");
+		if (!areEqualChangeAtomIdOpts(location.root, detachId)) {
+			return "Inconsistent node location";
+		}
 
 		const normalizedNodeId = normalizeNodeId(nodeId, change.nodeAliases);
 		unreachableNodes.delete([normalizedNodeId.revision, normalizedNodeId.localId]);
@@ -386,7 +414,7 @@ export function validateChangeset(
 		).fieldChanges;
 
 		if (fieldChanges !== undefined) {
-			validateFieldChanges(
+			const fieldResult = isFieldChangeValid(
 				fieldKinds,
 				change,
 				fieldChanges,
@@ -394,6 +422,9 @@ export function validateChangeset(
 				unreachableNodes,
 				unreachableCFKs,
 			);
+			if (fieldResult !== true) {
+				return fieldResult;
+			}
 		}
 	}
 
@@ -403,12 +434,20 @@ export function validateChangeset(
 				continue;
 			}
 
-			validateAttach(change, entry.start, entry.length);
+			const attachResult = isAttachValid(change, entry.start, entry.length);
+			if (attachResult !== true) {
+				return attachResult;
+			}
 		}
 	}
 
-	assert(unreachableNodes.size === 0, "Unreachable nodes found");
-	assert(unreachableCFKs.entries().length === 0, "Unreachable cross-field keys found");
+	if (unreachableNodes.size > 0) {
+		return `${unreachableNodes.size} unreachable nodes found`;
+	}
+	if (unreachableCFKs.entries().length > 0) {
+		return "Unreachable cross-field keys found";
+	}
+	return true;
 }
 
 function containsRollbacks(change: ModularChangeset): boolean {
@@ -424,11 +463,11 @@ function containsRollbacks(change: ModularChangeset): boolean {
 	return false;
 }
 
-function validateAttach(
+function isAttachValid(
 	changeset: ModularChangeset,
 	attachId: ChangeAtomId,
 	count: number,
-): void {
+): true | string {
 	let countProcessed = count;
 	const buildEntry = hasBuildForIdRange(changeset.builds, attachId, count);
 	countProcessed = buildEntry.length;
@@ -444,18 +483,22 @@ function validateAttach(
 	const renameEntry = changeset.rootNodes.newToOldId.getFirst(attachId, countProcessed);
 	countProcessed = renameEntry.length;
 
-	assert(
-		buildEntry.value || detachEntry.value !== undefined || renameEntry.value !== undefined,
-		"No build, detach, or rename found for attach",
-	);
+	if (
+		!buildEntry.value &&
+		detachEntry.value === undefined &&
+		renameEntry.value === undefined
+	) {
+		return "No build, detach, or rename found for attach";
+	}
 
 	if (countProcessed < count) {
-		validateAttach(
+		return isAttachValid(
 			changeset,
 			offsetChangeAtomId(attachId, countProcessed),
 			count - countProcessed,
 		);
 	}
+	return true;
 }
 
 function hasBuildForIdRange(
@@ -493,43 +536,46 @@ function hasBuildForIdRange(
 /**
  * Asserts that each node has a correct entry in `change.nodeToParent`,
  * and each cross field key has a correct entry in `change.crossFieldKeys`.
- * @returns the number of children found.
  */
-function validateFieldChanges(
+function isFieldChangeValid(
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 	change: ModularChangeset,
 	fieldChanges: FieldChangeMap,
 	nodeParent: NodeId | undefined,
 	unreachableNodes: ChangeAtomIdBTree<NodeLocation>,
 	unreachableCFKs: CrossFieldRangeTable<FieldId>,
-): void {
+): true | string {
 	for (const [field, fieldChange] of fieldChanges.entries()) {
 		const fieldId = { nodeId: nodeParent, field };
 		const handler = getChangeHandler(fieldKinds, fieldChange.fieldKind);
 		for (const { nodeId: child } of handler.getNestedChanges(fieldChange.change)) {
 			const parentFieldId = getNodeParent(change, child);
-			assert(
-				parentFieldId.field !== undefined && areEqualFieldIds(parentFieldId.field, fieldId),
-				0xa4e /* Inconsistent node parentage */,
-			);
-
+			if (parentFieldId.field === undefined) {
+				return `Inconsistent node parentage: parent lookup table does not have an entry for nested change ${JSON.stringify(child)} in field ${JSON.stringify(fieldId)}`;
+			}
+			if (!areEqualFieldIds(parentFieldId.field, fieldId)) {
+				return `Inconsistent node parentage: parent lookup table has entry ${JSON.stringify(parentFieldId)} for NodeId ${JSON.stringify(child)}} in field ${JSON.stringify(fieldId)}`;
+			}
 			unreachableNodes.delete([child.revision, child.localId]);
 		}
 
 		for (const keyRange of handler.getCrossFieldKeys(fieldChange.change)) {
 			const fields = getFieldsForCrossFieldKey(change, keyRange.key, keyRange.count);
-			assert(fields.length > 0, "Unregistered cross-field key");
+			if (fields.length === 0) {
+				return `Inconsistent cross field keys: cross-field key table has no entry for key ${JSON.stringify(keyRange.key)} found in field ${JSON.stringify(fieldId)}`;
+			}
 			for (const fieldFromLookup of fields) {
-				assert(
-					areEqualFieldIds(fieldFromLookup, fieldId),
-					0xa4f /* Inconsistent cross field keys */,
-				);
+				if (!areEqualFieldIds(fieldFromLookup, fieldId)) {
+					return `Inconsistent cross field keys: cross-field key table has entry ${JSON.stringify(fieldFromLookup)} for key ${JSON.stringify(keyRange.key)} found in field ${JSON.stringify(fieldId)}`;
+				}
 			}
 
 			unreachableCFKs.delete(keyRange.key, keyRange.count);
 		}
 	}
+	return true;
 }
+
 export function getNodeLocation(changeset: ModularChangeset, nodeId: NodeId): NodeLocation {
 	const location = getFromChangeAtomIdMap(changeset.nodeToParent, nodeId);
 	assert(location !== undefined, 0x9cb /* Location should be defined */);
