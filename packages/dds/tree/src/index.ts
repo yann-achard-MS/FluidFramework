@@ -29,6 +29,8 @@ export {
 } from "./core/index.js";
 
 export {
+	ModularChangeValidation,
+	type ModularChangeValidationAlpha,
 	TreeStatus,
 	TreeCompressionStrategy,
 	type TreeIndex,

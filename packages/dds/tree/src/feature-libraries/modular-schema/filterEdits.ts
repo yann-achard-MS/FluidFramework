@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import { prefixPredicate } from "@fluidframework/core-utils/internal";
 import {
 	makeChangeAtomId,
 	type ChangeAtomId,
@@ -24,7 +25,8 @@ import type {
 	NodeChangeset,
 	NodeId,
 } from "./modularChangeTypes.js";
-import { makeChangesetInversions } from "./modularChangeUtils.js";
+import { isChangesetValid, makeChangesetInversions } from "./modularChangeUtils.js";
+import { conditionalValidation } from "./modularChangeValidation.js";
 import { pruneChangeset } from "./prune.js";
 
 export function removeAllDetachesFilter(
@@ -53,6 +55,10 @@ export function filterEdits(
 	filterFieldEdits: (fieldChange: FieldChange, fieldId: FieldId) => FieldChange,
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): ModularChangeset {
+	conditionalValidation(() =>
+		prefixPredicate("Malformed filterEdits input", isChangesetValid(change, fieldKinds)),
+	);
+
 	const filteredFieldChanges = filterFieldMapEdits(
 		change.fieldChanges,
 		undefined,

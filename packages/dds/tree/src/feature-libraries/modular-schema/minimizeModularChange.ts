@@ -54,8 +54,14 @@ import type {
 	NodeChangeset,
 	NodeId,
 } from "./modularChangeTypes.js";
-import { getChangeHandler, nodeChangeFromId, normalizeNodeId } from "./modularChangeUtils.js";
-import { assert, fail } from "@fluidframework/core-utils/internal";
+import {
+	getChangeHandler,
+	isChangesetValid,
+	nodeChangeFromId,
+	normalizeNodeId,
+} from "./modularChangeUtils.js";
+import { assert, fail, prefixPredicate } from "@fluidframework/core-utils/internal";
+import { conditionalValidation } from "./modularChangeValidation.js";
 
 /**
  * "Minimizes" a {@link ModularChangeset} so that it contains no extraneous
@@ -90,9 +96,9 @@ class ModularChangeMinimizer {
 		private readonly change: ModularChangeset,
 		private readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 	) {
-		// Uncomment the following line to facilitate debugging
-		// validateChangeset(change, fieldKinds);
-
+		conditionalValidation(() =>
+			prefixPredicate("Malformed minimize input", isChangesetValid(change, fieldKinds)),
+		);
 		this.outputAttachStates = getOutputNodeAttachStates(change, fieldKinds);
 		const nodeInfo = getNodeInfo(change, fieldKinds);
 		this.builtNodeIds = nodeInfo.builtNodeIds;
@@ -113,9 +119,12 @@ class ModularChangeMinimizer {
 
 		(residualChange as Mutable<ModularChangeset>).builds = this.squashBuilds(forestFactory);
 
-		// Uncomment the following line to facilitate debugging
-		// validateChangeset(residualChange, this.fieldKinds);
-
+		conditionalValidation(() =>
+			prefixPredicate(
+				"Malformed minimize output",
+				isChangesetValid(residualChange, this.fieldKinds),
+			),
+		);
 		return residualChange;
 	}
 

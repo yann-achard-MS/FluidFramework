@@ -108,6 +108,18 @@ export class SharedTreeChangeFamily
 		return hasSchemaChange(change);
 	}
 
+	public readonly validator = (change: SharedTreeChange): true | string => {
+		for (const innerChange of change.changes) {
+			if (innerChange.type === "data") {
+				const result = this.modularChangeFamily.validator(innerChange.innerChange);
+				if (result !== true) {
+					return result;
+				}
+			}
+		}
+		return true;
+	};
+
 	public buildProcessor(
 		processFn: ProcessChangeFn<SharedTreeChange, SharedTreeChangeProcessingContext>,
 	): (change: SharedTreeChange) => SharedTreeChange {

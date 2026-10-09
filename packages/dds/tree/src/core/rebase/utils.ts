@@ -3,7 +3,12 @@
  * Licensed under the MIT License.
  */
 
-import { assert, oob } from "@fluidframework/core-utils/internal";
+import {
+	assert,
+	debugAssert,
+	oob,
+	prefixPredicate,
+} from "@fluidframework/core-utils/internal";
 
 import { defineLazyCachedProperty, hasSome, type Mutable } from "../../util/index.js";
 
@@ -153,6 +158,7 @@ export function rebaseBranch<TChange>(
  * @param sourceHead - the head of the source branch, which will be rebased onto `newBase`
  * @param targetCommit - the commit on the target branch to rebase the source branch onto.
  * @param targetHead - the head of the branch that `newBase` belongs to. Must be `newBase` or a descendent of `newBase`.
+ * @param validator - an optional function to check whether a change is well-formed.
  * @returns a {@link BranchRebaseResult}
  * @remarks While a single branch must not have multiple commits with the same revision tag (that will result in undefined
  * behavior), there may be a commit on the source branch with the same revision tag as a commit on the target branch. If such
@@ -183,6 +189,7 @@ export function rebaseBranch<TChange>(
 	sourceHead: GraphCommit<TChange>,
 	targetCommit: GraphCommit<TChange>,
 	targetHead: GraphCommit<TChange>,
+	validator?: (change: TChange) => true | string,
 ): BranchRebaseResult<TChange>;
 export function rebaseBranch<TChange>(
 	mintRevisionTag: () => RevisionTag,
@@ -190,6 +197,7 @@ export function rebaseBranch<TChange>(
 	sourceHead: GraphCommit<TChange>,
 	targetCommit: GraphCommit<TChange>,
 	targetHead = targetCommit,
+	validator: (change: TChange) => true | string = () => true,
 ): BranchRebaseResult<TChange> {
 	// Get both source and target as path arrays
 	const sourcePath: GraphCommit<TChange>[] = [];
@@ -328,7 +336,11 @@ export function rebaseBranch<TChange>(
 			},
 		},
 		"sourceChange",
-		() => changeRebaser.compose(editsToCompose),
+		() => {
+			const composed = changeRebaser.compose(editsToCompose);
+			debugAssert(() => prefixPredicate("Malformed rebase net change", validator(composed)));
+			return composed;
+		},
 	);
 }
 
@@ -349,6 +361,7 @@ export function rebaseChange<TChange>(
 	targetHead: GraphCommit<TChange>,
 	mintRevisionTag: () => RevisionTag,
 	ignoreNoChangeViolation?: boolean,
+	validator: (change: TChange) => true | string = () => true,
 ): RebaseChangeResult<TChange> {
 	const sourcePath: GraphCommit<TChange>[] = [];
 	const targetPath: GraphCommit<TChange>[] = [];
@@ -368,13 +381,15 @@ export function rebaseChange<TChange>(
 		countDropped: 0,
 	};
 
+	const rebased = rebaseChangeOverChanges(
+		changeRebaser,
+		change,
+		[...inverses, ...targetPath],
+		ignoreNoChangeViolation,
+	);
+	debugAssert(() => validator(rebased));
 	return {
-		change: rebaseChangeOverChanges(
-			changeRebaser,
-			change,
-			[...inverses, ...targetPath],
-			ignoreNoChangeViolation,
-		),
+		change: rebased,
 		telemetryProperties,
 	};
 }

@@ -3,6 +3,7 @@
  * Licensed under the MIT License.
  */
 
+import { prefixPredicate } from "@fluidframework/core-utils/internal";
 import type { ChangesetLocalId, FieldKindIdentifier, RevisionTag } from "../../core/index.js";
 import { brand, type Mutable } from "../../util/index.js";
 import { setInChangeAtomIdMap, type ChangeAtomIdBTree } from "../changeAtomIdBTree.js";
@@ -14,14 +15,21 @@ import type {
 	NodeChangeset,
 	NodeId,
 } from "./modularChangeTypes.js";
-import { getChangeHandler, nodeChangeFromId, normalizeNodeId } from "./modularChangeUtils.js";
+import {
+	getChangeHandler,
+	isChangesetValid,
+	nodeChangeFromId,
+	normalizeNodeId,
+} from "./modularChangeUtils.js";
+import { conditionalValidation } from "./modularChangeValidation.js";
 
 export function pruneChangeset(
 	changeset: ModularChangeset,
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): ModularChangeset {
-	// Uncomment the following line to facilitate debugging
-	// validateChangeset(changeset, fieldKinds);
+	conditionalValidation(() =>
+		prefixPredicate("Malformed prune input", isChangesetValid(changeset, fieldKinds)),
+	);
 
 	const prunedChangeset: Mutable<ModularChangeset> = {
 		...changeset,
@@ -39,8 +47,9 @@ export function pruneChangeset(
 			fieldKinds,
 		) ?? new Map();
 
-	// Uncomment the following line to facilitate debugging
-	// validateChangeset(prunedChangeset, fieldKinds);
+	conditionalValidation(() =>
+		prefixPredicate("Malformed prune output", isChangesetValid(prunedChangeset, fieldKinds)),
+	);
 	return prunedChangeset;
 }
 

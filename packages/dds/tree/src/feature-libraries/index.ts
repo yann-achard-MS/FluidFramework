@@ -99,6 +99,8 @@ export {
 	DefaultRevisionReplacer,
 	ModularChangeFormatVersion,
 	minimizeModularChangeset,
+	ModularChangeValidation,
+	type ModularChangeValidationAlpha,
 } from "./modular-schema/index.js";
 
 export { mapRootChanges } from "./deltaUtils.js";

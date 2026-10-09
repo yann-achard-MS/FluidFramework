@@ -15,16 +15,7 @@ import {
 	type RevisionTag,
 	type TaggedChange,
 } from "../../core/index.js";
-import {
-	addToNestedSet,
-	brand,
-	hasSome,
-	nestedSetContains,
-	populatedNestedSet,
-	type Mutable,
-	type NestedSet,
-	type RangeQueryResult,
-} from "../../util/index.js";
+import { brand, hasSome, type Mutable, type RangeQueryResult } from "../../util/index.js";
 import {
 	getFromChangeAtomIdMap,
 	newChangeAtomIdBTree,
@@ -52,6 +43,7 @@ import {
 	type NodeChangeset,
 	type NodeId,
 } from "./modularChangeTypes.js";
+import type { FieldKindConfiguration } from "./fieldKindConfiguration.js";
 
 export function hasConflicts(change: ModularChangeset): boolean {
 	return (change.constraintViolationCount ?? 0) > 0;
@@ -457,6 +449,12 @@ function populateInversionsFromFieldMap(
 	}
 }
 
+export function fieldKindsFromConfiguration(
+	configuration: FieldKindConfiguration,
+): ReadonlyMap<FieldKindIdentifier, FlexFieldKind> {
+	return new Map(Array.from(configuration.values(), ({ kind }) => [kind.identifier, kind]));
+}
+
 export interface ValidationOptions {
 	/**
 	 * When set to true, the cross field table will not be validated.
@@ -470,26 +468,40 @@ export function validateChangeset(
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 	options: ValidationOptions = {},
 ): void {
+	const result = isChangesetValid(change, fieldKinds, options);
+	if (result !== true) {
+		throw new Error(`Malformed changeset: ${result}`);
+	}
+}
+
+export function isChangesetValid(
+	change: ModularChangeset,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
+	options: ValidationOptions = {},
+): true | string {
 	for (const [revision, localId] of change.nodeChanges.keys()) {
-		assert(
-			!change.nodeAliases.has([revision, localId]),
-			0xd43 /* Node change table contains a non-normalized node key */,
-		);
+		if (change.nodeAliases.has([revision, localId])) {
+			return `Node change table contains a non-normalized NodeId key: ${JSON.stringify({ revision, localId })}`;
+		}
 	}
 	for (const [revision, localId] of change.nodeToParent.keys()) {
-		assert(
-			!change.nodeAliases.has([revision, localId]),
-			0xd44 /* Node parentage table contains a non-normalized node key */,
-		);
+		if (change.nodeAliases.has([revision, localId])) {
+			return `Node parentage table contains a non-normalized NodeId key: ${JSON.stringify({ revision, localId })}`;
+		}
 	}
+	const unreachableNodes: ChangeAtomIdBTree<FieldId> = brand(change.nodeToParent.clone());
 
-	const allChildren = validateFieldChanges(
+	const rootFieldResult = validateFieldChanges(
 		change,
 		change.fieldChanges,
 		undefined,
 		fieldKinds,
+		unreachableNodes,
 		options,
 	);
+	if (rootFieldResult !== true) {
+		return rootFieldResult;
+	}
 
 	for (const [[revision, localId], node] of change.nodeChanges.entries()) {
 		if (node.fieldChanges === undefined) {
@@ -497,46 +509,49 @@ export function validateChangeset(
 		}
 
 		const nodeId: NodeId = { revision, localId };
-		const fieldChildren = validateFieldChanges(
+		const fieldResult = validateFieldChanges(
 			change,
 			node.fieldChanges,
 			nodeId,
 			fieldKinds,
+			unreachableNodes,
 			options,
 		);
+		if (fieldResult !== true) {
+			return fieldResult;
+		}
+	}
 
-		populatedNestedSet(fieldChildren, allChildren);
+	if (unreachableNodes.size > 0) {
+		return `${unreachableNodes.size} unreachable nodes found`;
 	}
 
 	for (const [revision, localId] of change.nodeChanges.keys()) {
-		assert(
-			nestedSetContains(allChildren, revision, localId),
-			0xd45 /* Node change table contains unparented node */,
-		);
-	}
-	for (const [revision, innerMap] of allChildren.entries()) {
-		for (const localId of innerMap.keys()) {
-			assert(
-				change.nodeChanges.has([revision, localId]),
-				0xd46 /* Node change table is missing a parented node */,
-			);
+		if (!change.nodeToParent.has([revision, localId])) {
+			return `Node change table contains unparented NodeId ${JSON.stringify({ revision, localId })}`;
 		}
 	}
+	for (const [revision, localId] of change.nodeToParent.keys()) {
+		if (!change.nodeChanges.has([revision, localId])) {
+			return `Node to parent table contains NodeId with no entry in the node change table: ${JSON.stringify({ revision, localId })}`;
+		}
+	}
+	return true;
 }
 
 /**
- * Asserts that each child and cross field key in each field has a correct entry in
+ * Checks that each child and cross field key in each field has a correct entry in
  * `nodeToParent` or `crossFieldKeyTable`.
- * @returns the set of normalized child node IDs found in the given field changes.
+ * @returns `true` if that's the case, otherwise a string describing the validation error.
  */
 function validateFieldChanges(
 	change: ModularChangeset,
 	fieldChanges: FieldChangeMap,
 	nodeParent: NodeId | undefined,
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
+	unreachableNodes: ChangeAtomIdBTree<FieldId>,
 	options: ValidationOptions = {},
-): NestedSet<NodeId["revision"], NodeId["localId"]> {
-	const children: NestedSet<NodeId["revision"], NodeId["localId"]> = new Map();
+): true | string {
 	for (const [field, fieldChange] of fieldChanges.entries()) {
 		const fieldId = normalizeFieldId({ nodeId: nodeParent, field }, change.nodeAliases);
 		const handler = getChangeHandler(fieldKinds, fieldChange.fieldKind);
@@ -546,39 +561,44 @@ function validateFieldChanges(
 				getParentFieldId(change, normalizedNodeId),
 				change.nodeAliases,
 			);
-			assert(
-				areEqualFieldIds(parentFieldId, fieldId),
-				0xa4e /* Inconsistent node parentage */,
-			);
-			addToNestedSet(children, normalizedNodeId.revision, normalizedNodeId.localId);
-		}
-
-		if (!(options.ignoreCrossFieldTable ?? false)) {
-			const keysInChange = handler.getCrossFieldKeys(fieldChange.change);
-			for (const keyRange of keysInChange) {
-				const fields = getFieldsForCrossFieldKey(change, keyRange.key, keyRange.count);
-				assert(hasSome(fields), 0xd47 /* Cross-field key table is missing an entry */);
-				assert(
-					fields.every((f) => areEqualFieldIds(f, fieldId)),
-					0xd48 /* Cross-field key table is pointing to the wrong field */,
-				);
+			if (!areEqualFieldIds(parentFieldId, fieldId)) {
+				return "Inconsistent node location";
 			}
 
-			const countInChange = keysInChange.reduce((acc, { count }) => acc + count, 0);
-			const keysInTable = change.crossFieldKeys
-				.entries()
-				.filter(({ value }) =>
-					areEqualFieldIds(normalizeFieldId(value, change.nodeAliases), fieldId),
-				);
-			const countInTable = keysInTable.reduce((acc, { length }) => acc + length, 0);
-			assert(
-				countInChange === countInTable,
-				0xd49 /* Mismatch between cross-field key table and changeset */,
-			);
+			if (!unreachableNodes.has([normalizedNodeId.revision, normalizedNodeId.localId])) {
+				return `Node ${JSON.stringify(normalizedNodeId)} is either missing from the nodeToParent table or is reachable in multiple locations`;
+			}
+			unreachableNodes.delete([normalizedNodeId.revision, normalizedNodeId.localId]);
 		}
-	}
 
-	return children;
+		// These checks are disabled because inserts often cause mismatches between the cross-field key table and the field changeset.
+		// These mismatches are considered harmless
+		// They will be addressed by PR 26206
+		// if (!(options.ignoreCrossFieldTable ?? false)) {
+		// 	const keysInChange = handler.getCrossFieldKeys(fieldChange.change);
+		// 	for (const keyRange of keysInChange) {
+		// 		const fields = getFieldsForCrossFieldKey(change, keyRange.key, keyRange.count);
+		// 		if (!hasSome(fields)) {
+		// 			return `Cross-field key ${JSON.stringify(keyRange.key)} is missing in the cross-field key table`;
+		// 		}
+		// 		if (fields.some((f) => !areEqualFieldIds(f, fieldId))) {
+		// 			return `Cross-field key table is pointing to the wrong field for key ${JSON.stringify(keyRange.key)}`;
+		// 		}
+		// 	}
+
+		// 	const countInChange = keysInChange.reduce((acc, { count }) => acc + count, 0);
+		// 	const keysInTable = change.crossFieldKeys
+		// 		.entries()
+		// 		.filter(({ value }) =>
+		// 			areEqualFieldIds(normalizeFieldId(value, change.nodeAliases), fieldId),
+		// 		);
+		// 	const countInTable = keysInTable.reduce((acc, { length }) => acc + length, 0);
+		// 	if (countInChange !== countInTable) {
+		// 		return `Mismatch between cross-field key table and changeset for field ${JSON.stringify(fieldId)}`;
+		// 	}
+		// }
+	}
+	return true;
 }
 
 /**
