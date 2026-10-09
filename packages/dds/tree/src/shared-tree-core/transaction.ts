@@ -5,12 +5,7 @@
 
 import { createEmitter } from "@fluid-internal/client-utils";
 import type { IDisposable, Listenable } from "@fluidframework/core-interfaces";
-import {
-	assert,
-	debugAssert,
-	prefixPredicate,
-	unreachableCase,
-} from "@fluidframework/core-utils/internal";
+import { assert, prefixPredicate, unreachableCase } from "@fluidframework/core-utils/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
 import {
@@ -30,6 +25,7 @@ import {
 import { getLast, getOrCreate, type JsonCompatibleReadOnlyObject } from "../util/index.js";
 
 import type { SharedTreeBranch, SharedTreeBranchEvents } from "./branch.js";
+import { basicValidation } from "../feature-libraries/index.js";
 
 /**
  * A {@link CustomMetadataTree} under construction.
@@ -508,7 +504,7 @@ export class SquashingTransactionStack<
 								}
 								// Squash all the new commits on the transaction branch into a new commit on the original branch
 								const squash = rebaser.compose(transactionSteps);
-								debugAssert(() =>
+								basicValidation(() =>
 									prefixPredicate(
 										"Malformed composed transaction",
 										changeFamily.validator(squash),
@@ -563,7 +559,10 @@ export class SquashingTransactionStack<
 										unrebasedHead,
 										branch.getHead(),
 										branch.getHead(),
-										changeFamily.validator,
+										(prefix, changeToValidate) =>
+											basicValidation(() =>
+												prefixPredicate(prefix, changeFamily.validator(changeToValidate)),
+											),
 									);
 									assert(
 										rebased.newSourceHead.revision === transactionRevision,

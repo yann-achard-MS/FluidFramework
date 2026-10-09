@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { debugAssert, prefixPredicate } from "@fluidframework/core-utils/internal";
+import { prefixPredicate } from "@fluidframework/core-utils/internal";
 import {
 	type ICodecOptions,
 	type IJsonCodec,
@@ -28,7 +28,7 @@ import {
 import { EncodedModularChangesetV2 } from "./modularChangeFormatV2.js";
 import type { ModularChangeset } from "./modularChangeTypes.js";
 import { isChangesetValid, fieldKindsFromConfiguration } from "./modularChangeUtils.js";
-import { conditionalValidation } from "./modularChangeValidation.js";
+import { basicValidation, fullValidation } from "./modularChangeValidation.js";
 
 type ModularChangeCodec = IJsonCodec<
 	ModularChangeset,
@@ -57,7 +57,7 @@ export function makeModularChangeCodecV2(
 
 	const modularChangeCodec: ModularChangeCodec = {
 		encode: (change, context) => {
-			conditionalValidation(() =>
+			fullValidation(() =>
 				prefixPredicate(
 					"Malformed V2 encode input",
 					isChangesetValid(change, fieldKindsFromConfiguration(fieldKinds)),
@@ -88,7 +88,7 @@ export function makeModularChangeCodecV2(
 			if (encodedChange.noChangeConstraint !== undefined) {
 				decoded.noChangeConstraint = encodedChange.noChangeConstraint;
 			}
-			debugAssert(() =>
+			basicValidation(() =>
 				prefixPredicate(
 					"Malformed V2 decode output",
 					isChangesetValid(decoded, fieldKindsFromConfiguration(fieldKinds)),

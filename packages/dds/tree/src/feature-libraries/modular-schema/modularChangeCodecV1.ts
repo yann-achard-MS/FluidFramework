@@ -3,13 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import {
-	assert,
-	oob,
-	fail,
-	prefixPredicate,
-	debugAssert,
-} from "@fluidframework/core-utils/internal";
+import { assert, oob, fail, prefixPredicate } from "@fluidframework/core-utils/internal";
 import type { TAnySchema } from "@sinclair/typebox";
 
 import {
@@ -82,7 +76,7 @@ import {
 	isChangesetValid,
 	nodeChangeFromId,
 } from "./modularChangeUtils.js";
-import { conditionalValidation } from "./modularChangeValidation.js";
+import { basicValidation, fullValidation } from "./modularChangeValidation.js";
 
 type ModularChangeCodec = IJsonCodec<
 	ModularChangeset,
@@ -664,7 +658,7 @@ export function makeModularChangeCodecV1(
 
 	const modularChangeCodec: ModularChangeCodec = {
 		encode: (change, context) => {
-			conditionalValidation(() =>
+			fullValidation(() =>
 				prefixPredicate(
 					"Malformed V1 encode input",
 					isChangesetValid(change, fieldKindsFromConfiguration(fieldKinds)),
@@ -689,7 +683,7 @@ export function makeModularChangeCodecV1(
 				fieldsCodec,
 				chunkCompressionStrategy,
 			);
-			debugAssert(() =>
+			basicValidation(() =>
 				prefixPredicate(
 					"Malformed V1 decode output",
 					isChangesetValid(decoded, fieldKindsFromConfiguration(fieldKinds)),

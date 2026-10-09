@@ -61,7 +61,7 @@ import {
 	normalizeNodeId,
 } from "./modularChangeUtils.js";
 import { assert, fail, prefixPredicate } from "@fluidframework/core-utils/internal";
-import { conditionalValidation } from "./modularChangeValidation.js";
+import { fullValidation } from "./modularChangeValidation.js";
 
 /**
  * "Minimizes" a {@link ModularChangeset} so that it contains no extraneous
@@ -96,7 +96,7 @@ class ModularChangeMinimizer {
 		private readonly change: ModularChangeset,
 		private readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 	) {
-		conditionalValidation(() =>
+		fullValidation(() =>
 			prefixPredicate("Malformed minimize input", isChangesetValid(change, fieldKinds)),
 		);
 		this.outputAttachStates = getOutputNodeAttachStates(change, fieldKinds);
@@ -119,7 +119,7 @@ class ModularChangeMinimizer {
 
 		(residualChange as Mutable<ModularChangeset>).builds = this.squashBuilds(forestFactory);
 
-		conditionalValidation(() =>
+		fullValidation(() =>
 			prefixPredicate(
 				"Malformed minimize output",
 				isChangesetValid(residualChange, this.fieldKinds),

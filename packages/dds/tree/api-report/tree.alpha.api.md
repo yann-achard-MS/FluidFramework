@@ -964,6 +964,28 @@ export const MapNodeSchema: {
 // @alpha @deprecated
 export const minimize: TransactionPostProcessor;
 
+// @alpha
+export const ModularChangeValidation: ModularChangeValidationAlpha;
+
+// @alpha
+export interface ModularChangeValidationAlpha {
+    readonly currentLevel: ModularChangeValidationLevel;
+    readonly Level: {
+        readonly None: ModularChangeValidationLevel.None;
+        readonly Basic: ModularChangeValidationLevel.Basic;
+        readonly Full: ModularChangeValidationLevel.Full;
+    };
+    readonly runWithLevel: <TOut>(level: ModularChangeValidationLevel, callback: () => TOut) => TOut;
+    readonly setLevel: (level: ModularChangeValidationLevel) => ModularChangeValidationLevel;
+}
+
+// @alpha
+export enum ModularChangeValidationLevel {
+    Basic = 1,
+    Full = 2,
+    None = 0
+}
+
 // @beta
 export interface NoChangeConstraint {
     // (undocumented)

@@ -51,6 +51,7 @@ import {
 	ComparisonForest,
 	flexTreeSlot,
 	MockNodeIdentifierManager,
+	ModularChangeValidation,
 	TreeCompressionStrategy,
 	TreeStatus,
 } from "../../feature-libraries/index.js";
@@ -171,15 +172,20 @@ describe("SharedTree", () => {
 
 	describe("viewWith", () => {
 		it("@Smoke initialize tree", () => {
-			const tree = treeTestFactory();
-			assert.deepEqual(tree.contentSnapshot().schema.rootFieldSchema, storedEmptyFieldSchema);
+			ModularChangeValidation.runWithLevel(ModularChangeValidation.Level.None, () => {
+				const tree = treeTestFactory();
+				assert.deepEqual(
+					tree.contentSnapshot().schema.rootFieldSchema,
+					storedEmptyFieldSchema,
+				);
 
-			const config = new TreeViewConfiguration({
-				schema: numberSchema,
+				const config = new TreeViewConfiguration({
+					schema: numberSchema,
+				});
+				const view = tree.viewWith(config);
+				view.initialize(10);
+				assert.equal(view.root, 10);
 			});
-			const view = tree.viewWith(config);
-			view.initialize(10);
-			assert.equal(view.root, 10);
 		});
 
 		it("initialize-dispose-view with primitive schema", () => {

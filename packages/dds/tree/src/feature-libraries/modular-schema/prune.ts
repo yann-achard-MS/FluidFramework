@@ -21,13 +21,13 @@ import {
 	nodeChangeFromId,
 	normalizeNodeId,
 } from "./modularChangeUtils.js";
-import { conditionalValidation } from "./modularChangeValidation.js";
+import { fullValidation } from "./modularChangeValidation.js";
 
 export function pruneChangeset(
 	changeset: ModularChangeset,
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): ModularChangeset {
-	conditionalValidation(() =>
+	fullValidation(() =>
 		prefixPredicate("Malformed prune input", isChangesetValid(changeset, fieldKinds)),
 	);
 
@@ -47,7 +47,7 @@ export function pruneChangeset(
 			fieldKinds,
 		) ?? new Map();
 
-	conditionalValidation(() =>
+	fullValidation(() =>
 		prefixPredicate("Malformed prune output", isChangesetValid(prunedChangeset, fieldKinds)),
 	);
 	return prunedChangeset;

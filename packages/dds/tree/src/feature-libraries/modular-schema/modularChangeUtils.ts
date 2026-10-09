@@ -15,7 +15,7 @@ import {
 	type RevisionTag,
 	type TaggedChange,
 } from "../../core/index.js";
-import { brand, hasSome, type Mutable, type RangeQueryResult } from "../../util/index.js";
+import { brand, type Mutable, type RangeQueryResult } from "../../util/index.js";
 import {
 	getFromChangeAtomIdMap,
 	newChangeAtomIdBTree,

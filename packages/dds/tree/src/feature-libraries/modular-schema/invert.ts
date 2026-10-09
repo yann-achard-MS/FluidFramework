@@ -42,7 +42,7 @@ import type { CrossFieldTarget } from "./crossFieldQueries.js";
 import type { FlexFieldKind } from "./fieldKind.js";
 import { NodeAttachState, type AtomIdAliasAllocator } from "./fieldChangeHandler.js";
 import { DefaultAtomIdAliasAllocator } from "./defaultAtomIdAliasAllocator.js";
-import { conditionalValidation } from "./modularChangeValidation.js";
+import { fullValidation } from "./modularChangeValidation.js";
 
 /**
  * @param change - The change to invert.
@@ -56,7 +56,7 @@ export function invertModularChange(
 	revisionForInvert: RevisionTag,
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): ModularChangeset {
-	conditionalValidation(() =>
+	fullValidation(() =>
 		prefixPredicate("Malformed invert input", isChangesetValid(change.change, fieldKinds)),
 	);
 
@@ -187,7 +187,7 @@ export function invertModularChange(
 		destroys,
 	});
 
-	conditionalValidation(() =>
+	fullValidation(() =>
 		prefixPredicate("Malformed invert output", isChangesetValid(inverse, fieldKinds)),
 	);
 	return inverse;

@@ -5,7 +5,7 @@
 
 import { createEmitter } from "@fluid-internal/client-utils";
 import type { Listenable } from "@fluidframework/core-interfaces";
-import { assert } from "@fluidframework/core-utils/internal";
+import { assert, prefixPredicate } from "@fluidframework/core-utils/internal";
 import type {
 	OpSpaceCompressedId,
 	SessionSpaceCompressedId,
@@ -29,6 +29,7 @@ import {
 	type RebaseStatsWithDuration,
 } from "../core/index.js";
 import { hasSome, defineLazyCachedProperty } from "../util/index.js";
+import { basicValidation } from "../feature-libraries/index.js";
 
 export type BranchId = SessionSpaceCompressedId | "main";
 export type EncodedBranchId = OpSpaceCompressedId;
@@ -415,7 +416,10 @@ export class SharedTreeBranch<
 				head,
 				upTo,
 				onto.getHead(),
-				this.changeFamily.validator,
+				(prefix, changeToValidate) =>
+					basicValidation(() =>
+						prefixPredicate(prefix, this.changeFamily.validator(changeToValidate)),
+					),
 			),
 		);
 

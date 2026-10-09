@@ -26,7 +26,7 @@ import type {
 	NodeId,
 } from "./modularChangeTypes.js";
 import { isChangesetValid, makeChangesetInversions } from "./modularChangeUtils.js";
-import { conditionalValidation } from "./modularChangeValidation.js";
+import { fullValidation } from "./modularChangeValidation.js";
 import { pruneChangeset } from "./prune.js";
 
 export function removeAllDetachesFilter(
@@ -55,7 +55,7 @@ export function filterEdits(
 	filterFieldEdits: (fieldChange: FieldChange, fieldId: FieldId) => FieldChange,
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): ModularChangeset {
-	conditionalValidation(() =>
+	fullValidation(() =>
 		prefixPredicate("Malformed filterEdits input", isChangesetValid(change, fieldKinds)),
 	);
 

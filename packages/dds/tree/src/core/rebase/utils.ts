@@ -3,12 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import {
-	assert,
-	debugAssert,
-	oob,
-	prefixPredicate,
-} from "@fluidframework/core-utils/internal";
+import { assert, oob } from "@fluidframework/core-utils/internal";
 
 import { defineLazyCachedProperty, hasSome, type Mutable } from "../../util/index.js";
 
@@ -189,7 +184,7 @@ export function rebaseBranch<TChange>(
 	sourceHead: GraphCommit<TChange>,
 	targetCommit: GraphCommit<TChange>,
 	targetHead: GraphCommit<TChange>,
-	validator?: (change: TChange) => true | string,
+	validator?: (prefix: string, change: TChange) => void,
 ): BranchRebaseResult<TChange>;
 export function rebaseBranch<TChange>(
 	mintRevisionTag: () => RevisionTag,
@@ -197,7 +192,7 @@ export function rebaseBranch<TChange>(
 	sourceHead: GraphCommit<TChange>,
 	targetCommit: GraphCommit<TChange>,
 	targetHead = targetCommit,
-	validator: (change: TChange) => true | string = () => true,
+	validator: (prefix: string, change: TChange) => void = () => {},
 ): BranchRebaseResult<TChange> {
 	// Get both source and target as path arrays
 	const sourcePath: GraphCommit<TChange>[] = [];
@@ -338,7 +333,7 @@ export function rebaseBranch<TChange>(
 		"sourceChange",
 		() => {
 			const composed = changeRebaser.compose(editsToCompose);
-			debugAssert(() => prefixPredicate("Malformed rebase net change", validator(composed)));
+			validator("Malformed rebase net change", composed);
 			return composed;
 		},
 	);
@@ -361,7 +356,7 @@ export function rebaseChange<TChange>(
 	targetHead: GraphCommit<TChange>,
 	mintRevisionTag: () => RevisionTag,
 	ignoreNoChangeViolation?: boolean,
-	validator: (change: TChange) => true | string = () => true,
+	validator: (prefix: string, change: TChange) => void = () => {},
 ): RebaseChangeResult<TChange> {
 	const sourcePath: GraphCommit<TChange>[] = [];
 	const targetPath: GraphCommit<TChange>[] = [];
@@ -387,7 +382,7 @@ export function rebaseChange<TChange>(
 		[...inverses, ...targetPath],
 		ignoreNoChangeViolation,
 	);
-	debugAssert(() => validator(rebased));
+	validator("Malformed rebase change result", rebased);
 	return {
 		change: rebased,
 		telemetryProperties,

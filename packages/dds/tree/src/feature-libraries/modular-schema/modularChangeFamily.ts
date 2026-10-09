@@ -116,7 +116,7 @@ import {
 import { invertModularChange } from "./invert.js";
 import { pruneChangeset } from "./prune.js";
 import { removeAllAttachesFilter, removeAllDetachesFilter } from "./filterEdits.js";
-import { conditionalValidation, ModularChangeValidation } from "./modularChangeValidation.js";
+import { fullValidation, ModularChangeValidation } from "./modularChangeValidation.js";
 
 /**
  * Implementation of ChangeFamily which delegates work in a given field to the appropriate FieldKind
@@ -154,19 +154,17 @@ export class ModularChangeFamily
 	public readonly validator = (change: ModularChangeset): true | string =>
 		isChangesetValid(change, this.fieldKinds);
 
-	private conditionalValidation(prefix: string, change: ModularChangeset): void {
-		conditionalValidation(() =>
-			prefixPredicate(prefix, isChangesetValid(change, this.fieldKinds)),
-		);
+	private fullValidation(prefix: string, change: ModularChangeset): void {
+		fullValidation(() => prefixPredicate(prefix, isChangesetValid(change, this.fieldKinds)));
 	}
 
 	public buildProcessor(
 		processFn: ProcessChangeFn<ModularChangeset, ModularChangeFamily>,
 	): (change: ModularChangeset) => ModularChangeset {
 		return (change: ModularChangeset) => {
-			this.conditionalValidation("Malformed buildProcessor input", change);
+			this.fullValidation("Malformed buildProcessor input", change);
 			const processed = processFn(change, this);
-			this.conditionalValidation("Malformed buildProcessor output", processed);
+			this.fullValidation("Malformed buildProcessor output", processed);
 			return processed;
 		};
 	}
@@ -250,8 +248,8 @@ export class ModularChangeFamily
 		revInfos: RevisionInfo[],
 		idState: IdAllocationState,
 	): ModularChangeset {
-		this.conditionalValidation("Malformed composePair input1", change1);
-		this.conditionalValidation("Malformed composePair input2", change2);
+		this.fullValidation("Malformed composePair input1", change1);
+		this.fullValidation("Malformed composePair input2", change2);
 
 		const { fieldChanges, nodeChanges, nodeToParent, nodeAliases, crossFieldKeys } =
 			this.composeAllFields(change1, change2, revInfos, idState);
@@ -281,7 +279,7 @@ export class ModularChangeFamily
 			refreshers: allRefreshers,
 		});
 
-		this.conditionalValidation("Malformed composePair output", composed);
+		this.fullValidation("Malformed composePair output", composed);
 		return composed;
 	}
 
@@ -773,11 +771,8 @@ export class ModularChangeFamily
 		revisionMetadata: RevisionMetadataSource,
 		ignoreNoChangeViolation: boolean = false,
 	): ModularChangeset {
-		this.conditionalValidation("Malformed rebase input change", taggedChange.change);
-		this.conditionalValidation(
-			"Malformed rebase input base",
-			potentiallyConflictedOver.change,
-		);
+		this.fullValidation("Malformed rebase input change", taggedChange.change);
+		this.fullValidation("Malformed rebase input base", potentiallyConflictedOver.change);
 
 		// Our current cell ordering scheme in sequences depends on being able to rebase over a change with conflicts.
 		// This means that we must rebase over a muted version of the conflicted changeset.
@@ -1332,7 +1327,7 @@ export class ModularChangeFamily
 		change: ModularChangeset,
 		replacer: RevisionReplacer,
 	): ModularChangeset {
-		this.conditionalValidation("Malformed changeRevision input", change);
+		this.fullValidation("Malformed changeRevision input", change);
 
 		const updatedFields = this.replaceFieldMapRevisions(change.fieldChanges, replacer);
 		const updatedNodes = replaceIdMapRevisions(change.nodeChanges, replacer, (nodeChangeset) =>
@@ -1374,7 +1369,7 @@ export class ModularChangeFamily
 
 		updated.revisions = [{ revision: replacer.updatedRevision }];
 
-		this.conditionalValidation("Malformed changeRevision output", updated);
+		this.fullValidation("Malformed changeRevision output", updated);
 		return updated;
 	}
 
@@ -1438,14 +1433,14 @@ export class ModularChangeFamily
 	 * Returns a copy of the given changeset with the same declarations (e.g., new cells) but no actual changes.
 	 */
 	private muteChange(change: ModularChangeset): ModularChangeset {
-		this.conditionalValidation("Malformed muteChange input", change);
+		this.fullValidation("Malformed muteChange input", change);
 		const muted: Mutable<ModularChangeset> = {
 			...change,
 			crossFieldKeys: newCrossFieldKeyTable(),
 			fieldChanges: this.muteFieldChanges(change.fieldChanges),
 			nodeChanges: brand(change.nodeChanges.mapValues((v) => this.muteNodeChange(v))),
 		};
-		this.conditionalValidation("Malformed muteChange output", muted);
+		this.fullValidation("Malformed muteChange output", muted);
 		return muted;
 	}
 
@@ -2177,7 +2172,7 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 		codecOptions: CodecWriteOptions,
 	) {
 		super((change: TaggedChange<ModularChangeset>) => {
-			conditionalValidation(() => isChangesetValid(change.change, fieldKinds));
+			fullValidation(() => isChangesetValid(change.change, fieldKinds));
 			changeReceiver(change);
 		});
 		this.idAllocator = idAllocatorFromMaxId();
@@ -2297,7 +2292,7 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 		const revInfo = [...revisions].map((revision) => ({ revision }));
 		const composedChange: Mutable<ModularChangeset> = {
 			// The ModularChangeset instances composed here are not expected to be well-formed
-			...ModularChangeValidation.configureInScope(false, () =>
+			...ModularChangeValidation.runWithLevel(ModularChangeValidation.Level.None, () =>
 				this.rebaser.compose(changeMaps),
 			),
 			revisions: revInfo,

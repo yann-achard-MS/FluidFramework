@@ -31,6 +31,7 @@ export {
 export {
 	ModularChangeValidation,
 	type ModularChangeValidationAlpha,
+	ModularChangeValidationLevel,
 	TreeStatus,
 	TreeCompressionStrategy,
 	type TreeIndex,
