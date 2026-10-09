@@ -30,17 +30,20 @@ import type {
 import {
 	fieldIdKeyFromFieldId,
 	getChangeHandler,
+	isChangesetValid,
 	nodeChangeFromId,
 	normalizeFieldId,
 	tryRemoveDetachLocation,
 	type FieldIdKey,
 } from "./modularChangeUtils.js";
 import { fail } from "@fluidframework/core-utils/internal";
+import { conditionalValidation } from "./modularChangeValidation.js";
 
 export function pruneChangeset(
 	changeset: ModularChangeset,
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): ModularChangeset {
+	conditionalValidation(() => isChangesetValid(changeset, fieldKinds));
 	const prunedChangeset: Mutable<ModularChangeset> = {
 		...changeset,
 		nodeChanges: changeset.nodeChanges.clone(),
@@ -78,6 +81,7 @@ export function pruneChangeset(
 		fieldKinds,
 	);
 
+	conditionalValidation(() => isChangesetValid(prunedChangeset, fieldKinds));
 	return prunedChangeset;
 }
 function pruneFieldMap(

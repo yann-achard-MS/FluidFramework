@@ -82,6 +82,7 @@ import {
 	type NodeLocation,
 	type RootNodeTable,
 } from "./modularChangeTypes.js";
+import { conditionalValidation } from "./modularChangeValidation.js";
 
 type ModularChangeCodec = IJsonCodec<
 	ModularChangeset,
@@ -346,6 +347,9 @@ export function makeModularChangeCodecV3(
 
 	const modularChangeCodec: ModularChangeCodec = {
 		encode: (change, context) => {
+			conditionalValidation(() =>
+				isChangesetValid(change, fieldKindsFromConfiguration(fieldKinds)),
+			);
 			const encodeNode = (nodeId: NodeId): EncodedNodeChangeset => {
 				// TODO: Handle node aliasing.
 				const node = change.nodeChanges.get([nodeId.revision, nodeId.localId]);

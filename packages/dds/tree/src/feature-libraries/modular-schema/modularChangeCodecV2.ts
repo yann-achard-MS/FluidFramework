@@ -29,6 +29,7 @@ import {
 import { EncodedModularChangesetV2 } from "./modularChangeFormatV2.js";
 import type { ModularChangeset } from "./modularChangeTypes.js";
 import { fieldKindsFromConfiguration, isChangesetValid } from "./modularChangeUtils.js";
+import { conditionalValidation } from "./modularChangeValidation.js";
 
 type ModularChangeCodec = IJsonCodec<
 	ModularChangeset,
@@ -57,6 +58,9 @@ export function makeModularChangeCodecV2(
 
 	const modularChangeCodec: ModularChangeCodec = {
 		encode: (change, context) => {
+			conditionalValidation(() =>
+				isChangesetValid(change, fieldKindsFromConfiguration(fieldKinds)),
+			);
 			const encoded = encodeChange(
 				change,
 				context,

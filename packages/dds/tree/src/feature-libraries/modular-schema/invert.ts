@@ -55,6 +55,7 @@ import {
 	getFirstFieldForDetach,
 	getRevInfoFromTaggedChanges,
 	hasConflicts,
+	isChangesetValid,
 	makeCrossFieldKeyTable,
 	makeModularChangeset,
 	newConstraintState,
@@ -69,6 +70,7 @@ import {
 	type CrossFieldMap,
 	type InvertNodeManager,
 } from "./crossFieldQueries.js";
+import { conditionalValidation } from "./modularChangeValidation.js";
 
 /**
  * @param change - The change to invert.
@@ -82,6 +84,7 @@ export function invertModularChange(
 	revisionForInvert: RevisionTag,
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): ModularChangeset {
+	conditionalValidation(() => isChangesetValid(change.change, fieldKinds));
 	// Rollback changesets destroy the nodes created by the change being rolled back.
 	const destroys = isRollback ? invertBuilds(change.change.builds) : undefined;
 
@@ -191,7 +194,7 @@ export function invertModularChange(
 		fieldKinds,
 	);
 
-	return makeModularChangeset({
+	const inverse = makeModularChangeset({
 		rebaseVersion: change.change.rebaseVersion,
 		fieldChanges: invertedFields,
 		nodeChanges: invertedNodes,
@@ -206,6 +209,8 @@ export function invertModularChange(
 		noChangeConstraintOnRevert,
 		destroys,
 	});
+	conditionalValidation(() => isChangesetValid(inverse, fieldKinds));
+	return inverse;
 }
 
 function invertFieldMap(

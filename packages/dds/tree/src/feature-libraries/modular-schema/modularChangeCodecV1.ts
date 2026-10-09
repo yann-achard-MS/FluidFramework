@@ -97,6 +97,7 @@ import {
 	isChangesetValid,
 	type FieldIdKey,
 } from "./modularChangeUtils.js";
+import { conditionalValidation } from "./modularChangeValidation.js";
 
 type ModularChangeCodec = IJsonCodec<
 	ModularChangeset,
@@ -402,8 +403,11 @@ export function makeModularChangeCodecV1(
 	);
 
 	const modularChangeCodec: ModularChangeCodec = {
-		encode: (change, context) =>
-			encodeChange(
+		encode: (change, context) => {
+			conditionalValidation(() =>
+				isChangesetValid(change, fieldKindsFromConfiguration(fieldKinds)),
+			);
+			return encodeChange(
 				change,
 				context,
 				fieldKinds,
@@ -411,7 +415,8 @@ export function makeModularChangeCodecV1(
 				revisionTagCodec,
 				fieldsCodec,
 				chunkCompressionStrategy,
-			),
+			);
+		},
 
 		decode: (encodedChange, context) => {
 			const decoded = decodeChange(

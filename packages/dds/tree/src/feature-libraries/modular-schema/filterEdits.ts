@@ -23,8 +23,14 @@ import type {
 	NodeId,
 	RootNodeTable,
 } from "./modularChangeTypes.js";
-import { addNodeRename, makeChangesetInversions, newRootTable } from "./modularChangeUtils.js";
+import {
+	addNodeRename,
+	isChangesetValid,
+	makeChangesetInversions,
+	newRootTable,
+} from "./modularChangeUtils.js";
 import { pruneChangeset } from "./prune.js";
+import { conditionalValidation } from "./modularChangeValidation.js";
 
 export function removeAllDetachesFilter(
 	_id: ChangeAtomId,
@@ -66,6 +72,7 @@ export function filterEdits(
 		| undefined,
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): ModularChangeset {
+	conditionalValidation(() => isChangesetValid(change, fieldKinds));
 	const filteredFieldChanges = filterFieldMapEdits(
 		change.fieldChanges,
 		undefined,

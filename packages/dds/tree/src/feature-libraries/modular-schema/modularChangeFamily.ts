@@ -157,6 +157,7 @@ import {
 import { invertModularChange } from "./invert.js";
 import { pruneChangeset } from "./prune.js";
 import { removeAllAttachesFilter, removeAllDetachesFilter } from "./filterEdits.js";
+import { conditionalValidation, ModularChangeValidation } from "./modularChangeValidation.js";
 
 /**
  * Implementation of ChangeFamily which delegates work in a given field to the appropriate FieldKind
@@ -190,10 +191,19 @@ export class ModularChangeFamily
 	public readonly validator = (change: ModularChangeset): true | string =>
 		isChangesetValid(change, this.fieldKinds);
 
+	private conditionalValidation(change: ModularChangeset): void {
+		conditionalValidation(() => isChangesetValid(change, this.fieldKinds));
+	}
+
 	public buildProcessor(
 		processFn: ProcessChangeFn<ModularChangeset, ModularChangeFamily>,
 	): (change: ModularChangeset) => ModularChangeset {
-		return (change: ModularChangeset) => processFn(change, this);
+		return (change: ModularChangeset) => {
+			this.conditionalValidation(change);
+			const processed = processFn(change, this);
+			this.conditionalValidation(processed);
+			return processed;
+		};
 	}
 
 	/**
@@ -274,6 +284,8 @@ export class ModularChangeFamily
 		change2: ModularChangeset,
 		idState: IdAllocationState,
 	): ModularChangeset {
+		this.conditionalValidation(change1);
+		this.conditionalValidation(change2);
 		const revInfos = composeRevInfos(change1.revisions, change2.revisions);
 
 		const { fieldChanges, nodeChanges, nodeToParent, nodeAliases, crossFieldKeys, rootNodes } =
@@ -307,6 +319,7 @@ export class ModularChangeFamily
 		});
 
 		removeUnnecessaryDetachLocations(composed.rootNodes, composed.rebaseVersion);
+		this.conditionalValidation(composed);
 		return composed;
 	}
 
@@ -818,6 +831,9 @@ export class ModularChangeFamily
 		revisionMetadata: RevisionMetadataSource,
 		ignoreNoChangeViolation: boolean = false,
 	): ModularChangeset {
+		this.conditionalValidation(taggedChange.change);
+		this.conditionalValidation(potentiallyConflictedOver.change);
+
 		// Our current cell ordering scheme in sequences depends on being able to rebase over a change with conflicts.
 		// This means that we must rebase over a muted version of the conflicted changeset.
 		// That is, a version that includes its declarations (e.g., new cells) but not its changes.
@@ -1461,10 +1477,12 @@ export class ModularChangeFamily
 	}
 
 	public ensureCompatibility(change: ModularChangeset): ModularChangeset {
+		this.conditionalValidation(change);
+
 		const getInputRootId = (id: ChangeAtomId, count: number): RangeQueryResult<ChangeAtomId> =>
 			firstDetachIdFromAttachId(change.rootNodes, id, count);
 
-		return {
+		const output: ModularChangeset = {
 			...change,
 			fieldChanges: this.ensureCompatForFieldChanges(
 				change.fieldChanges,
@@ -1477,6 +1495,8 @@ export class ModularChangeFamily
 				),
 			),
 		};
+		this.conditionalValidation(output);
+		return output;
 	}
 
 	private ensureCompatForFieldChanges(
@@ -1529,6 +1549,7 @@ export class ModularChangeFamily
 		change: ModularChangeset,
 		replacer: RevisionReplacer,
 	): ModularChangeset {
+		this.conditionalValidation(change);
 		const updatedFields = this.replaceFieldMapRevisions(change.fieldChanges, replacer);
 		const updatedNodes = replaceIdMapRevisions(change.nodeChanges, replacer, (nodeChangeset) =>
 			this.replaceNodeChangesetRevisions(nodeChangeset, replacer),
@@ -1573,6 +1594,7 @@ export class ModularChangeFamily
 
 		updated.revisions = [{ revision: replacer.updatedRevision }];
 
+		this.conditionalValidation(updated);
 		return updated;
 	}
 
@@ -1642,6 +1664,8 @@ export class ModularChangeFamily
 	 * Returns a copy of the given changeset with the same declarations (e.g., new cells) but no actual changes.
 	 */
 	private muteChange(change: ModularChangeset): ModularChangeset {
+		this.conditionalValidation(change);
+
 		const muted: Mutable<ModularChangeset> = {
 			...change,
 			rootNodes: muteRootChanges(change.rootNodes),
@@ -1649,6 +1673,7 @@ export class ModularChangeFamily
 			fieldChanges: this.muteFieldChanges(change.fieldChanges),
 			nodeChanges: brand(change.nodeChanges.mapValues((v) => this.muteNodeChange(v))),
 		};
+		this.conditionalValidation(muted);
 		return muted;
 	}
 
@@ -2838,7 +2863,10 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 		codecOptions: CodecWriteOptions,
 		rebaseVersionOverride?: RebaseVersion,
 	) {
-		super(changeReceiver);
+		super((change: TaggedChange<ModularChangeset>) => {
+			conditionalValidation(() => isChangesetValid(change.change, fieldKinds));
+			changeReceiver(change);
+		});
 		this.idAllocator = idAllocatorFromMaxId();
 		this.codecOptions = codecOptions;
 		// TODO: make this dependent on the CodecWriteOptions
@@ -2963,7 +2991,10 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 		});
 		const revInfo = [...revisions].map((revision) => ({ revision }));
 		const composedChange: Mutable<ModularChangeset> = {
-			...this.rebaser.compose(changeMaps),
+			// The ModularChangeset instances composed here are not expected to be well-formed
+			...ModularChangeValidation.configureInScope(false, () =>
+				this.rebaser.compose(changeMaps),
+			),
 			revisions: revInfo,
 		};
 
