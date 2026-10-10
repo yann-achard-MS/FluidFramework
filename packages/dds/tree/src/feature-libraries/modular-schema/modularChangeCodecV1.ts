@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { assert, oob, fail, prefixPredicate } from "@fluidframework/core-utils/internal";
+import { assert, oob, fail } from "@fluidframework/core-utils/internal";
 import type { TAnySchema } from "@sinclair/typebox";
 
 import {
@@ -72,11 +72,11 @@ import {
 	type NodeId,
 } from "./modularChangeTypes.js";
 import {
+	basicChangeValidation,
 	fieldKindsFromConfiguration,
-	isChangesetValid,
+	fullChangeValidation,
 	nodeChangeFromId,
 } from "./modularChangeUtils.js";
-import { basicValidation, fullValidation } from "./modularChangeValidation.js";
 
 type ModularChangeCodec = IJsonCodec<
 	ModularChangeset,
@@ -658,11 +658,10 @@ export function makeModularChangeCodecV1(
 
 	const modularChangeCodec: ModularChangeCodec = {
 		encode: (change, context) => {
-			fullValidation(() =>
-				prefixPredicate(
-					"Malformed V1 encode input",
-					isChangesetValid(change, fieldKindsFromConfiguration(fieldKinds)),
-				),
+			fullChangeValidation(
+				"Malformed V1 encode input",
+				change,
+				fieldKindsFromConfiguration(fieldKinds),
 			);
 			return encodeChange(
 				change,
@@ -683,11 +682,10 @@ export function makeModularChangeCodecV1(
 				fieldsCodec,
 				chunkCompressionStrategy,
 			);
-			basicValidation(() =>
-				prefixPredicate(
-					"Malformed V1 decode output",
-					isChangesetValid(decoded, fieldKindsFromConfiguration(fieldKinds)),
-				),
+			basicChangeValidation(
+				"Malformed V1 decode output",
+				decoded,
+				fieldKindsFromConfiguration(fieldKinds),
 			);
 			return decoded;
 		},

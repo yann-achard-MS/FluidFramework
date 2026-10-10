@@ -55,13 +55,12 @@ import type {
 	NodeId,
 } from "./modularChangeTypes.js";
 import {
+	fullChangeValidation,
 	getChangeHandler,
-	isChangesetValid,
 	nodeChangeFromId,
 	normalizeNodeId,
 } from "./modularChangeUtils.js";
-import { assert, fail, prefixPredicate } from "@fluidframework/core-utils/internal";
-import { fullValidation } from "./modularChangeValidation.js";
+import { assert, fail } from "@fluidframework/core-utils/internal";
 
 /**
  * "Minimizes" a {@link ModularChangeset} so that it contains no extraneous
@@ -96,9 +95,7 @@ class ModularChangeMinimizer {
 		private readonly change: ModularChangeset,
 		private readonly fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 	) {
-		fullValidation(() =>
-			prefixPredicate("Malformed minimize input", isChangesetValid(change, fieldKinds)),
-		);
+		fullChangeValidation("Malformed minimize input", change, fieldKinds);
 		this.outputAttachStates = getOutputNodeAttachStates(change, fieldKinds);
 		const nodeInfo = getNodeInfo(change, fieldKinds);
 		this.builtNodeIds = nodeInfo.builtNodeIds;
@@ -119,12 +116,7 @@ class ModularChangeMinimizer {
 
 		(residualChange as Mutable<ModularChangeset>).builds = this.squashBuilds(forestFactory);
 
-		fullValidation(() =>
-			prefixPredicate(
-				"Malformed minimize output",
-				isChangesetValid(residualChange, this.fieldKinds),
-			),
-		);
+		fullChangeValidation("Malformed minimize output", residualChange, this.fieldKinds);
 		return residualChange;
 	}
 

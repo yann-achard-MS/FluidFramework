@@ -3,7 +3,6 @@
  * Licensed under the MIT License.
  */
 
-import { prefixPredicate } from "@fluidframework/core-utils/internal";
 import {
 	type ICodecOptions,
 	type IJsonCodec,
@@ -27,8 +26,11 @@ import {
 } from "./modularChangeCodecV1.js";
 import { EncodedModularChangesetV2 } from "./modularChangeFormatV2.js";
 import type { ModularChangeset } from "./modularChangeTypes.js";
-import { isChangesetValid, fieldKindsFromConfiguration } from "./modularChangeUtils.js";
-import { basicValidation, fullValidation } from "./modularChangeValidation.js";
+import {
+	fieldKindsFromConfiguration,
+	fullChangeValidation,
+	basicChangeValidation,
+} from "./modularChangeUtils.js";
 
 type ModularChangeCodec = IJsonCodec<
 	ModularChangeset,
@@ -57,11 +59,10 @@ export function makeModularChangeCodecV2(
 
 	const modularChangeCodec: ModularChangeCodec = {
 		encode: (change, context) => {
-			fullValidation(() =>
-				prefixPredicate(
-					"Malformed V2 encode input",
-					isChangesetValid(change, fieldKindsFromConfiguration(fieldKinds)),
-				),
+			fullChangeValidation(
+				"Malformed V2 encode input",
+				change,
+				fieldKindsFromConfiguration(fieldKinds),
 			);
 			const encoded = encodeChange(
 				change,
@@ -88,11 +89,10 @@ export function makeModularChangeCodecV2(
 			if (encodedChange.noChangeConstraint !== undefined) {
 				decoded.noChangeConstraint = encodedChange.noChangeConstraint;
 			}
-			basicValidation(() =>
-				prefixPredicate(
-					"Malformed V2 decode output",
-					isChangesetValid(decoded, fieldKindsFromConfiguration(fieldKinds)),
-				),
+			basicChangeValidation(
+				"Malformed V2 decode output",
+				decoded,
+				fieldKindsFromConfiguration(fieldKinds),
 			);
 			return decoded;
 		},

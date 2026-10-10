@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { assert, fail, prefixPredicate } from "@fluidframework/core-utils/internal";
+import { assert, fail } from "@fluidframework/core-utils/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 import { BTree } from "@tylerbu/sorted-btree-es6";
 import { lt } from "semver-ts";
@@ -112,11 +112,12 @@ import {
 	updateConstraintsForFields,
 	type CrossFieldTable,
 	isChangesetValid,
+	fullChangeValidation,
 } from "./modularChangeUtils.js";
 import { invertModularChange } from "./invert.js";
 import { pruneChangeset } from "./prune.js";
 import { removeAllAttachesFilter, removeAllDetachesFilter } from "./filterEdits.js";
-import { fullValidation, ModularChangeValidation } from "./modularChangeValidation.js";
+import { ModularChangeValidation } from "./modularChangeValidation.js";
 
 /**
  * Implementation of ChangeFamily which delegates work in a given field to the appropriate FieldKind
@@ -154,17 +155,13 @@ export class ModularChangeFamily
 	public readonly validator = (change: ModularChangeset): true | string =>
 		isChangesetValid(change, this.fieldKinds);
 
-	private fullValidation(prefix: string, change: ModularChangeset): void {
-		fullValidation(() => prefixPredicate(prefix, isChangesetValid(change, this.fieldKinds)));
-	}
-
 	public buildProcessor(
 		processFn: ProcessChangeFn<ModularChangeset, ModularChangeFamily>,
 	): (change: ModularChangeset) => ModularChangeset {
 		return (change: ModularChangeset) => {
-			this.fullValidation("Malformed buildProcessor input", change);
+			fullChangeValidation("Malformed buildProcessor input", change, this.fieldKinds);
 			const processed = processFn(change, this);
-			this.fullValidation("Malformed buildProcessor output", processed);
+			fullChangeValidation("Malformed buildProcessor output", processed, this.fieldKinds);
 			return processed;
 		};
 	}
@@ -248,8 +245,8 @@ export class ModularChangeFamily
 		revInfos: RevisionInfo[],
 		idState: IdAllocationState,
 	): ModularChangeset {
-		this.fullValidation("Malformed composePair input1", change1);
-		this.fullValidation("Malformed composePair input2", change2);
+		fullChangeValidation("Malformed composePair input1", change1, this.fieldKinds);
+		fullChangeValidation("Malformed composePair input2", change2, this.fieldKinds);
 
 		const { fieldChanges, nodeChanges, nodeToParent, nodeAliases, crossFieldKeys } =
 			this.composeAllFields(change1, change2, revInfos, idState);
@@ -279,7 +276,7 @@ export class ModularChangeFamily
 			refreshers: allRefreshers,
 		});
 
-		this.fullValidation("Malformed composePair output", composed);
+		fullChangeValidation("Malformed composePair output", composed, this.fieldKinds);
 		return composed;
 	}
 
@@ -771,8 +768,16 @@ export class ModularChangeFamily
 		revisionMetadata: RevisionMetadataSource,
 		ignoreNoChangeViolation: boolean = false,
 	): ModularChangeset {
-		this.fullValidation("Malformed rebase input change", taggedChange.change);
-		this.fullValidation("Malformed rebase input base", potentiallyConflictedOver.change);
+		fullChangeValidation(
+			"Malformed rebase input change",
+			taggedChange.change,
+			this.fieldKinds,
+		);
+		fullChangeValidation(
+			"Malformed rebase input base",
+			potentiallyConflictedOver.change,
+			this.fieldKinds,
+		);
 
 		// Our current cell ordering scheme in sequences depends on being able to rebase over a change with conflicts.
 		// This means that we must rebase over a muted version of the conflicted changeset.
@@ -1327,7 +1332,7 @@ export class ModularChangeFamily
 		change: ModularChangeset,
 		replacer: RevisionReplacer,
 	): ModularChangeset {
-		this.fullValidation("Malformed changeRevision input", change);
+		fullChangeValidation("Malformed changeRevision input", change, this.fieldKinds);
 
 		const updatedFields = this.replaceFieldMapRevisions(change.fieldChanges, replacer);
 		const updatedNodes = replaceIdMapRevisions(change.nodeChanges, replacer, (nodeChangeset) =>
@@ -1369,7 +1374,7 @@ export class ModularChangeFamily
 
 		updated.revisions = [{ revision: replacer.updatedRevision }];
 
-		this.fullValidation("Malformed changeRevision output", updated);
+		fullChangeValidation("Malformed changeRevision output", updated, this.fieldKinds);
 		return updated;
 	}
 
@@ -1433,14 +1438,14 @@ export class ModularChangeFamily
 	 * Returns a copy of the given changeset with the same declarations (e.g., new cells) but no actual changes.
 	 */
 	private muteChange(change: ModularChangeset): ModularChangeset {
-		this.fullValidation("Malformed muteChange input", change);
+		fullChangeValidation("Malformed muteChange input", change, this.fieldKinds);
 		const muted: Mutable<ModularChangeset> = {
 			...change,
 			crossFieldKeys: newCrossFieldKeyTable(),
 			fieldChanges: this.muteFieldChanges(change.fieldChanges),
 			nodeChanges: brand(change.nodeChanges.mapValues((v) => this.muteNodeChange(v))),
 		};
-		this.fullValidation("Malformed muteChange output", muted);
+		fullChangeValidation("Malformed muteChange output", muted, this.fieldKinds);
 		return muted;
 	}
 
@@ -2172,7 +2177,7 @@ export class ModularEditBuilder extends EditBuilder<ModularChangeset> {
 		codecOptions: CodecWriteOptions,
 	) {
 		super((change: TaggedChange<ModularChangeset>) => {
-			fullValidation(() => isChangesetValid(change.change, fieldKinds));
+			fullChangeValidation("Malformed built change", change.change, fieldKinds);
 			changeReceiver(change);
 		});
 		this.idAllocator = idAllocatorFromMaxId();

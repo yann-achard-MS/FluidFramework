@@ -5,7 +5,7 @@
 
 import { createEmitter } from "@fluid-internal/client-utils";
 import type { Listenable } from "@fluidframework/core-interfaces";
-import { assert, prefixPredicate } from "@fluidframework/core-utils/internal";
+import { assert } from "@fluidframework/core-utils/internal";
 import type {
 	OpSpaceCompressedId,
 	SessionSpaceCompressedId,
@@ -417,9 +417,7 @@ export class SharedTreeBranch<
 				upTo,
 				onto.getHead(),
 				(prefix, changeToValidate) =>
-					basicValidation(() =>
-						prefixPredicate(prefix, this.changeFamily.validator(changeToValidate)),
-					),
+					basicValidation(prefix, () => this.changeFamily.validator(changeToValidate)),
 			),
 		);
 

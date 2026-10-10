@@ -5,7 +5,7 @@
 
 import { createEmitter } from "@fluid-internal/client-utils";
 import type { IDisposable, Listenable } from "@fluidframework/core-interfaces";
-import { assert, prefixPredicate, unreachableCase } from "@fluidframework/core-utils/internal";
+import { assert, unreachableCase } from "@fluidframework/core-utils/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
 import {
@@ -504,11 +504,8 @@ export class SquashingTransactionStack<
 								}
 								// Squash all the new commits on the transaction branch into a new commit on the original branch
 								const squash = rebaser.compose(transactionSteps);
-								basicValidation(() =>
-									prefixPredicate(
-										"Malformed composed transaction",
-										changeFamily.validator(squash),
-									),
+								basicValidation("Malformed composed transaction", () =>
+									changeFamily.validator(squash),
 								);
 
 								// Apply this transaction's post-processor (if any) to the squashed change (for example, to
@@ -560,9 +557,7 @@ export class SquashingTransactionStack<
 										branch.getHead(),
 										branch.getHead(),
 										(prefix, changeToValidate) =>
-											basicValidation(() =>
-												prefixPredicate(prefix, changeFamily.validator(changeToValidate)),
-											),
+											basicValidation(prefix, () => changeFamily.validator(changeToValidate)),
 									);
 									assert(
 										rebased.newSourceHead.revision === transactionRevision,

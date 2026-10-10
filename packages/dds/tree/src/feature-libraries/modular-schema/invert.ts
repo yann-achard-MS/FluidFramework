@@ -3,7 +3,7 @@
  * Licensed under the MIT License.
  */
 
-import { assert, fail, prefixPredicate } from "@fluidframework/core-utils/internal";
+import { assert, fail } from "@fluidframework/core-utils/internal";
 import {
 	revisionMetadataSourceFromInfo,
 	type ChangeAtomId,
@@ -27,10 +27,10 @@ import type {
 } from "./modularChangeTypes.js";
 import {
 	CrossFieldManagerI,
+	fullChangeValidation,
 	getChangeHandler,
 	getRevInfoFromTaggedChanges,
 	hasConflicts,
-	isChangesetValid,
 	makeChangesetInversions,
 	makeModularChangeset,
 	newConstraintState,
@@ -42,7 +42,6 @@ import type { CrossFieldTarget } from "./crossFieldQueries.js";
 import type { FlexFieldKind } from "./fieldKind.js";
 import { NodeAttachState, type AtomIdAliasAllocator } from "./fieldChangeHandler.js";
 import { DefaultAtomIdAliasAllocator } from "./defaultAtomIdAliasAllocator.js";
-import { fullValidation } from "./modularChangeValidation.js";
 
 /**
  * @param change - The change to invert.
@@ -56,9 +55,7 @@ export function invertModularChange(
 	revisionForInvert: RevisionTag,
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): ModularChangeset {
-	fullValidation(() =>
-		prefixPredicate("Malformed invert input", isChangesetValid(change.change, fieldKinds)),
-	);
+	fullChangeValidation("Malformed invert input", change.change, fieldKinds);
 
 	// Rollback changesets destroy the nodes created by the change being rolled back.
 	const destroys = isRollback ? invertBuilds(change.change.builds) : undefined;
@@ -187,9 +184,7 @@ export function invertModularChange(
 		destroys,
 	});
 
-	fullValidation(() =>
-		prefixPredicate("Malformed invert output", isChangesetValid(inverse, fieldKinds)),
-	);
+	fullChangeValidation("Malformed invert output", inverse, fieldKinds);
 	return inverse;
 }
 

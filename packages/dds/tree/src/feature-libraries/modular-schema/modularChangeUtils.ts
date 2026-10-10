@@ -44,6 +44,7 @@ import {
 	type NodeId,
 } from "./modularChangeTypes.js";
 import type { FieldKindConfiguration } from "./fieldKindConfiguration.js";
+import { basicValidation, fullValidation } from "./modularChangeValidation.js";
 
 export function hasConflicts(change: ModularChangeset): boolean {
 	return (change.constraintViolationCount ?? 0) > 0;
@@ -472,6 +473,22 @@ export function validateChangeset(
 	if (result !== true) {
 		throw new Error(`Malformed changeset: ${result}`);
 	}
+}
+
+export function basicChangeValidation(
+	prefix: string,
+	change: ModularChangeset,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
+): void {
+	basicValidation(prefix, () => isChangesetValid(change, fieldKinds));
+}
+
+export function fullChangeValidation(
+	prefix: string,
+	change: ModularChangeset,
+	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
+): void {
+	fullValidation(prefix, () => isChangesetValid(change, fieldKinds));
 }
 
 export function isChangesetValid(

@@ -9,12 +9,7 @@ import type {
 	IFluidHandle,
 	Listenable,
 } from "@fluidframework/core-interfaces/internal";
-import {
-	assert,
-	unreachableCase,
-	fail,
-	prefixPredicate,
-} from "@fluidframework/core-utils/internal";
+import { assert, unreachableCase, fail } from "@fluidframework/core-utils/internal";
 import type { IIdCompressor, StableId } from "@fluidframework/id-compressor";
 import {
 	type TelemetryLoggerExt,
@@ -1675,8 +1670,7 @@ export class TreeCheckout implements ITreeCheckout {
 			this.#transaction.branch.getHead(),
 			target,
 			target,
-			(prefix, change) =>
-				basicValidation(() => prefixPredicate(prefix, this.changeFamily.validator(change))),
+			(prefix, change) => basicValidation(prefix, () => this.changeFamily.validator(change)),
 		);
 
 		if (rebased.sourceChange === undefined) {
@@ -1835,9 +1829,7 @@ export class TreeCheckout implements ITreeCheckout {
 					this.mintRevisionTag,
 					ignoreNoChangeViolation,
 					(prefix, changeToValidate) =>
-						basicValidation(() =>
-							prefixPredicate(prefix, this.changeFamily.validator(changeToValidate)),
-						),
+						basicValidation(prefix, () => this.changeFamily.validator(changeToValidate)),
 				).change,
 				revisionForInvert,
 			);

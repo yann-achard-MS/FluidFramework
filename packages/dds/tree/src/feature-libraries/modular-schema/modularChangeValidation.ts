@@ -6,6 +6,7 @@
 import {
 	debugAssert,
 	nonProductionConditionalsIncluded,
+	prefixPredicate,
 } from "@fluidframework/core-utils/internal";
 import { UsageError } from "@fluidframework/telemetry-utils/internal";
 
@@ -113,18 +114,28 @@ export const ModularChangeValidation: ModularChangeValidationAlpha = {
 	},
 };
 
-export function basicValidation(predicate: () => true | string): void {
+/**
+ * Runs a debug assertion when the validation level is at least {@link ModularChangeValidationLevel.Basic | basic}.
+ * @param prefix - A string to prepend to the debug assertion message if the assertion fails.
+ * @param predicate - A function that returns `true` if the assertion passes, or an error message if it fails.
+ */
+export function basicValidation(prefix: string, predicate: () => true | string): void {
 	debugAssert(() =>
 		ModularChangeValidation.currentLevel >= ModularChangeValidationLevel.Basic
-			? predicate()
+			? prefixPredicate(prefix, predicate())
 			: true,
 	);
 }
 
-export function fullValidation(predicate: () => true | string): void {
+/**
+ * Runs a debug assertion when the validation level is {@link ModularChangeValidationLevel.Full | full}.
+ * @param prefix - A string to prepend to the debug assertion message if the assertion fails.
+ * @param predicate - A function that returns `true` if the assertion passes, or an error message if it fails.
+ */
+export function fullValidation(prefix: string, predicate: () => true | string): void {
 	debugAssert(() =>
 		ModularChangeValidation.currentLevel === ModularChangeValidationLevel.Full
-			? predicate()
+			? prefixPredicate(prefix, predicate())
 			: true,
 	);
 }

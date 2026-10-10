@@ -3,7 +3,6 @@
  * Licensed under the MIT License.
  */
 
-import { prefixPredicate } from "@fluidframework/core-utils/internal";
 import type { ChangesetLocalId, FieldKindIdentifier, RevisionTag } from "../../core/index.js";
 import { brand, type Mutable } from "../../util/index.js";
 import { setInChangeAtomIdMap, type ChangeAtomIdBTree } from "../changeAtomIdBTree.js";
@@ -16,20 +15,17 @@ import type {
 	NodeId,
 } from "./modularChangeTypes.js";
 import {
+	fullChangeValidation,
 	getChangeHandler,
-	isChangesetValid,
 	nodeChangeFromId,
 	normalizeNodeId,
 } from "./modularChangeUtils.js";
-import { fullValidation } from "./modularChangeValidation.js";
 
 export function pruneChangeset(
 	changeset: ModularChangeset,
 	fieldKinds: ReadonlyMap<FieldKindIdentifier, FlexFieldKind>,
 ): ModularChangeset {
-	fullValidation(() =>
-		prefixPredicate("Malformed prune input", isChangesetValid(changeset, fieldKinds)),
-	);
+	fullChangeValidation("Malformed prune input", changeset, fieldKinds);
 
 	const prunedChangeset: Mutable<ModularChangeset> = {
 		...changeset,
@@ -47,9 +43,7 @@ export function pruneChangeset(
 			fieldKinds,
 		) ?? new Map();
 
-	fullValidation(() =>
-		prefixPredicate("Malformed prune output", isChangesetValid(prunedChangeset, fieldKinds)),
-	);
+	fullChangeValidation("Malformed prune output", prunedChangeset, fieldKinds);
 	return prunedChangeset;
 }
 
