@@ -114,11 +114,11 @@ export const optionalChangeRebaser: FieldChangeRebaser<OptionalChangeset> = {
 		if (overAttach !== undefined) {
 			const movedChangeEntry = nodeManager.getNewChangesForBaseAttach(overAttach, 1).value;
 
-			if (movedChangeEntry?.nodeChange !== undefined) {
+			if (movedChangeEntry.nodeChange !== undefined) {
 				rebased.childChange = movedChangeEntry.nodeChange;
 			}
 
-			if (movedChangeEntry?.detachId !== undefined) {
+			if (movedChangeEntry.detachId !== undefined) {
 				rebased.nodeDetach = movedChangeEntry.detachId;
 				if (newChange.valueReplace !== undefined) {
 					// Now that the rebased change has a node detach,
@@ -389,10 +389,18 @@ export interface OptionalFieldEditor extends FieldEditor<OptionalChangeset> {
 
 	/**
 	 * Creates a change which clears the field's contents (if any).
+	 * This detach intention will not follow the node that may be in the field when rebasing over a change which moves that node elsewhere.
 	 * @param isEmpty - whether the field is empty when creating this change
 	 * @param detachId - the ID to assign to whichever node (if any) is detached from the field when the change applies.
 	 */
 	clear(isEmpty: boolean, detachId: ChangeAtomId): OptionalChangeset;
+
+	/**
+	 * Creates a change which detaches the specific node that is currently in the field.
+	 * This detach intention will follow the node that is in the field when rebasing over a change which moves that node elsewhere.
+	 * @param detachId - the ID to assign to being detached.
+	 */
+	detach(detachId: ChangeAtomId): OptionalChangeset;
 
 	/**
 	 * Creates a change which sets the field's content to the node already in the field.
@@ -404,6 +412,11 @@ export interface OptionalFieldEditor extends FieldEditor<OptionalChangeset> {
 	 * @returns
 	 */
 	pin(pinId: ChangeAtomId, clearId: ChangeAtomId): OptionalChangeset;
+
+	/**
+	 * Creates a changeset which represents the given changes to the child of this editor's field.
+	 */
+	childChange(childChange: NodeId): OptionalChangeset;
 }
 
 export const optionalFieldEditor: OptionalFieldEditor = {
@@ -428,6 +441,10 @@ export const optionalFieldEditor: OptionalFieldEditor = {
 		},
 	}),
 
+	detach: (detachId: ChangeAtomId): OptionalChangeset => ({
+		nodeDetach: detachId,
+	}),
+
 	pin: (pinId: ChangeAtomId, clearId: ChangeAtomId): OptionalChangeset => ({
 		valueReplace: { isEmpty: false, src: pinId, dst: clearId },
 		nodeDetach: pinId,
@@ -445,6 +462,10 @@ export const optionalFieldEditor: OptionalFieldEditor = {
 
 		const childChange = childChanges[0];
 		return childChange === undefined ? {} : { childChange };
+	},
+
+	childChange: (childChange: NodeId): OptionalChangeset => {
+		return { childChange };
 	},
 };
 
@@ -614,7 +635,7 @@ function filterEdits(
 
 		if (detachResult?.action === EditFilterStatus.Remove) {
 			assert(
-				attachId === undefined || attachResult === EditFilterStatus.Remove,
+				attachId === undefined || attachResult?.action === EditFilterStatus.Remove,
 				0xd0e /* Cannot remove detach without also removing attach */,
 			);
 
@@ -622,9 +643,18 @@ function filterEdits(
 			if (detachResult.shouldRemoveChild === true) {
 				delete filtered.childChange;
 			}
-		} else if (attachResult === EditFilterStatus.Remove) {
+		} else if (attachResult?.action === EditFilterStatus.Remove) {
 			filtered.valueReplace = { ...change.valueReplace };
 			delete (filtered.valueReplace as Mutable<Replace>).src;
+		}
+
+		if (
+			!options.preserveOtherEdits &&
+			filtered.valueReplace !== undefined &&
+			filtered.valueReplace.isEmpty &&
+			filtered.valueReplace.src === undefined
+		) {
+			delete filtered.valueReplace;
 		}
 	}
 

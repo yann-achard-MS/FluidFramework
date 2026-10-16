@@ -10,12 +10,7 @@ import {
 } from "../modular-schema/index.js";
 import { MarkListFactory } from "./markListFactory.js";
 import { NoopMarkType, type Changeset, type Mark } from "./types.js";
-import {
-	getAttachedRootId,
-	getDetachedRootId,
-	getDetachOutputCellId,
-	omitMarkEffect,
-} from "./utils.js";
+import { getAttachedRootId, getDetachedRootId, omitMarkEffect } from "./utils.js";
 import { MarkQueueBase } from "./markQueue.js";
 import { unreachableCase } from "@fluidframework/core-utils/internal";
 
@@ -56,9 +51,10 @@ function filterMark(
 			const result = filterAttach(attachId, mark.count);
 
 			let filtered: Mark;
-			switch (result.value) {
+			switch (result.value.action) {
 				case EditFilterStatus.Preserve: {
-					filtered = mark;
+					filtered =
+						result.value.convertFromMove === true ? { ...mark, cellId: attachId } : mark;
 					break;
 				}
 				case EditFilterStatus.Remove: {
@@ -66,7 +62,7 @@ function filterMark(
 					break;
 				}
 				default: {
-					unreachableCase(result.value);
+					unreachableCase(result.value.action);
 				}
 			}
 

@@ -31,14 +31,16 @@ export { FlexFieldKind, type FullSchemaPolicy } from "./fieldKind.js";
 export {
 	type ChildChangeInfo,
 	EditFilterStatus,
+	type FilterAttachFunc,
+	type FilterAttachResult,
 	type FilterDetachFunc,
 	type FilterDetachResult,
-	type FilterAttachFunc,
 	type FieldChangeHandler,
 	type FieldChangeEncodingContext,
 	type FieldChangeDecodingContext,
 	type FieldChangeRebaser,
 	type FieldEditor,
+	type AtomIdAliasAllocator,
 	type NodeChangeComposer,
 	type NodeChangeInverter,
 	type NodeChangeRebaser,
@@ -87,3 +89,4 @@ export type {
 } from "./fieldKindConfiguration.js";
 export { DefaultRevisionReplacer } from "./defaultRevisionReplacer.js";
 export { minimizeModularChangeset } from "./minimizeModularChange.js";
+export { DefaultAtomIdAliasAllocator } from "./defaultAtomIdAliasAllocator.js";
