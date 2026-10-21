@@ -4,6 +4,7 @@
  */
 
 export {
+	changeFormatVersionForMessage,
 	type ITreePrivate,
 	type SharedTreeOptionsInternal,
 	type SharedTreeOptions,

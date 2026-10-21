@@ -187,6 +187,7 @@ import {
 	type SharedTreeOptionsInternal,
 	type TreeTransactor,
 	type SharedTreeChange,
+	changeFormatVersionForMessage,
 } from "../shared-tree/index.js";
 import {
 	type ImplicitFieldSchema,
@@ -865,8 +866,8 @@ export function validateCellOrderConsistency(treeA: ITreePrivate, treeB: ITreePr
 
 	// The aim of these two compose calls is to detect inconsistencies in the cell order within each client's history,
 	// but a failure here may also be caused by some other issue.
-	assert.doesNotThrow(() => mainA.changeFamily.rebaser.compose(historyA));
-	assert.doesNotThrow(() => mainB.changeFamily.rebaser.compose(historyB));
+	mainA.changeFamily.rebaser.compose(historyA);
+	mainB.changeFamily.rebaser.compose(historyB);
 
 	const compressorA = treeA.kernel.idCompressor;
 	const compressorB = treeB.kernel.idCompressor;
@@ -913,19 +914,15 @@ export function validateCellOrderConsistency(treeA: ITreePrivate, treeB: ITreePr
 
 		// The aim of these two rebase calls is to detect inconsistencies in the cell order between the two client's versions of the same commit,
 		// but a failure here may also be caused by some other issue.
-		assert.doesNotThrow(() =>
-			mainA.changeFamily.rebaser.rebase(
-				commitFromAInAFormat,
-				commitFromBInAFormat,
-				revisionMetadataSourceFromInfo([]),
-			),
+		mainA.changeFamily.rebaser.rebase(
+			commitFromAInAFormat,
+			commitFromBInAFormat,
+			revisionMetadataSourceFromInfo([]),
 		);
-		assert.doesNotThrow(() =>
-			mainB.changeFamily.rebaser.rebase(
-				commitFromBInBFormat,
-				commitFromAInBFormat,
-				revisionMetadataSourceFromInfo([]),
-			),
+		mainB.changeFamily.rebaser.rebase(
+			commitFromBInBFormat,
+			commitFromAInBFormat,
+			revisionMetadataSourceFromInfo([]),
 		);
 	}
 }
@@ -947,7 +944,7 @@ function transcodeChange(
 	const destinationCodecs = destination.kernel.getLocalBranch().changeFamily.codecs;
 	const messageFormat = source.kernel.messageCodec.writeVersion;
 	assert(messageFormat !== undefined);
-	const changeFormat = source.kernel.changeFormatVersionForMessage.lookup(messageFormat);
+	const changeFormat = changeFormatVersionForMessage.lookup(messageFormat);
 	const encoder = sourceCodecs.resolve(changeFormat);
 	const encoded = encoder.encode(changeAtSource.change, {
 		originatorId: source.kernel.idCompressor.localSessionId,
