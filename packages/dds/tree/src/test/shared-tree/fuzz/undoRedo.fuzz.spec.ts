@@ -160,6 +160,7 @@ describe("Fuzz - revert", () => {
 				attachingBeforeRehydrateDisable: true,
 			},
 			emitter,
+			skipMinimization: true,
 			saveFailures: {
 				directory: failureDirectory,
 			},
@@ -222,6 +223,7 @@ export function createRevertFirstToLastFuzzSuite(treeFactory: IChannelFactory<IS
 				attachingBeforeRehydrateDisable: true,
 			},
 			emitter,
+			skipMinimization: true,
 			saveFailures: {
 				directory: failureDirectory,
 			},
