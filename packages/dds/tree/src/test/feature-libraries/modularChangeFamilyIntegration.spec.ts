@@ -15,6 +15,7 @@ import {
 	type FieldKey,
 	type FieldKindIdentifier,
 	type NormalizedUpPath,
+	RebaseValidation,
 	type RevisionTag,
 	type TaggedChange,
 	makeAnonChange,
@@ -43,6 +44,11 @@ import {
 } from "../../feature-libraries/index.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import { newGenericChangeset } from "../../feature-libraries/modular-schema/genericFieldKindTypes.js";
+import {
+	relevantRemovedRoots,
+	updateRefreshers,
+	// eslint-disable-next-line import-x/no-internal-modules -- Encoding fixtures need sources for detached roots.
+} from "../../feature-libraries/modular-schema/modularChangeFamily.js";
 import {
 	ModularChangeFamily,
 	intoDelta,
@@ -3013,6 +3019,9 @@ describe("ModularChangeFamily integration", () => {
 								family,
 								maxId: 4,
 								revisions,
+								refreshers: newChangeAtomIdBTree([
+									[[oldRootId.revision, oldRootId.localId], chunkFromJsonTrees(["refresher"])],
+								]),
 								renames: [
 									{
 										oldId: oldRootId,
@@ -3043,6 +3052,7 @@ describe("ModularChangeFamily integration", () => {
 			{
 				family,
 				maxId: 1,
+				refreshers: newChangeAtomIdBTree([[[tag2, brand(0)], chunkFromJsonTrees(["A", "B"])]]),
 				renames: [
 					{
 						oldId: { revision: tag2, localId: brand(0) },
@@ -3148,12 +3158,17 @@ describe("ModularChangeFamily integration", () => {
 		}, tag1).change;
 
 		const oldId: ChangeAtomId = { revision: tag2, localId: brand(0) };
+		const oldIdRefresher = newChangeAtomIdBTree([
+			[[oldId.revision, oldId.localId], chunkFromJsonTrees(["A"])],
+		]);
+
 		const moveOutId: ChangeAtomId = { revision: tag1, localId: brand(0) };
 		const moveInId: ChangeAtomId = { revision: tag1, localId: brand(1) };
 		const reviveAndMoveWithSeparateIds = Change.build(
 			{
 				family,
 				maxId: 1,
+				refreshers: oldIdRefresher,
 				renames: [
 					{
 						oldId,
@@ -3175,6 +3190,7 @@ describe("ModularChangeFamily integration", () => {
 			{
 				family,
 				maxId: 1,
+				refreshers: oldIdRefresher,
 				renames: [
 					{
 						oldId,
@@ -3196,6 +3212,7 @@ describe("ModularChangeFamily integration", () => {
 			{
 				family,
 				maxId: 2,
+				refreshers: oldIdRefresher,
 				renames: [
 					{
 						oldId,
@@ -3218,6 +3235,7 @@ describe("ModularChangeFamily integration", () => {
 			{
 				family,
 				maxId: 2,
+				refreshers: oldIdRefresher,
 				renames: [
 					{
 						oldId,
@@ -3235,6 +3253,7 @@ describe("ModularChangeFamily integration", () => {
 			{
 				family,
 				maxId: 1,
+				refreshers: oldIdRefresher,
 				renames: [
 					{
 						oldId,
@@ -3252,6 +3271,7 @@ describe("ModularChangeFamily integration", () => {
 		const moveDetached = Change.build(
 			{
 				family,
+				refreshers: oldIdRefresher,
 				renames: [
 					{
 						oldId,

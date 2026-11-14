@@ -200,6 +200,45 @@ describe("modularChangeUtils", () => {
 			);
 		});
 
+		it("returns an error for a rename without a source", () => {
+			const change = Change.build({
+				family,
+				renames: [
+					{
+						oldId: { localId: brand(1) },
+						newId: { localId: brand(2) },
+						count: 1,
+						detachLocation: undefined,
+					},
+				],
+			});
+			assert.equal(
+				isChangesetValid(change, fieldKinds),
+				"No build, refresher, or detach found for rename source",
+			);
+		});
+
+		it("propagates errors from the remainder of a rename source range", () => {
+			const change = Change.build(
+				{
+					family,
+					renames: [
+						{
+							oldId: detachId,
+							newId: { localId: brand(3) },
+							count: 2,
+							detachLocation: undefined,
+						},
+					],
+				},
+				Change.field(field, FieldKinds.sequence.identifier, [MarkMaker.detach(1, detachId)]),
+			);
+			assert.equal(
+				isChangesetValid(change, fieldKinds),
+				"No build, refresher, or detach found for rename source",
+			);
+		});
+
 		it("returns an error for an attach without a source", () => {
 			const change = Change.build(
 				{ family },
@@ -213,18 +252,11 @@ describe("modularChangeUtils", () => {
 
 		it("propagates errors from the remainder of an attach range", () => {
 			const change = Change.build(
-				{
-					family,
-					renames: [
-						{
-							oldId: { localId: brand(2) },
-							newId: nodeId,
-							count: 1,
-							detachLocation: undefined,
-						},
-					],
-				},
-				Change.field(field, FieldKinds.sequence.identifier, [MarkMaker.attach(2, nodeId)]),
+				{ family },
+				Change.field(field, FieldKinds.sequence.identifier, [
+					MarkMaker.detach(1, nodeId),
+					MarkMaker.attach(2, nodeId),
+				]),
 			);
 			assert.equal(
 				isChangesetValid(change, fieldKinds),

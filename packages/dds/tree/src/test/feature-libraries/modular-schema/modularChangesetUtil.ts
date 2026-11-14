@@ -347,6 +347,7 @@ interface BuildArgs {
 	maxId?: number;
 	revisions?: RevisionInfo[];
 	builds?: ChangeAtomIdBTree<TreeChunk>;
+	refreshers?: ChangeAtomIdBTree<TreeChunk>;
 	renames?: TestRenameDescription[];
 	roots?: {
 		detachId: ChangeAtomId;
@@ -418,6 +419,10 @@ function build(args: BuildArgs, ...fields: FieldChangesetDescription[]): Modular
 
 	if (args.builds !== undefined) {
 		result.builds = args.builds;
+	}
+
+	if (args.refreshers !== undefined) {
+		result.refreshers = args.refreshers;
 	}
 
 	if (args.renames !== undefined) {

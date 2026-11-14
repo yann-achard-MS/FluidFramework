@@ -461,6 +461,13 @@ export function isChangesetValid(
 		unreachableNodes.delete([normalizedNodeId.revision, normalizedNodeId.localId]);
 	}
 
+	for (const entry of change.rootNodes.oldToNewId.entries()) {
+		const renameResult = validateRename(change, entry.start, entry.length);
+		if (renameResult !== true) {
+			return renameResult;
+		}
+	}
+
 	if (!containsRollbacks(change)) {
 		for (const entry of change.crossFieldKeys.entries()) {
 			if (entry.start.target !== NodeMoveType.Attach) {
@@ -497,34 +504,76 @@ function containsRollbacks(change: ModularChangeset): boolean {
 	return false;
 }
 
-function validateAttach(
+function getRootSource(
 	changeset: ModularChangeset,
-	attachId: ChangeAtomId,
+	rootId: ChangeAtomId,
 	count: number,
-): true | string {
+): RangeQueryResult<{
+	isBuild: boolean;
+	isRefresher: boolean;
+	isDetach: boolean;
+	isRename: boolean;
+}> {
 	let countProcessed = count;
-	const buildEntry = hasBuildForIdRange(changeset.builds, attachId, countProcessed);
+
+	const buildEntry = hasBuildForIdRange(changeset.builds, rootId, countProcessed);
 	countProcessed = buildEntry.length;
-	const refresherEntry = hasBuildForIdRange(changeset.refreshers, attachId, countProcessed);
+
+	const refresherEntry = hasBuildForIdRange(changeset.refreshers, rootId, countProcessed);
 	countProcessed = refresherEntry.length;
 
 	const detachEntry = getDetachFieldForAttach(
 		changeset.crossFieldKeys,
 		changeset.rootNodes,
-		attachId,
+		rootId,
 		count,
 	);
 	countProcessed = detachEntry.length;
 
-	const renameEntry = changeset.rootNodes.newToOldId.getFirst(attachId, countProcessed);
+	const renameEntry = changeset.rootNodes.newToOldId.getFirst(rootId, countProcessed);
 	countProcessed = renameEntry.length;
 
-	if (
-		!buildEntry.value &&
-		!refresherEntry.value &&
-		detachEntry.value === undefined &&
-		renameEntry.value === undefined
-	) {
+	return {
+		value: {
+			isBuild: buildEntry.value,
+			isRefresher: refresherEntry.value,
+			isDetach: detachEntry.value !== undefined,
+			isRename: renameEntry.value !== undefined,
+		},
+		length: countProcessed,
+	};
+}
+
+function validateRename(
+	changeset: ModularChangeset,
+	oldId: ChangeAtomId,
+	count: number,
+): true | string {
+	const { length: countProcessed, value: source } = getRootSource(changeset, oldId, count);
+
+	// Note: we do not check `source.value.rename` because renames are never chained
+	if (!(source.isBuild || source.isRefresher || source.isDetach)) {
+		return "No build, refresher, or detach found for rename source";
+	}
+
+	if (countProcessed < count) {
+		return validateRename(
+			changeset,
+			offsetChangeAtomId(oldId, countProcessed),
+			count - countProcessed,
+		);
+	}
+	return true;
+}
+
+function validateAttach(
+	changeset: ModularChangeset,
+	attachId: ChangeAtomId,
+	count: number,
+): true | string {
+	const { length: countProcessed, value: source } = getRootSource(changeset, attachId, count);
+
+	if (!(source.isBuild || source.isRefresher || source.isDetach || source.isRename)) {
 		return "No build, refresher, detach, or rename found for attach";
 	}
 
