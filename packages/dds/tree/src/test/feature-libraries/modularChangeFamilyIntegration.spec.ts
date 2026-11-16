@@ -30,7 +30,6 @@ import {
 	type EditDescription,
 	genericFieldKind,
 	type EncodedModularChangesetV1,
-	makeModularChangeCodecFamily,
 	DefaultRevisionReplacer,
 	FieldKinds as defaultFieldKinds,
 	fieldKindConfigurations,
@@ -85,6 +84,8 @@ import {
 } from "./modular-schema/modularChangesetUtil.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import { MarkMaker } from "./sequence-field/testEdits.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import { makeModularChangeCodecFamilyWithDetachedRoots } from "./modular-schema/codecTestUtils.js";
 
 const sequenceIdentifier = defaultFieldKinds.sequence.identifier;
 const optionalIdentifier = defaultFieldKinds.optional.identifier;
@@ -102,7 +103,7 @@ const codecOptions = {
 	minVersionForCollab: FluidClientVersion.v2_0,
 };
 
-const codec = makeModularChangeCodecFamily(
+const codec = makeModularChangeCodecFamilyWithDetachedRoots(
 	fieldKindConfigurations,
 	testRevisionTagCodec,
 	fieldBatchCodecBuilder.build(codecOptions),

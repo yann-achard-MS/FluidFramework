@@ -11,6 +11,7 @@ import { BTree } from "@tylerbu/sorted-btree-es6";
 
 import {
 	type CodecWriteOptions,
+	type FormatVersion,
 	currentVersion,
 	type IJsonCodec,
 	makeCodecFamily,
@@ -91,6 +92,8 @@ import {
 } from "../../utils.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import { removeAliases } from "../../../feature-libraries/modular-schema/modularChangeUtils.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import { makeModularChangeCodecV3 } from "../../../feature-libraries/modular-schema/modularChangeCodecV3.js";
 
 import { type ValueChangeset, valueField } from "./basicRebasers.js";
 import {
@@ -182,7 +185,7 @@ const codecOptions: CodecWriteOptions = {
 	minVersionForCollab: currentVersion,
 };
 
-const codec = makeModularChangeCodecFamily(
+const releasedCodecs = makeModularChangeCodecFamily(
 	new Map(
 		[...fieldKindConfigurations.keys()].map((version) => [version, fieldKindConfiguration]),
 	),
@@ -190,6 +193,24 @@ const codec = makeModularChangeCodecFamily(
 	fieldBatchCodecBuilder.build(codecOptions),
 	codecOptions,
 );
+// These tests use custom field kinds, so register the experimental codec with that configuration.
+const codec = makeCodecFamily([
+	...[...releasedCodecs.getSupportedFormats()].map(
+		(version): [FormatVersion, ReturnType<typeof releasedCodecs.resolve>] => [
+			version,
+			releasedCodecs.resolve(version),
+		],
+	),
+	[
+		ModularChangeFormatVersion.vDetachedRoots,
+		makeModularChangeCodecV3(
+			fieldKindConfiguration,
+			testRevisionTagCodec,
+			fieldBatchCodecBuilder.build(codecOptions),
+			codecOptions,
+		),
+	],
+]);
 const family = new ModularChangeFamily(fieldKinds, codec, codecOptions);
 
 const tag1: RevisionTag = mintRevisionTag();

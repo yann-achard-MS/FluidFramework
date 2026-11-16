@@ -68,7 +68,9 @@ interface MessageCodecBuilderOptions<TChangeset> extends ICodecOptions {
 /**
  * Creates a {@link VersionDispatchingCodecBuilder} for encoding/decoding messages.
  */
-export function makeMessageCodecBuilder<TChangeset>(): VersionDispatchingCodecBuilder<
+export function makeMessageCodecBuilder<TChangeset>(
+	includeDetachedRoots = true,
+): VersionDispatchingCodecBuilder<
 	MessageCodecBuilderOptions<TChangeset>,
 	DecodedMessage<TChangeset>,
 	MessageEncodingContext,
@@ -163,7 +165,13 @@ export function makeMessageCodecBuilder<TChangeset>(): VersionDispatchingCodecBu
 		},
 	];
 
-	return VersionDispatchingCodecBuilder.build(messageCodecName, versions);
+	return VersionDispatchingCodecBuilder.build(
+		messageCodecName,
+		versions.filter(
+			(entry) =>
+				includeDetachedRoots || entry.formatVersion !== MessageFormatVersion.vDetachedRoots,
+		),
+	);
 }
 
 export function getCodecTreeForMessageFormatWithChange(

@@ -99,6 +99,11 @@ import {
 } from "../util/index.js";
 
 import type { SchematizingSimpleTreeView } from "./schematizingTreeView.js";
+import type { DetachedRootEditingSupport } from "./detachedRootEditingSupport.js";
+import type {
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Used by TSDoc links.
+	DetachedRootEditing,
+} from "./detachedRootEditing.js";
 import { buildConfiguredForest, type ForestType } from "./forestType.js";
 import type {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Used by TSDoc links.
@@ -290,6 +295,7 @@ export class SharedTreeKernel
 			options,
 			options.treeEncodeType,
 			idCompressor,
+			options.enableDetachedRootEditing,
 		);
 		const changeFamily = makeMitigatedChangeFamily(
 			innerChangeFamily,
@@ -668,11 +674,15 @@ export interface SharedTreeOptions
 	 */
 	readonly enableSharedBranches?: boolean;
 	/**
-	 * Experimental feature flag to enable the ability to edit detached roots.
-	 * @remarks This feature is not yet complete and should not be used in production.
+	 * Enables experimental detached-root changes when set to {@link DetachedRootEditing}.
+	 * @remarks
+	 * Import and pass {@link DetachedRootEditing} to include the required codecs in the application bundle.
+	 * When omitted or `false`, experimental detached-root messages and summaries are rejected on read.
+	 * This feature is not yet complete and should not be used in production.
+	 * Cannot be used with {@link SharedTreeOptions.enableSharedBranches}.
 	 * @defaultValue `false`
 	 */
-	readonly enableDetachedRootEditing?: boolean;
+	readonly enableDetachedRootEditing?: false | DetachedRootEditingSupport;
 	/**
 	 * Returns whether a node / field should be incrementally encoded.
 	 * @remarks

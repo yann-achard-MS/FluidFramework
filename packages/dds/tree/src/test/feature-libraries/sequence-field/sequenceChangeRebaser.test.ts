@@ -31,10 +31,9 @@ import {
 	FieldKinds as defaultFieldKinds,
 	fieldBatchCodecBuilder,
 } from "../../../feature-libraries/index.js";
-import {
-	makeModularChangeCodecFamily,
-	type FieldEditDescription,
-	type NodeId,
+import type {
+	FieldEditDescription,
+	NodeId,
 	// eslint-disable-next-line import-x/no-internal-modules
 } from "../../../feature-libraries/modular-schema/index.js";
 import {
@@ -59,6 +58,8 @@ import { TestChange } from "../../testChange.js";
 import { chunkFromJsonTrees, mintRevisionTag, testRevisionTagCodec } from "../../utils.js";
 // eslint-disable-next-line import-x/no-internal-modules
 import { defaultFieldRebaser } from "../default-field-kinds/defaultChangesetUtil.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import { makeModularChangeCodecFamilyWithDetachedRoots } from "../modular-schema/codecTestUtils.js";
 
 import { ChangeMaker as Change, MarkMaker as Mark } from "./testEdits.js";
 import {
@@ -560,7 +561,7 @@ const codecOptions: CodecWriteOptions = {
 	minVersionForCollab: currentVersion,
 };
 
-const codec = makeModularChangeCodecFamily(
+const codec = makeModularChangeCodecFamilyWithDetachedRoots(
 	fieldKindConfigurations,
 	testRevisionTagCodec,
 	fieldBatchCodecBuilder.build(codecOptions),

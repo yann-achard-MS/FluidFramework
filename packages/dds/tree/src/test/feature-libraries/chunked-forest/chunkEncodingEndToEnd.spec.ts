@@ -64,7 +64,6 @@ import {
 	defaultSchemaPolicy,
 	fieldKindConfigurations,
 	fieldBatchCodecBuilder,
-	makeModularChangeCodecFamily,
 	MockNodeIdentifierManager,
 	jsonableTreeFromCursor,
 	cursorForJsonableTreeNode,
@@ -87,6 +86,8 @@ import {
 import { configuredSharedTree } from "../../../treeFactory.js";
 import { IdDecodingContext, brand } from "../../../util/index.js";
 import { jsonSequenceRootSchema } from "../../sequenceRootUtils.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import { makeModularChangeCodecFamilyWithDetachedRoots } from "../modular-schema/codecTestUtils.js";
 import {
 	MockTreeCheckout,
 	checkoutWithContent,
@@ -180,7 +181,7 @@ describe("End to end chunked encoding", () => {
 		const changeReceiver = (taggedChange: TaggedChange<ModularChangeset>) => {
 			changeLog.push(taggedChange);
 		};
-		const codec = makeModularChangeCodecFamily(
+		const codec = makeModularChangeCodecFamilyWithDetachedRoots(
 			fieldKindConfigurations,
 			revisionTagCodec,
 			fieldBatchCodec,

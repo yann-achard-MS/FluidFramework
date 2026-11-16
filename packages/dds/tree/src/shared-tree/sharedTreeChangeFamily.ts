@@ -6,7 +6,12 @@
 import { assert, fail, skipInProduction } from "@fluidframework/core-utils/internal";
 import type { IIdCompressor } from "@fluidframework/id-compressor";
 
-import type { CodecWriteOptions, ICodecFamily } from "../codec/index.js";
+import {
+	type CodecWriteOptions,
+	type FormatVersion,
+	type ICodecFamily,
+	makeCodecFamily,
+} from "../codec/index.js";
 import {
 	type ChangeEncodingContext,
 	type ChangeDecodingContext,
@@ -24,6 +29,7 @@ import {
 import {
 	type FieldBatchCodec,
 	ModularChangeFamily,
+	ModularChangeFormatVersion,
 	type ModularChangeset,
 	type TreeChunk,
 	type TreeCompressionStrategy,
@@ -43,6 +49,10 @@ import {
 import { makeSharedTreeChangeCodecFamily } from "./sharedTreeChangeCodecs.js";
 import type { SharedTreeChange } from "./sharedTreeChangeTypes.js";
 import { SharedTreeEditBuilder } from "./sharedTreeEditBuilder.js";
+import {
+	getDetachedRootCodecFactory,
+	type DetachedRootEditingSupport,
+} from "./detachedRootEditingSupport.js";
 
 export interface SharedTreeChangeProcessingContext {
 	modularChangeFamily: ModularChangeFamily;
@@ -77,6 +87,7 @@ export class SharedTreeChangeFamily
 		codecOptions: CodecWriteOptions,
 		chunkCompressionStrategy?: TreeCompressionStrategy,
 		private readonly idCompressor?: IIdCompressor,
+		detachedRootEditing?: false | DetachedRootEditingSupport,
 	) {
 		const modularChangeCodec = makeModularChangeCodecFamily(
 			fieldKindConfigurations,
@@ -87,7 +98,26 @@ export class SharedTreeChangeFamily
 		);
 		this.modularChangeFamily = new ModularChangeFamily(
 			fieldKinds,
-			modularChangeCodec,
+			detachedRootEditing === undefined || detachedRootEditing === false
+				? modularChangeCodec
+				: makeCodecFamily([
+						...Array.from(
+							modularChangeCodec.getSupportedFormats(),
+							(version): [FormatVersion, ReturnType<typeof modularChangeCodec.resolve>] => [
+								version,
+								modularChangeCodec.resolve(version),
+							],
+						),
+						[
+							ModularChangeFormatVersion.vDetachedRoots,
+							getDetachedRootCodecFactory(detachedRootEditing)(
+								revisionTagCodec,
+								fieldBatchCodec,
+								codecOptions,
+								chunkCompressionStrategy,
+							),
+						],
+					]),
 			codecOptions,
 		);
 		this.codecs = makeSharedTreeChangeCodecFamily(

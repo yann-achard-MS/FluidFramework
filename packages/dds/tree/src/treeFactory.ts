@@ -229,13 +229,29 @@ export function resolveOptions(options: SharedTreeOptions): SharedTreeOptionsInt
 }
 
 function resolveFormatOptions(options: SharedTreeOptions): SharedTreeOptionsInternal {
-	if (options.enableSharedBranches === true && options.enableDetachedRootEditing === true) {
-		throw new UsageError("enableDetachRootEditing cannot be used with enableSharedBranches.");
+	const detachedRootEditing = options.enableDetachedRootEditing;
+	if (
+		detachedRootEditing !== undefined &&
+		detachedRootEditing !== false &&
+		typeof detachedRootEditing !== "function"
+	) {
+		throw new UsageError(
+			"enableDetachedRootEditing must be false or DetachedRootEditing. Import and pass DetachedRootEditing instead of true.",
+		);
+	}
+	if (
+		options.enableSharedBranches === true &&
+		detachedRootEditing !== undefined &&
+		detachedRootEditing !== false
+	) {
+		throw new UsageError(
+			"enableDetachedRootEditing cannot be used with enableSharedBranches.",
+		);
 	}
 	if (options.enableSharedBranches === true) {
 		return sharedBranchesOptions;
 	}
-	if (options.enableDetachedRootEditing === true) {
+	if (detachedRootEditing !== undefined && detachedRootEditing !== false) {
 		return detachRootEditingOptions;
 	}
 	return {};

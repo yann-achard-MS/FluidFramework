@@ -111,6 +111,8 @@ const forestProviderModuleRules = webpackModuleRules.map((rule) =>
 					loader: "ts-loader",
 					options: {
 						onlyCompileBundledFiles: true,
+						// Preserve unused value imports so webpack, not TypeScript, removes them.
+						compilerOptions: { verbatimModuleSyntax: true },
 					},
 				},
 			}
@@ -201,7 +203,7 @@ const bundleAnalysisConfig = {
 
 // These full emitted-package probes make the analyzer's raw stats exceed Node's maximum string
 // length when included in the main compilation. Build them separately and retain only the module
-// reachability data needed by forestProviderBundles.spec.ts.
+// reachability data needed by the forest and detached-root provider tests.
 const forestProviderProbeConfig = {
 	name: "forest-provider-probes",
 	entry: {
@@ -209,8 +211,22 @@ const forestProviderProbeConfig = {
 		sharedTreeExpensiveDebugForest: "./src/sharedTreeExpensiveDebugForest",
 		sharedTreeOptimizedForest: "./src/sharedTreeOptimizedForest",
 		sharedTreeReferenceForest: "./src/sharedTreeReferenceForest",
+		sharedTreeDetachedRootEditingOmitted: "./src/sharedTreeDetachedRootEditingOmitted",
+		sharedTreeDetachedRootEditingDisabled: "./src/sharedTreeDetachedRootEditingDisabled",
+		sharedTreeDetachedRootEditingEnabled: "./src/sharedTreeDetachedRootEditingEnabled",
+		sharedTreeDetachedRootEditingUnused: "./src/sharedTreeDetachedRootEditingUnused",
+		fluidFrameworkDetachedRootEditingOmitted: "./src/fluidFrameworkDetachedRootEditingOmitted",
+		fluidFrameworkDetachedRootEditingDisabled:
+			"./src/fluidFrameworkDetachedRootEditingDisabled",
+		fluidFrameworkDetachedRootEditingEnabled: "./src/fluidFrameworkDetachedRootEditingEnabled",
+		fluidFrameworkDetachedRootEditingUnused: "./src/fluidFrameworkDetachedRootEditingUnused",
 	},
 	mode: "production",
+	optimization: {
+		// Each probe must be usable without loading another probe's enabled provider.
+		splitChunks: false,
+		runtimeChunk: false,
+	},
 	module: {
 		rules: forestProviderModuleRules,
 	},

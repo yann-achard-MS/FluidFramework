@@ -6,6 +6,7 @@
 import type { FieldKindIdentifier } from "../../core/index.js";
 
 import type { FlexFieldKind } from "./fieldKind.js";
+import type { FieldChangeHandler } from "./fieldChangeHandler.js";
 
 /**
  * Configuration for a single field kind.
@@ -16,6 +17,10 @@ export interface FieldKindConfigurationEntry {
 	 * The format to be used for encoding changesets for this field kind.
 	 */
 	readonly formatVersion: number;
+	/**
+	 * Overrides the field kind's codec factory for this format configuration.
+	 */
+	readonly codecsFactory?: FieldChangeHandler<unknown>["codecsFactory"];
 }
 
 /**

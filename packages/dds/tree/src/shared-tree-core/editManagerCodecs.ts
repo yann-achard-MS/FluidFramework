@@ -53,7 +53,9 @@ interface EditManagerCodecOptions<TChangeset> extends ICodecOptions {
 /**
  * Creates a {@link VersionDispatchingCodecBuilder} encoding for {@link SummaryData}.
  */
-export function makeEditManagerCodecBuilder<TChangeset>(): VersionDispatchingCodecBuilder<
+export function makeEditManagerCodecBuilder<TChangeset>(
+	includeDetachedRoots = true,
+): VersionDispatchingCodecBuilder<
 	EditManagerCodecOptions<TChangeset>,
 	SummaryData<TChangeset>,
 	EditManagerEncodingContext<TChangeset>,
@@ -150,7 +152,14 @@ export function makeEditManagerCodecBuilder<TChangeset>(): VersionDispatchingCod
 		},
 	];
 
-	return VersionDispatchingCodecBuilder.build(editManagerCodecName, versions);
+	return VersionDispatchingCodecBuilder.build(
+		editManagerCodecName,
+		versions.filter(
+			(entry) =>
+				includeDetachedRoots ||
+				entry.formatVersion !== EditManagerFormatVersion.vDetachedRoots,
+		),
+	);
 }
 
 /**

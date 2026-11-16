@@ -351,9 +351,17 @@ export function getFieldChangesetCodecs(
 	FieldKindIdentifier,
 	{ compiledSchema?: SchemaValidationFunction<TSchema>; codec: FieldCodec }
 > {
-	// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-	const getMapEntry = ({ kind, formatVersion }: FieldKindConfigurationEntry) => {
-		const codec = kind.changeHandler.codecsFactory(revisionTagCodec).resolve(formatVersion);
+	const getMapEntry = ({
+		kind,
+		formatVersion,
+		codecsFactory,
+	}: FieldKindConfigurationEntry): {
+		codec: FieldCodec;
+		compiledSchema?: SchemaValidationFunction<TSchema>;
+	} => {
+		const codec = (codecsFactory ?? kind.changeHandler.codecsFactory)(
+			revisionTagCodec,
+		).resolve(formatVersion);
 		return {
 			codec,
 			compiledSchema: codec.encodedSchema

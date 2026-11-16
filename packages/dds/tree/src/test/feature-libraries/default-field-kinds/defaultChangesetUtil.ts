@@ -18,7 +18,6 @@ import {
 	fieldKindConfigurations,
 	fieldKinds,
 	intoDelta,
-	makeModularChangeCodecFamily,
 	ModularChangeFamily,
 	type DefaultChangeset,
 	type ModularChangeset,
@@ -33,6 +32,8 @@ import type { CodecWriteOptions } from "../../../index.js";
 import { ajvValidator } from "../../codec/index.js";
 import type { BoundFieldChangeRebaser } from "../../exhaustiveRebaserUtils.js";
 import { defaultRevInfosFromChanges, testRevisionTagCodec } from "../../utils.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import { makeModularChangeCodecFamilyWithDetachedRoots } from "../modular-schema/codecTestUtils.js";
 import {
 	assertEqual,
 	assertModularChangesetsEqual,
@@ -47,7 +48,7 @@ const codecOptions: CodecWriteOptions = {
 	minVersionForCollab: currentVersion,
 };
 
-const codec = makeModularChangeCodecFamily(
+const codec = makeModularChangeCodecFamilyWithDetachedRoots(
 	fieldKindConfigurations,
 	testRevisionTagCodec,
 	fieldBatchCodecBuilder.build(codecOptions),

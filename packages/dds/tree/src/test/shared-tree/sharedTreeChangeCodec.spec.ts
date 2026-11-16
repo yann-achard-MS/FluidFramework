@@ -42,6 +42,8 @@ import type { Changeset } from "../../feature-libraries/sequence-field/types.js"
 import { makeSharedTreeChangeCodecFamily } from "../../shared-tree/sharedTreeChangeCodecs.js";
 import { brand } from "../../util/index.js";
 import { ajvValidator } from "../codec/index.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import { makeModularChangeCodecFamilyWithDetachedRoots } from "../feature-libraries/modular-schema/codecTestUtils.js";
 import { takeJsonSnapshot, useSnapshotDirectory } from "../snapshots/index.js";
 import { testIdCompressor, testRevisionTagCodec } from "../utils.js";
 
@@ -61,7 +63,7 @@ describe("sharedTreeChangeCodec", () => {
 	};
 
 	it("codec schema snapshot", () => {
-		const modularChangeCodecs = makeModularChangeCodecFamily(
+		const modularChangeCodecs = makeModularChangeCodecFamilyWithDetachedRoots(
 			fieldKindConfigurations,
 			testRevisionTagCodec,
 			failFieldBatchCodec,

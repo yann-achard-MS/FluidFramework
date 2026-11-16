@@ -61,7 +61,6 @@ import {
 	defaultSchemaPolicy,
 	fieldKindConfigurations,
 	fieldBatchCodecBuilder,
-	makeModularChangeCodecFamily,
 } from "../../feature-libraries/index.js";
 import {
 	changeFormatVersionForEditManager,
@@ -84,6 +83,8 @@ import {
 } from "../../shared-tree-core/index.js";
 import { Breakable } from "../../util/index.js";
 import { mockSerializer } from "../mockSerializer.js";
+// eslint-disable-next-line import-x/no-internal-modules
+import { makeModularChangeCodecFamilyWithDetachedRoots } from "../feature-libraries/modular-schema/codecTestUtils.js";
 import { testIdCompressor } from "../utils.js";
 
 export const testCodecOptions: CodecWriteOptions = {
@@ -160,7 +161,7 @@ export function makeTestDefaultChangeFamily(options?: {
 }): DefaultChangeFamily {
 	const codecOptions = options?.codecOptions ?? testCodecOptions;
 	return new DefaultChangeFamily(
-		makeModularChangeCodecFamily(
+		makeModularChangeCodecFamilyWithDetachedRoots(
 			fieldKindConfigurations,
 			new RevisionTagCodec(options?.idCompressor ?? testIdCompressor),
 			fieldBatchCodecBuilder.build(codecOptions),

@@ -50,6 +50,7 @@ export function makeSharedTreeChangeCodecFamily(
 	>,
 	options: CodecWriteOptions,
 ): ICodecFamily<SharedTreeChange, ChangeEncodingContext, ChangeDecodingContext> {
+	const supportedModularFormats = new Set(modularChangeCodecFamily.getSupportedFormats());
 	const versions: [
 		FormatVersion,
 		IJsonCodec<
@@ -58,10 +59,16 @@ export function makeSharedTreeChangeCodecFamily(
 			EncodedSharedTreeChange,
 			ChangeEncodingContext
 		>,
-	][] = [...dependenciesForChangeFormat.entries()].map(([format, { modularChange }]) => [
-		format,
-		makeSharedTreeChangeCodec(modularChangeCodecFamily.resolve(modularChange), options),
-	]);
+	][] = [...dependenciesForChangeFormat.entries()]
+		.filter(
+			([format, { modularChange }]) =>
+				format !== SharedTreeChangeFormatVersion.vDetachedRoots ||
+				supportedModularFormats.has(modularChange),
+		)
+		.map(([format, { modularChange }]) => [
+			format,
+			makeSharedTreeChangeCodec(modularChangeCodecFamily.resolve(modularChange), options),
+		]);
 	return makeCodecFamily(versions);
 }
 

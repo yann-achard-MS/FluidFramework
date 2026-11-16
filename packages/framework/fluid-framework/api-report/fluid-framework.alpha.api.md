@@ -414,6 +414,13 @@ export function defineDataStore<T, TRoot extends IFluidLoadable>(options: DataSt
 export function defineTreeDataStore<const TSchema extends ImplicitFieldSchema>(options: TreeDataStoreOptions<TSchema>): DataStoreKind<TreeView<TSchema>>;
 
 // @alpha
+export const DetachedRootEditing: DetachedRootEditingSupport;
+
+// @alpha @sealed
+export interface DetachedRootEditingSupport extends ErasedType<"DetachedRootEditingSupport"> {
+}
+
+// @alpha
 export interface DirtyTreeMap {
     // (undocumented)
     get(node: TreeNode): DirtyTreeStatus | undefined;
@@ -2241,7 +2248,7 @@ export interface SharedTreeFormatOptions {
 
 // @alpha @input
 export interface SharedTreeOptions extends SharedTreeOptionsBeta, Partial<CodecWriteOptions>, Partial<SharedTreeFormatOptions> {
-    readonly enableDetachedRootEditing?: boolean;
+    readonly enableDetachedRootEditing?: false | DetachedRootEditingSupport;
     readonly enableSharedBranches?: boolean;
     readonly retainHistory?: boolean | number;
     shouldEncodeIncrementally?: IncrementalEncodingPolicy;

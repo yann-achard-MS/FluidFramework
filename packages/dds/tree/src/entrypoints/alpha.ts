@@ -196,6 +196,8 @@ export {
 	Component, 
 	CreateIndependentTreeAlphaOptions, 
 	CustomMetadataTree, 
+	DetachedRootEditing,
+	DetachedRootEditingSupport,
 	DirtyTreeMap, 
 	DirtyTreeStatus, 
 	ErasedNode, 

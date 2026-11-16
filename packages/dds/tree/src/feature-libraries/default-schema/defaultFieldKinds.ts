@@ -137,27 +137,26 @@ export const fieldKindConfigurations: ReadonlyMap<
 			[identifier.identifier, { kind: identifier, formatVersion: 1 }],
 		]),
 	],
-	[
-		ModularChangeFormatVersion.vDetachedRoots,
-		new Map<FieldKindIdentifier, FieldKindConfigurationEntry>([
-			[required.identifier, { kind: required, formatVersion: 3 }],
-			[optional.identifier, { kind: optional, formatVersion: 3 }],
-			[sequence.identifier, { kind: sequence, formatVersion: 3 }],
-			[forbidden.identifier, { kind: forbidden, formatVersion: 1 }],
-			[identifier.identifier, { kind: identifier, formatVersion: 1 }],
-		]),
-	],
 ]);
 
 export function getCodecTreeForModularChangeFormat(
 	version: ModularChangeFormatVersion,
 ): CodecTree {
+	// Experimental dependency metadata must not import its codec provider.
 	const dependencies =
-		fieldKindConfigurations.get(version) ?? fail(0xc7c /* Unknown modular change format */);
+		fieldKindConfigurations.get(
+			version === ModularChangeFormatVersion.vDetachedRoots
+				? ModularChangeFormatVersion.v5
+				: version,
+		) ?? fail(0xc7c /* Unknown modular change format */);
 	const children: CodecTree[] = [...dependencies.entries()].map(
 		([key, { formatVersion }]) => ({
 			name: `FieldKind:${key}`,
-			version: formatVersion,
+			version:
+				version === ModularChangeFormatVersion.vDetachedRoots &&
+				(key === optional.identifier || key === required.identifier)
+					? 3
+					: formatVersion,
 		}),
 	);
 	return {

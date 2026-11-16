@@ -56,10 +56,10 @@ import type { ChangeEnricher } from "./changeEnricher.js";
 import { DefaultResubmitMachine } from "./defaultResubmitMachine.js";
 import { EditManager, minimumPossibleSequenceNumber } from "./editManager.js";
 import { makeEditManagerCodecBuilder } from "./editManagerCodecs.js";
-import type { EditManagerFormatVersion, SeqNumber } from "./editManagerFormatCommons.js";
+import { EditManagerFormatVersion, type SeqNumber } from "./editManagerFormatCommons.js";
 import { EditManagerSummarizer } from "./editManagerSummarizer.js";
 import { type MessageEncodingContext, makeMessageCodecBuilder } from "./messageCodecs.js";
-import type { MessageFormatVersion } from "./messageFormat.js";
+import { MessageFormatVersion } from "./messageFormat.js";
 import type { DecodedMessage } from "./messageTypes.js";
 import type { ResubmitMachine } from "./resubmitMachine.js";
 import {
@@ -210,7 +210,12 @@ export class SharedTreeCore<
 		this.registerSharedBranch("main");
 
 		const revisionTagCodec = new RevisionTagCodec(idCompressor);
-		const editManagerCodec = makeEditManagerCodecBuilder<TChange>().build({
+		const supportedChangeFormats = new Set(changeFamily.codecs.getSupportedFormats());
+		const editManagerCodec = makeEditManagerCodecBuilder<TChange>(
+			supportedChangeFormats.has(
+				changeFormatVersionForEditManager.lookup(EditManagerFormatVersion.vDetachedRoots),
+			),
+		).build({
 			...coreOptions,
 			changeCodecs: this.editManager.changeFamily.codecs,
 			dependentChangeFormatVersion: changeFormatVersionForEditManager,
@@ -234,7 +239,11 @@ export class SharedTreeCore<
 			0x350 /* Index summary element keys must be unique */,
 		);
 
-		this.messageCodec = makeMessageCodecBuilder<TChange>().build({
+		this.messageCodec = makeMessageCodecBuilder<TChange>(
+			supportedChangeFormats.has(
+				changeFormatVersionForMessage.lookup(MessageFormatVersion.vDetachedRoots),
+			),
+		).build({
 			...coreOptions,
 			changeCodecs: changeFamily.codecs,
 			dependentChangeFormatVersion: changeFormatVersionForMessage,

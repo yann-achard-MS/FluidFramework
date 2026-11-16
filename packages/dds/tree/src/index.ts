@@ -41,6 +41,8 @@ export {
 export {
 	type ITreeInternal,
 	type SharedTreeOptions,
+	type DetachedRootEditingSupport,
+	DetachedRootEditing,
 	type SharedTreeOptionsBeta,
 	type ForestType,
 	type SharedTreeFormatOptions,

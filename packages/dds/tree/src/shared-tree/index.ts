@@ -24,6 +24,8 @@ export { type ForestType, buildConfiguredForest } from "./forestType.js";
 export { ForestTypeReference } from "./forestTypeReference.js";
 export { ForestTypeOptimized } from "./forestTypeOptimized.js";
 export { ForestTypeExpensiveDebug } from "./forestTypeExpensiveDebug.js";
+export type { DetachedRootEditingSupport } from "./detachedRootEditingSupport.js";
+export { DetachedRootEditing } from "./detachedRootEditing.js";
 
 export {
 	createTreeCheckout,
